@@ -105,7 +105,41 @@ export default function HistoryPage() {
         </span>
       ),
     },
+    {
+      key: 'actions',
+      title: '',
+      render: (_, row) => (
+        <button
+          onClick={() => handlePrintPdf(row)}
+          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+          title="In phiếu"
+        >
+          🖨️
+        </button>
+      ),
+    },
   ];
+
+  const handlePrintPdf = (transaction) => {
+    const endpoint = transaction.type === 'receipt' 
+      ? `/api/receipts/${transaction.id}/pdf`
+      : `/api/payments/${transaction.id}/pdf`;
+    
+    // Open PDF in new tab
+    const token = localStorage.getItem('token');
+    fetch(endpoint, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      })
+      .catch(err => {
+        console.error('Error generating PDF:', err);
+        alert('Không thể tạo PDF. Vui lòng thử lại.');
+      });
+  };
 
   return (
     <div className="space-y-6">
