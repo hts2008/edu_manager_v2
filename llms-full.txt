@@ -1,0 +1,275 @@
+# Agent_Coding Framework v3.0 - Full Documentation
+
+> Enterprise-grade AI Multi-Agent Development Framework
+> Complete reference for AI agents
+
+---
+
+## 1. OVERVIEW
+
+Agent_Coding is a comprehensive framework that enables multiple AI models 
+(Gemini, Claude, GPT, Grok) to work together as a coordinated Product Development team.
+
+### Problem Solved
+- Token limit causes AI to "forget" project context
+- No coordination between different AI sessions
+- No persistent knowledge across conversations
+
+### Solution
+- Context persistence via Markdown files
+- Structured handover protocols
+- Knowledge base for bugs and lessons learned
+- 19 specialized agent roles
+
+---
+
+## 2. FRAMEWORK STRUCTURE
+
+```
+Agent_Coding/
+├── .agent/                    # Agent System
+│   ├── ORCHESTRATOR.instructions.md
+│   ├── BOOTSTRAP.md
+│   ├── EMERGENCY_RCA.md
+│   ├── agents/               # 19 agent definitions
+│   │   ├── solution_architect.agent.md
+│   │   ├── tech_lead.agent.md
+│   │   ├── fullstack_engineer.agent.md
+│   │   ├── backend_engineer.agent.md
+│   │   ├── frontend_engineer.agent.md
+│   │   ├── api_developer.agent.md
+│   │   ├── database_engineer.agent.md
+│   │   ├── web_developer.agent.md
+│   │   ├── ui_ux_designer.agent.md
+│   │   ├── qa_engineer.agent.md
+│   │   ├── devops_engineer.agent.md
+│   │   ├── project_manager.agent.md
+│   │   ├── security.agent.md
+│   │   ├── performance.agent.md
+│   │   ├── researcher.agent.md
+│   │   ├── brainstormer.agent.md
+│   │   ├── scout.agent.md
+│   │   ├── git_manager.agent.md
+│   │   └── docs_manager.agent.md
+│   ├── workflows/            # 10 workflows
+│   │   ├── 01_session_start.md
+│   │   ├── 02_context_handover.md
+│   │   ├── 03_feature_development.md
+│   │   ├── 04_bug_fix.md
+│   │   ├── 05_code_review.md
+│   │   ├── 06_qa_testing.md
+│   │   ├── 07_deployment.md
+│   │   ├── 08_security_audit.md
+│   │   ├── 09_cook.md
+│   │   └── 10_parallel_execution.md
+│   ├── meta/                 # Meta-programming
+│   │   └── META_SKILL.md
+│   ├── modes/                # Special modes
+│   │   └── ULTRATHINK.md
+│   └── protocols/            # Protocols
+│       └── RESEARCH_FIRST.md
+├── .shared/                   # Shared Resources
+│   ├── context/
+│   ├── knowledge_base/
+│   ├── tech_stacks/
+│   └── ui_ux_patterns/       # 57 styles, 95 palettes, 56 fonts
+├── docs/
+│   └── playbook_vi/          # Vietnamese Playbooks
+│       ├── HUONG_DAN_SU_DUNG.md
+│       ├── COMMAND_REFERENCE.md
+│       ├── 09_META_SYSTEM.md
+│       ├── 10_ULTRATHINK.md
+│       ├── 11_INTERNET_SEARCH.md
+│       ├── 12_VIBE_CODING.md
+│       ├── 13_WORKFLOW_CHAINS.md
+│       └── 14_DAILY_OPERATIONS.md
+├── CLAUDE.md                  # Claude AI instructions
+├── GEMINI.md                  # Gemini AI instructions
+├── COPILOT.md                 # GitHub Copilot instructions
+├── PROJECT_CONTEXT.md         # Current project state
+├── KANBAN.md                  # Task board
+├── README.md                  # Main documentation
+├── llms.txt                   # AI discovery (short)
+└── llms-full.txt              # AI discovery (this file)
+```
+
+---
+
+## 3. 19 SPECIALIZED AGENTS
+
+| Agent | Role | Expertise |
+|-------|------|-----------|
+| Solution Architect | System design | Architecture, tech decisions |
+| Tech Lead | Code quality | Standards, reviews, mentoring |
+| Fullstack Engineer | End-to-end | Full features |
+| Backend Engineer | Server-side | APIs, business logic |
+| Frontend Engineer | Client-side | UI, state management |
+| API Developer | API design | REST, GraphQL, OpenAPI |
+| Database Engineer | Data layer | Schema, optimization |
+| Web Developer | Web basics | HTML, CSS, JS |
+| UI/UX Designer | Design | Design systems, UX |
+| QA Engineer | Testing | Quality assurance |
+| DevOps Engineer | Operations | CI/CD, infrastructure |
+| Project Manager | Management | Planning, tracking |
+| Security | Security | Audits, vulnerabilities |
+| Performance | Optimization | Caching, speed |
+| Researcher | Research | Best practices, libraries |
+| Brainstormer | Ideation | YAGNI, KISS, DRY |
+| Scout | Navigation | File discovery |
+| Git Manager | Version control | Commits, branches |
+| Docs Manager | Documentation | Docs maintenance |
+
+---
+
+## 4. 80+ COMMANDS
+
+### Orchestration
+- `/start-session` - Initialize session
+- `/handover` - Generate handover
+- `/status` - Show status
+- `/kanban` - Display board
+- `/resume` - Resume session
+
+### Agent Delegation
+- `/assign [agent] [task]` - Assign task
+- `/switch [agent]` - Switch role
+
+### Development
+- `/plan [feature]` - Create plan
+- `/code [task]` - Implement
+- `/test [component]` - Generate tests
+- `/debug [issue]` - Debug
+- `/review` - Code review
+
+### v3.0 Cook Commands
+- `/cook [feature]` - Full workflow
+- `/cook:auto [feature]` - Auto implement
+- `/cook:auto:fast [feature]` - Skip research
+
+### v3.0 Fix Commands
+- `/fix:hard [issue]` - Deep fix
+- `/fix:logs` - Fix from logs
+- `/fix:test` - Fix failing tests
+- `/fix:ci [url]` - Fix CI failures
+
+### v3.0 Meta Commands
+- `/meta:skill [name]` - Create skill
+- `/meta:agent [name]` - Create agent
+- `/meta:plugin [name]` - Create plugin
+
+### v3.0 UltraThink
+- `/ultrathink [problem]` - Deep reasoning
+- `/ultrathink:plan [feature]` - Deep planning
+- `/ultrathink:review [code]` - Craftsman review
+
+### v3.0 Research
+- `/search:github [query]` - Search GitHub
+- `/search:stackoverflow [query]` - Search SO
+- `/search:npm [package]` - Search NPM
+- `/search:docs [framework]` - Search docs
+
+### v3.0 Chains
+- `/chain feature [desc]` - Feature chain
+- `/chain fix [bug]` - Fix chain
+- `/chain deploy [env]` - Deploy chain
+
+### v3.0 Quick
+- `/ask [question]` - Q&A
+- `/brainstorm [topic]` - Ideation
+- `/scout [query]` - Find files
+- `/yolo` - Execute without confirm
+
+---
+
+## 5. CONTEXT PERSISTENCE
+
+### Key Files
+- `PROJECT_CONTEXT.md` - Current project state
+- `KANBAN.md` - Task board
+- `.shared/knowledge_base/bugs/` - Bug tracking
+- `.shared/knowledge_base/lessons_learned/` - Lessons
+
+### Session Protocol
+1. Start: `/start-session`
+2. Work: Use agents and commands
+3. End: `/handover`
+
+---
+
+## 6. UI/UX DATABASE
+
+### Styles (57)
+Glassmorphism, Neumorphism, Claymorphism, Aurora, Gradient Wave,
+Brutalism, Minimalist, Dark Mode Pro, Neo-Minimalism, and 48 more.
+
+### Color Palettes (95)
+Organized by industry: SaaS, E-commerce, Healthcare, Fintech,
+Creative, Education, and more.
+
+### Font Pairings (56)
+Modern, Elegant, Playful, Tech/Monospace, Industry-Specific.
+
+### Chart Types (24)
+Bar, Line, Area, Pie, Donut, Scatter, Bubble, Treemap, and more.
+
+---
+
+## 7. v3.0 NEW FEATURES
+
+### Meta-System
+Create new skills, plugins, agents dynamically.
+Reference: `.agent/meta/META_SKILL.md`
+
+### UltraThink Mode
+Deep reasoning before coding.
+6 phases: Question → Obsess → Plan → Craft → Iterate → Simplify
+Reference: `.agent/modes/ULTRATHINK.md`
+
+### Proactive Research
+Search internet before implementing.
+Reference: `.agent/protocols/RESEARCH_FIRST.md`
+
+### Workflow Chains
+Automated command sequences.
+Reference: `docs/playbook_vi/13_WORKFLOW_CHAINS.md`
+
+### Vibe Coding
+Natural language coding methodology.
+Reference: `docs/playbook_vi/12_VIBE_CODING.md`
+
+---
+
+## 8. QUICK START
+
+```
+1. Copy framework to project
+2. Edit PROJECT_CONTEXT.md with project info
+3. Run /start-session in AI IDE
+4. Use /cook [feature] to develop
+5. Run /handover before closing
+```
+
+---
+
+## 9. IDE SUPPORT
+
+| IDE | Instructions |
+|-----|--------------|
+| Claude Code | CLAUDE.md |
+| Gemini/Antigravity | GEMINI.md |
+| VSCode + Copilot | COPILOT.md |
+| Cursor | .cursorrules |
+| Windsurf | .windsurf/rules.md |
+
+---
+
+## 10. VERSION INFO
+
+- **Version**: 3.0
+- **Last Updated**: 2026-01-04
+- **Total Agents**: 19
+- **Total Commands**: 80+
+- **Total Workflows**: 10
+- **UI Styles**: 57
+- **Color Palettes**: 95
+- **Font Pairings**: 56

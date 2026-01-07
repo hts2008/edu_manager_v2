@@ -1,0 +1,70 @@
+# Agent_Coding Framework v3.0
+
+> Enterprise-grade AI Multi-Agent Development Framework
+
+## Overview
+
+Agent_Coding is a comprehensive framework for orchestrating multiple AI agents 
+(Gemini, Claude, GPT, Grok) to work as a cohesive Product Development team.
+
+## Key Features
+
+- 19 Specialized Agents for different roles
+- Context persistence across sessions
+- 80+ Commands for development workflows
+- Meta-System for creating new components
+- UltraThink deep reasoning mode
+- Proactive internet research integration
+- 10 Core workflows
+
+## Documentation
+
+- [Getting Started](README.md)
+- [User Guide (Vietnamese)](docs/playbook_vi/HUONG_DAN_SU_DUNG.md)
+- [Command Reference](docs/playbook_vi/COMMAND_REFERENCE.md)
+- [Full Documentation](llms-full.txt)
+
+## Quick Start
+
+1. Copy framework to your project
+2. Run `/start-session` in your AI IDE
+3. Use `/cook [feature]` to develop features
+
+## Commands
+
+### Orchestration
+- `/start-session` - Initialize session
+- `/handover` - Handover before closing
+- `/status` - Show status
+
+### Development
+- `/cook [feature]` - Full feature workflow
+- `/plan [feature]` - Create plan
+- `/code [task]` - Implement
+- `/test` - Run tests
+
+### v3.0 Features
+- `/ultrathink [problem]` - Deep reasoning
+- `/search:github [query]` - Search GitHub
+- `/meta:skill [name]` - Create skill
+- `/chain feature [desc]` - Workflow chain
+
+## Agents
+
+19 specialized agents including: Solution Architect, Tech Lead, 
+Fullstack, Backend, Frontend, API, Database, Web, UI/UX, QA, 
+DevOps, PM, Security, Performance, Researcher, Brainstormer, 
+Scout, Git Manager, Docs Manager
+
+## Links
+
+- IDE: CLAUDE.md, GEMINI.md, COPILOT.md
+- Context: PROJECT_CONTEXT.md, KANBAN.md
+- Agents: .agent/agents/
+- Workflows: .agent/workflows/
+- Tech Stacks: .shared/tech_stacks/
+- UI/UX: .shared/ui_ux_patterns/
+
+## Version
+
+3.0 | Last Updated: 2026-01-04

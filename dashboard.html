@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📋 EDU MANAGER - Project Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pulse-ring::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse-ring 2s infinite;
+    }
+    .fade-in { animation: fade-in 0.3s ease-out; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    .progress-bar {
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      border-radius: 9999px;
+      height: 8px;
+      transition: width 0.5s ease;
+    }
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .status-dot {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">📋 EDU MANAGER</h1>
+          <p class="text-gray-500">Real-time Project Dashboard</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div id="connectionStatus" class="relative">
+            <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
+              <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+              Connecting...
+            </span>
+          </div>
+          <span id="lastUpdated" class="text-sm text-gray-400"></span>
+          <button onclick="refreshData()" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-5 gap-4 mb-8">
+      <div class="card p-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center text-xl">📊</div>
+          <div>
+            <p class="text-2xl font-bold text-gray-900" id="totalCount">-</p>
+            <p class="text-xs text-gray-500">Total Tasks</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-green-100 rounded-xl flex items-center justify-center text-xl">✅</div>
+          <div>
+            <p class="text-2xl font-bold text-green-600" id="completedCount">-</p>
+            <p class="text-xs text-gray-500">Completed</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-yellow-100 rounded-xl flex items-center justify-center text-xl">🔄</div>
+          <div>
+            <p class="text-2xl font-bold text-yellow-600" id="inProgressCount">-</p>
+            <p class="text-xs text-gray-500">In Progress</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-xl">📝</div>
+          <div>
+            <p class="text-2xl font-bold text-gray-600" id="todoCount">-</p>
+            <p class="text-xs text-gray-500">Todo</p>
+          </div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center text-xl">🐛</div>
+          <div>
+            <p class="text-2xl font-bold text-red-600" id="bugCount">-</p>
+            <p class="text-xs text-gray-500">Bugs</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="card p-6 mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="font-semibold text-gray-900">Overall Progress</h3>
+          <p class="text-sm text-gray-500" id="progressText">Loading...</p>
+        </div>
+        <span id="progressPercent" class="text-3xl font-bold text-primary-600">-%</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+        <div id="progressBar" class="progress-bar h-4" style="width: 0%"></div>
+      </div>
+      <div class="flex justify-between mt-2 text-xs text-gray-400">
+        <span>Foundation</span>
+        <span>CRUD</span>
+        <span>Operations</span>
+        <span>Templates</span>
+        <span>Deploy</span>
+      </div>
+    </div>
+
+    <!-- Phase Cards -->
+    <h2 class="text-xl font-bold text-gray-900 mb-4">📊 Phase Progress</h2>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="phaseCards">
+      <div class="card p-4 loading-skeleton h-24"></div>
+      <div class="card p-4 loading-skeleton h-24"></div>
+      <div class="card p-4 loading-skeleton h-24"></div>
+      <div class="card p-4 loading-skeleton h-24"></div>
+    </div>
+
+    <!-- Kanban Columns -->
+    <h2 class="text-xl font-bold text-gray-900 mb-4">🗂️ Task Board</h2>
+    <div class="grid grid-cols-4 gap-4 mb-8">
+      <!-- Done -->
+      <div class="card p-4">
+        <h3 class="font-semibold text-green-700 mb-4 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+            Done
+          </span>
+          <span id="doneCount" class="text-sm bg-green-100 px-2 py-0.5 rounded-full">0</span>
+        </h3>
+        <div id="doneColumn" class="space-y-2 max-h-96 overflow-y-auto">
+          <div class="loading-skeleton h-16 rounded-lg"></div>
+        </div>
+      </div>
+
+      <!-- In Progress -->
+      <div class="card p-4">
+        <h3 class="font-semibold text-yellow-700 mb-4 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-yellow-500 rounded-full status-dot"></span>
+            In Progress
+          </span>
+          <span id="progressColumnCount" class="text-sm bg-yellow-100 px-2 py-0.5 rounded-full">0</span>
+        </h3>
+        <div id="progressColumn" class="space-y-2 max-h-96 overflow-y-auto">
+          <div class="loading-skeleton h-16 rounded-lg"></div>
+        </div>
+      </div>
+
+      <!-- Todo -->
+      <div class="card p-4">
+        <h3 class="font-semibold text-gray-700 mb-4 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-gray-400 rounded-full"></span>
+            Todo
+          </span>
+          <span id="todoColumnCount" class="text-sm bg-gray-200 px-2 py-0.5 rounded-full">0</span>
+        </h3>
+        <div id="todoColumn" class="space-y-2 max-h-96 overflow-y-auto">
+          <div class="loading-skeleton h-16 rounded-lg"></div>
+        </div>
+      </div>
+
+      <!-- Bugs -->
+      <div class="card p-4">
+        <h3 class="font-semibold text-red-700 mb-4 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+            Bugs
+          </span>
+          <span id="bugColumnCount" class="text-sm bg-red-100 px-2 py-0.5 rounded-full">0</span>
+        </h3>
+        <div id="bugColumn" class="space-y-2 max-h-96 overflow-y-auto">
+          <p class="text-sm text-gray-400 text-center py-8">No bugs! 🎉</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Server & File Status -->
+    <h2 class="text-xl font-bold text-gray-900 mb-4">🖥️ System Status</h2>
+    <div class="grid grid-cols-3 gap-4 mb-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-semibold text-gray-900">Backend API</h4>
+            <p class="text-gray-500 text-sm">http://localhost:5000</p>
+          </div>
+          <span id="backendStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+            Checking...
+          </span>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-semibold text-gray-900">Frontend App</h4>
+            <p class="text-gray-500 text-sm">http://localhost:3000</p>
+          </div>
+          <span id="frontendStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+            Checking...
+          </span>
+        </div>
+      </div>
+      <div class="card p-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-semibold text-gray-900">Task File</h4>
+            <p id="taskFileTime" class="text-gray-500 text-sm">-</p>
+          </div>
+          <span id="taskFileStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-500">
+            -
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta Info -->
+    <div class="card p-4 mb-8 bg-gradient-to-r from-primary-50 to-purple-50">
+      <div class="flex items-center justify-between text-sm">
+        <div class="flex items-center gap-6">
+          <span class="text-gray-600">📁 Data Source: <code class="bg-white px-2 py-0.5 rounded">task.md</code></span>
+          <span class="text-gray-600">🔄 Auto-refresh: <span id="refreshInterval">5s</span></span>
+        </div>
+        <div class="text-gray-500">
+          Login: <code class="bg-white px-2 py-0.5 rounded">admin / admin123</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center text-gray-400 text-sm">
+      <p>EDU MANAGER v1.0 | Real-time KANBAN Dashboard</p>
+    </footer>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api/kanban';
+    let lastData = null;
+    let refreshTimer = null;
+    
+    // Priority colors
+    const priorityColors = {
+      high: 'border-l-4 border-l-red-400',
+      medium: 'border-l-4 border-l-yellow-400',
+      low: 'border-l-4 border-l-gray-300',
+    };
+
+    // Phase status colors
+    const phaseStatusColors = {
+      done: 'bg-green-500',
+      inprogress: 'bg-yellow-500',
+      todo: 'bg-gray-300',
+    };
+
+    // Fetch data from API
+    async function fetchKanbanData() {
+      try {
+        const response = await fetch(API_BASE);
+        const result = await response.json();
+        
+        if (result.success) {
+          updateConnectionStatus(true);
+          return result.data;
+        } else {
+          throw new Error(result.error?.message || 'Unknown error');
+        }
+      } catch (error) {
+        console.error('Failed to fetch kanban data:', error);
+        updateConnectionStatus(false);
+        return null;
+      }
+    }
+
+    // Update connection status indicator
+    function updateConnectionStatus(connected) {
+      const el = document.getElementById('connectionStatus');
+      if (connected) {
+        el.innerHTML = `
+          <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-medium">
+            <span class="relative w-2 h-2 bg-green-500 rounded-full pulse-ring"></span>
+            Connected
+          </span>
+        `;
+      } else {
+        el.innerHTML = `
+          <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700 text-sm font-medium">
+            <span class="w-2 h-2 bg-red-500 rounded-full"></span>
+            Disconnected
+          </span>
+        `;
+      }
+    }
+
+    // Render phase cards
+    function renderPhaseCards(phases) {
+      const container = document.getElementById('phaseCards');
+      
+      if (!phases || phases.length === 0) {
+        container.innerHTML = `<p class="col-span-4 text-center text-gray-400 py-8">No phase data available</p>`;
+        return;
+      }
+      
+      container.innerHTML = phases.map(phase => {
+        let statusClass = 'bg-gray-300';
+        if (phase.progress === 100) statusClass = 'bg-green-500';
+        else if (phase.progress > 0) statusClass = 'bg-yellow-500';
+        
+        return `
+          <div class="card p-4 fade-in">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-medium text-gray-900 text-sm">${phase.name}</span>
+              <span class="text-sm font-bold ${
+                phase.progress === 100 ? 'text-green-600' :
+                phase.progress > 0 ? 'text-yellow-600' : 'text-gray-400'
+              }">${phase.progress}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+              <div class="h-2 rounded-full ${statusClass} transition-all duration-500" style="width: ${phase.progress}%"></div>
+            </div>
+            <p class="text-xs text-gray-400">${phase.totalTasks || '?'} tasks • ${phase.days || '?'} days</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render tasks in a column
+    function renderTasks(containerId, tasks, countId) {
+      const container = document.getElementById(containerId);
+      const countEl = document.getElementById(countId);
+      
+      if (countEl) countEl.textContent = tasks?.length || 0;
+      
+      if (!tasks || tasks.length === 0) {
+        container.innerHTML = `<p class="text-sm text-gray-400 text-center py-4">No tasks</p>`;
+        return;
+      }
+      
+      container.innerHTML = tasks.map(task => `
+        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors ${priorityColors[task.priority] || ''} fade-in">
+          <p class="text-sm font-medium text-gray-900 leading-tight">${task.title}</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-xs text-gray-400">${task.id}</span>
+            <span class="text-xs px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">${task.section}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Update stats
+    function updateStats(summary) {
+      document.getElementById('totalCount').textContent = summary?.total || 0;
+      document.getElementById('completedCount').textContent = summary?.completed || 0;
+      document.getElementById('inProgressCount').textContent = summary?.inProgress || 0;
+      document.getElementById('todoCount').textContent = summary?.todo || 0;
+      document.getElementById('bugCount').textContent = summary?.bugs || 0;
+
+      const progress = summary?.overallProgress || 0;
+      document.getElementById('progressPercent').textContent = progress + '%';
+      document.getElementById('progressBar').style.width = progress + '%';
+      document.getElementById('progressText').textContent = 
+        `${summary?.completed || 0} of ${summary?.total || 0} tasks completed`;
+    }
+
+    // Update meta info
+    function updateMeta(meta) {
+      if (meta?.taskFileModified) {
+        const date = new Date(meta.taskFileModified);
+        document.getElementById('taskFileTime').textContent = date.toLocaleString('vi-VN');
+        document.getElementById('taskFileStatus').className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700';
+        document.getElementById('taskFileStatus').textContent = '✓ Synced';
+      }
+      
+      document.getElementById('lastUpdated').textContent = 
+        'Updated: ' + new Date().toLocaleTimeString('vi-VN');
+    }
+
+    // Check server status
+    async function checkServerStatus() {
+      const backendEl = document.getElementById('backendStatus');
+      const frontendEl = document.getElementById('frontendStatus');
+
+      try {
+        await fetch('http://localhost:5000/api/health');
+        backendEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700';
+        backendEl.textContent = '🟢 Online';
+      } catch {
+        backendEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700';
+        backendEl.textContent = '🔴 Offline';
+      }
+
+      try {
+        await fetch('http://localhost:3000/', { method: 'HEAD', mode: 'no-cors' });
+        frontendEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700';
+        frontendEl.textContent = '🟢 Online';
+      } catch {
+        frontendEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700';
+        frontendEl.textContent = '🔴 Offline';
+      }
+    }
+
+    // Main refresh function
+    async function refreshData() {
+      const data = await fetchKanbanData();
+      
+      if (data) {
+        updateStats(data.summary);
+        renderPhaseCards(data.phases);
+        renderTasks('doneColumn', data.tasks?.done, 'doneCount');
+        renderTasks('progressColumn', data.tasks?.inProgress, 'progressColumnCount');
+        renderTasks('todoColumn', data.tasks?.todo, 'todoColumnCount');
+        updateMeta(data.meta);
+        
+        // Bugs column
+        if (data.bugs && data.bugs.length > 0) {
+          renderTasks('bugColumn', data.bugs, 'bugColumnCount');
+        } else {
+          document.getElementById('bugColumn').innerHTML = 
+            `<p class="text-sm text-gray-400 text-center py-8">No bugs! 🎉</p>`;
+          document.getElementById('bugColumnCount').textContent = '0';
+        }
+        
+        lastData = data;
+      }
+      
+      await checkServerStatus();
+    }
+
+    // Initialize
+    async function init() {
+      await refreshData();
+      
+      // Auto-refresh every 5 seconds
+      refreshTimer = setInterval(refreshData, 5000);
+    }
+
+    init();
+  </script>
+</body>
+</html>

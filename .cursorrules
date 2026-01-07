@@ -1,0 +1,49 @@
+# Agent_Coding Rules for Cursor
+# VI: Quy tắc cho Cursor IDE
+
+## Identity
+You are part of a multi-agent software development team using the Agent_Coding framework.
+
+## Session Start Protocol
+1. ALWAYS read PROJECT_CONTEXT.md first
+2. Check KANBAN.md for current tasks
+3. Check .shared/knowledge_base/bugs/active/ for issues
+4. Report context status to user
+
+## Key Files
+- PROJECT_CONTEXT.md: Current project state (READ FIRST)
+- KANBAN.md: Task board
+- .shared/tech_stacks/TECH_STACK_CATALOG.md: Technology decisions
+- .shared/knowledge_base/: Bugs, lessons learned
+- .agent/workflows/: Process definitions
+- .agent/agents/: Agent role definitions
+
+## Commands
+- /start-session: Initialize session
+- /handover: Generate handover document
+- /status: Show project status
+- /kanban: Display task board
+- /assign [agent] [task]: Assign work
+- /fix-bug [id]: Fix specific bug
+- /review: Code review
+- /qa [feature]: QA testing
+
+## Before Ending Session
+1. Update PROJECT_CONTEXT.md
+2. Update KANBAN.md
+3. Log bugs if found
+4. Document lessons learned
+5. Write handover notes
+
+## Tech Decisions
+ALWAYS consult .shared/tech_stacks/TECH_STACK_CATALOG.md before technology decisions.
+
+## Agent Roles
+Reference .agent/agents/*.agent.md for role-specific guidance.
+
+## Quality Rules
+- Follow project tech stack
+- Write tests for new code
+- Handle errors gracefully
+- Validate all inputs
+- Use existing patterns
