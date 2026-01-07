@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { templatesService } from '../services/api';
+import { useToast } from '../components/ui/Toast';
 
 // VI: Template Designer với Fabric.js canvas
 export default function TemplateDesignerPage() {
@@ -15,6 +16,7 @@ export default function TemplateDesignerPage() {
   const [zoom, setZoom] = useState(100);
   const [showGrid, setShowGrid] = useState(true);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   // Paper size presets in mm
   const paperSizes = {
@@ -102,6 +104,21 @@ export default function TemplateDesignerPage() {
     if (showGrid) {
       drawGrid(canvas, width, height);
     }
+
+    // Keyboard handler for Delete key
+    const handleKeyDown = (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const activeObj = canvas.getActiveObject();
+        if (activeObj && !activeObj.isEditing) {
+          canvas.remove(activeObj);
+          canvas.renderAll();
+          setSelectedObject(null);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   };
 
   const drawGrid = (canvas, width, height) => {
@@ -257,8 +274,36 @@ export default function TemplateDesignerPage() {
     setSaving(false);
     
     if (response.success) {
-      alert('Đã lưu mẫu thành công!');
+      toast.success('Đã lưu mẫu thành công!');
+    } else {
+      toast.error('Không thể lưu mẫu. Vui lòng thử lại.');
     }
+  };
+
+  // Toggle bold
+  const toggleBold = () => {
+    if (!selectedObject || selectedObject.type !== 'textbox') return;
+    const newWeight = selectedObject.fontWeight === 'bold' ? 'normal' : 'bold';
+    selectedObject.set('fontWeight', newWeight);
+    fabricRef.current?.renderAll();
+    setSelectedObject({ ...selectedObject });
+  };
+
+  // Toggle italic
+  const toggleItalic = () => {
+    if (!selectedObject || selectedObject.type !== 'textbox') return;
+    const newStyle = selectedObject.fontStyle === 'italic' ? 'normal' : 'italic';
+    selectedObject.set('fontStyle', newStyle);
+    fabricRef.current?.renderAll();
+    setSelectedObject({ ...selectedObject });
+  };
+
+  // Set text alignment
+  const setTextAlign = (align) => {
+    if (!selectedObject || selectedObject.type !== 'textbox') return;
+    selectedObject.set('textAlign', align);
+    fabricRef.current?.renderAll();
+    setSelectedObject({ ...selectedObject });
   };
 
   // Binding fields available
@@ -408,6 +453,49 @@ export default function TemplateDesignerPage() {
                       }}
                       className="w-full h-10 rounded cursor-pointer"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-2">Kiểu chữ</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={toggleBold}
+                        className={`flex-1 p-2 rounded-lg font-bold ${
+                          selectedObject.fontWeight === 'bold' 
+                            ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        B
+                      </button>
+                      <button
+                        onClick={toggleItalic}
+                        className={`flex-1 p-2 rounded-lg italic ${
+                          selectedObject.fontStyle === 'italic' 
+                            ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                      >
+                        I
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-2">Căn lề</label>
+                    <div className="flex gap-1">
+                      {['left', 'center', 'right'].map(align => (
+                        <button
+                          key={align}
+                          onClick={() => setTextAlign(align)}
+                          className={`flex-1 p-2 rounded-lg ${
+                            selectedObject.textAlign === align 
+                              ? 'bg-primary-100 text-primary-700 border border-primary-300' 
+                              : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        >
+                          {align === 'left' ? '←' : align === 'center' ? '↔' : '→'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}

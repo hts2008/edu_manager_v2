@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { studentsService, classesService, receiptsService, attendanceService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
+import { useToast } from '../components/ui/Toast';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     loadReceipts();
@@ -20,6 +22,27 @@ export default function ReceiptsPage() {
       setReceipts(response.data.receipts || []);
     }
     setLoading(false);
+  };
+
+  const handlePrintPdf = (receiptId) => {
+    const token = localStorage.getItem('token');
+    fetch(`/api/receipts/${receiptId}/pdf`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      })
+      .catch(() => {
+        toast.error('Không thể tạo PDF. Vui lòng thử lại.');
+      });
+  };
+
+  const handleSuccess = (receiptId) => {
+    setShowForm(false);
+    loadReceipts();
+    toast.success(`Đã tạo phiếu thu ${receiptId} thành công!`);
   };
 
   const columns = [
@@ -70,6 +93,19 @@ export default function ReceiptsPage() {
       title: 'Ngày tạo',
       render: (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '-',
     },
+    {
+      key: 'actions',
+      title: '',
+      render: (_, row) => (
+        <button
+          onClick={() => handlePrintPdf(row.id)}
+          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+          title="In PDF"
+        >
+          🖨️
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -101,7 +137,7 @@ export default function ReceiptsPage() {
         size="lg"
       >
         <ReceiptForm
-          onSuccess={() => { setShowForm(false); loadReceipts(); }}
+          onSuccess={handleSuccess}
           onCancel={() => setShowForm(false)}
         />
       </Modal>
@@ -192,7 +228,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
     });
 
     if (response.success) {
-      onSuccess();
+      onSuccess(response.data?.id || '');
     } else {
       setError(response.error?.message || 'Không thể tạo phiếu thu');
     }

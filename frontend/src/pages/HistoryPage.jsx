@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { receiptsService, paymentsService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
+import Modal from '../components/ui/Modal';
 import { exportTransactions } from '../utils/excelExport';
+import { useToast } from '../components/ui/Toast';
+import { useAuth } from '../context/AuthContext';
 
 // VI: Trang lịch sử giao dịch thu/chi
 export default function HistoryPage() {
@@ -12,6 +15,9 @@ export default function HistoryPage() {
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0],
   });
+  const [deleteModal, setDeleteModal] = useState({ open: false, item: null });
+  const toast = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadTransactions();
@@ -110,13 +116,24 @@ export default function HistoryPage() {
       key: 'actions',
       title: '',
       render: (_, row) => (
-        <button
-          onClick={() => handlePrintPdf(row)}
-          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-          title="In phiếu"
-        >
-          🖨️
-        </button>
+        <div className="flex gap-1">
+          <button
+            onClick={() => handlePrintPdf(row)}
+            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            title="In phiếu"
+          >
+            🖨️
+          </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setDeleteModal({ open: true, item: row })}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Xóa"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -126,7 +143,6 @@ export default function HistoryPage() {
       ? `/api/receipts/${transaction.id}/pdf`
       : `/api/payments/${transaction.id}/pdf`;
     
-    // Open PDF in new tab
     const token = localStorage.getItem('token');
     fetch(endpoint, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -136,10 +152,25 @@ export default function HistoryPage() {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
       })
-      .catch(err => {
-        console.error('Error generating PDF:', err);
-        alert('Không thể tạo PDF. Vui lòng thử lại.');
+      .catch(() => {
+        toast.error('Không thể tạo PDF. Vui lòng thử lại.');
       });
+  };
+
+  const handleDelete = async () => {
+    const item = deleteModal.item;
+    if (!item) return;
+    
+    const service = item.type === 'receipt' ? receiptsService : paymentsService;
+    const res = await service.delete(item.id);
+    
+    if (res.success) {
+      toast.success(`Đã xóa ${item.type === 'receipt' ? 'phiếu thu' : 'phiếu chi'} ${item.id}`);
+      loadTransactions();
+    } else {
+      toast.error(res.error?.message || 'Không thể xóa');
+    }
+    setDeleteModal({ open: false, item: null });
   };
 
   return (
@@ -231,6 +262,34 @@ export default function HistoryPage() {
         loading={loading}
         emptyMessage="Chưa có giao dịch nào"
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, item: null })}
+        title="Xác nhận xóa"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Bạn có chắc muốn xóa {deleteModal.item?.type === 'receipt' ? 'phiếu thu' : 'phiếu chi'}{' '}
+            <strong>{deleteModal.item?.id}</strong>?
+          </p>
+          <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+            ⚠️ Hành động này không thể hoàn tác!
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setDeleteModal({ open: false, item: null })}
+              className="btn-secondary"
+            >
+              Hủy
+            </button>
+            <button onClick={handleDelete} className="btn-danger">
+              Xóa
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
