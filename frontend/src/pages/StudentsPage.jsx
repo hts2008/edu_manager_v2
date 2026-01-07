@@ -175,7 +175,7 @@ export default function StudentsPage() {
   );
 }
 
-// Student Form Component
+// Student Form Component with Class Enrollment
 function StudentForm({ student, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     full_name: student?.full_name || '',
@@ -189,10 +189,45 @@ function StudentForm({ student, onSuccess, onCancel }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [classes, setClasses] = useState([]);
+  const [selectedClasses, setSelectedClasses] = useState([]);
+  const [enrolledClasses, setEnrolledClasses] = useState([]);
+
+  useEffect(() => {
+    loadClasses();
+    if (student?.id) {
+      loadEnrolledClasses();
+    }
+  }, [student]);
+
+  const loadClasses = async () => {
+    const { classesService } = await import('../services/api');
+    const res = await classesService.getAll();
+    if (res.success) {
+      setClasses(res.data.classes || []);
+    }
+  };
+
+  const loadEnrolledClasses = async () => {
+    const { studentsService } = await import('../services/api');
+    const res = await studentsService.getById(student.id);
+    if (res.success && res.data.classes) {
+      setEnrolledClasses(res.data.classes);
+      setSelectedClasses(res.data.classes.map(c => c.class_id || c.id));
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleClassToggle = (classId) => {
+    setSelectedClasses(prev => 
+      prev.includes(classId) 
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId]
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -207,8 +242,8 @@ function StudentForm({ student, onSuccess, onCancel }) {
     setLoading(true);
     try {
       const response = student
-        ? await studentsService.update(student.id, formData)
-        : await studentsService.create(formData);
+        ? await studentsService.update(student.id, { ...formData, class_ids: selectedClasses })
+        : await studentsService.create({ ...formData, class_ids: selectedClasses });
 
       if (response.success) {
         onSuccess();
@@ -301,6 +336,38 @@ function StudentForm({ student, onSuccess, onCancel }) {
         />
       </div>
 
+      {/* Class Enrollment Section */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          📚 Lớp học đăng ký
+        </label>
+        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-lg">
+          {classes.length === 0 ? (
+            <p className="text-sm text-gray-500 col-span-2">Chưa có lớp học nào</p>
+          ) : classes.map(c => (
+            <label key={c.id} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded-lg">
+              <input
+                type="checkbox"
+                checked={selectedClasses.includes(c.id)}
+                onChange={() => handleClassToggle(c.id)}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{c.class_name}</p>
+                <p className="text-xs text-gray-500">
+                  {new Intl.NumberFormat('vi-VN').format(c.fee_per_day)}đ/buổi
+                </p>
+              </div>
+            </label>
+          ))}
+        </div>
+        {selectedClasses.length > 0 && (
+          <p className="text-xs text-green-600 mt-1">
+            ✓ Đã chọn {selectedClasses.length} lớp
+          </p>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Ghi chú
@@ -310,7 +377,7 @@ function StudentForm({ student, onSuccess, onCancel }) {
           value={formData.notes}
           onChange={handleChange}
           className="input"
-          rows={3}
+          rows={2}
           placeholder="Ghi chú thêm về học viên..."
         />
       </div>
@@ -341,3 +408,4 @@ function StudentForm({ student, onSuccess, onCancel }) {
     </form>
   );
 }
+
