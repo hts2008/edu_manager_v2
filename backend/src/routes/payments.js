@@ -63,4 +63,53 @@ router.delete('/:id', adminOnly, (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/payments/:id/pdf - Generate PDF for payment
+router.get('/:id/pdf', async (req, res, next) => {
+  try {
+    const { generatePdf, numberToWords } = await import('../services/pdfService.js');
+    
+    const payment = queryOne('SELECT * FROM payments WHERE id = ?', [req.params.id]);
+    if (!payment) throw new AppError('Payment not found', 404);
+    
+    // Get template
+    let template = null;
+    if (payment.template_id) {
+      template = queryOne('SELECT * FROM templates WHERE id = ?', [payment.template_id]);
+    }
+    if (!template) {
+      template = queryOne('SELECT * FROM templates WHERE type = ? AND is_default = 1', ['payment']);
+    }
+    if (!template) {
+      template = { type: 'payment', paper_size: 'a4', orientation: 'portrait', json_config: '{}' };
+    }
+    
+    // Prepare data for PDF
+    const categoryLabels = {
+      salary: 'Lương giáo viên',
+      utility: 'Điện nước',
+      office: 'Văn phòng phẩm',
+      other: 'Chi phí khác',
+    };
+    
+    const data = {
+      payment_id: payment.id,
+      payment_date: new Date(payment.created_at).toLocaleDateString('vi-VN'),
+      category: categoryLabels[payment.category] || payment.category,
+      recipient_name: payment.recipient_name,
+      recipient_phone: payment.recipient_phone || 'N/A',
+      amount: payment.amount,
+      total_amount: payment.amount,
+      amount_in_words: numberToWords(payment.amount),
+      notes: payment.notes || '',
+      center_name: 'Trung tâm dạy thêm',
+    };
+    
+    const pdfBuffer = await generatePdf(template, data);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${payment.id}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) { next(error); }
+});
+
 export default router;

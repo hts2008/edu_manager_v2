@@ -72,4 +72,61 @@ router.delete('/:id', adminOnly, (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/receipts/:id/pdf - Generate PDF for receipt
+router.get('/:id/pdf', async (req, res, next) => {
+  try {
+    const { generatePdf, numberToWords } = await import('../services/pdfService.js');
+    
+    const receipt = queryOne(`
+      SELECT r.*, s.full_name as student_name, s.date_of_birth, 
+             p.full_name as parent_name, p.phone as parent_phone,
+             c.class_name, c.fee_per_day as class_fee
+      FROM receipts r
+      JOIN students s ON r.student_id = s.id
+      LEFT JOIN parents p ON s.parent_id = p.id
+      LEFT JOIN student_classes sc ON s.id = sc.student_id
+      LEFT JOIN classes c ON sc.class_id = c.id
+      WHERE r.id = ?
+    `, [req.params.id]);
+    
+    if (!receipt) throw new AppError('Receipt not found', 404);
+    
+    // Get template
+    let template = null;
+    if (receipt.template_id) {
+      template = queryOne('SELECT * FROM templates WHERE id = ?', [receipt.template_id]);
+    }
+    if (!template) {
+      template = queryOne('SELECT * FROM templates WHERE type = ? AND is_default = 1', ['receipt']);
+    }
+    if (!template) {
+      template = { type: 'receipt', paper_size: 'a4', orientation: 'portrait', json_config: '{}' };
+    }
+    
+    // Prepare data for PDF
+    const data = {
+      receipt_id: receipt.id,
+      receipt_date: new Date(receipt.created_at).toLocaleDateString('vi-VN'),
+      month: receipt.month,
+      student_name: receipt.student_name,
+      class_name: receipt.class_name || 'N/A',
+      days_count: receipt.days_count,
+      fee_per_day: receipt.fee_per_day,
+      total_amount: receipt.amount,
+      amount_in_words: numberToWords(receipt.amount),
+      payment_method: receipt.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản',
+      parent_name: receipt.parent_name || 'N/A',
+      parent_phone: receipt.parent_phone || 'N/A',
+      notes: receipt.notes || 'Học phí',
+      center_name: 'Trung tâm dạy thêm',
+    };
+    
+    const pdfBuffer = await generatePdf(template, data);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${receipt.id}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) { next(error); }
+});
+
 export default router;
