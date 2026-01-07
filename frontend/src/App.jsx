@@ -15,6 +15,7 @@ import TeachersPage from './pages/TeachersPage';
 import AttendancePage from './pages/AttendancePage';
 import ReceiptsPage from './pages/ReceiptsPage';
 import PaymentsPage from './pages/PaymentsPage';
+import FeeCollectionPage from './pages/FeeCollectionPage';
 import HistoryPage from './pages/HistoryPage';
 import ReportsPage from './pages/ReportsPage';
 import TemplatesPage from './pages/TemplatesPage';
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="receipts" element={<ReceiptsPage />} />
             <Route path="payments" element={<PaymentsPage />} />
+            <Route path="fee-collection" element={<FeeCollectionPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="templates" element={<TemplatesPage />} />
             <Route path="reports" element={<ReportsPage />} />

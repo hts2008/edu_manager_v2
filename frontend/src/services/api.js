@@ -172,3 +172,31 @@ export const reportsService = {
   getUnpaidStudents: (month) => 
     request(`/reports/unpaid-students${month ? `?month=${month}` : ''}`),
 };
+
+// Attendance Periods API (SAP Timesheet-style)
+export const attendancePeriodsService = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/attendance-periods${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => request(`/attendance-periods/${id}`),
+  create: (data) => request('/attendance-periods', { method: 'POST', body: JSON.stringify(data) }),
+  submit: (id) => request(`/attendance-periods/${id}/submit`, { method: 'POST' }),
+  approve: (id) => request(`/attendance-periods/${id}/approve`, { method: 'POST' }),
+  lock: (id) => request(`/attendance-periods/${id}/lock`, { method: 'POST' }),
+  unlock: (id) => request(`/attendance-periods/${id}/unlock`, { method: 'POST' }),
+};
+
+// Monthly Fees API (Fee Collection with Status)
+export const monthlyFeesService = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/monthly-fees${query ? `?${query}` : ''}`);
+  },
+  getById: (id) => request(`/monthly-fees/${id}`),
+  calculate: (data) => request('/monthly-fees/calculate', { method: 'POST', body: JSON.stringify(data) }),
+  confirm: (id) => request(`/monthly-fees/${id}/confirm`, { method: 'POST' }),
+  pay: (id, data) => request(`/monthly-fees/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+  cancel: (id) => request(`/monthly-fees/${id}/cancel`, { method: 'POST' }),
+};
+
