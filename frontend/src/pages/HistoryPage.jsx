@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { receiptsService, paymentsService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
+import { exportTransactions } from '../utils/excelExport';
 
 // VI: Trang lịch sử giao dịch thu/chi
 export default function HistoryPage() {
@@ -143,9 +144,18 @@ export default function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Lịch sử giao dịch</h1>
-        <p className="text-gray-500">Theo dõi các khoản thu/chi của trung tâm</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Lịch sử giao dịch</h1>
+          <p className="text-gray-500">Theo dõi các khoản thu/chi của trung tâm</p>
+        </div>
+        <button
+          onClick={() => exportTransactions(transactions)}
+          disabled={transactions.length === 0}
+          className="btn-secondary"
+        >
+          📄 Xuất Excel
+        </button>
       </div>
 
       {/* Summary Cards */}
