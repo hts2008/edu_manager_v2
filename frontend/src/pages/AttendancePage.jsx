@@ -3,7 +3,7 @@ import { classesService, attendanceService, attendancePeriodsService } from '../
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 
-// VI: Điểm danh kiểu SAP Timesheet với calendar grid
+// VI: Điểm danh kiểu SAP Timesheet - Hiển thị 3 tháng, chọn tuần để điểm danh
 
 const PERIOD_STATUS = {
   open: { label: 'Đang mở', color: 'bg-green-100 text-green-700', icon: '🟢' },
@@ -25,79 +25,131 @@ const STATUS_LABELS = {
   absent_no_fee: 'Nghỉ không phép'
 };
 
+// Calendar Legend colors matching SAP style
+const LEGEND = [
+  { status: 'complete', label: 'Đã điểm danh', color: 'bg-green-500' },
+  { status: 'incomplete', label: 'Chưa hoàn thành', color: 'bg-yellow-500' },
+  { status: 'empty', label: 'Chưa điểm danh', color: 'bg-gray-200' },
+  { status: 'locked', label: 'Đã chốt', color: 'bg-blue-500' },
+  { status: 'today', label: 'Hôm nay', color: 'border-2 border-primary-600' },
+];
+
 export default function AttendancePage() {
-  const [activeTab, setActiveTab] = useState('calendar'); // calendar, periods
+  const [activeTab, setActiveTab] = useState('calendar');
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedWeek, setSelectedWeek] = useState(null); // { start: Date, end: Date }
   const [students, setStudents] = useState([]);
-  const [attendance, setAttendance] = useState({}); // { studentId: { 'YYYY-MM-DD': status } }
-  const [period, setPeriod] = useState(null);
-  const [periods, setPeriods] = useState([]);
+  const [attendance, setAttendance] = useState({});
+  const [periods, setPeriods] = useState({});
+  const [classSchedule, setClassSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [classSchedule, setClassSchedule] = useState(null);
   const toast = useToast();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
-  // Generate schedule dates for the month based on class schedule_days
-  const scheduleDates = useMemo(() => {
-    if (!classSchedule || !selectedMonth) return [];
-    
-    try {
-      const dates = [];
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const daysInMonth = new Date(year, month, 0).getDate();
-      
-      // schedule_days can be:
-      // - Array of numbers: [1, 3, 5] where 0=Sun, 1=Mon, etc
-      // - Array of strings: ["monday", "wednesday", "friday"]
-      // - JSON string of either format
-      let scheduleDays = classSchedule.schedule_days || [];
-      
-      if (typeof scheduleDays === 'string') {
-        try {
-          scheduleDays = JSON.parse(scheduleDays);
-        } catch {
-          scheduleDays = [];
-        }
-      }
-      
-      if (!Array.isArray(scheduleDays)) {
-        scheduleDays = [];
-      }
-      
-      const dayMap = {
-        sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-        thursday: 4, friday: 5, saturday: 6
+  // Get today and calculate 3 months to display
+  const today = new Date();
+  const baseMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  // Generate 3 months: previous, current, next
+  const threeMonths = useMemo(() => {
+    return [-1, 0, 1].map(offset => {
+      const d = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + offset, 1);
+      return {
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       };
-      
-      // Convert to array of day numbers (0-6)
-      const allowedDays = scheduleDays.map(d => {
-        if (typeof d === 'number') return d;
-        if (typeof d === 'string') return dayMap[d.toLowerCase()] ?? -1;
-        return -1;
-      }).filter(d => d >= 0 && d <= 6);
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        if (allowedDays.length === 0 || allowedDays.includes(date.getDay())) {
-          dates.push({
-            date: date.toISOString().split('T')[0],
-            dayOfWeek: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
-            dayNum: day
-          });
-        }
-      }
-      
-      return dates;
-    } catch (error) {
-      console.error('Error calculating schedule dates:', error);
-      return [];
-    }
-  }, [classSchedule, selectedMonth]);
+    });
+  }, [baseMonth]);
 
-  // Calculate fee summary per student
+  // Generate calendar grids for each month
+  const generateMonthCalendar = (year, month, scheduleDays = []) => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startWeekday = firstDay.getDay(); // 0 = Sunday
+
+    const weeks = [];
+    let currentWeek = [];
+
+    // Fill empty days at start
+    for (let i = 0; i < startWeekday; i++) {
+      currentWeek.push(null);
+    }
+
+    // Fill days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const isScheduleDay = scheduleDays.length === 0 || scheduleDays.includes(date.getDay());
+      currentWeek.push({
+        day,
+        date,
+        dateStr: date.toISOString().split('T')[0],
+        isScheduleDay,
+        isToday: date.toDateString() === today.toDateString(),
+        weekday: date.getDay()
+      });
+
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+
+    // Fill empty days at end
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null);
+      }
+      weeks.push(currentWeek);
+    }
+
+    return weeks;
+  };
+
+  // Get schedule days as numbers
+  const scheduleDayNumbers = useMemo(() => {
+    if (!classSchedule?.schedule_days) return [];
+    let days = classSchedule.schedule_days;
+    if (typeof days === 'string') {
+      try { days = JSON.parse(days); } catch { days = []; }
+    }
+    if (!Array.isArray(days)) return [];
+    return days.map(d => typeof d === 'number' ? d : ({ sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }[String(d).toLowerCase()] ?? -1)).filter(d => d >= 0);
+  }, [classSchedule]);
+
+  // Calculate fee per session (monthly fee / sessions per month)
+  const feePerSession = useMemo(() => {
+    if (!classSchedule?.fee_per_day || scheduleDayNumbers.length === 0) return 0;
+    // fee_per_day is actually MONTHLY fee, divide by approximate sessions per month
+    // Average: 4.33 weeks per month
+    const sessionsPerMonth = scheduleDayNumbers.length * 4.33;
+    return Math.round(classSchedule.fee_per_day / sessionsPerMonth);
+  }, [classSchedule, scheduleDayNumbers]);
+
+  // Generate week dates for selected week
+  const weekDates = useMemo(() => {
+    if (!selectedWeek) return [];
+    const dates = [];
+    const current = new Date(selectedWeek.start);
+    while (current <= selectedWeek.end) {
+      const isScheduleDay = scheduleDayNumbers.length === 0 || scheduleDayNumbers.includes(current.getDay());
+      if (isScheduleDay) {
+        dates.push({
+          date: new Date(current),
+          dateStr: current.toISOString().split('T')[0],
+          dayOfWeek: current.toLocaleDateString('vi-VN', { weekday: 'short' }),
+          dayNum: current.getDate()
+        });
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return dates;
+  }, [selectedWeek, scheduleDayNumbers]);
+
+  // Calculate fee summary per student for selected week
   const feeSummary = useMemo(() => {
     const summary = {};
     students.forEach(student => {
@@ -105,30 +157,29 @@ export default function AttendancePage() {
       let presentDays = 0;
       let absentWithFee = 0;
       let absentNoFee = 0;
-      
-      scheduleDates.forEach(({ date }) => {
-        const status = studentAtt[date];
+
+      weekDates.forEach(({ dateStr }) => {
+        const status = studentAtt[dateStr];
         if (status === 'present') presentDays++;
         else if (status === 'absent_with_fee') absentWithFee++;
         else if (status === 'absent_no_fee') absentNoFee++;
       });
-      
-      const feePerDay = student.fee_per_day_snapshot || classSchedule?.fee_per_day || 0;
-      const totalDays = presentDays + absentWithFee; // Nghỉ có phép vẫn tính phí
-      
+
+      const totalDays = presentDays + absentWithFee;
+      const fee = totalDays * feePerSession;
+
       summary[student.id] = {
         presentDays,
         absentWithFee,
         absentNoFee,
         totalDays,
-        totalSessions: scheduleDates.length,
-        fee: totalDays * feePerDay
+        totalSessions: weekDates.length,
+        fee
       };
     });
     return summary;
-  }, [students, attendance, scheduleDates, classSchedule]);
+  }, [students, attendance, weekDates, feePerSession]);
 
-  // Total projected fee
   const totalFee = useMemo(() => {
     return Object.values(feeSummary).reduce((sum, s) => sum + s.fee, 0);
   }, [feeSummary]);
@@ -138,16 +189,16 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
-    if (selectedClass && selectedMonth) {
+    if (selectedClass) {
       loadClassData();
     }
-  }, [selectedClass, selectedMonth]);
+  }, [selectedClass]);
 
   useEffect(() => {
-    if (activeTab === 'periods') {
-      loadAllPeriods();
+    if (selectedClass && selectedWeek) {
+      loadWeekAttendance();
     }
-  }, [activeTab, selectedMonth]);
+  }, [selectedClass, selectedWeek]);
 
   const loadClasses = async () => {
     const response = await classesService.getAll();
@@ -158,95 +209,88 @@ export default function AttendancePage() {
 
   const loadClassData = async () => {
     setLoading(true);
-    
-    // Load class details including schedule and students
     const classRes = await classesService.getById(selectedClass);
     if (classRes.success) {
       setClassSchedule(classRes.data);
-      const classStudents = classRes.data.students || [];
-      setStudents(classStudents);
-      
-      // Load existing attendance for this month
-      const [year, month] = selectedMonth.split('-');
-      const startDate = `${selectedMonth}-01`;
-      const endDate = `${selectedMonth}-31`;
-      
-      const attRes = await attendanceService.getByDate(startDate, selectedClass);
-      // We need to load all attendance for the month
-      const allAttendance = {};
-      
-      // Try to get attendance for each date in scheduleDates
-      classStudents.forEach(s => {
-        allAttendance[s.id] = {};
-      });
-      
-      // Load attendance period
-      const periodRes = await attendancePeriodsService.getAll({ 
-        class_id: selectedClass, 
-        month: selectedMonth 
-      });
-      if (periodRes.success && periodRes.data.periods?.length > 0) {
-        setPeriod(periodRes.data.periods[0]);
-      } else {
-        setPeriod(null);
-      }
-      
-      // Fetch attendance data for this class and month
-      // Note: We need a bulk endpoint, for now simulate with API
-      try {
-        const res = await fetch(`/api/attendance/month?class_id=${selectedClass}&month=${selectedMonth}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      setStudents(classRes.data.students || []);
+
+      // Load periods for all 3 months
+      const periodsMap = {};
+      for (const m of threeMonths) {
+        const periodRes = await attendancePeriodsService.getAll({
+          class_id: selectedClass,
+          month: m.key
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.data.attendance) {
-            data.data.attendance.forEach(a => {
-              if (!allAttendance[a.student_id]) allAttendance[a.student_id] = {};
-              allAttendance[a.student_id][a.attendance_date] = a.status;
-            });
-          }
+        if (periodRes.success && periodRes.data.periods?.length > 0) {
+          periodsMap[m.key] = periodRes.data.periods[0];
         }
-      } catch (e) {
-        // API might not exist yet
       }
-      
-      setAttendance(allAttendance);
+      setPeriods(periodsMap);
     }
     setLoading(false);
   };
 
-  const loadAllPeriods = async () => {
-    setLoading(true);
-    const res = await attendancePeriodsService.getAll({ month: selectedMonth });
-    if (res.success) {
-      setPeriods(res.data.periods || []);
-    }
-    setLoading(false);
+  const loadWeekAttendance = async () => {
+    if (!selectedWeek) return;
+
+    const allAttendance = {};
+    students.forEach(s => { allAttendance[s.id] = {}; });
+
+    // Load attendance for the week's month
+    const month = selectedWeek.start.toISOString().slice(0, 7);
+    try {
+      const res = await fetch(`/api/attendance/month?class_id=${selectedClass}&month=${month}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data.attendance) {
+          data.data.attendance.forEach(a => {
+            if (!allAttendance[a.student_id]) allAttendance[a.student_id] = {};
+            allAttendance[a.student_id][a.attendance_date] = a.status;
+          });
+        }
+      }
+    } catch (e) {}
+
+    setAttendance(allAttendance);
   };
 
-  const handleCellClick = (studentId, date) => {
+  const handleWeekClick = (weekStart, weekEnd) => {
+    setSelectedWeek({ start: weekStart, end: weekEnd });
+  };
+
+  const handleCellClick = (studentId, dateStr) => {
+    const monthKey = dateStr.slice(0, 7);
+    const period = periods[monthKey];
     if (period?.status === 'locked') {
       toast.error('Không thể sửa điểm danh đã chốt');
       return;
     }
-    
-    // Cycle through statuses
-    const currentStatus = attendance[studentId]?.[date] || 'empty';
+
+    const currentStatus = attendance[studentId]?.[dateStr] || 'empty';
     const currentIdx = STATUS_CYCLE.indexOf(currentStatus);
-    const nextStatus = currentIdx === -1 ? STATUS_CYCLE[0] : 
-                       currentIdx === STATUS_CYCLE.length - 1 ? null : 
+    const nextStatus = currentIdx === -1 ? STATUS_CYCLE[0] :
+                       currentIdx === STATUS_CYCLE.length - 1 ? null :
                        STATUS_CYCLE[currentIdx + 1];
-    
+
     setAttendance(prev => ({
       ...prev,
       [studentId]: {
         ...prev[studentId],
-        [date]: nextStatus
+        [dateStr]: nextStatus
       }
     }));
   };
 
   const handleSave = async () => {
+    if (!selectedWeek) {
+      toast.error('Vui lòng chọn tuần để lưu');
+      return;
+    }
+
+    const monthKey = selectedWeek.start.toISOString().slice(0, 7);
+    const period = periods[monthKey];
     if (period?.status === 'locked') {
       toast.error('Không thể sửa điểm danh đã chốt');
       return;
@@ -256,23 +300,22 @@ export default function AttendancePage() {
 
     // Ensure period exists
     if (!period) {
-      await attendancePeriodsService.create({ 
-        class_id: selectedClass, 
-        month: selectedMonth 
+      await attendancePeriodsService.create({
+        class_id: selectedClass,
+        month: monthKey
       });
     }
 
-    // Prepare bulk attendance records
     const records = [];
     students.forEach(student => {
       const studentAtt = attendance[student.id] || {};
-      scheduleDates.forEach(({ date }) => {
-        const status = studentAtt[date];
+      weekDates.forEach(({ dateStr }) => {
+        const status = studentAtt[dateStr];
         if (status && STATUS_CYCLE.includes(status)) {
           records.push({
             student_id: student.id,
             class_id: selectedClass,
-            attendance_date: date,
+            attendance_date: dateStr,
             status
           });
         }
@@ -280,65 +323,35 @@ export default function AttendancePage() {
     });
 
     const response = await attendanceService.bulkCreate(records);
-    
+
     if (response.success) {
       toast.success(`Đã lưu ${records.length} bản ghi điểm danh`);
       await loadClassData();
+      await loadWeekAttendance();
     } else {
       toast.error(response.error?.message || 'Không thể lưu điểm danh');
     }
     setSaving(false);
   };
 
-  const handleSubmit = async (periodId) => {
-    const res = await attendancePeriodsService.submit(periodId || period?.id);
+  const handleLock = async (monthKey) => {
+    const period = periods[monthKey];
+    if (!period) {
+      toast.error('Chưa có dữ liệu điểm danh cho tháng này');
+      return;
+    }
+    const res = await attendancePeriodsService.lock(period.id);
     if (res.success) {
-      toast.success('Đã gửi điểm danh để duyệt');
-      loadAllPeriods();
+      toast.success('Đã chốt điểm danh tháng ' + monthKey);
       loadClassData();
     } else {
       toast.error(res.error?.message || 'Lỗi');
     }
   };
 
-  const handleApprove = async (periodId) => {
-    const res = await attendancePeriodsService.approve(periodId);
-    if (res.success) {
-      toast.success('Đã duyệt điểm danh');
-      loadAllPeriods();
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || 'Lỗi');
-    }
-  };
-
-  const handleLock = async (periodId) => {
-    const res = await attendancePeriodsService.lock(periodId || period?.id);
-    if (res.success) {
-      toast.success('Đã chốt điểm danh và tạo phí học');
-      loadAllPeriods();
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || 'Lỗi');
-    }
-  };
-
-  const handleUnlock = async (periodId) => {
-    const res = await attendancePeriodsService.unlock(periodId);
-    if (res.success) {
-      toast.success('Đã mở lại điểm danh');
-      loadAllPeriods();
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || 'Lỗi');
-    }
-  };
-
-  // Navigate months
-  const navigateMonth = (delta) => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month - 1 + delta, 1);
-    setSelectedMonth(date.toISOString().slice(0, 7));
+  // Month header with Vietnamese name
+  const formatMonthName = (year, month) => {
+    return new Date(year, month).toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
   };
 
   return (
@@ -347,365 +360,270 @@ export default function AttendancePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">📋 Điểm danh</h1>
-          <p className="text-gray-500">Điểm danh theo lịch học - Giống SAP Timesheet</p>
+          <p className="text-gray-500">Điểm danh theo tuần - Giống SAP Timesheet</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === 'calendar'
-              ? 'border-primary-600 text-primary-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          📅 Điểm danh theo lịch
-        </button>
-        <button
-          onClick={() => setActiveTab('periods')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === 'periods'
-              ? 'border-primary-600 text-primary-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          🔒 Quản lý chốt tháng
-        </button>
+      {/* Class Selector */}
+      <div className="card">
+        <div className="card-body">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 max-w-sm">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp</label>
+              <select
+                value={selectedClass}
+                onChange={(e) => { setSelectedClass(e.target.value); setSelectedWeek(null); }}
+                className="input"
+              >
+                <option value="">-- Chọn lớp --</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.id}>{c.class_name}</option>
+                ))}
+              </select>
+            </div>
+            {classSchedule && (
+              <div className="text-sm text-gray-600">
+                <p><strong>Học phí tháng:</strong> {new Intl.NumberFormat('vi-VN').format(classSchedule.fee_per_day)}đ</p>
+                <p><strong>Học phí/buổi:</strong> {new Intl.NumberFormat('vi-VN').format(feePerSession)}đ</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {activeTab === 'calendar' && (
+      {loading ? (
+        <div className="card">
+          <div className="card-body text-center py-12">
+            <div className="spinner w-8 h-8 mx-auto mb-4"></div>
+            <p className="text-gray-500">Đang tải...</p>
+          </div>
+        </div>
+      ) : !selectedClass ? (
+        <div className="card">
+          <div className="card-body text-center py-12 text-gray-500">
+            Vui lòng chọn lớp học để xem lịch điểm danh
+          </div>
+        </div>
+      ) : (
         <>
-          {/* Filters */}
+          {/* 3-Month Calendar Grid - SAP Style */}
           <div className="card">
             <div className="card-body">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex-1 min-w-48">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Chọn lớp</label>
-                  <select
-                    value={selectedClass}
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">-- Chọn lớp --</option>
-                    {classes.map(c => (
-                      <option key={c.id} value={c.id}>{c.class_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Month Navigator */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tháng</label>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => navigateMonth(-1)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      ◀
-                    </button>
-                    <input
-                      type="month"
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="input w-auto"
-                    />
-                    <button 
-                      onClick={() => navigateMonth(1)}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      ▶
-                    </button>
-                  </div>
-                </div>
-
-                {/* Period Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
-                  <div className="flex items-center gap-2">
-                    {period ? (
-                      <span className={`px-3 py-2 rounded-lg text-sm font-medium ${PERIOD_STATUS[period.status]?.color}`}>
-                        {PERIOD_STATUS[period.status]?.icon} {PERIOD_STATUS[period.status]?.label}
-                      </span>
-                    ) : (
-                      <span className="px-3 py-2 rounded-lg text-sm bg-gray-100 text-gray-500">
-                        Chưa có dữ liệu
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-end gap-2">
-                  <button
-                    onClick={handleSave}
-                    disabled={!selectedClass || students.length === 0 || saving || period?.status === 'locked'}
-                    className="btn-primary"
-                  >
-                    {saving ? 'Đang lưu...' : '💾 Lưu điểm danh'}
-                  </button>
-                  {period && period.status === 'open' && (
-                    <button
-                      onClick={() => handleSubmit()}
-                      className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
-                    >
-                      📤 Nộp duyệt
-                    </button>
-                  )}
-                  {period && period.status === 'approved' && isAdmin() && (
-                    <button
-                      onClick={() => handleLock()}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                    >
-                      🔒 Chốt tháng
-                    </button>
-                  )}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">📅 Lịch điểm danh - Chọn tuần</h3>
+                <div className="flex gap-4 text-xs">
+                  {LEGEND.map(l => (
+                    <div key={l.status} className="flex items-center gap-1">
+                      <div className={`w-4 h-4 rounded ${l.color}`}></div>
+                      <span>{l.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Legend */}
-          {selectedClass && (
-            <div className="flex items-center gap-4 text-sm">
-              <span className="flex items-center gap-1">
-                <span className="text-lg">{STATUS_ICONS.present}</span> Có mặt
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-lg">{STATUS_ICONS.absent_with_fee}</span> Nghỉ có phép (tính phí)
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-lg">{STATUS_ICONS.absent_no_fee}</span> Nghỉ không phép
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-lg">{STATUS_ICONS.empty}</span> Chưa điểm danh
-              </span>
-            </div>
-          )}
+              <div className="grid grid-cols-3 gap-6">
+                {threeMonths.map(({ year, month, key }) => {
+                  const calendar = generateMonthCalendar(year, month, scheduleDayNumbers);
+                  const period = periods[key];
 
-          {/* Calendar Grid */}
-          {loading ? (
-            <div className="card">
-              <div className="card-body text-center py-12">
-                <div className="spinner w-8 h-8 mx-auto mb-4"></div>
-                <p className="text-gray-500">Đang tải...</p>
-              </div>
-            </div>
-          ) : !selectedClass ? (
-            <div className="card">
-              <div className="card-body text-center py-12 text-gray-500">
-                Vui lòng chọn lớp học
-              </div>
-            </div>
-          ) : students.length === 0 ? (
-            <div className="card">
-              <div className="card-body text-center py-12 text-gray-500">
-                Lớp học chưa có học viên
-              </div>
-            </div>
-          ) : (
-            <div className="card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">
-                        Học viên
-                      </th>
-                      {scheduleDates.map(({ date, dayOfWeek, dayNum }) => (
-                        <th key={date} className="px-2 py-2 text-center text-xs font-medium text-gray-600 min-w-[50px]">
-                          <div>{dayOfWeek}</div>
-                          <div className="font-bold">{dayNum}</div>
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-blue-50">
-                        Buổi học
-                      </th>
-                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-700 bg-green-50">
-                        Tiền dự thu
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map((student, idx) => {
-                      const summary = feeSummary[student.id] || {};
-                      return (
-                        <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3 sticky left-0 bg-inherit z-10">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">
-                                {student.full_name?.charAt(0)}
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900 text-sm">{student.full_name}</p>
-                                <p className="text-xs text-gray-500">{student.id}</p>
-                              </div>
-                            </div>
-                          </td>
-                          {scheduleDates.map(({ date }) => {
-                            const status = attendance[student.id]?.[date];
-                            const isPast = new Date(date) <= new Date();
+                  return (
+                    <div key={key} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-gray-800">{formatMonthName(year, month)}</h4>
+                        {period && (
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${PERIOD_STATUS[period.status]?.color}`}>
+                            {PERIOD_STATUS[period.status]?.label}
+                          </span>
+                        )}
+                      </div>
+                      <table className="w-full text-center text-sm">
+                        <thead>
+                          <tr className="text-gray-500 text-xs">
+                            <th className="py-1">CN</th>
+                            <th className="py-1">T2</th>
+                            <th className="py-1">T3</th>
+                            <th className="py-1">T4</th>
+                            <th className="py-1">T5</th>
+                            <th className="py-1">T6</th>
+                            <th className="py-1">T7</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {calendar.map((week, wi) => {
+                            const weekStart = week.find(d => d)?.date;
+                            const weekEnd = [...week].reverse().find(d => d)?.date;
+                            const isSelected = selectedWeek &&
+                              weekStart?.toDateString() === selectedWeek.start.toDateString();
+
                             return (
-                              <td 
-                                key={date} 
-                                className="px-2 py-2 text-center"
+                              <tr
+                                key={wi}
+                                onClick={() => weekStart && weekEnd && handleWeekClick(weekStart, weekEnd)}
+                                className={`cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-primary-100' : ''}`}
                               >
-                                <button
-                                  onClick={() => handleCellClick(student.id, date)}
-                                  disabled={period?.status === 'locked'}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition-all
-                                    ${status === 'present' ? 'bg-green-100 hover:bg-green-200' :
-                                      status === 'absent_with_fee' ? 'bg-yellow-100 hover:bg-yellow-200' :
-                                      status === 'absent_no_fee' ? 'bg-red-100 hover:bg-red-200' :
-                                      isPast ? 'bg-gray-100 hover:bg-gray-200' : 'bg-gray-50 hover:bg-gray-100'}
-                                    ${period?.status === 'locked' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-                                  `}
-                                  title={status ? STATUS_LABELS[status] : 'Click để điểm danh'}
-                                >
-                                  {status ? STATUS_ICONS[status] : STATUS_ICONS.empty}
-                                </button>
-                              </td>
+                                {week.map((d, di) => (
+                                  <td key={di} className="py-1">
+                                    {d ? (
+                                      <div className={`w-7 h-7 mx-auto rounded flex items-center justify-center text-xs
+                                        ${d.isToday ? 'border-2 border-primary-600 font-bold' : ''}
+                                        ${d.isScheduleDay ? 'bg-blue-50 text-blue-700' : 'text-gray-400'}
+                                        ${isSelected ? 'bg-primary-200' : ''}
+                                      `}>
+                                        {d.day}
+                                      </div>
+                                    ) : (
+                                      <div className="w-7 h-7"></div>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
                             );
                           })}
-                          <td className="px-4 py-3 text-center bg-blue-50">
-                            <span className="font-medium">
-                              {summary.totalDays || 0}/{summary.totalSessions || 0}
-                            </span>
+                        </tbody>
+                      </table>
+
+                      {/* Period actions */}
+                      {isAdmin() && period && period.status !== 'locked' && (
+                        <div className="mt-2 pt-2 border-t">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleLock(key); }}
+                            className="w-full py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                          >
+                            🔒 Chốt tháng {month + 1}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Week Timesheet - SAP Style */}
+          {selectedWeek && (
+            <div className="card">
+              <div className="card-body">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      📝 Điểm danh tuần: {selectedWeek.start.toLocaleDateString('vi-VN')} - {selectedWeek.end.toLocaleDateString('vi-VN')}
+                    </h3>
+                    <p className="text-sm text-gray-500">Click vào ô để thay đổi trạng thái</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex gap-2 text-sm">
+                      {STATUS_CYCLE.map(s => (
+                        <span key={s} className="flex items-center gap-1">
+                          <span className="text-lg">{STATUS_ICONS[s]}</span>
+                          <span>{STATUS_LABELS[s]}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || students.length === 0}
+                      className="btn-primary"
+                    >
+                      {saving ? 'Đang lưu...' : '💾 Lưu điểm danh'}
+                    </button>
+                  </div>
+                </div>
+
+                {weekDates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Tuần này không có buổi học theo lịch
+                  </div>
+                ) : students.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Lớp học chưa có học viên
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b">
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">
+                            Học viên
+                          </th>
+                          {weekDates.map(({ dateStr, dayOfWeek, dayNum }) => (
+                            <th key={dateStr} className="px-3 py-2 text-center text-xs font-medium text-gray-600 min-w-[60px]">
+                              <div>{dayOfWeek}</div>
+                              <div className="font-bold">{dayNum}</div>
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-blue-50">
+                            Buổi
+                          </th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-gray-700 bg-green-50">
+                            Tiền
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {students.map((student, idx) => {
+                          const summary = feeSummary[student.id] || {};
+                          return (
+                            <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-4 py-3 sticky left-0 bg-inherit z-10">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-xs font-medium text-primary-700">
+                                    {student.full_name?.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">{student.full_name}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              {weekDates.map(({ dateStr }) => {
+                                const status = attendance[student.id]?.[dateStr];
+                                return (
+                                  <td key={dateStr} className="px-2 py-2 text-center">
+                                    <button
+                                      onClick={() => handleCellClick(student.id, dateStr)}
+                                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all cursor-pointer
+                                        ${status === 'present' ? 'bg-green-100 hover:bg-green-200' :
+                                          status === 'absent_with_fee' ? 'bg-yellow-100 hover:bg-yellow-200' :
+                                          status === 'absent_no_fee' ? 'bg-red-100 hover:bg-red-200' :
+                                          'bg-gray-100 hover:bg-gray-200'}
+                                      `}
+                                      title={status ? STATUS_LABELS[status] : 'Click để điểm danh'}
+                                    >
+                                      {status ? STATUS_ICONS[status] : STATUS_ICONS.empty}
+                                    </button>
+                                  </td>
+                                );
+                              })}
+                              <td className="px-4 py-3 text-center bg-blue-50 font-medium">
+                                {summary.totalDays || 0}/{summary.totalSessions || 0}
+                              </td>
+                              <td className="px-4 py-3 text-right bg-green-50 font-medium text-green-700">
+                                {new Intl.NumberFormat('vi-VN').format(summary.fee || 0)}đ
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-gray-100 font-bold">
+                          <td className="px-4 py-3 sticky left-0 bg-gray-100">TỔNG CỘNG</td>
+                          <td colSpan={weekDates.length} className="text-center text-sm">
+                            {weekDates.length} buổi trong tuần
                           </td>
-                          <td className="px-4 py-3 text-right bg-green-50">
-                            <span className="font-medium text-green-700">
-                              {new Intl.NumberFormat('vi-VN').format(summary.fee || 0)}đ
-                            </span>
+                          <td className="px-4 py-3 text-center bg-blue-100">
+                            {Object.values(feeSummary).reduce((sum, s) => sum + (s.totalDays || 0), 0)}
+                          </td>
+                          <td className="px-4 py-3 text-right bg-green-100 text-green-800">
+                            {new Intl.NumberFormat('vi-VN').format(totalFee)}đ
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-100 font-bold">
-                      <td className="px-4 py-3 sticky left-0 bg-gray-100">
-                        TỔNG CỘNG
-                      </td>
-                      <td 
-                        colSpan={scheduleDates.length} 
-                        className="px-4 py-3 text-center text-sm text-gray-600"
-                      >
-                        {scheduleDates.length} buổi học trong tháng
-                      </td>
-                      <td className="px-4 py-3 text-center bg-blue-100">
-                        {Object.values(feeSummary).reduce((sum, s) => sum + (s.totalDays || 0), 0)} buổi
-                      </td>
-                      <td className="px-4 py-3 text-right bg-green-100">
-                        <span className="text-green-800">
-                          {new Intl.NumberFormat('vi-VN').format(totalFee)}đ
-                        </span>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {activeTab === 'periods' && (
-        <>
-          {/* Month Filter */}
-          <div className="flex items-center gap-4">
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="input w-auto"
-            />
-          </div>
-
-          {/* Periods List */}
-          <div className="card">
-            <div className="overflow-hidden">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Lớp</th>
-                    <th>Tháng</th>
-                    <th>Số buổi</th>
-                    <th>Có mặt</th>
-                    <th>Tổng tiền</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8">
-                        <div className="spinner w-6 h-6 mx-auto"></div>
-                      </td>
-                    </tr>
-                  ) : periods.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500">
-                        Chưa có dữ liệu điểm danh cho tháng này
-                      </td>
-                    </tr>
-                  ) : periods.map(p => (
-                    <tr key={p.id}>
-                      <td className="font-medium">{p.class_name}</td>
-                      <td>{p.period_month}</td>
-                      <td>{p.total_sessions || 0}</td>
-                      <td>{p.total_present || 0}</td>
-                      <td className="font-medium text-green-600">
-                        {new Intl.NumberFormat('vi-VN').format(p.total_fee || 0)}đ
-                      </td>
-                      <td>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${PERIOD_STATUS[p.status]?.color}`}>
-                          {PERIOD_STATUS[p.status]?.icon} {PERIOD_STATUS[p.status]?.label}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
-                          {p.status === 'open' && (
-                            <button
-                              onClick={() => handleSubmit(p.id)}
-                              className="px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200"
-                            >
-                              Nộp duyệt
-                            </button>
-                          )}
-                          {p.status === 'submitted' && isAdmin() && (
-                            <button
-                              onClick={() => handleApprove(p.id)}
-                              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
-                            >
-                              Duyệt
-                            </button>
-                          )}
-                          {p.status === 'approved' && isAdmin() && (
-                            <button
-                              onClick={() => handleLock(p.id)}
-                              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                            >
-                              🔒 Chốt
-                            </button>
-                          )}
-                          {p.status !== 'open' && isAdmin() && (
-                            <button
-                              onClick={() => handleUnlock(p.id)}
-                              className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
-                            >
-                              Mở lại
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </>
       )}
     </div>
