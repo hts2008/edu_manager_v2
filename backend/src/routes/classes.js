@@ -31,12 +31,25 @@ router.get('/:id', (req, res, next) => {
     if (!cls) throw new AppError('Class not found', 404, 'NOT_FOUND');
     
     const students = query(`
-      SELECT s.*, sc.enrollment_date, sc.status as enrollment_status
+      SELECT s.*, sc.enrollment_date, sc.status as enrollment_status, sc.fee_per_day_snapshot
       FROM students s JOIN student_classes sc ON s.id = sc.student_id
       WHERE sc.class_id = ? AND sc.status = 'active'
     `, [req.params.id]);
     
-    res.json({ success: true, data: { ...cls, schedule_days: JSON.parse(cls.schedule_days), students } });
+    // Safely parse schedule_days
+    let scheduleDays = cls.schedule_days;
+    if (typeof scheduleDays === 'string') {
+      try {
+        scheduleDays = JSON.parse(scheduleDays);
+      } catch {
+        scheduleDays = [];
+      }
+    }
+    if (!Array.isArray(scheduleDays)) {
+      scheduleDays = [];
+    }
+    
+    res.json({ success: true, data: { ...cls, schedule_days: scheduleDays, students } });
   } catch (error) { next(error); }
 });
 

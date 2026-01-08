@@ -44,35 +44,57 @@ export default function AttendancePage() {
   const scheduleDates = useMemo(() => {
     if (!classSchedule || !selectedMonth) return [];
     
-    const dates = [];
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const daysInMonth = new Date(year, month, 0).getDate();
-    
-    // schedule_days format: ["monday", "wednesday", "friday"] or similar
-    const scheduleDays = classSchedule.schedule_days ? 
-      (typeof classSchedule.schedule_days === 'string' ? 
-        JSON.parse(classSchedule.schedule_days) : classSchedule.schedule_days) 
-      : [];
-    
-    const dayMap = {
-      sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-      thursday: 4, friday: 5, saturday: 6
-    };
-    
-    const allowedDays = scheduleDays.map(d => dayMap[d.toLowerCase()]).filter(d => d !== undefined);
-    
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day);
-      if (allowedDays.length === 0 || allowedDays.includes(date.getDay())) {
-        dates.push({
-          date: date.toISOString().split('T')[0],
-          dayOfWeek: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
-          dayNum: day
-        });
+    try {
+      const dates = [];
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      // schedule_days can be:
+      // - Array of numbers: [1, 3, 5] where 0=Sun, 1=Mon, etc
+      // - Array of strings: ["monday", "wednesday", "friday"]
+      // - JSON string of either format
+      let scheduleDays = classSchedule.schedule_days || [];
+      
+      if (typeof scheduleDays === 'string') {
+        try {
+          scheduleDays = JSON.parse(scheduleDays);
+        } catch {
+          scheduleDays = [];
+        }
       }
+      
+      if (!Array.isArray(scheduleDays)) {
+        scheduleDays = [];
+      }
+      
+      const dayMap = {
+        sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+        thursday: 4, friday: 5, saturday: 6
+      };
+      
+      // Convert to array of day numbers (0-6)
+      const allowedDays = scheduleDays.map(d => {
+        if (typeof d === 'number') return d;
+        if (typeof d === 'string') return dayMap[d.toLowerCase()] ?? -1;
+        return -1;
+      }).filter(d => d >= 0 && d <= 6);
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        if (allowedDays.length === 0 || allowedDays.includes(date.getDay())) {
+          dates.push({
+            date: date.toISOString().split('T')[0],
+            dayOfWeek: date.toLocaleDateString('vi-VN', { weekday: 'short' }),
+            dayNum: day
+          });
+        }
+      }
+      
+      return dates;
+    } catch (error) {
+      console.error('Error calculating schedule dates:', error);
+      return [];
     }
-    
-    return dates;
   }, [classSchedule, selectedMonth]);
 
   // Calculate fee summary per student
