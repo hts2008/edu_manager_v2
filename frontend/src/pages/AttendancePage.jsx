@@ -334,6 +334,50 @@ export default function AttendancePage() {
     setSaving(false);
   };
 
+  const handleSubmit = async (monthKey) => {
+    const period = periods[monthKey];
+    if (!period) {
+      // Create period first
+      const createRes = await attendancePeriodsService.create({ class_id: selectedClass, month: monthKey });
+      if (!createRes.success) {
+        toast.error('Không thể tạo kỳ điểm danh');
+        return;
+      }
+      // Submit the newly created period
+      const submitRes = await attendancePeriodsService.submit(createRes.data.period.id);
+      if (submitRes.success) {
+        toast.success('Đã nộp điểm danh tháng ' + monthKey);
+        loadClassData();
+      } else {
+        toast.error(submitRes.error?.message || 'Lỗi nộp điểm danh');
+      }
+      return;
+    }
+
+    const res = await attendancePeriodsService.submit(period.id);
+    if (res.success) {
+      toast.success('Đã nộp điểm danh tháng ' + monthKey);
+      loadClassData();
+    } else {
+      toast.error(res.error?.message || 'Lỗi nộp điểm danh');
+    }
+  };
+
+  const handleApprove = async (monthKey) => {
+    const period = periods[monthKey];
+    if (!period) {
+      toast.error('Chưa có dữ liệu điểm danh cho tháng này');
+      return;
+    }
+    const res = await attendancePeriodsService.approve(period.id);
+    if (res.success) {
+      toast.success('Đã duyệt điểm danh tháng ' + monthKey);
+      loadClassData();
+    } else {
+      toast.error(res.error?.message || 'Lỗi duyệt điểm danh');
+    }
+  };
+
   const handleLock = async (monthKey) => {
     const period = periods[monthKey];
     if (!period) {
@@ -342,7 +386,19 @@ export default function AttendancePage() {
     }
     const res = await attendancePeriodsService.lock(period.id);
     if (res.success) {
-      toast.success('Đã chốt điểm danh tháng ' + monthKey);
+      toast.success('🔒 Đã chốt điểm danh tháng ' + monthKey + '. Học phí đã sẵn sàng để thu!');
+      loadClassData();
+    } else {
+      toast.error(res.error?.message || 'Lỗi chốt điểm danh');
+    }
+  };
+
+  const handleUnlock = async (monthKey) => {
+    const period = periods[monthKey];
+    if (!period) return;
+    const res = await attendancePeriodsService.unlock(period.id);
+    if (res.success) {
+      toast.success('Đã mở lại điểm danh tháng ' + monthKey);
       loadClassData();
     } else {
       toast.error(res.error?.message || 'Lỗi');
@@ -482,17 +538,63 @@ export default function AttendancePage() {
                         </tbody>
                       </table>
 
-                      {/* Period actions */}
-                      {isAdmin() && period && period.status !== 'locked' && (
-                        <div className="mt-2 pt-2 border-t">
+                      {/* Period actions - Workflow buttons */}
+                      <div className="mt-2 pt-2 border-t space-y-1">
+                        {/* No period yet - show submit button */}
+                        {!period && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSubmit(key); }}
+                            className="w-full py-1.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 font-medium"
+                          >
+                            📤 Nộp điểm danh
+                          </button>
+                        )}
+
+                        {/* Open status - show submit button */}
+                        {period?.status === 'open' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSubmit(key); }}
+                            className="w-full py-1.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 font-medium"
+                          >
+                            📤 Nộp điểm danh
+                          </button>
+                        )}
+
+                        {/* Submitted status - Admin can approve */}
+                        {period?.status === 'submitted' && isAdmin() && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleApprove(key); }}
+                            className="w-full py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium"
+                          >
+                            ✓ Duyệt điểm danh
+                          </button>
+                        )}
+
+                        {/* Approved status - Admin can lock */}
+                        {period?.status === 'approved' && isAdmin() && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLock(key); }}
-                            className="w-full py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                            className="w-full py-1.5 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 font-medium"
                           >
-                            🔒 Chốt tháng {month + 1}
+                            🔒 Chốt để thu học phí
                           </button>
-                        </div>
-                      )}
+                        )}
+
+                        {/* Locked status - show status and unlock button */}
+                        {period?.status === 'locked' && (
+                          <div className="text-center">
+                            <span className="text-xs text-gray-500">✓ Đã chốt - Sẵn sàng thu phí</span>
+                            {isAdmin() && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleUnlock(key); }}
+                                className="mt-1 w-full py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                              >
+                                🔓 Mở lại
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

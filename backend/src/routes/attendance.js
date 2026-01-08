@@ -53,8 +53,6 @@ router.post('/bulk', (req, res, next) => {
     if (!records || !records.length) throw new AppError('records are required', 400);
     
     const db = getDb();
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    let count = queryOne('SELECT COUNT(*) as c FROM attendance WHERE id LIKE ?', [`ATT${today}%`]).c;
     
     // Group records by class_id and date for efficient deletion
     const deleteKeys = new Set();
@@ -70,19 +68,22 @@ router.post('/bulk', (req, res, next) => {
       execute('DELETE FROM attendance WHERE class_id = ? AND attendance_date = ?', [class_id, date]);
     });
     
-    // Insert new records
+    // Insert new records with unique IDs using timestamp + counter
+    const timestamp = Date.now();
+    let counter = 0;
+    
     const insertStmt = db.prepare(`INSERT INTO attendance (id, student_id, class_id, attendance_date, status, reason, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)`);
     
     records.forEach(r => {
       if (r.status && r.student_id && r.class_id && r.attendance_date) {
-        count++;
-        const id = `ATT${today}${String(count).padStart(3, '0')}`;
+        counter++;
+        const id = `ATT${timestamp}${String(counter).padStart(4, '0')}`;
         insertStmt.run(id, r.student_id, r.class_id, r.attendance_date, r.status, r.reason || null, req.userId);
       }
     });
     
-    res.json({ success: true, message: `Saved ${records.length} attendance records` });
+    res.json({ success: true, message: `Saved ${counter} attendance records` });
   } catch (error) { next(error); }
 });
 
