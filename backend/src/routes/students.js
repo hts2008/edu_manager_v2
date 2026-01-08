@@ -206,28 +206,17 @@ router.put('/:id', (req, res, next) => {
     
     // BUG-001 FIX: Sync class enrollments if class_ids provided
     if (class_ids !== undefined) {
-      // Set end_date on current enrollments (soft delete)
-      execute(`
-        UPDATE student_classes 
-        SET end_date = date('now'), status = 'inactive'
-        WHERE student_id = ? AND status = 'active'
-      `, [id]);
+      // Delete current enrollments (hard delete to avoid UNIQUE constraint issues)
+      execute('DELETE FROM student_classes WHERE student_id = ?', [id]);
       
       // Insert new enrollments with fee snapshot
       if (class_ids && class_ids.length > 0) {
         class_ids.forEach(class_id => {
-          // Check if already exists (re-enroll)
-          const existing = queryOne(
-            'SELECT id FROM student_classes WHERE student_id = ? AND class_id = ? AND status = ?',
-            [id, class_id, 'active']
-          );
-          if (!existing) {
-            const cls = queryOne('SELECT fee_per_day FROM classes WHERE id = ?', [class_id]);
-            execute(`
-              INSERT INTO student_classes (student_id, class_id, enrollment_date, fee_per_day_snapshot, status)
-              VALUES (?, ?, date('now'), ?, 'active')
-            `, [id, class_id, cls?.fee_per_day || 0]);
-          }
+          const cls = queryOne('SELECT fee_per_day FROM classes WHERE id = ?', [class_id]);
+          execute(`
+            INSERT INTO student_classes (student_id, class_id, enrollment_date, fee_per_day_snapshot, status)
+            VALUES (?, ?, date('now'), ?, 'active')
+          `, [id, class_id, cls?.fee_per_day || 0]);
         });
       }
     }
