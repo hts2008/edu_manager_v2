@@ -1,13 +1,13 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import fs from 'fs';
+import Database from "better-sqlite3";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Database file path
-const DB_PATH = join(__dirname, '../../data/edumanager.db');
+// Database file path - using the actual database with data
+const DB_PATH = join(__dirname, "../../data/edumanager.db");
 
 // Ensure data directory exists
 const dataDir = dirname(DB_PATH);
@@ -19,10 +19,10 @@ if (!fs.existsSync(dataDir)) {
 const db = new Database(DB_PATH);
 
 // Enable foreign keys
-db.pragma('foreign_keys = ON');
+db.pragma("foreign_keys = ON");
 
 // Enable WAL mode for better performance
-db.pragma('journal_mode = WAL');
+db.pragma("journal_mode = WAL");
 
 /**
  * Get database instance
