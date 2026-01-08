@@ -1,0 +1,453 @@
+// Prisma Schema for EduManager
+// PostgreSQL (Supabase) compatible
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ========================================
+// USERS TABLE (Authentication)
+// ========================================
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(receptionist)
+  fullName     String   @map("full_name")
+  email        String?
+  phone        String?
+  status       Status   @default(active)
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  templates     Template[]
+  receipts      Receipt[]
+  payments      Payment[]
+  activityLogs  ActivityLog[]
+  attendanceCreated Attendance[] @relation("AttendanceCreator")
+  periodSubmitted   AttendancePeriod[] @relation("PeriodSubmitter")
+  periodApproved    AttendancePeriod[] @relation("PeriodApprover")
+  periodLocked      AttendancePeriod[] @relation("PeriodLocker")
+
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+enum UserRole {
+  admin
+  receptionist
+}
+
+enum Status {
+  active
+  inactive
+}
+
+// ========================================
+// PARENTS TABLE
+// ========================================
+model Parent {
+  id           String       @id @default(cuid())
+  fullName     String       @map("full_name")
+  phone        String       @unique
+  email        String?
+  address      String?
+  relationship Relationship
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  students Student[]
+
+  @@index([phone])
+  @@index([fullName])
+  @@map("parents")
+}
+
+enum Relationship {
+  father
+  mother
+  guardian
+}
+
+// ========================================
+// STUDENTS TABLE
+// ========================================
+model Student {
+  id             String        @id @default(cuid())
+  fullName       String        @map("full_name")
+  dateOfBirth    DateTime      @map("date_of_birth")
+  gender         Gender
+  parentId       String        @map("parent_id")
+  phone          String?
+  email          String?
+  address        String?
+  enrollmentDate DateTime      @map("enrollment_date")
+  graduationDate DateTime?     @map("graduation_date")
+  status         StudentStatus @default(active)
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  parent         Parent         @relation(fields: [parentId], references: [id])
+  studentClasses StudentClass[]
+  attendance     Attendance[]
+  monthlyFees    MonthlyFee[]
+  receipts       Receipt[]
+
+  @@index([parentId])
+  @@index([status])
+  @@index([fullName])
+  @@map("students")
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum StudentStatus {
+  active
+  inactive
+  graduated
+}
+
+// ========================================
+// TEACHERS TABLE
+// ========================================
+model Teacher {
+  id           String     @id @default(cuid())
+  fullName     String     @map("full_name")
+  phone        String     @unique
+  email        String?
+  salaryType   SalaryType @map("salary_type")
+  salaryAmount Float      @map("salary_amount")
+  status       Status     @default(active)
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  classes Class[]
+
+  @@index([phone])
+  @@index([status])
+  @@map("teachers")
+}
+
+enum SalaryType {
+  hourly
+  fixed
+}
+
+// ========================================
+// CLASSES TABLE
+// ========================================
+model Class {
+  id           String   @id @default(cuid())
+  className    String   @map("class_name")
+  scheduleDays Json     @map("schedule_days") // [1,3,5] = Mon, Wed, Fri
+  startTime    String   @map("start_time")
+  endTime      String   @map("end_time")
+  feePerDay    Float    @map("fee_per_day")
+  maxStudents  Int      @default(50) @map("max_students")
+  teacherId    String?  @map("teacher_id")
+  status       Status   @default(active)
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  teacher          Teacher?           @relation(fields: [teacherId], references: [id])
+  studentClasses   StudentClass[]
+  attendance       Attendance[]
+  attendancePeriods AttendancePeriod[]
+
+  @@index([teacherId])
+  @@index([status])
+  @@map("classes")
+}
+
+// ========================================
+// STUDENT_CLASSES (Many-to-Many Link)
+// ========================================
+model StudentClass {
+  id             Int      @id @default(autoincrement())
+  studentId      String   @map("student_id")
+  classId        String   @map("class_id")
+  enrollmentDate DateTime @map("enrollment_date")
+  status         Status   @default(active)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@map("student_classes")
+}
+
+// ========================================
+// ATTENDANCE TABLE
+// ========================================
+model Attendance {
+  id             String           @id @default(cuid())
+  studentId      String           @map("student_id")
+  classId        String           @map("class_id")
+  attendanceDate DateTime         @map("attendance_date")
+  status         AttendanceStatus
+  reason         String?
+  createdById    String           @map("created_by")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  student   Student @relation(fields: [studentId], references: [id])
+  class     Class   @relation(fields: [classId], references: [id])
+  createdBy User    @relation("AttendanceCreator", fields: [createdById], references: [id])
+
+  @@unique([studentId, classId, attendanceDate])
+  @@index([studentId])
+  @@index([classId])
+  @@index([attendanceDate])
+  @@map("attendance")
+}
+
+enum AttendanceStatus {
+  present
+  absent_with_fee
+  absent_no_fee
+}
+
+// ========================================
+// ATTENDANCE_PERIODS TABLE (SAP Timesheet)
+// ========================================
+model AttendancePeriod {
+  id               String       @id @default(cuid())
+  classId          String       @map("class_id")
+  periodMonth      String       @map("period_month") // YYYY-MM format
+  status           PeriodStatus @default(open)
+  totalSessions    Int          @default(0) @map("total_sessions")
+  totalPresent     Int          @default(0) @map("total_present")
+  totalAbsentFee   Int          @default(0) @map("total_absent_fee")
+  totalAbsentNoFee Int          @default(0) @map("total_absent_no_fee")
+  submittedById    String?      @map("submitted_by")
+  submittedAt      DateTime?    @map("submitted_at")
+  approvedById     String?      @map("approved_by")
+  approvedAt       DateTime?    @map("approved_at")
+  lockedById       String?      @map("locked_by")
+  lockedAt         DateTime?    @map("locked_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  class       Class @relation(fields: [classId], references: [id])
+  submittedBy User? @relation("PeriodSubmitter", fields: [submittedById], references: [id])
+  approvedBy  User? @relation("PeriodApprover", fields: [approvedById], references: [id])
+  lockedBy    User? @relation("PeriodLocker", fields: [lockedById], references: [id])
+
+  @@unique([classId, periodMonth])
+  @@index([classId])
+  @@index([periodMonth])
+  @@index([status])
+  @@map("attendance_periods")
+}
+
+enum PeriodStatus {
+  open
+  submitted
+  approved
+  locked
+}
+
+// ========================================
+// MONTHLY_FEES TABLE (Fee Collection)
+// ========================================
+model MonthlyFee {
+  id          String    @id @default(cuid())
+  studentId   String    @map("student_id")
+  month       String    // YYYY-MM format
+  totalDays   Int       @default(0) @map("total_days")
+  totalAmount Float     @default(0) @map("total_amount")
+  status      FeeStatus @default(pending)
+  receiptId   String?   @map("receipt_id")
+  paidAt      DateTime? @map("paid_at")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  student Student  @relation(fields: [studentId], references: [id])
+  receipt Receipt? @relation(fields: [receiptId], references: [id])
+
+  @@unique([studentId, month])
+  @@index([studentId])
+  @@index([month])
+  @@index([status])
+  @@map("monthly_fees")
+}
+
+enum FeeStatus {
+  pending
+  ready
+  confirmed
+  paid
+}
+
+// ========================================
+// TEMPLATES TABLE
+// ========================================
+model Template {
+  id           String       @id @default(cuid())
+  templateName String       @map("template_name")
+  type         TemplateType
+  paperSize    PaperSize    @map("paper_size")
+  orientation  Orientation
+  jsonConfig   Json         @map("json_config") // Full canvas configuration
+  isDefault    Boolean      @default(false) @map("is_default")
+  createdById  String       @map("created_by")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  createdBy User      @relation(fields: [createdById], references: [id])
+  receipts  Receipt[]
+  payments  Payment[]
+
+  @@index([type])
+  @@index([isDefault])
+  @@map("templates")
+}
+
+enum TemplateType {
+  receipt
+  payment
+}
+
+enum PaperSize {
+  a4
+  a5
+  letter
+  thermal_80mm
+}
+
+enum Orientation {
+  portrait
+  landscape
+}
+
+// ========================================
+// RECEIPTS TABLE (Phiếu Thu)
+// ========================================
+model Receipt {
+  id            String        @id @default(cuid())
+  studentId     String        @map("student_id")
+  month         String        // YYYY-MM format
+  daysCount     Int           @map("days_count")
+  feePerDay     Float         @map("fee_per_day")
+  amount        Float
+  paymentMethod PaymentMethod @map("payment_method")
+  templateId    String        @map("template_id")
+  notes         String?
+  pdfPath       String?       @map("pdf_path")
+  createdById   String        @map("created_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  student     Student      @relation(fields: [studentId], references: [id])
+  template    Template     @relation(fields: [templateId], references: [id])
+  createdBy   User         @relation(fields: [createdById], references: [id])
+  monthlyFees MonthlyFee[]
+
+  @@index([studentId])
+  @@index([month])
+  @@index([createdAt])
+  @@map("receipts")
+}
+
+enum PaymentMethod {
+  cash
+  transfer
+}
+
+// ========================================
+// PAYMENTS TABLE (Phiếu Chi)
+// ========================================
+model Payment {
+  id             String          @id @default(cuid())
+  category       PaymentCategory
+  amount         Float
+  recipientName  String          @map("recipient_name")
+  recipientPhone String?         @map("recipient_phone")
+  templateId     String          @map("template_id")
+  notes          String?
+  pdfPath        String?         @map("pdf_path")
+  createdById    String          @map("created_by")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  template  Template @relation(fields: [templateId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([category])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+enum PaymentCategory {
+  salary
+  utility
+  office
+  other
+}
+
+// ========================================
+// ACTIVITY_LOGS TABLE
+// ========================================
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  userId     String   @map("user_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ========================================
+// CENTER_SETTINGS TABLE
+// ========================================
+model CenterSettings {
+  id            Int      @id @default(1)
+  centerName    String   @default("Trung Tâm Dạy Thêm") @map("center_name")
+  centerAddress String?  @map("center_address")
+  centerPhone   String?  @map("center_phone")
+  centerEmail   String?  @map("center_email")
+  centerLogo    String?  @map("center_logo") // Path to logo file
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("center_settings")
+}

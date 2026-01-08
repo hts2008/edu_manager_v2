@@ -13,6 +13,7 @@
 ## ✅ COMPLETED (ALL CORE FEATURES)
 
 ### Infrastructure ✅
+
 - [x] Tailwind CSS v4 + Vite
 - [x] SQLite (12 tables)
 - [x] 70+ API endpoints
@@ -20,6 +21,7 @@
 - [x] Docker configuration
 
 ### Frontend (14 Pages) ✅
+
 - [x] Login, Dashboard
 - [x] Students, Parents, Teachers, Classes
 - [x] Attendance, Receipts, Payments, History
@@ -27,12 +29,14 @@
 - [x] KANBAN Dashboard
 
 ### Backend Services ✅
+
 - [x] PDF Generation (pdfmake)
 - [x] Excel Export (xlsx)
 - [x] Fee Calculation
 - [x] Activity Logging
 
 ### Deployment Tools ✅
+
 - [x] start.bat - Local dev
 - [x] stop.bat - Stop servers
 - [x] backup.bat - Auto backup
@@ -41,6 +45,7 @@
 - [x] Nginx config
 
 ### Documentation ✅
+
 - [x] README.md
 - [x] USER_GUIDE_VI.md
 - [x] KANBAN.md
@@ -49,27 +54,27 @@
 
 ## 📝 OPTIONAL TODO
 
-| Priority | Task |
-|----------|------|
-| 🟢 Low | API documentation |
-| 🟢 Low | Line chart for reports |
-| 🟢 Low | Thermal 80mm print test |
-| 🟢 Low | E2E automated tests |
+| Priority | Task                    |
+| -------- | ----------------------- |
+| 🟢 Low   | API documentation       |
+| 🟢 Low   | Line chart for reports  |
+| 🟢 Low   | Thermal 80mm print test |
+| 🟢 Low   | E2E automated tests     |
 
 ---
 
 ## 📊 FINAL PROGRESS
 
-| Phase | Status |
-|-------|--------|
-| 0. Foundation | ✅ 100% |
+| Phase            | Status  |
+| ---------------- | ------- |
+| 0. Foundation    | ✅ 100% |
 | 1. Auth & Layout | ✅ 100% |
-| 2. Dashboard | ✅ 100% |
-| 3. CRUD Pages | ✅ 100% |
-| 4. Operations | ✅ 100% |
-| 5. Templates | ✅ 100% |
-| 6. Reports | ✅ 100% |
-| 7. Deployment | ✅ 98% |
+| 2. Dashboard     | ✅ 100% |
+| 3. CRUD Pages    | ✅ 100% |
+| 4. Operations    | ✅ 100% |
+| 5. Templates     | ✅ 100% |
+| 6. Reports       | ✅ 100% |
+| 7. Deployment    | ✅ 98%  |
 
 **Overall: 98% COMPLETE**
 
@@ -98,6 +103,8 @@ stop.bat
 **Repository:** https://github.com/hts2008/edu_manager_v2
 
 **Commits:**
+
+- `55d5b9d` fix: attendance bugs - week spanning months & period creation
 - `814f015` feat: Excel export, backup/restore, User Guide
 - `35650a1` docs: README and KANBAN
 - `0ee65ac` feat: Docker configuration
@@ -109,14 +116,14 @@ stop.bat
 
 ## 🖥️ URLs
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| Backend | http://localhost:5000 |
-| Dashboard | dashboard.html |
+| Service   | URL                   |
+| --------- | --------------------- |
+| Frontend  | http://localhost:3000 |
+| Backend   | http://localhost:5000 |
+| Dashboard | dashboard.html        |
 
 **Login:** `admin / admin123`
 
 ---
 
-**Last Updated:** 2026-01-07 20:25
+**Last Updated:** 2026-01-08 18:23
