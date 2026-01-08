@@ -17,7 +17,11 @@ router.get('/', (req, res, next) => {
     const { status, class_id, search, page = 1, limit = 20 } = req.query;
     
     let sql = `
-      SELECT s.*, p.full_name as parent_name, p.phone as parent_phone
+      SELECT s.*, p.full_name as parent_name, p.phone as parent_phone,
+             (SELECT GROUP_CONCAT(c.class_name, ', ')
+              FROM student_classes sc
+              JOIN classes c ON sc.class_id = c.id
+              WHERE sc.student_id = s.id AND sc.status = 'active') as class_names
       FROM students s
       LEFT JOIN parents p ON s.parent_id = p.id
       WHERE 1=1
@@ -35,8 +39,8 @@ router.get('/', (req, res, next) => {
     }
     
     if (class_id) {
-      sql += ' AND s.id IN (SELECT student_id FROM student_classes WHERE class_id = ?)';
-      params.push(class_id);
+      sql += ' AND s.id IN (SELECT student_id FROM student_classes WHERE class_id = ? AND status = ?)';
+      params.push(class_id, 'active');
     }
     
     sql += ' ORDER BY s.created_at DESC';
@@ -174,7 +178,8 @@ router.put('/:id', (req, res, next) => {
     const { id } = req.params;
     const { 
       full_name, date_of_birth, gender, parent_id, 
-      phone, email, address, graduation_date, status, notes 
+      phone, email, address, graduation_date, status, notes,
+      class_ids // BUG-001 FIX: Add class_ids support
     } = req.body;
     
     // Check student exists
@@ -198,6 +203,34 @@ router.put('/:id', (req, res, next) => {
         updated_at = datetime('now', 'localtime')
       WHERE id = ?
     `, [full_name, date_of_birth, gender, parent_id, phone, email, address, graduation_date, status, notes, id]);
+    
+    // BUG-001 FIX: Sync class enrollments if class_ids provided
+    if (class_ids !== undefined) {
+      // Set end_date on current enrollments (soft delete)
+      execute(`
+        UPDATE student_classes 
+        SET end_date = date('now'), status = 'inactive'
+        WHERE student_id = ? AND status = 'active'
+      `, [id]);
+      
+      // Insert new enrollments with fee snapshot
+      if (class_ids && class_ids.length > 0) {
+        class_ids.forEach(class_id => {
+          // Check if already exists (re-enroll)
+          const existing = queryOne(
+            'SELECT id FROM student_classes WHERE student_id = ? AND class_id = ? AND status = ?',
+            [id, class_id, 'active']
+          );
+          if (!existing) {
+            const cls = queryOne('SELECT fee_per_day FROM classes WHERE id = ?', [class_id]);
+            execute(`
+              INSERT INTO student_classes (student_id, class_id, enrollment_date, fee_per_day_snapshot, status)
+              VALUES (?, ?, date('now'), ?, 'active')
+            `, [id, class_id, cls?.fee_per_day || 0]);
+          }
+        });
+      }
+    }
     
     // Log activity
     execute(`

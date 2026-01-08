@@ -46,27 +46,40 @@ router.post('/', (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-// POST /api/attendance/bulk - Multiple records
+// POST /api/attendance/bulk - Multiple records (support multiple dates for SAP timesheet)
 router.post('/bulk', (req, res, next) => {
   try {
-    const { class_id, attendance_date, records } = req.body;
-    if (!class_id || !attendance_date || !records || !records.length) throw new AppError('Missing required fields', 400);
+    const { records } = req.body;
+    if (!records || !records.length) throw new AppError('records are required', 400);
     
     const db = getDb();
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     let count = queryOne('SELECT COUNT(*) as c FROM attendance WHERE id LIKE ?', [`ATT${today}%`]).c;
     
-    // Delete existing records for this class/date first
-    execute('DELETE FROM attendance WHERE class_id = ? AND attendance_date = ?', [class_id, attendance_date]);
+    // Group records by class_id and date for efficient deletion
+    const deleteKeys = new Set();
+    records.forEach(r => {
+      if (r.class_id && r.attendance_date) {
+        deleteKeys.add(`${r.class_id}|${r.attendance_date}`);
+      }
+    });
+    
+    // Delete existing records for each class/date combination
+    deleteKeys.forEach(key => {
+      const [class_id, date] = key.split('|');
+      execute('DELETE FROM attendance WHERE class_id = ? AND attendance_date = ?', [class_id, date]);
+    });
     
     // Insert new records
     const insertStmt = db.prepare(`INSERT INTO attendance (id, student_id, class_id, attendance_date, status, reason, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)`);
     
     records.forEach(r => {
-      count++;
-      const id = `ATT${today}${String(count).padStart(3, '0')}`;
-      insertStmt.run(id, r.student_id, class_id, attendance_date, r.status, r.reason || null, req.userId);
+      if (r.status && r.student_id && r.class_id && r.attendance_date) {
+        count++;
+        const id = `ATT${today}${String(count).padStart(3, '0')}`;
+        insertStmt.run(id, r.student_id, r.class_id, r.attendance_date, r.status, r.reason || null, req.userId);
+      }
     });
     
     res.json({ success: true, message: `Saved ${records.length} attendance records` });
@@ -125,4 +138,23 @@ router.get('/calculate-fee', (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/attendance/month?class_id=&month=YYYY-MM - Get all attendance for a class in a month
+router.get('/month', (req, res, next) => {
+  try {
+    const { class_id, month } = req.query;
+    if (!class_id || !month) throw new AppError('class_id and month are required', 400);
+    
+    const attendance = query(`
+      SELECT a.*, s.full_name as student_name
+      FROM attendance a
+      JOIN students s ON a.student_id = s.id
+      WHERE a.class_id = ? AND strftime('%Y-%m', a.attendance_date) = ?
+      ORDER BY a.attendance_date, s.full_name
+    `, [class_id, month]);
+    
+    res.json({ success: true, data: { attendance } });
+  } catch (error) { next(error); }
+});
+
 export default router;
+

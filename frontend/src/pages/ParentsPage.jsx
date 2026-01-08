@@ -143,6 +143,23 @@ function ParentForm({ parent, onSuccess, onCancel }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [children, setChildren] = useState([]);
+
+  useEffect(() => {
+    if (parent?.id) {
+      loadChildren();
+    }
+  }, [parent]);
+
+  const loadChildren = async () => {
+    const { studentsService } = await import('../services/api');
+    const res = await studentsService.getAll({ parent_id: parent.id });
+    if (res.success) {
+      // Filter students that belong to this parent
+      const filtered = (res.data.students || []).filter(s => s.parent_id === parent.id);
+      setChildren(filtered);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -217,13 +234,42 @@ function ParentForm({ parent, onSuccess, onCancel }) {
         />
       </div>
 
+      {/* Children Section */}
+      {parent && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">👧 Con em ({children.length})</label>
+          <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+            {children.length === 0 ? (
+              <p className="text-sm text-gray-500">Chưa có học viên nào liên kết</p>
+            ) : (
+              <div className="space-y-2">
+                {children.map(child => (
+                  <div key={child.id} className="flex items-center justify-between p-2 bg-white rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">{child.full_name}</p>
+                      <p className="text-xs text-gray-500">{child.id}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${
+                      child.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {child.status === 'active' ? 'Đang học' : 'Nghỉ học'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Để liên kết học viên, hãy chỉnh sửa học viên và chọn phụ huynh</p>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
         <textarea
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           className="input"
-          rows={3}
+          rows={2}
         />
       </div>
 
@@ -236,3 +282,4 @@ function ParentForm({ parent, onSuccess, onCancel }) {
     </form>
   );
 }
+

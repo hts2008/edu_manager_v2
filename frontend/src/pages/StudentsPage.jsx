@@ -57,24 +57,38 @@ export default function StudentsPage() {
           </div>
           <div>
             <p className="font-medium text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500">{row.student_code}</p>
+            <p className="text-xs text-gray-500">{row.id}</p>
           </div>
         </div>
       ),
     },
     {
+      key: 'class_names',
+      title: 'Lớp học',
+      render: (value) => value ? (
+        <div className="flex flex-wrap gap-1">
+          {value.split(', ').map((c, i) => (
+            <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+              {c}
+            </span>
+          ))}
+        </div>
+      ) : <span className="text-gray-400">-</span>,
+    },
+    {
+      key: 'parent_name',
+      title: 'Phụ huynh',
+      render: (value, row) => value ? (
+        <div>
+          <p className="font-medium text-gray-900">{value}</p>
+          <p className="text-xs text-gray-500">{row.parent_phone}</p>
+        </div>
+      ) : <span className="text-gray-400">-</span>,
+    },
+    {
       key: 'date_of_birth',
       title: 'Ngày sinh',
       render: (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '-',
-    },
-    {
-      key: 'gender',
-      title: 'Giới tính',
-      render: (value) => value === 'male' ? 'Nam' : value === 'female' ? 'Nữ' : '-',
-    },
-    {
-      key: 'parent_phone',
-      title: 'SĐT Phụ huynh',
     },
     {
       key: 'status',
@@ -190,11 +204,13 @@ function StudentForm({ student, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [classes, setClasses] = useState([]);
+  const [parents, setParents] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
   const [enrolledClasses, setEnrolledClasses] = useState([]);
 
   useEffect(() => {
     loadClasses();
+    loadParents();
     if (student?.id) {
       loadEnrolledClasses();
     }
@@ -205,6 +221,14 @@ function StudentForm({ student, onSuccess, onCancel }) {
     const res = await classesService.getAll();
     if (res.success) {
       setClasses(res.data.classes || []);
+    }
+  };
+
+  const loadParents = async () => {
+    const { parentsService } = await import('../services/api');
+    const res = await parentsService.getAll();
+    if (res.success) {
+      setParents(res.data.parents || []);
     }
   };
 
@@ -322,18 +346,34 @@ function StudentForm({ student, onSuccess, onCancel }) {
         </div>
       </div>
 
+      {/* Parent Section */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          SĐT Phụ huynh
+          👨‍👩‍👧 Phụ huynh
         </label>
-        <input
-          type="tel"
-          name="parent_phone"
-          value={formData.parent_phone}
-          onChange={handleChange}
+        <select
+          name="parent_id"
+          value={formData.parent_id}
+          onChange={(e) => {
+            const selectedParent = parents.find(p => p.id === e.target.value);
+            setFormData(prev => ({
+              ...prev,
+              parent_id: e.target.value,
+              parent_phone: selectedParent?.phone || ''
+            }));
+          }}
           className="input"
-          placeholder="0912345678"
-        />
+        >
+          <option value="">-- Chọn phụ huynh --</option>
+          {parents.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.full_name} - {p.phone}
+            </option>
+          ))}
+        </select>
+        {formData.parent_phone && (
+          <p className="text-xs text-gray-500 mt-1">📞 {formData.parent_phone}</p>
+        )}
       </div>
 
       {/* Class Enrollment Section */}
