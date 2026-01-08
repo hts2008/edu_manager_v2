@@ -13,6 +13,7 @@ import ParentsPage from './pages/ParentsPage';
 import ClassesPage from './pages/ClassesPage';
 import TeachersPage from './pages/TeachersPage';
 import AttendancePage from './pages/AttendancePage';
+import AttendancePeriodsPage from './pages/AttendancePeriodsPage';
 import ReceiptsPage from './pages/ReceiptsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import FeeCollectionPage from './pages/FeeCollectionPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="classes" element={<ClassesPage />} />
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="attendance" element={<AttendancePage />} />
+            <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
             <Route path="receipts" element={<ReceiptsPage />} />
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="fee-collection" element={<FeeCollectionPage />} />

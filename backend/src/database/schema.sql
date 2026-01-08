@@ -148,9 +148,62 @@ CREATE TABLE IF NOT EXISTS attendance (
     UNIQUE(student_id, class_id, attendance_date)
 );
 
+
 CREATE INDEX idx_attendance_student ON attendance(student_id);
 CREATE INDEX idx_attendance_class ON attendance(class_id);
 CREATE INDEX idx_attendance_date ON attendance(attendance_date);
+
+-- ========================================
+-- ATTENDANCE_PERIODS TABLE (SAP Timesheet)
+-- ========================================
+CREATE TABLE IF NOT EXISTS attendance_periods (
+    id TEXT PRIMARY KEY,
+    class_id TEXT NOT NULL,
+    period_month TEXT NOT NULL, -- YYYY-MM format
+    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'submitted', 'approved', 'locked')),
+    total_sessions INTEGER DEFAULT 0,
+    total_present INTEGER DEFAULT 0,
+    total_absent_fee INTEGER DEFAULT 0,
+    total_absent_no_fee INTEGER DEFAULT 0,
+    submitted_by TEXT,
+    submitted_at TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    locked_by TEXT,
+    locked_at TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (class_id) REFERENCES classes(id),
+    UNIQUE(class_id, period_month)
+);
+
+CREATE INDEX idx_attendance_periods_class ON attendance_periods(class_id);
+CREATE INDEX idx_attendance_periods_month ON attendance_periods(period_month);
+CREATE INDEX idx_attendance_periods_status ON attendance_periods(status);
+
+-- ========================================
+-- MONTHLY_FEES TABLE (Fee Collection)
+-- ========================================
+CREATE TABLE IF NOT EXISTS monthly_fees (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL,
+    month TEXT NOT NULL, -- YYYY-MM format
+    total_days INTEGER DEFAULT 0,
+    total_amount REAL DEFAULT 0,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'confirmed', 'paid')),
+    receipt_id TEXT,
+    paid_at TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (student_id) REFERENCES students(id),
+    FOREIGN KEY (receipt_id) REFERENCES receipts(id),
+    UNIQUE(student_id, month)
+);
+
+CREATE INDEX idx_monthly_fees_student ON monthly_fees(student_id);
+CREATE INDEX idx_monthly_fees_month ON monthly_fees(month);
+CREATE INDEX idx_monthly_fees_status ON monthly_fees(status);
 
 -- ========================================
 -- TEMPLATES TABLE
