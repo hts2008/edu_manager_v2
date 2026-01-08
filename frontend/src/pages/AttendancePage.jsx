@@ -540,54 +540,55 @@ export default function AttendancePage() {
 
                       {/* Period actions - Workflow buttons */}
                       <div className="mt-2 pt-2 border-t space-y-1">
-                        {/* No period yet - show submit button */}
-                        {!period && (
+                        {/* Show workflow status */}
+                        <div className="text-center text-xs text-gray-500 mb-1">
+                          {!period && 'Chưa có điểm danh'}
+                          {period?.status === 'open' && '🟢 Đang mở'}
+                          {period?.status === 'submitted' && '🟡 Chờ duyệt'}
+                          {period?.status === 'approved' && '🔵 Đã duyệt'}
+                          {period?.status === 'locked' && '🔒 Đã chốt'}
+                        </div>
+
+                        {/* No period or Open status - show submit button */}
+                        {(!period || period?.status === 'open') && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleSubmit(key); }}
-                            className="w-full py-1.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 font-medium"
+                            className="w-full py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 font-medium"
                           >
                             📤 Nộp điểm danh
                           </button>
                         )}
 
-                        {/* Open status - show submit button */}
-                        {period?.status === 'open' && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleSubmit(key); }}
-                            className="w-full py-1.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 font-medium"
-                          >
-                            📤 Nộp điểm danh
-                          </button>
-                        )}
-
-                        {/* Submitted status - Admin can approve */}
-                        {period?.status === 'submitted' && isAdmin() && (
+                        {/* Submitted status - show approve button */}
+                        {period?.status === 'submitted' && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleApprove(key); }}
-                            className="w-full py-1.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-medium"
+                            className="w-full py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
                           >
                             ✓ Duyệt điểm danh
                           </button>
                         )}
 
-                        {/* Approved status - Admin can lock */}
-                        {period?.status === 'approved' && isAdmin() && (
+                        {/* Approved status - show lock button */}
+                        {period?.status === 'approved' && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLock(key); }}
-                            className="w-full py-1.5 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 font-medium"
+                            className="w-full py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 font-medium"
                           >
                             🔒 Chốt để thu học phí
                           </button>
                         )}
 
-                        {/* Locked status - show status and unlock button */}
+                        {/* Locked status - show unlock button */}
                         {period?.status === 'locked' && (
-                          <div className="text-center">
-                            <span className="text-xs text-gray-500">✓ Đã chốt - Sẵn sàng thu phí</span>
+                          <div className="space-y-1">
+                            <div className="text-center py-1 bg-gray-100 rounded text-xs text-gray-600">
+                              ✅ Sẵn sàng thu phí
+                            </div>
                             {isAdmin() && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleUnlock(key); }}
-                                className="mt-1 w-full py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+                                className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
                               >
                                 🔓 Mở lại
                               </button>
