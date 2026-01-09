@@ -827,13 +827,13 @@ body {
 }
 
 .skeleton-text {
-  @apply h-4 skeleton;
+  @apply h-4 bg-gray-200 animate-pulse rounded;
 }
 
 .skeleton-avatar {
-  @apply w-10 h-10 rounded-full skeleton;
+  @apply w-10 h-10 rounded-full bg-gray-200 animate-pulse;
 }
 
 .skeleton-card {
-  @apply h-32 skeleton rounded-xl;
+  @apply h-32 bg-gray-200 animate-pulse rounded-xl;
 }
