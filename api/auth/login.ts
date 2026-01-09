@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import prisma from "../../lib/prisma";
-import { handleCors, errorResponse, successResponse } from "../../lib/auth";
+import prisma from "../../lib/prisma.js";
+import { handleCors, errorResponse, successResponse } from "../../lib/auth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 

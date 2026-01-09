@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import prisma from "../../lib/prisma";
+import prisma from "../../lib/prisma.js";
 import {
   handleCors,
   verifyAuth,
   errorResponse,
   successResponse,
-} from "../../lib/auth";
+} from "../../lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
