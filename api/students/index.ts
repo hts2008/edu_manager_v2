@@ -15,11 +15,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
   }
 
-  // GET - List all students
+  // GET - List all students OR single student by ID
   if (req.method === "GET") {
     try {
-      const { search, status, limit = "100", offset = "0" } = req.query;
+      const { id, search, status, limit = "100", offset = "0" } = req.query;
 
+      // Single student retrieval
+      if (id) {
+        if (typeof id !== "string") {
+          return errorResponse(
+            res,
+            "INVALID_ID",
+            "Student ID must be a string",
+            400
+          );
+        }
+
+        const student = await prisma.student.findUnique({
+          where: { id },
+          include: {
+            parent: { select: { id: true, fullName: true, phone: true } },
+            studentClasses: {
+              where: { status: "active" },
+              include: { class: { select: { id: true, className: true } } },
+            },
+          },
+        });
+
+        if (!student) {
+          return errorResponse(res, "NOT_FOUND", "Student not found", 404);
+        }
+
+        // Transform to snake_case
+        const result = {
+          id: student.id,
+          full_name: student.fullName,
+          date_of_birth:
+            student.dateOfBirth?.toISOString?.()?.split("T")[0] ||
+            student.dateOfBirth,
+          gender: student.gender,
+          phone: student.phone,
+          email: student.email,
+          address: student.address,
+          status: student.status,
+          notes: student.notes,
+          enrollment_date: student.enrollmentDate,
+          parent_id: student.parentId,
+          parent_name: student.parent?.fullName || null,
+          parent_phone: student.parent?.phone || null,
+          classes: student.studentClasses.map((sc: any) => ({
+            id: sc.class.id,
+            class_name: sc.class.className,
+            enrollment_status: sc.status,
+          })),
+          created_at: student.createdAt,
+        };
+
+        return successResponse(res, result);
+      }
+
+      // List all students
       const where: any = {};
       if (status && status !== "all") {
         where.status = status as string;
@@ -75,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return successResponse(res, { students, total });
     } catch (error) {
-      console.error("Students list error:", error);
+      console.error("Students GET error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
     }
   }
@@ -148,6 +203,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json({ success: true, data: student });
     } catch (error) {
       console.error("Create student error:", error);
+      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    }
+  }
+
+  // PUT - Update student
+  if (req.method === "PUT") {
+    try {
+      const { id } = req.query;
+
+      if (!id || typeof id !== "string") {
+        return errorResponse(res, "INVALID_ID", "Student ID is required", 400);
+      }
+
+      const {
+        full_name,
+        date_of_birth,
+        gender,
+        parent_id,
+        phone,
+        email,
+        address,
+        status,
+        notes,
+      } = req.body;
+
+      const updatedStudent = await prisma.student.update({
+        where: { id },
+        data: {
+          ...(full_name && { fullName: full_name }),
+          ...(date_of_birth && { dateOfBirth: new Date(date_of_birth) }),
+          ...(gender && { gender }),
+          ...(parent_id && { parentId: parent_id }),
+          ...(phone !== undefined && { phone }),
+          ...(email !== undefined && { email }),
+          ...(address !== undefined && { address }),
+          ...(status && { status }),
+          ...(notes !== undefined && { notes }),
+        },
+        include: { parent: true },
+      });
+
+      return successResponse(res, { student: updatedStudent });
+    } catch (error) {
+      console.error("Update student error:", error);
+      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    }
+  }
+
+  // DELETE - Delete student
+  if (req.method === "DELETE") {
+    try {
+      const { id } = req.query;
+
+      if (!id || typeof id !== "string") {
+        return errorResponse(res, "INVALID_ID", "Student ID is required", 400);
+      }
+
+      // Check if student has class enrollments
+      const studentWithClasses = await prisma.student.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: { studentClasses: true },
+          },
+        },
+      });
+
+      if (!studentWithClasses) {
+        return errorResponse(res, "NOT_FOUND", "Student not found", 404);
+      }
+
+      if (studentWithClasses._count.studentClasses > 0) {
+        return errorResponse(
+          res,
+          "HAS_CLASSES",
+          "Cannot delete student with active class enrollments",
+          400
+        );
+      }
+
+      await prisma.student.delete({ where: { id } });
+
+      return successResponse(res, { message: "Student deleted successfully" });
+    } catch (error) {
+      console.error("Delete student error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
     }
   }
