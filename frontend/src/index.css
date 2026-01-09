@@ -461,8 +461,22 @@ body {
 }
 
 /* ========================================
-   PAGE TRANSITIONS
+   PAGE TRANSITIONS - Enhanced
    ======================================== */
+.page-transition {
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.page-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.page-hidden {
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+}
+
 .page-enter {
   animation: fadeIn 0.3s ease-out;
 }
@@ -471,21 +485,27 @@ body {
    SCROLLBAR STYLING
    ======================================== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 rounded-full;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-gray-300/60 rounded-full;
   transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-gray-400/80;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.6) transparent;
 }
 
 /* ========================================
@@ -511,16 +531,152 @@ body {
 }
 
 /* ========================================
-   RESPONSIVE UTILITIES
+   MOBILE RESPONSIVE - COMPREHENSIVE
    ======================================== */
-@media (max-width: 768px) {
-  .sidebar {
-    @apply w-full fixed bottom-0 left-0 right-0 h-auto min-h-0
-           flex-row z-40;
+
+/* Extra small devices (phones, 480px and down) */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
   }
 
+  .card {
+    @apply rounded-xl;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  .card-header {
+    @apply px-4 py-3;
+  }
+
+  .btn {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-success {
+    @apply px-4 py-2.5 text-sm rounded-xl;
+  }
+
+  .input {
+    @apply py-2.5 text-sm;
+  }
+
+  .stat-card {
+    @apply p-4;
+  }
+
+  .stat-card-icon {
+    @apply w-12 h-12;
+  }
+
+  .quick-action {
+    @apply p-4;
+  }
+
+  .quick-action-icon {
+    @apply w-12 h-12 mb-2;
+  }
+
+  .avatar {
+    @apply w-8 h-8 text-sm;
+  }
+
+  h1 {
+    @apply text-xl;
+  }
+
+  h2 {
+    @apply text-lg;
+  }
+
+  .table th,
+  .table td {
+    @apply px-3 py-2 text-xs;
+  }
+
+  /* Hide less important columns on mobile */
+  .table .hide-mobile {
+    @apply hidden;
+  }
+}
+
+/* Small devices (landscape phones, 481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .card-body {
+    @apply p-5;
+  }
+
+  .stat-card {
+    @apply p-5;
+  }
+
+  .table th,
+  .table td {
+    @apply px-4 py-3 text-sm;
+  }
+}
+
+/* Tablet and below */
+@media (max-width: 1024px) {
   .header {
     @apply px-4;
+  }
+
+  /* Stack buttons on smaller screens */
+  .btn-group {
+    @apply flex-col gap-2;
+  }
+
+  /* Make modals full width on tablet */
+  .modal-content {
+    @apply max-w-[95vw] mx-2;
+  }
+}
+
+/* Mobile navigation improvements */
+@media (max-width: 1024px) {
+  .sidebar {
+    @apply transform transition-transform duration-300 ease-out;
+  }
+
+  /* Pull-to-refresh indicator */
+  .pull-to-refresh {
+    @apply h-12 flex items-center justify-center text-gray-400;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding: max(0px)) {
+  .h-safe-area-inset-bottom {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  .btn,
+  button,
+  a {
+    min-height: 44px;
+  }
+
+  .table tbody tr {
+    @apply cursor-pointer;
+  }
+
+  .sidebar-link,
+  .sidebar-link-active {
+    @apply py-4;
   }
 }
 
@@ -539,6 +695,20 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+.animate-bounce-light {
+  animation: bounce-light 2s ease-in-out infinite;
+}
+
+@keyframes bounce-light {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
 .hover-lift {
   @apply transition-transform duration-200 hover:-translate-y-1;
 }
@@ -549,4 +719,105 @@ body {
 
 .hover-glow:hover {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.hover-scale {
+  @apply transition-transform duration-200 hover:scale-105;
+}
+
+/* Staggered animations for lists */
+.stagger-item {
+  animation: fadeIn 0.3s ease-out backwards;
+}
+
+.stagger-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-item:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-item:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-item:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-item:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-item:nth-child(6) {
+  animation-delay: 250ms;
+}
+.stagger-item:nth-child(7) {
+  animation-delay: 300ms;
+}
+.stagger-item:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+.text-gradient {
+  @apply bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent;
+}
+
+.bg-gradient-primary {
+  @apply bg-gradient-to-r from-primary-600 to-primary-700;
+}
+
+.bg-gradient-subtle {
+  @apply bg-gradient-to-br from-white to-gray-50;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.shadow-glow-success {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+/* Glass effect utility */
+.glass-light {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Truncate with ellipsis */
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Focus visible outline */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply bg-gray-200 animate-pulse rounded;
+}
+
+.skeleton-text {
+  @apply h-4 skeleton;
+}
+
+.skeleton-avatar {
+  @apply w-10 h-10 rounded-full skeleton;
+}
+
+.skeleton-card {
+  @apply h-32 skeleton rounded-xl;
 }

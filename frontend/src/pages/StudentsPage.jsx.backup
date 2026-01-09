@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { studentsService } from "../services/api";
-import DataTable from "../components/ui/DataTable";
-import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { studentsService } from '../services/api';
+import DataTable from '../components/ui/DataTable';
+import Modal, { ConfirmModal } from '../components/ui/Modal';
 
 // VI: Trang danh sách học viên
 export default function StudentsPage() {
@@ -46,8 +46,8 @@ export default function StudentsPage() {
 
   const columns = [
     {
-      key: "full_name",
-      title: "Họ và tên",
+      key: 'full_name',
+      title: 'Họ và tên',
       render: (value, row) => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -63,101 +63,70 @@ export default function StudentsPage() {
       ),
     },
     {
-      key: "class_names",
-      title: "Lớp học",
-      render: (value) =>
-        value ? (
-          <div className="flex flex-wrap gap-1">
-            {value.split(", ").map((c, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"
-              >
-                {c}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+      key: 'class_names',
+      title: 'Lớp học',
+      render: (value) => value ? (
+        <div className="flex flex-wrap gap-1">
+          {value.split(', ').map((c, i) => (
+            <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+              {c}
+            </span>
+          ))}
+        </div>
+      ) : <span className="text-gray-400">-</span>,
     },
     {
-      key: "parent_name",
-      title: "Phụ huynh",
-      render: (value, row) =>
-        value ? (
-          <div>
-            <p className="font-medium text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500">{row.parent_phone}</p>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        ),
+      key: 'parent_name',
+      title: 'Phụ huynh',
+      render: (value, row) => value ? (
+        <div>
+          <p className="font-medium text-gray-900">{value}</p>
+          <p className="text-xs text-gray-500">{row.parent_phone}</p>
+        </div>
+      ) : <span className="text-gray-400">-</span>,
     },
     {
-      key: "date_of_birth",
-      title: "Ngày sinh",
-      render: (value) =>
-        value ? new Date(value).toLocaleDateString("vi-VN") : "-",
+      key: 'date_of_birth',
+      title: 'Ngày sinh',
+      render: (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '-',
     },
     {
-      key: "status",
-      title: "Trạng thái",
+      key: 'status',
+      title: 'Trạng thái',
       render: (value) => (
-        <span className={value === "active" ? "badge-success" : "badge-error"}>
-          {value === "active" ? "Đang học" : "Nghỉ học"}
+        <span className={value === 'active' ? 'badge-success' : 'badge-error'}>
+          {value === 'active' ? 'Đang học' : 'Nghỉ học'}
         </span>
       ),
     },
     {
-      key: "actions",
-      title: "",
+      key: 'actions',
+      title: '',
       sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit(row);
-            }}
+            onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
             title="Sửa"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedStudent(row);
-              setShowDeleteConfirm(true);
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              setSelectedStudent(row); 
+              setShowDeleteConfirm(true); 
             }}
             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
             title="Xóa"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
         </div>
@@ -165,96 +134,20 @@ export default function StudentsPage() {
     },
   ];
 
-  // Calculate stats
-  const activeStudents = students.filter((s) => s.status === "active").length;
-  const maleStudents = students.filter((s) => s.gender === "male").length;
-  const femaleStudents = students.filter((s) => s.gender === "female").length;
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">
-            Học viên
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Quản lý danh sách học viên của trung tâm
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Học viên</h1>
+          <p className="text-gray-500">Quản lý danh sách học viên của trung tâm</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="btn-primary shadow-lg shadow-primary-500/30"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
+        <button onClick={handleAdd} className="btn-primary">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Thêm học viên
         </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-              👨‍🎓
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {students.length}
-              </p>
-              <p className="text-sm text-gray-500">Tổng số</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-lg">
-              ✓
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {activeStudents}
-              </p>
-              <p className="text-sm text-gray-500">Đang học</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-              👦
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{maleStudents}</p>
-              <p className="text-sm text-gray-500">Nam</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-lg">
-              👧
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {femaleStudents}
-              </p>
-              <p className="text-sm text-gray-500">Nữ</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Data Table */}
@@ -280,7 +173,7 @@ export default function StudentsPage() {
       <Modal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        title={editingStudent ? "Sửa học viên" : "Thêm học viên mới"}
+        title={editingStudent ? 'Sửa học viên' : 'Thêm học viên mới'}
         size="lg"
       >
         <StudentForm
@@ -299,17 +192,17 @@ export default function StudentsPage() {
 // Student Form Component with Class Enrollment
 function StudentForm({ student, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
-    full_name: student?.full_name || "",
-    student_code: student?.student_code || "",
-    date_of_birth: student?.date_of_birth || "",
-    gender: student?.gender || "male",
-    parent_id: student?.parent_id || "",
-    parent_phone: student?.parent_phone || "",
-    notes: student?.notes || "",
-    status: student?.status || "active",
+    full_name: student?.full_name || '',
+    student_code: student?.student_code || '',
+    date_of_birth: student?.date_of_birth || '',
+    gender: student?.gender || 'male',
+    parent_id: student?.parent_id || '',
+    parent_phone: student?.parent_phone || '',
+    notes: student?.notes || '',
+    status: student?.status || 'active',
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [classes, setClasses] = useState([]);
   const [parents, setParents] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
@@ -324,7 +217,7 @@ function StudentForm({ student, onSuccess, onCancel }) {
   }, [student]);
 
   const loadClasses = async () => {
-    const { classesService } = await import("../services/api");
+    const { classesService } = await import('../services/api');
     const res = await classesService.getAll();
     if (res.success) {
       setClasses(res.data.classes || []);
@@ -332,7 +225,7 @@ function StudentForm({ student, onSuccess, onCancel }) {
   };
 
   const loadParents = async () => {
-    const { parentsService } = await import("../services/api");
+    const { parentsService } = await import('../services/api');
     const res = await parentsService.getAll();
     if (res.success) {
       setParents(res.data.parents || []);
@@ -340,11 +233,11 @@ function StudentForm({ student, onSuccess, onCancel }) {
   };
 
   const loadEnrolledClasses = async () => {
-    const { studentsService } = await import("../services/api");
+    const { studentsService } = await import('../services/api');
     const res = await studentsService.getById(student.id);
     if (res.success && res.data.classes) {
       setEnrolledClasses(res.data.classes);
-      setSelectedClasses(res.data.classes.map((c) => c.class_id || c.id));
+      setSelectedClasses(res.data.classes.map(c => c.class_id || c.id));
     }
   };
 
@@ -354,41 +247,35 @@ function StudentForm({ student, onSuccess, onCancel }) {
   };
 
   const handleClassToggle = (classId) => {
-    setSelectedClasses((prev) =>
-      prev.includes(classId)
-        ? prev.filter((id) => id !== classId)
+    setSelectedClasses(prev => 
+      prev.includes(classId) 
+        ? prev.filter(id => id !== classId)
         : [...prev, classId]
     );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setError('');
 
     if (!formData.full_name.trim()) {
-      setError("Vui lòng nhập họ tên học viên");
+      setError('Vui lòng nhập họ tên học viên');
       return;
     }
 
     setLoading(true);
     try {
       const response = student
-        ? await studentsService.update(student.id, {
-            ...formData,
-            class_ids: selectedClasses,
-          })
-        : await studentsService.create({
-            ...formData,
-            class_ids: selectedClasses,
-          });
+        ? await studentsService.update(student.id, { ...formData, class_ids: selectedClasses })
+        : await studentsService.create({ ...formData, class_ids: selectedClasses });
 
       if (response.success) {
         onSuccess();
       } else {
-        setError(response.error?.message || "Có lỗi xảy ra");
+        setError(response.error?.message || 'Có lỗi xảy ra');
       }
     } catch (err) {
-      setError("Không thể lưu dữ liệu");
+      setError('Không thể lưu dữ liệu');
     }
     setLoading(false);
   };
@@ -468,26 +355,24 @@ function StudentForm({ student, onSuccess, onCancel }) {
           name="parent_id"
           value={formData.parent_id}
           onChange={(e) => {
-            const selectedParent = parents.find((p) => p.id === e.target.value);
-            setFormData((prev) => ({
+            const selectedParent = parents.find(p => p.id === e.target.value);
+            setFormData(prev => ({
               ...prev,
               parent_id: e.target.value,
-              parent_phone: selectedParent?.phone || "",
+              parent_phone: selectedParent?.phone || ''
             }));
           }}
           className="input"
         >
           <option value="">-- Chọn phụ huynh --</option>
-          {parents.map((p) => (
+          {parents.map(p => (
             <option key={p.id} value={p.id}>
               {p.full_name} - {p.phone}
             </option>
           ))}
         </select>
         {formData.parent_phone && (
-          <p className="text-xs text-gray-500 mt-1">
-            📞 {formData.parent_phone}
-          </p>
+          <p className="text-xs text-gray-500 mt-1">📞 {formData.parent_phone}</p>
         )}
       </div>
 
@@ -498,32 +383,23 @@ function StudentForm({ student, onSuccess, onCancel }) {
         </label>
         <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-lg">
           {classes.length === 0 ? (
-            <p className="text-sm text-gray-500 col-span-2">
-              Chưa có lớp học nào
-            </p>
-          ) : (
-            classes.map((c) => (
-              <label
-                key={c.id}
-                className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded-lg"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedClasses.includes(c.id)}
-                  onChange={() => handleClassToggle(c.id)}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {c.class_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {new Intl.NumberFormat("vi-VN").format(c.fee_per_day)}đ/buổi
-                  </p>
-                </div>
-              </label>
-            ))
-          )}
+            <p className="text-sm text-gray-500 col-span-2">Chưa có lớp học nào</p>
+          ) : classes.map(c => (
+            <label key={c.id} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-white rounded-lg">
+              <input
+                type="checkbox"
+                checked={selectedClasses.includes(c.id)}
+                onChange={() => handleClassToggle(c.id)}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{c.class_name}</p>
+                <p className="text-xs text-gray-500">
+                  {new Intl.NumberFormat('vi-VN').format(c.fee_per_day)}đ/buổi
+                </p>
+              </div>
+            </label>
+          ))}
         </div>
         {selectedClasses.length > 0 && (
           <p className="text-xs text-green-600 mt-1">
@@ -566,9 +442,10 @@ function StudentForm({ student, onSuccess, onCancel }) {
           Hủy
         </button>
         <button type="submit" disabled={loading} className="btn-primary">
-          {loading ? "Đang lưu..." : student ? "Cập nhật" : "Thêm mới"}
+          {loading ? 'Đang lưu...' : student ? 'Cập nhật' : 'Thêm mới'}
         </button>
       </div>
     </form>
   );
 }
+
