@@ -1,7 +1,11 @@
 {
   "rewrites": [
+    { "source": "/api/students/:id", "destination": "/api/students/[id]" },
+    { "source": "/api/teachers/:id", "destination": "/api/teachers/[id]" },
+    { "source": "/api/parents/:id", "destination": "/api/parents/[id]" },
+    { "source": "/api/classes/:id", "destination": "/api/classes/[id]" },
     { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/((?!api).*)", "destination": "/" }
   ],
   "headers": [
     {
