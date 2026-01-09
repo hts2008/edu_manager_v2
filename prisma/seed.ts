@@ -356,56 +356,8 @@ async function main() {
   }
   console.log(`✅ Created ${attendanceCount} attendance records`);
 
-  // Create some receipts
-  const receipt1 = await prisma.receipt.create({
-    data: {
-      studentId: students[0].id,
-      receiptType: "tuition",
-      description: "Học phí tháng 1/2026 - Toán 10",
-      amount: 1200000,
-      paymentMethod: "cash",
-      receivedById: admin.id,
-    },
-  });
-  const receipt2 = await prisma.receipt.create({
-    data: {
-      studentId: students[1].id,
-      receiptType: "tuition",
-      description: "Học phí tháng 1/2026 - Lý 10 + Anh Văn",
-      amount: 2500000,
-      paymentMethod: "transfer",
-      receivedById: admin.id,
-    },
-  });
-  console.log("✅ Created 2 receipt records");
-
-  // Create some payments
-  await prisma.payment.create({
-    data: {
-      paymentType: "salary",
-      recipientName: teachers[0].fullName,
-      recipientType: "teacher",
-      description: "Lương tháng 12/2025",
-      amount: 5000000,
-      paymentMethod: "transfer",
-      createdById: admin.id,
-    },
-  });
-  await prisma.payment.create({
-    data: {
-      paymentType: "utilities",
-      recipientName: "Điện lực TP.HCM",
-      recipientType: "other",
-      description: "Tiền điện tháng 12/2025",
-      amount: 1200000,
-      paymentMethod: "transfer",
-      createdById: admin.id,
-    },
-  });
-  console.log("✅ Created 2 payment records");
-
-  // Create templates
-  await prisma.template.create({
+  // Create templates FIRST (needed for receipts/payments)
+  const receiptTemplate = await prisma.template.create({
     data: {
       templateName: "Phiếu Thu Mặc Định",
       type: "receipt",
@@ -416,7 +368,7 @@ async function main() {
       createdById: admin.id,
     },
   });
-  await prisma.template.create({
+  const paymentTemplate = await prisma.template.create({
     data: {
       templateName: "Phiếu Chi Mặc Định",
       type: "payment",
@@ -428,6 +380,58 @@ async function main() {
     },
   });
   console.log("✅ Created default templates");
+
+  // Create some receipts
+  await prisma.receipt.create({
+    data: {
+      studentId: students[0].id,
+      month: "2026-01",
+      daysCount: 12,
+      feePerDay: 100000,
+      amount: 1200000,
+      paymentMethod: "cash",
+      templateId: receiptTemplate.id,
+      notes: "Học phí tháng 1/2026 - Toán 10",
+      createdById: admin.id,
+    },
+  });
+  await prisma.receipt.create({
+    data: {
+      studentId: students[1].id,
+      month: "2026-01",
+      daysCount: 20,
+      feePerDay: 125000,
+      amount: 2500000,
+      paymentMethod: "transfer",
+      templateId: receiptTemplate.id,
+      notes: "Học phí tháng 1/2026 - Lý 10 + Anh Văn",
+      createdById: admin.id,
+    },
+  });
+  console.log("✅ Created 2 receipt records");
+
+  // Create some payments
+  await prisma.payment.create({
+    data: {
+      category: "salary",
+      recipientName: teachers[0].fullName,
+      amount: 5000000,
+      templateId: paymentTemplate.id,
+      notes: "Lương tháng 12/2025",
+      createdById: admin.id,
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      category: "utility",
+      recipientName: "Điện lực TP.HCM",
+      amount: 1200000,
+      templateId: paymentTemplate.id,
+      notes: "Tiền điện tháng 12/2025",
+      createdById: admin.id,
+    },
+  });
+  console.log("✅ Created 2 payment records");
 
   // Create center settings
   await prisma.centerSettings.upsert({
