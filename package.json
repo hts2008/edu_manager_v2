@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Education Center Management System - Vercel Edition",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "prisma generate && cd frontend && npm run build",
