@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         where.status = status as string;
       }
 
-      const classes = await prisma.class.findMany({
+      const rawClasses = await prisma.class.findMany({
         where,
         include: {
           teacher: { select: { id: true, fullName: true } },
@@ -38,13 +38,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         orderBy: { className: "asc" },
       });
 
-      // Map to expected format
-      const formatted = classes.map((c) => ({
-        ...c,
+      // Map to snake_case format expected by frontend
+      const classes = rawClasses.map((c: any) => ({
+        id: c.id,
+        class_name: c.className,
+        schedule_days: c.scheduleDays,
+        start_time: c.startTime,
+        end_time: c.endTime,
+        fee_per_day: c.feePerDay,
+        max_students: c.maxStudents,
+        status: c.status,
+        notes: c.notes,
+        teacher_id: c.teacherId,
+        teacher_name: c.teacher?.fullName || null,
         student_count: c._count.studentClasses,
+        created_at: c.createdAt,
       }));
 
-      return successResponse(res, { classes: formatted });
+      return successResponse(res, { classes });
     } catch (error) {
       console.error("Classes list error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);

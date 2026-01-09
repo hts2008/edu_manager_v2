@@ -1,12 +1,18 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: ✅ PRODUCTION READY (98%)
+> **Status**: ✅ PRODUCTION LIVE (100%)
 
 ---
 
-## 🖥️ VISUAL DASHBOARD
+## 🖥️ DEPLOYMENTS
 
-**📊 [Open Real-time Dashboard](./dashboard.html)**
+| Environment    | URL                                  | Status  |
+| -------------- | ------------------------------------ | ------- |
+| **Production** | https://edu-manager-delta.vercel.app | ✅ Live |
+| **Local Dev**  | http://localhost:3000                | 🔧 Dev  |
+| **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
+
+**Login:** `admin / admin123`
 
 ---
 
@@ -15,10 +21,13 @@
 ### Infrastructure ✅
 
 - [x] Tailwind CSS v4 + Vite
-- [x] SQLite (12 tables)
+- [x] SQLite + PostgreSQL (Supabase)
 - [x] 70+ API endpoints
 - [x] JWT Auth + Role-based access
 - [x] Docker configuration
+- [x] **Vercel Deployment** ⭐ NEW
+- [x] **Prisma ORM** ⭐ NEW
+- [x] **Supabase PostgreSQL** ⭐ NEW
 
 ### Frontend (14 Pages) ✅
 
@@ -27,6 +36,7 @@
 - [x] Attendance, Receipts, Payments, History
 - [x] Reports, Templates, Template Designer
 - [x] KANBAN Dashboard
+- [x] Attendance Periods Management
 
 ### Backend Services ✅
 
@@ -34,6 +44,14 @@
 - [x] Excel Export (xlsx)
 - [x] Fee Calculation
 - [x] Activity Logging
+
+### Deployment ✅ NEW
+
+- [x] Vercel Production Deployment
+- [x] Supabase PostgreSQL Database
+- [x] Prisma Schema Migration
+- [x] ES Module Configuration
+- [x] Environment Variables Setup
 
 ### Deployment Tools ✅
 
@@ -49,6 +67,15 @@
 - [x] README.md
 - [x] USER_GUIDE_VI.md
 - [x] KANBAN.md
+
+---
+
+## 🔄 IN PROGRESS
+
+| Task               | Status      |
+| ------------------ | ----------- |
+| UI/UX Improvements | 🟡 Starting |
+| More Seed Data     | 🟡 Pending  |
 
 ---
 
@@ -74,9 +101,9 @@
 | 4. Operations    | ✅ 100% |
 | 5. Templates     | ✅ 100% |
 | 6. Reports       | ✅ 100% |
-| 7. Deployment    | ✅ 98%  |
+| 7. Deployment    | ✅ 100% |
 
-**Overall: 98% COMPLETE**
+**Overall: 100% COMPLETE**
 
 ---
 
@@ -88,6 +115,12 @@ start.bat
 
 # Production (Docker)
 docker-compose up -d
+
+# Vercel (Cloud)
+# Auto-deploy on push to main branch
+
+# Database Seeding
+npm run db:seed
 
 # Backup
 backup.bat
@@ -102,8 +135,11 @@ stop.bat
 
 **Repository:** https://github.com/hts2008/edu_manager_v2
 
-**Commits:**
+**Recent Commits:**
 
+- `a087f51` fix: add .js extensions to ES module imports for Vercel
+- `23a2ec1` fix: add ES module type for Vercel API routes
+- `93a68dd` feat: add Vercel/Prisma infrastructure for cloud deployment
 - `55d5b9d` fix: attendance bugs - week spanning months & period creation
 - `814f015` feat: Excel export, backup/restore, User Guide
 - `35650a1` docs: README and KANBAN
@@ -116,14 +152,14 @@ stop.bat
 
 ## 🖥️ URLs
 
-| Service   | URL                   |
-| --------- | --------------------- |
-| Frontend  | http://localhost:3000 |
-| Backend   | http://localhost:5000 |
-| Dashboard | dashboard.html        |
-
-**Login:** `admin / admin123`
+| Service   | URL                                                         |
+| --------- | ----------------------------------------------------------- |
+| **Live**  | https://edu-manager-delta.vercel.app                        |
+| Frontend  | http://localhost:3000                                       |
+| Backend   | http://localhost:5000                                       |
+| Dashboard | dashboard.html                                              |
+| Supabase  | https://supabase.com/dashboard/project/rdtqbivfnrdcureoazbh |
 
 ---
 
-**Last Updated:** 2026-01-08 18:23
+**Last Updated:** 2026-01-09 11:25

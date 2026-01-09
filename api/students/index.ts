@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ];
       }
 
-      const [students, total] = await Promise.all([
+      const [rawStudents, total] = await Promise.all([
         prisma.student.findMany({
           where,
           include: {
@@ -48,6 +48,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }),
         prisma.student.count({ where }),
       ]);
+
+      // Transform camelCase to snake_case for frontend compatibility
+      const students = rawStudents.map((s: any) => ({
+        id: s.id,
+        full_name: s.fullName,
+        date_of_birth:
+          s.dateOfBirth?.toISOString?.()?.split("T")[0] || s.dateOfBirth,
+        gender: s.gender,
+        phone: s.phone,
+        email: s.email,
+        address: s.address,
+        status: s.status,
+        notes: s.notes,
+        enrollment_date: s.enrollmentDate,
+        parent_id: s.parentId,
+        parent_name: s.parent?.fullName || null,
+        parent_phone: s.parent?.phone || null,
+        class_names:
+          s.studentClasses
+            ?.map((sc: any) => sc.class?.className)
+            .filter(Boolean)
+            .join(", ") || null,
+        created_at: s.createdAt,
+      }));
 
       return successResponse(res, { students, total });
     } catch (error) {
