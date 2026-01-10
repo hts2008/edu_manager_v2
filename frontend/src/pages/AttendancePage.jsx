@@ -167,7 +167,13 @@ export default function AttendancePage() {
     return Math.round(classSchedule.fee_per_day / sessionsPerMonth);
   }, [classSchedule, scheduleDayNumbers]);
 
-  // Generate week dates for selected week
+  // Get sessions_per_week limit for the class (default to 7 if not set)
+  const sessionsPerWeek = useMemo(() => {
+    return classSchedule?.sessions_per_week || 7;
+  }, [classSchedule]);
+
+  // Generate week dates for selected week - ALWAYS show all days (Mon-Sun)
+  // Teachers can freely choose which days to mark attendance
   const weekDates = useMemo(() => {
     if (!selectedWeek) return [];
     const dates = [];
@@ -175,8 +181,6 @@ export default function AttendancePage() {
 
     // Determine how to filter days
     const hasScheduleDays = scheduleDayNumbers.length > 0;
-    // Get sessions_per_week limit (default to 7 if not set)
-    const sessionsPerWeek = classSchedule?.sessions_per_week || 7;
 
     while (current <= selectedWeek.end) {
       let shouldInclude = false;
@@ -185,8 +189,8 @@ export default function AttendancePage() {
         // If schedule_days is defined, only show those days
         shouldInclude = scheduleDayNumbers.includes(current.getDay());
       } else {
-        // If no schedule_days, default to weekdays (Mon-Sat, excluding Sunday)
-        // but still respect the sessions_per_week limit
+        // If no schedule_days, show ALL weekdays (Mon-Sat, excluding Sunday)
+        // Teachers can choose which days to mark attendance
         const dayOfWeek = current.getDay();
         shouldInclude = dayOfWeek !== 0; // Exclude Sunday (0)
       }
@@ -202,14 +206,9 @@ export default function AttendancePage() {
       current.setDate(current.getDate() + 1);
     }
 
-    // Limit to sessions_per_week when no schedule_days are specified
-    // This ensures we show only the configured number of sessions
-    if (!hasScheduleDays && dates.length > sessionsPerWeek) {
-      return dates.slice(0, sessionsPerWeek);
-    }
-
+    // NO longer limiting - show all available days
     return dates;
-  }, [selectedWeek, scheduleDayNumbers, classSchedule]);
+  }, [selectedWeek, scheduleDayNumbers]);
 
   // Calculate fee summary per student for selected week
   const feeSummary = useMemo(() => {
@@ -229,18 +228,23 @@ export default function AttendancePage() {
 
       const totalDays = presentDays + absentWithFee;
       const fee = totalDays * feePerSession;
+      // Check if exceeding the limit
+      const isExceeding = totalDays > sessionsPerWeek;
+      const extraSessions = isExceeding ? totalDays - sessionsPerWeek : 0;
 
       summary[student.id] = {
         presentDays,
         absentWithFee,
         absentNoFee,
         totalDays,
-        totalSessions: weekDates.length,
+        sessionsLimit: sessionsPerWeek, // Use configured limit, not weekDates.length
         fee,
+        isExceeding,
+        extraSessions,
       };
     });
     return summary;
-  }, [students, attendance, weekDates, feePerSession]);
+  }, [students, attendance, weekDates, feePerSession, sessionsPerWeek]);
 
   const totalFee = useMemo(() => {
     return Object.values(feeSummary).reduce((sum, s) => sum + s.fee, 0);
@@ -941,9 +945,30 @@ export default function AttendancePage() {
                                   </td>
                                 );
                               })}
-                              <td className="px-4 py-3 text-center bg-blue-50 font-medium">
-                                {summary.totalDays || 0}/
-                                {summary.totalSessions || 0}
+                              <td
+                                className={`px-4 py-3 text-center font-medium ${
+                                  summary.isExceeding
+                                    ? "bg-orange-100"
+                                    : "bg-blue-50"
+                                }`}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    className={
+                                      summary.isExceeding
+                                        ? "text-orange-700"
+                                        : ""
+                                    }
+                                  >
+                                    {summary.totalDays || 0}/
+                                    {summary.sessionsLimit || sessionsPerWeek}
+                                  </span>
+                                  {summary.isExceeding && (
+                                    <span className="text-[10px] text-orange-600 bg-orange-200 px-1 rounded mt-0.5">
+                                      +{summary.extraSessions} tăng cường
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-3 text-right bg-green-50 font-medium text-green-700">
                                 {new Intl.NumberFormat("vi-VN").format(
@@ -964,7 +989,7 @@ export default function AttendancePage() {
                             colSpan={weekDates.length}
                             className="text-center text-sm"
                           >
-                            {weekDates.length} buổi trong tuần
+                            Quy định: {sessionsPerWeek} buổi/tuần
                           </td>
                           <td className="px-4 py-3 text-center bg-blue-100">
                             {Object.values(feeSummary).reduce(
