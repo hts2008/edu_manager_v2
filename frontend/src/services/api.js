@@ -13,6 +13,8 @@ async function request(endpoint, options = {}) {
       ...options.headers,
     },
     ...options,
+    // Add 30-second timeout for all requests
+    signal: options.signal || AbortSignal.timeout(30000),
   };
 
   try {
@@ -29,6 +31,18 @@ async function request(endpoint, options = {}) {
     return data;
   } catch (error) {
     console.error("API Error:", error);
+
+    // Differentiate between timeout and network errors
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      return {
+        success: false,
+        error: {
+          code: "TIMEOUT",
+          message: "Yêu cầu quá thời gian, vui lòng thử lại",
+        },
+      };
+    }
+
     return {
       success: false,
       error: { code: "NETWORK_ERROR", message: "Không thể kết nối server" },

@@ -31,53 +31,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    // Group records by class_id and date for efficient deletion
-    const deleteKeys = new Set<string>();
-    records.forEach((r: any) => {
-      if (r.class_id && r.attendance_date) {
-        deleteKeys.add(`${r.class_id}|${r.attendance_date}`);
-      }
-    });
+    // Collect unique class IDs and date range for efficient deletion
+    const classIds = new Set<string>();
+    const dates = new Set<string>();
+    const validStatuses = ["present", "absent_with_fee", "absent_no_fee"];
 
-    // Delete existing records for each class/date combination
-    for (const key of deleteKeys) {
-      const [classId, date] = key.split("|");
-      await prisma.attendance.deleteMany({
-        where: {
-          classId,
-          attendanceDate: new Date(date),
-        },
+    // Filter and transform valid records
+    const validRecords = records
+      .filter(
+        (r: any) =>
+          r.status &&
+          validStatuses.includes(r.status) &&
+          r.student_id &&
+          r.class_id &&
+          r.attendance_date
+      )
+      .map((r: any) => {
+        classIds.add(r.class_id);
+        dates.add(r.attendance_date);
+        return {
+          studentId: r.student_id,
+          classId: r.class_id,
+          attendanceDate: new Date(r.attendance_date),
+          status: r.status as "present" | "absent_with_fee" | "absent_no_fee",
+          reason: r.reason || null,
+          createdById: authUser.userId,
+        };
+      });
+
+    if (validRecords.length === 0) {
+      return successResponse(res, {
+        message: "No valid records to save",
+        count: 0,
       });
     }
 
-    // Insert new records
-    let counter = 0;
-    const validStatuses = ["present", "absent_with_fee", "absent_no_fee"];
+    // Convert dates to Date objects for query
+    const dateObjects = Array.from(dates).map((d) => new Date(d));
 
-    for (const r of records) {
-      if (
-        r.status &&
-        validStatuses.includes(r.status) &&
-        r.student_id &&
-        r.class_id &&
-        r.attendance_date
-      ) {
-        counter++;
-        await prisma.attendance.create({
-          data: {
-            studentId: r.student_id,
-            classId: r.class_id,
-            attendanceDate: new Date(r.attendance_date),
-            status: r.status,
-            reason: r.reason || null,
-            createdById: authUser.userId,
-          },
-        });
-      }
-    }
+    // Use transaction for atomic delete + insert (2 queries instead of N+1)
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete existing records for these class/date combinations
+      await tx.attendance.deleteMany({
+        where: {
+          classId: { in: Array.from(classIds) },
+          attendanceDate: { in: dateObjects },
+        },
+      });
+
+      // 2. Insert all valid records at once
+      await tx.attendance.createMany({
+        data: validRecords,
+      });
+    });
 
     return successResponse(res, {
-      message: `Saved ${counter} attendance records`,
+      message: `Saved ${validRecords.length} attendance records`,
+      count: validRecords.length,
     });
   } catch (error) {
     console.error("Bulk attendance error:", error);
