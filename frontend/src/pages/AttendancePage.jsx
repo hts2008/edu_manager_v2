@@ -175,6 +175,8 @@ export default function AttendancePage() {
 
     // Determine how to filter days
     const hasScheduleDays = scheduleDayNumbers.length > 0;
+    // Get sessions_per_week limit (default to 7 if not set)
+    const sessionsPerWeek = classSchedule?.sessions_per_week || 7;
 
     while (current <= selectedWeek.end) {
       let shouldInclude = false;
@@ -183,8 +185,10 @@ export default function AttendancePage() {
         // If schedule_days is defined, only show those days
         shouldInclude = scheduleDayNumbers.includes(current.getDay());
       } else {
-        // If no schedule_days, show all 7 days but we'll use sessions_per_week as reference
-        shouldInclude = true;
+        // If no schedule_days, default to weekdays (Mon-Sat, excluding Sunday)
+        // but still respect the sessions_per_week limit
+        const dayOfWeek = current.getDay();
+        shouldInclude = dayOfWeek !== 0; // Exclude Sunday (0)
       }
 
       if (shouldInclude) {
@@ -197,6 +201,13 @@ export default function AttendancePage() {
       }
       current.setDate(current.getDate() + 1);
     }
+
+    // Limit to sessions_per_week when no schedule_days are specified
+    // This ensures we show only the configured number of sessions
+    if (!hasScheduleDays && dates.length > sessionsPerWeek) {
+      return dates.slice(0, sessionsPerWeek);
+    }
+
     return dates;
   }, [selectedWeek, scheduleDayNumbers, classSchedule]);
 
