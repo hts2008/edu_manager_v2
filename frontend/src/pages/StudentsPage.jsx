@@ -307,6 +307,8 @@ function StudentForm({ student, onSuccess, onCancel }) {
     parent_phone: student?.parent_phone || "",
     notes: student?.notes || "",
     status: student?.status || "active",
+    enrollment_date:
+      student?.enrollment_date || new Date().toISOString().split("T")[0],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

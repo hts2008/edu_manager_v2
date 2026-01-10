@@ -226,6 +226,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         address,
         status,
         notes,
+        class_ids,
       } = req.body;
 
       const updatedStudent = await prisma.student.update({
@@ -243,6 +244,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         include: { parent: true },
       });
+
+      // Sync class enrollments if class_ids provided
+      if (class_ids !== undefined && Array.isArray(class_ids)) {
+        // Get current enrollments
+        const currentEnrollments = await prisma.studentClass.findMany({
+          where: { studentId: id, status: "active" },
+          select: { classId: true, id: true },
+        });
+        const currentClassIds = currentEnrollments.map((e) => e.classId);
+
+        // Find classes to add and remove
+        const toAdd = class_ids.filter(
+          (cid: string) => !currentClassIds.includes(cid)
+        );
+        const toRemove = currentEnrollments.filter(
+          (e) => !class_ids.includes(e.classId)
+        );
+
+        // Remove old enrollments (soft delete by setting status to inactive)
+        if (toRemove.length > 0) {
+          await prisma.studentClass.updateMany({
+            where: { id: { in: toRemove.map((e) => e.id) } },
+            data: { status: "inactive" },
+          });
+        }
+
+        // Add new enrollments
+        if (toAdd.length > 0) {
+          await prisma.studentClass.createMany({
+            data: toAdd.map((classId: string) => ({
+              studentId: id,
+              classId,
+              enrollmentDate: new Date(),
+            })),
+          });
+        }
+      }
 
       return successResponse(res, { student: updatedStudent });
     } catch (error) {

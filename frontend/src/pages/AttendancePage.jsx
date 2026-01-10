@@ -157,11 +157,13 @@ export default function AttendancePage() {
 
   // Calculate fee per session (monthly fee / sessions per month)
   const feePerSession = useMemo(() => {
-    if (!classSchedule?.fee_per_day || scheduleDayNumbers.length === 0)
-      return 0;
-    // fee_per_day is actually MONTHLY fee, divide by approximate sessions per month
+    if (!classSchedule?.fee_per_day) return 0;
+
+    // Use sessions_per_week if defined, otherwise use scheduleDayNumbers.length
+    const sessionsPerWeek =
+      classSchedule.sessions_per_week || scheduleDayNumbers.length || 1;
     // Average: 4.33 weeks per month
-    const sessionsPerMonth = scheduleDayNumbers.length * 4.33;
+    const sessionsPerMonth = sessionsPerWeek * 4.33;
     return Math.round(classSchedule.fee_per_day / sessionsPerMonth);
   }, [classSchedule, scheduleDayNumbers]);
 
@@ -170,11 +172,22 @@ export default function AttendancePage() {
     if (!selectedWeek) return [];
     const dates = [];
     const current = new Date(selectedWeek.start);
+
+    // Determine how to filter days
+    const hasScheduleDays = scheduleDayNumbers.length > 0;
+
     while (current <= selectedWeek.end) {
-      const isScheduleDay =
-        scheduleDayNumbers.length === 0 ||
-        scheduleDayNumbers.includes(current.getDay());
-      if (isScheduleDay) {
+      let shouldInclude = false;
+
+      if (hasScheduleDays) {
+        // If schedule_days is defined, only show those days
+        shouldInclude = scheduleDayNumbers.includes(current.getDay());
+      } else {
+        // If no schedule_days, show all 7 days but we'll use sessions_per_week as reference
+        shouldInclude = true;
+      }
+
+      if (shouldInclude) {
         dates.push({
           date: new Date(current),
           dateStr: current.toISOString().split("T")[0],
@@ -185,7 +198,7 @@ export default function AttendancePage() {
       current.setDate(current.getDate() + 1);
     }
     return dates;
-  }, [selectedWeek, scheduleDayNumbers]);
+  }, [selectedWeek, scheduleDayNumbers, classSchedule]);
 
   // Calculate fee summary per student for selected week
   const feeSummary = useMemo(() => {
