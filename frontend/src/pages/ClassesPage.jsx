@@ -227,6 +227,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     class_name: classData?.class_name || "",
     teacher_id: classData?.teacher_id || "",
+    // Flexible schedule options
     schedule_days: (() => {
       try {
         if (!classData?.schedule_days) return [];
@@ -237,6 +238,10 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
         return [];
       }
     })(),
+    schedule_required: classData?.schedule_required ?? false,
+    sessions_per_week: classData?.sessions_per_week || "",
+    session_required: classData?.session_required ?? false,
+    // Time and fee
     start_time: classData?.start_time || "18:00",
     end_time: classData?.end_time || "19:30",
     fee_per_day: classData?.fee_per_day || 50000,
@@ -246,14 +251,22 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Toggle states for enabling schedule options
+  const [useWeekdays, setUseWeekdays] = useState(
+    formData.schedule_days.length > 0
+  );
+  const [useSessionCount, setUseSessionCount] = useState(
+    !!classData?.sessions_per_week
+  );
+
   const dayOptions = [
-    { value: 2, label: "Thứ 2" },
-    { value: 3, label: "Thứ 3" },
-    { value: 4, label: "Thứ 4" },
-    { value: 5, label: "Thứ 5" },
-    { value: 6, label: "Thứ 6" },
-    { value: 7, label: "Thứ 7" },
-    { value: 1, label: "Chủ nhật" },
+    { value: 2, label: "T2" },
+    { value: 3, label: "T3" },
+    { value: 4, label: "T4" },
+    { value: 5, label: "T5" },
+    { value: 6, label: "T6" },
+    { value: 7, label: "T7" },
+    { value: 1, label: "CN" },
   ];
 
   const toggleDay = (day) => {
@@ -267,21 +280,52 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (!formData.class_name.trim()) {
       setError("Vui lòng nhập tên lớp");
       return;
     }
-    if (formData.schedule_days.length === 0) {
+
+    // Validate: at least one scheduling option should be enabled
+    if (!useWeekdays && !useSessionCount) {
+      setError(
+        "Vui lòng chọn ít nhất một phương thức lịch học (theo ngày thứ hoặc theo số buổi/tuần)"
+      );
+      return;
+    }
+
+    if (useWeekdays && formData.schedule_days.length === 0) {
       setError("Vui lòng chọn ít nhất 1 ngày học");
+      return;
+    }
+
+    if (
+      useSessionCount &&
+      (!formData.sessions_per_week || formData.sessions_per_week <= 0)
+    ) {
+      setError("Vui lòng nhập số buổi/tuần hợp lệ");
       return;
     }
 
     setLoading(true);
     try {
       const payload = {
-        ...formData,
-        schedule_days: formData.schedule_days,
+        class_name: formData.class_name,
+        teacher_id: formData.teacher_id,
+        schedule_days: useWeekdays ? formData.schedule_days : null,
+        schedule_required: useWeekdays ? formData.schedule_required : false,
+        sessions_per_week: useSessionCount
+          ? parseInt(formData.sessions_per_week)
+          : null,
+        session_required: useSessionCount ? formData.session_required : false,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        fee_per_day: formData.fee_per_day,
+        max_students: formData.max_students,
+        status: formData.status,
       };
+
       const response = classData
         ? await classesService.update(classData.id, payload)
         : await classesService.create(payload);
@@ -305,6 +349,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
         </div>
       )}
 
+      {/* Basic Info */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -317,7 +362,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
               setFormData({ ...formData, class_name: e.target.value })
             }
             className="input"
-            placeholder="VD: Lớp Starters A"
+            placeholder="VD: Anh Văn 10 - Tối T3,T5"
           />
         </div>
         <div>
@@ -341,28 +386,118 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Lịch học *
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {dayOptions.map((day) => (
-            <button
-              key={day.value}
-              type="button"
-              onClick={() => toggleDay(day.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                formData.schedule_days.includes(day.value)
-                  ? "bg-primary-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {day.label}
-            </button>
-          ))}
+      {/* Schedule Options Section */}
+      <div className="border border-gray-200 rounded-lg p-4 space-y-4 bg-gray-50">
+        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+          📅 Lịch học
+          <span className="text-xs text-gray-500 font-normal">
+            (chọn ít nhất 1 phương thức)
+          </span>
+        </h3>
+
+        {/* Option 1: By Weekday */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useWeekdays}
+              onChange={(e) => setUseWeekdays(e.target.checked)}
+              className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Theo ngày thứ trong tuần
+            </span>
+          </label>
+
+          {useWeekdays && (
+            <div className="ml-6 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {dayOptions.map((day) => (
+                  <button
+                    key={day.value}
+                    type="button"
+                    onClick={() => toggleDay(day.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      formData.schedule_days.includes(day.value)
+                        ? "bg-primary-600 text-white"
+                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={formData.schedule_required}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      schedule_required: e.target.checked,
+                    })
+                  }
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                />
+                Bắt buộc đúng các ngày đã chọn
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Option 2: By Session Count */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useSessionCount}
+              onChange={(e) => setUseSessionCount(e.target.checked)}
+              className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Theo số buổi trong tuần
+            </span>
+          </label>
+
+          {useSessionCount && (
+            <div className="ml-6 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={formData.sessions_per_week}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      sessions_per_week: e.target.value,
+                    })
+                  }
+                  className="input w-20"
+                  placeholder="2"
+                />
+                <span className="text-sm text-gray-600">buổi/tuần</span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={formData.session_required}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      session_required: e.target.checked,
+                    })
+                  }
+                  className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                />
+                Bắt buộc đúng số buổi (vượt quá cần ghi lý do học bù)
+              </label>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Time Settings */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -392,6 +527,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
         </div>
       </div>
 
+      {/* Fee and Capacity */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -427,6 +563,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
         </div>
       </div>
 
+      {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t">
         <button type="button" onClick={onCancel} className="btn-secondary">
           Hủy

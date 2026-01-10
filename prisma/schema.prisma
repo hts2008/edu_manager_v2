@@ -156,18 +156,24 @@ enum SalaryType {
 // CLASSES TABLE
 // ========================================
 model Class {
-  id           String   @id @default(cuid())
-  className    String   @map("class_name")
-  scheduleDays Json     @map("schedule_days") // [1,3,5] = Mon, Wed, Fri
-  startTime    String   @map("start_time")
-  endTime      String   @map("end_time")
-  feePerDay    Float    @map("fee_per_day")
-  maxStudents  Int      @default(50) @map("max_students")
-  teacherId    String?  @map("teacher_id")
-  status       Status   @default(active)
-  notes        String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  className        String   @map("class_name")
+  
+  // Schedule options (flexible attendance)
+  scheduleDays     Json?    @map("schedule_days")     // [2,4,6] = T2, T4, T6 (optional)
+  scheduleRequired Boolean  @default(false) @map("schedule_required")  // Bắt buộc đúng ngày
+  sessionsPerWeek  Int?     @map("sessions_per_week") // Số buổi/tuần (optional)
+  sessionRequired  Boolean  @default(false) @map("session_required")   // Bắt buộc đúng số buổi
+  
+  startTime        String   @map("start_time")
+  endTime          String   @map("end_time")
+  feePerDay        Float    @map("fee_per_day")
+  maxStudents      Int      @default(50) @map("max_students")
+  teacherId        String?  @map("teacher_id")
+  status           Status   @default(active)
+  notes            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relations
   teacher          Teacher?           @relation(fields: [teacherId], references: [id])
@@ -211,6 +217,11 @@ model Attendance {
   attendanceDate DateTime         @map("attendance_date")
   status         AttendanceStatus
   reason         String?
+  
+  // Make-up class tracking
+  isMakeUp       Boolean          @default(false) @map("is_make_up")
+  makeUpReason   String?          @map("make_up_reason")  // học bù, học thêm, etc.
+  
   createdById    String           @map("created_by")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
@@ -224,6 +235,7 @@ model Attendance {
   @@index([studentId])
   @@index([classId])
   @@index([attendanceDate])
+  @@index([isMakeUp])
   @@map("attendance")
 }
 

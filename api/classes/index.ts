@@ -62,6 +62,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id: classData.id,
           class_name: classData.className,
           schedule_days: classData.scheduleDays,
+          schedule_required: classData.scheduleRequired,
+          sessions_per_week: classData.sessionsPerWeek,
+          session_required: classData.sessionRequired,
           start_time: classData.startTime,
           end_time: classData.endTime,
           fee_per_day: classData.feePerDay,
@@ -110,6 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         id: c.id,
         class_name: c.className,
         schedule_days: c.scheduleDays,
+        schedule_required: c.scheduleRequired,
+        sessions_per_week: c.sessionsPerWeek,
+        session_required: c.sessionRequired,
         start_time: c.startTime,
         end_time: c.endTime,
         fee_per_day: c.feePerDay,
@@ -135,6 +141,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const {
         class_name,
         schedule_days,
+        schedule_required,
+        sessions_per_week,
+        session_required,
         start_time,
         end_time,
         fee_per_day,
@@ -143,17 +152,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         notes,
       } = req.body;
 
-      if (
-        !class_name ||
-        !schedule_days ||
-        !start_time ||
-        !end_time ||
-        !fee_per_day
-      ) {
+      // Validate: at least one scheduling option should be provided
+      if (!class_name || !start_time || !end_time || !fee_per_day) {
         return errorResponse(
           res,
           "MISSING_FIELDS",
-          "Required fields missing",
+          "Required fields missing (class_name, start_time, end_time, fee_per_day)",
           400
         );
       }
@@ -161,7 +165,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const newClass = await prisma.class.create({
         data: {
           className: class_name,
-          scheduleDays: schedule_days,
+          scheduleDays: schedule_days || null,
+          scheduleRequired: schedule_required || false,
+          sessionsPerWeek: sessions_per_week
+            ? parseInt(sessions_per_week)
+            : null,
+          sessionRequired: session_required || false,
           startTime: start_time,
           endTime: end_time,
           feePerDay: parseFloat(fee_per_day),
@@ -191,6 +200,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const {
         class_name,
         schedule_days,
+        schedule_required,
+        sessions_per_week,
+        session_required,
         start_time,
         end_time,
         fee_per_day,
@@ -204,7 +216,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         where: { id },
         data: {
           ...(class_name && { className: class_name }),
-          ...(schedule_days && { scheduleDays: schedule_days }),
+          ...(schedule_days !== undefined && { scheduleDays: schedule_days }),
+          ...(schedule_required !== undefined && {
+            scheduleRequired: schedule_required,
+          }),
+          ...(sessions_per_week !== undefined && {
+            sessionsPerWeek: sessions_per_week
+              ? parseInt(sessions_per_week)
+              : null,
+          }),
+          ...(session_required !== undefined && {
+            sessionRequired: session_required,
+          }),
           ...(start_time && { startTime: start_time }),
           ...(end_time && { endTime: end_time }),
           ...(fee_per_day && { feePerDay: parseFloat(fee_per_day) }),
