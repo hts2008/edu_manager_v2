@@ -748,9 +748,18 @@ export default function AttendancePage() {
                       {selectedWeek.start.toLocaleDateString("vi-VN")} -{" "}
                       {selectedWeek.end.toLocaleDateString("vi-VN")}
                     </h3>
-                    <p className="text-sm text-gray-500">
-                      Click vào ô để thay đổi trạng thái
-                    </p>
+                    <div className="flex items-center gap-4">
+                      {/* Show session requirement if configured */}
+                      {classSchedule?.sessions_per_week && (
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                          📊 Quy định: {classSchedule.sessions_per_week}{" "}
+                          buổi/tuần
+                        </span>
+                      )}
+                      <p className="text-sm text-gray-500">
+                        Click vào ô để thay đổi trạng thái
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex gap-2 text-sm">
@@ -787,15 +796,61 @@ export default function AttendancePage() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">
                             Học viên
                           </th>
-                          {weekDates.map(({ dateStr, dayOfWeek, dayNum }) => (
-                            <th
-                              key={dateStr}
-                              className="px-3 py-2 text-center text-xs font-medium text-gray-600 min-w-[60px]"
-                            >
-                              <div>{dayOfWeek}</div>
-                              <div className="font-bold">{dayNum}</div>
-                            </th>
-                          ))}
+                          {weekDates.map(({ dateStr, dayOfWeek, dayNum }) => {
+                            // Check if all students are marked present for this date
+                            const allPresent = students.every(
+                              (s) => attendance[s.id]?.[dateStr] === "present"
+                            );
+                            const anyMarked = students.some(
+                              (s) => attendance[s.id]?.[dateStr]
+                            );
+                            return (
+                              <th
+                                key={dateStr}
+                                className="px-3 py-2 text-center text-xs font-medium text-gray-600 min-w-[70px]"
+                              >
+                                <div>{dayOfWeek}</div>
+                                <div className="font-bold">{dayNum}</div>
+                                {/* Select All checkbox */}
+                                <div className="mt-1">
+                                  <button
+                                    onClick={() => {
+                                      // Toggle all students for this date
+                                      const newStatus = allPresent
+                                        ? null
+                                        : "present";
+                                      setAttendance((prev) => {
+                                        const updated = { ...prev };
+                                        students.forEach((s) => {
+                                          if (!updated[s.id])
+                                            updated[s.id] = {};
+                                          updated[s.id] = {
+                                            ...updated[s.id],
+                                            [dateStr]: newStatus,
+                                          };
+                                        });
+                                        return updated;
+                                      });
+                                    }}
+                                    className={`px-2 py-1 text-[10px] rounded font-medium transition-colors ${
+                                      allPresent
+                                        ? "bg-green-500 text-white"
+                                        : anyMarked
+                                        ? "bg-yellow-200 text-yellow-800"
+                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                    }`}
+                                    title={
+                                      allPresent
+                                        ? "Bỏ chọn tất cả"
+                                        : "Chọn tất cả có mặt"
+                                    }
+                                  >
+                                    {allPresent ? "✓ Cả lớp" : "☐ Tất cả"}
+                                  </button>
+                                </div>
+                              </th>
+                            );
+                          })}
                           <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 bg-blue-50">
                             Buổi
                           </th>
