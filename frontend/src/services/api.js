@@ -141,10 +141,10 @@ export const attendanceService = {
     request(`/attendance?student_id=${studentId}&month=${month}`),
   create: (data) =>
     request("/attendance", { method: "POST", body: JSON.stringify(data) }),
-  bulkCreate: (records) =>
+  bulkCreate: (records, classId, dates) =>
     request("/attendance/bulk", {
       method: "POST",
-      body: JSON.stringify({ records }),
+      body: JSON.stringify({ records, class_id: classId, dates }),
     }),
   calculateFee: (studentId, month) =>
     request(`/attendance/calculate-fee?student_id=${studentId}&month=${month}`),

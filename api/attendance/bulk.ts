@@ -20,24 +20,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { records } = req.body;
+    const { records, class_id, dates } = req.body;
 
-    if (!records || !Array.isArray(records) || records.length === 0) {
+    // Validate required fields
+    if (!class_id) {
       return errorResponse(
         res,
-        "MISSING_RECORDS",
-        "Records array required",
+        "MISSING_CLASS_ID",
+        "class_id is required",
         400
       );
     }
 
-    // Collect unique class IDs and date range for efficient deletion
-    const classIds = new Set<string>();
-    const dates = new Set<string>();
+    if (!dates || !Array.isArray(dates) || dates.length === 0) {
+      return errorResponse(
+        res,
+        "MISSING_DATES",
+        "dates array is required",
+        400
+      );
+    }
+
+    // Allow empty records (user cleared all attendance for the week)
+    const recordsArray = records || [];
     const validStatuses = ["present", "absent_with_fee", "absent_no_fee"];
 
     // Filter and transform valid records
-    const validRecords = records
+    const validRecords = recordsArray
       .filter(
         (r: any) =>
           r.status &&
@@ -46,47 +55,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           r.class_id &&
           r.attendance_date
       )
-      .map((r: any) => {
-        classIds.add(r.class_id);
-        dates.add(r.attendance_date);
-        return {
-          studentId: r.student_id,
-          classId: r.class_id,
-          attendanceDate: new Date(r.attendance_date),
-          status: r.status as "present" | "absent_with_fee" | "absent_no_fee",
-          reason: r.reason || null,
-          createdById: authUser.userId,
-        };
-      });
+      .map((r: any) => ({
+        studentId: r.student_id,
+        classId: r.class_id,
+        attendanceDate: new Date(r.attendance_date),
+        status: r.status as "present" | "absent_with_fee" | "absent_no_fee",
+        reason: r.reason || null,
+        createdById: authUser.userId,
+      }));
 
-    if (validRecords.length === 0) {
-      return successResponse(res, {
-        message: "No valid records to save",
-        count: 0,
-      });
-    }
+    // Convert ALL dates to Date objects for deletion (not just from records)
+    const dateObjects = dates.map((d: string) => new Date(d));
 
-    // Convert dates to Date objects for query
-    const dateObjects = Array.from(dates).map((d) => new Date(d));
-
-    // Use transaction for atomic delete + insert (2 queries instead of N+1)
+    // Use transaction for atomic delete + insert
     await prisma.$transaction(async (tx) => {
-      // 1. Delete existing records for these class/date combinations
+      // 1. Delete ALL existing records for this class and these dates
+      // This ensures removed attendance cells are properly deleted
       await tx.attendance.deleteMany({
         where: {
-          classId: { in: Array.from(classIds) },
+          classId: class_id,
           attendanceDate: { in: dateObjects },
         },
       });
 
-      // 2. Insert all valid records at once
-      await tx.attendance.createMany({
-        data: validRecords,
-      });
+      // 2. Insert valid records (if any)
+      if (validRecords.length > 0) {
+        await tx.attendance.createMany({
+          data: validRecords,
+        });
+      }
     });
 
     return successResponse(res, {
-      message: `Saved ${validRecords.length} attendance records`,
+      message:
+        validRecords.length > 0
+          ? `Saved ${validRecords.length} attendance records`
+          : `Cleared attendance for ${dates.length} dates`,
       count: validRecords.length,
     });
   } catch (error) {

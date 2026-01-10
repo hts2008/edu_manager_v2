@@ -395,6 +395,8 @@ export default function AttendancePage() {
     }
 
     const records = [];
+    const allDates = weekDates.map((w) => w.dateStr); // All dates in the week for deletion
+
     students.forEach((student) => {
       const studentAtt = attendance[student.id] || {};
       weekDates.forEach(({ dateStr }) => {
@@ -410,7 +412,12 @@ export default function AttendancePage() {
       });
     });
 
-    const response = await attendanceService.bulkCreate(records);
+    // Pass class_id and all dates so backend can delete the full range
+    const response = await attendanceService.bulkCreate(
+      records,
+      selectedClass,
+      allDates
+    );
 
     if (response.success) {
       toast.success(`Đã lưu ${records.length} bản ghi điểm danh`);
