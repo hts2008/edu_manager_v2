@@ -56,6 +56,7 @@ export default function AttendancePage() {
   const [selectedWeek, setSelectedWeek] = useState(null); // { start: Date, end: Date }
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [calendarAttendance, setCalendarAttendance] = useState({}); // { "2026-01-15": { present: 5, holiday: 1, ... } }
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -299,6 +300,49 @@ export default function AttendancePage() {
         }
       }
       setPeriods(periodsMap);
+
+      // Load attendance for calendar markers (all 3 months)
+      const calendarData = {};
+      for (const m of threeMonths) {
+        try {
+          const res = await fetch(
+            `/api/attendance/month?class_id=${selectedClass}&month=${m.key}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.data.attendance) {
+              // Aggregate attendance by date
+              data.data.attendance.forEach((a) => {
+                const dateKey = a.attendance_date;
+                if (!calendarData[dateKey]) {
+                  calendarData[dateKey] = {
+                    present: 0,
+                    absent_with_fee: 0,
+                    absent_no_fee: 0,
+                    holiday: 0,
+                    total: 0,
+                  };
+                }
+                calendarData[dateKey][a.status] =
+                  (calendarData[dateKey][a.status] || 0) + 1;
+                calendarData[dateKey].total++;
+              });
+            }
+          }
+        } catch (e) {
+          console.error(
+            "Error loading calendar attendance for month",
+            m.key,
+            e,
+          );
+        }
+      }
+      setCalendarAttendance(calendarData);
     }
     setLoading(false);
   };
@@ -671,31 +715,50 @@ export default function AttendancePage() {
                                   isSelected ? "bg-primary-100" : ""
                                 }`}
                               >
-                                {week.map((d, di) => (
-                                  <td key={di} className="py-1">
-                                    {d ? (
-                                      <div
-                                        className={`w-7 h-7 mx-auto rounded flex items-center justify-center text-xs
-                                        ${
-                                          d.isToday
-                                            ? "border-2 border-primary-600 font-bold"
-                                            : ""
-                                        }
-                                        ${
-                                          d.isScheduleDay
-                                            ? "bg-blue-50 text-blue-700"
-                                            : "text-gray-400"
-                                        }
-                                        ${isSelected ? "bg-primary-200" : ""}
-                                      `}
-                                      >
-                                        {d.day}
-                                      </div>
-                                    ) : (
-                                      <div className="w-7 h-7"></div>
-                                    )}
-                                  </td>
-                                ))}
+                                {week.map((d, di) => {
+                                  // Get attendance data for this date
+                                  const dateAtt = d
+                                    ? calendarAttendance[d.dateStr]
+                                    : null;
+                                  const hasAttendance =
+                                    dateAtt && dateAtt.total > 0;
+                                  const hasHoliday =
+                                    dateAtt && dateAtt.holiday > 0;
+
+                                  return (
+                                    <td key={di} className="py-1">
+                                      {d ? (
+                                        <div className="relative">
+                                          <div
+                                            className={`w-7 h-7 mx-auto rounded flex items-center justify-center text-xs
+                                          ${
+                                            d.isToday
+                                              ? "border-2 border-primary-600 font-bold"
+                                              : ""
+                                          }
+                                          ${
+                                            d.isScheduleDay
+                                              ? "bg-blue-50 text-blue-700"
+                                              : "text-gray-400"
+                                          }
+                                          ${isSelected ? "bg-primary-200" : ""}
+                                        `}
+                                          >
+                                            {d.day}
+                                          </div>
+                                          {/* Attendance marker dot */}
+                                          {hasAttendance && (
+                                            <div
+                                              className={`absolute -bottom-0.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full ${hasHoliday ? "bg-red-500" : "bg-green-500"}`}
+                                            ></div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="w-7 h-7"></div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             );
                           })}
