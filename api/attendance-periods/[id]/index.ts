@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import prisma from "../../lib/prisma.js";
+import prisma from "../../../lib/prisma.js";
 import {
   handleCors,
   verifyAuth,
   errorResponse,
   successResponse,
-} from "../../lib/auth.js";
+} from "../../../lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -15,33 +15,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
   }
 
-  // Parse params from catch-all route: /api/attendance-periods/[...params]
-  // Expected: /api/attendance-periods/[id]/[action]
-  const { params } = req.query;
+  // Get id from query param (Vercel dynamic route)
+  const { id, action } = req.query;
 
-  if (!params || !Array.isArray(params)) {
-    return errorResponse(res, "INVALID_ROUTE", "Invalid route parameters", 400);
-  }
-
-  // Route: /api/attendance-periods/{id}/{action}
-  // params = [id, action]
-  const [id, action] = params;
-
-  if (!id) {
+  if (!id || typeof id !== "string") {
     return errorResponse(res, "MISSING_ID", "Period ID is required", 400);
   }
 
-  // If no action, return period details (GET)
-  if (!action) {
-    if (req.method !== "GET") {
-      return errorResponse(
-        res,
-        "METHOD_NOT_ALLOWED",
-        "Only GET allowed for this route",
-        405,
-      );
-    }
-
+  // Handle GET - return period details
+  if (req.method === "GET") {
     const period = await prisma.attendancePeriod.findUnique({
       where: { id },
       include: { class: true },
@@ -51,18 +33,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return errorResponse(res, "NOT_FOUND", "Period not found", 404);
     }
 
-    return successResponse(res, { period });
+    // Get attendance for this period
+    const [year, month] = period.periodMonth.split("-");
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0);
+
+    const attendance = await prisma.attendance.findMany({
+      where: {
+        classId: period.classId,
+        attendanceDate: { gte: startDate, lte: endDate },
+      },
+      include: { student: true },
+    });
+
+    return successResponse(res, { period, attendance });
   }
 
-  // Actions require POST
+  // Handle POST - actions
   if (req.method !== "POST") {
     return errorResponse(
       res,
       "METHOD_NOT_ALLOWED",
-      "Only POST allowed for actions",
+      "Only GET and POST allowed",
       405,
     );
   }
+
+  // Determine action from query param or default to submit
+  const actionType = (action as string) || "submit";
 
   try {
     // Get period
@@ -75,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return errorResponse(res, "NOT_FOUND", "Period not found", 404);
     }
 
-    switch (action) {
+    switch (actionType) {
       case "submit": {
         if (period.status !== "open") {
           return errorResponse(
@@ -128,10 +126,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return successResponse(res, {
           message: "Period submitted for approval",
           stats: {
-            totalSessions,
-            totalPresent,
-            totalAbsentFee,
-            totalAbsentNoFee,
+            total_sessions: totalSessions,
+            total_present: totalPresent,
+            total_absent_fee: totalAbsentFee,
+            total_absent_no_fee: totalAbsentNoFee,
           },
         });
       }
@@ -256,7 +254,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return errorResponse(
           res,
           "INVALID_ACTION",
-          `Invalid action: ${action}. Valid actions: submit, approve, lock, unlock`,
+          `Invalid action: ${actionType}. Valid actions: submit, approve, lock, unlock`,
           400,
         );
     }

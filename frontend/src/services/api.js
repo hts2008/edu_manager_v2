@@ -221,12 +221,13 @@ export const attendancePeriodsService = {
       body: JSON.stringify(data),
     }),
   submit: (id) =>
-    request(`/attendance-periods/${id}/submit`, { method: "POST" }),
+    request(`/attendance-periods/${id}?action=submit`, { method: "POST" }),
   approve: (id) =>
-    request(`/attendance-periods/${id}/approve`, { method: "POST" }),
-  lock: (id) => request(`/attendance-periods/${id}/lock`, { method: "POST" }),
+    request(`/attendance-periods/${id}?action=approve`, { method: "POST" }),
+  lock: (id) =>
+    request(`/attendance-periods/${id}?action=lock`, { method: "POST" }),
   unlock: (id) =>
-    request(`/attendance-periods/${id}/unlock`, { method: "POST" }),
+    request(`/attendance-periods/${id}?action=unlock`, { method: "POST" }),
 };
 
 // Monthly Fees API (Fee Collection with Status)
