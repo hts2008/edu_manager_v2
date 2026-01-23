@@ -70,7 +70,7 @@ export default function AttendancePage() {
       const d = new Date(
         baseMonth.getFullYear(),
         baseMonth.getMonth() + offset,
-        1
+        1,
       );
       return {
         year: d.getFullYear(),
@@ -142,7 +142,7 @@ export default function AttendancePage() {
       .map((d) =>
         typeof d === "number"
           ? d
-          : {
+          : ({
               sunday: 0,
               monday: 1,
               tuesday: 2,
@@ -150,7 +150,7 @@ export default function AttendancePage() {
               thursday: 4,
               friday: 5,
               saturday: 6,
-            }[String(d).toLowerCase()] ?? -1
+            }[String(d).toLowerCase()] ?? -1),
       )
       .filter((d) => d >= 0);
   }, [classSchedule]);
@@ -321,7 +321,7 @@ export default function AttendancePage() {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
-          }
+          },
         );
         if (res.ok) {
           const data = await res.json();
@@ -359,8 +359,8 @@ export default function AttendancePage() {
       currentIdx === -1
         ? STATUS_CYCLE[0]
         : currentIdx === STATUS_CYCLE.length - 1
-        ? null
-        : STATUS_CYCLE[currentIdx + 1];
+          ? null
+          : STATUS_CYCLE[currentIdx + 1];
 
     setAttendance((prev) => ({
       ...prev,
@@ -416,7 +416,7 @@ export default function AttendancePage() {
     const response = await attendanceService.bulkCreate(
       records,
       selectedClass,
-      allDates
+      allDates,
     );
 
     if (response.success) {
@@ -443,7 +443,7 @@ export default function AttendancePage() {
       }
       // Submit the newly created period
       const submitRes = await attendancePeriodsService.submit(
-        createRes.data.period.id
+        createRes.data.period.id,
       );
       if (submitRes.success) {
         toast.success("Đã nộp điểm danh tháng " + monthKey);
@@ -489,7 +489,7 @@ export default function AttendancePage() {
       toast.success(
         "🔒 Đã chốt điểm danh tháng " +
           monthKey +
-          ". Học phí đã sẵn sàng để thu!"
+          ". Học phí đã sẵn sàng để thu!",
       );
       loadClassData();
     } else {
@@ -558,7 +558,7 @@ export default function AttendancePage() {
                 <p>
                   <strong>Học phí tháng:</strong>{" "}
                   {new Intl.NumberFormat("vi-VN").format(
-                    classSchedule.fee_per_day
+                    classSchedule.fee_per_day,
                   )}
                   đ
                 </p>
@@ -609,7 +609,7 @@ export default function AttendancePage() {
                   const calendar = generateMonthCalendar(
                     year,
                     month,
-                    scheduleDayNumbers
+                    scheduleDayNumbers,
                   );
                   const period = periods[key];
 
@@ -834,10 +834,10 @@ export default function AttendancePage() {
                           {weekDates.map(({ dateStr, dayOfWeek, dayNum }) => {
                             // Check if all students are marked present for this date
                             const allPresent = students.every(
-                              (s) => attendance[s.id]?.[dateStr] === "present"
+                              (s) => attendance[s.id]?.[dateStr] === "present",
                             );
                             const anyMarked = students.some(
-                              (s) => attendance[s.id]?.[dateStr]
+                              (s) => attendance[s.id]?.[dateStr],
                             );
                             return (
                               <th
@@ -871,8 +871,8 @@ export default function AttendancePage() {
                                       allPresent
                                         ? "bg-green-500 text-white"
                                         : anyMarked
-                                        ? "bg-yellow-200 text-yellow-800"
-                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                          ? "bg-yellow-200 text-yellow-800"
+                                          : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                                     }`}
                                     title={
                                       allPresent
@@ -933,10 +933,10 @@ export default function AttendancePage() {
                                           status === "present"
                                             ? "bg-green-100 hover:bg-green-200"
                                             : status === "absent_with_fee"
-                                            ? "bg-yellow-100 hover:bg-yellow-200"
-                                            : status === "absent_no_fee"
-                                            ? "bg-red-100 hover:bg-red-200"
-                                            : "bg-gray-100 hover:bg-gray-200"
+                                              ? "bg-yellow-100 hover:bg-yellow-200"
+                                              : status === "absent_no_fee"
+                                                ? "bg-red-100 hover:bg-red-200"
+                                                : "bg-gray-100 hover:bg-gray-200"
                                         }
                                       `}
                                       title={
@@ -979,7 +979,7 @@ export default function AttendancePage() {
                               </td>
                               <td className="px-4 py-3 text-right bg-green-50 font-medium text-green-700">
                                 {new Intl.NumberFormat("vi-VN").format(
-                                  summary.fee || 0
+                                  summary.fee || 0,
                                 )}
                                 đ
                               </td>
@@ -1001,7 +1001,7 @@ export default function AttendancePage() {
                           <td className="px-4 py-3 text-center bg-blue-100">
                             {Object.values(feeSummary).reduce(
                               (sum, s) => sum + (s.totalDays || 0),
-                              0
+                              0,
                             )}
                           </td>
                           <td className="px-4 py-3 text-right bg-green-100 text-green-800">
