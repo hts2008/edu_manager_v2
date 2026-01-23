@@ -228,6 +228,11 @@ export const attendancePeriodsService = {
     request(`/attendance-periods/${id}?action=lock`, { method: "POST" }),
   unlock: (id) =>
     request(`/attendance-periods/${id}?action=unlock`, { method: "POST" }),
+  reject: (id, reason) =>
+    request(`/attendance-periods/${id}?action=reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 };
 
 // Monthly Fees API (Fee Collection with Status)

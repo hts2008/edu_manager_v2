@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "MISSING_ID", "Period ID is required", 400);
   }
 
-  // Handle GET - return period details
+  // Handle GET - return period details with student-grouped attendance
   if (req.method === "GET") {
     const period = await prisma.attendancePeriod.findUnique({
       where: { id },
@@ -44,9 +44,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         attendanceDate: { gte: startDate, lte: endDate },
       },
       include: { student: true },
+      orderBy: [{ studentId: "asc" }, { attendanceDate: "asc" }],
     });
 
-    return successResponse(res, { period, attendance });
+    // Group attendance by student for review modal
+    const studentMap = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        present: number;
+        absentWithFee: number;
+        absentNoFee: number;
+        holiday: number;
+        total: number;
+      }
+    >();
+
+    attendance.forEach((att) => {
+      const student = att.student;
+      if (!studentMap.has(student.id)) {
+        studentMap.set(student.id, {
+          id: student.id,
+          name: student.fullName,
+          present: 0,
+          absentWithFee: 0,
+          absentNoFee: 0,
+          holiday: 0,
+          total: 0,
+        });
+      }
+      const s = studentMap.get(student.id)!;
+      s.total++;
+      if (att.status === "present") s.present++;
+      else if (att.status === "absent_with_fee") s.absentWithFee++;
+      else if (att.status === "absent_no_fee") s.absentNoFee++;
+      else if (att.status === "holiday") s.holiday++;
+    });
+
+    const students = Array.from(studentMap.values());
+
+    // Calculate summary
+    const summary = {
+      totalStudents: students.length,
+      totalRecords: attendance.length,
+      totalPresent: students.reduce((sum, s) => sum + s.present, 0),
+      totalAbsentWithFee: students.reduce((sum, s) => sum + s.absentWithFee, 0),
+      totalAbsentNoFee: students.reduce((sum, s) => sum + s.absentNoFee, 0),
+      totalHoliday: students.reduce((sum, s) => sum + s.holiday, 0),
+    };
+
+    return successResponse(res, { period, summary, students, attendance });
   }
 
   // Handle POST - actions
@@ -254,11 +302,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return successResponse(res, { message: "Period unlocked" });
       }
 
+      case "reject": {
+        // VI: Trả lại điểm danh cho giáo viên
+        if (authUser.role !== "admin") {
+          return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
+        }
+
+        if (period.status !== "submitted") {
+          return errorResponse(
+            res,
+            "INVALID_STATUS",
+            `Cannot reject: current status is ${period.status}. Only 'submitted' periods can be rejected.`,
+            400,
+          );
+        }
+
+        const { reason } = req.body || {};
+
+        await prisma.attendancePeriod.update({
+          where: { id },
+          data: {
+            status: "open",
+            submittedById: null,
+            submittedAt: null,
+            // Reset stats so teacher can recalculate
+            totalSessions: 0,
+            totalPresent: 0,
+            totalAbsentFee: 0,
+            totalAbsentNoFee: 0,
+            totalHoliday: 0,
+          },
+        });
+
+        return successResponse(res, {
+          message: "Period returned to teacher for revision",
+          reason: reason || null,
+        });
+      }
+
       default:
         return errorResponse(
           res,
           "INVALID_ACTION",
-          `Invalid action: ${actionType}. Valid actions: submit, approve, lock, unlock`,
+          `Invalid action: ${actionType}. Valid actions: submit, approve, lock, unlock, reject`,
           400,
         );
     }
