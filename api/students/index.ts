@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             res,
             "INVALID_ID",
             "Student ID must be a string",
-            400
+            400,
           );
         }
 
@@ -162,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res,
           "MISSING_FIELDS",
           "Required fields missing",
-          400
+          400,
         );
       }
 
@@ -247,33 +247,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Sync class enrollments if class_ids provided
       if (class_ids !== undefined && Array.isArray(class_ids)) {
-        // Get current enrollments
-        const currentEnrollments = await prisma.studentClass.findMany({
-          where: { studentId: id, status: "active" },
-          select: { classId: true, id: true },
+        // Get ALL enrollments (including inactive) to handle re-enrollment
+        const allEnrollments = await prisma.studentClass.findMany({
+          where: { studentId: id },
+          select: { classId: true, id: true, status: true },
         });
-        const currentClassIds = currentEnrollments.map((e) => e.classId);
-
-        // Find classes to add and remove
-        const toAdd = class_ids.filter(
-          (cid: string) => !currentClassIds.includes(cid)
+        const activeEnrollments = allEnrollments.filter(
+          (e: any) => e.status === "active",
         );
-        const toRemove = currentEnrollments.filter(
-          (e) => !class_ids.includes(e.classId)
+        const inactiveEnrollments = allEnrollments.filter(
+          (e: any) => e.status === "inactive",
+        );
+        const activeClassIds = activeEnrollments.map((e: any) => e.classId);
+        const inactiveClassIds = inactiveEnrollments.map((e: any) => e.classId);
+
+        // Find classes to deactivate, re-activate, or create new
+        const toDeactivate = activeEnrollments.filter(
+          (e: any) => !class_ids.includes(e.classId),
+        );
+        const toReactivate = inactiveEnrollments.filter((e: any) =>
+          class_ids.includes(e.classId),
+        );
+        const toCreate = class_ids.filter(
+          (cid: string) =>
+            !activeClassIds.includes(cid) && !inactiveClassIds.includes(cid),
         );
 
-        // Remove old enrollments (soft delete by setting status to inactive)
-        if (toRemove.length > 0) {
+        // Deactivate removed enrollments (soft delete)
+        if (toDeactivate.length > 0) {
           await prisma.studentClass.updateMany({
-            where: { id: { in: toRemove.map((e) => e.id) } },
+            where: { id: { in: toDeactivate.map((e: any) => e.id) } },
             data: { status: "inactive" },
           });
         }
 
-        // Add new enrollments
-        if (toAdd.length > 0) {
+        // Re-activate previously inactive enrollments
+        if (toReactivate.length > 0) {
+          await prisma.studentClass.updateMany({
+            where: { id: { in: toReactivate.map((e: any) => e.id) } },
+            data: { status: "active", enrollmentDate: new Date() },
+          });
+        }
+
+        // Create truly new enrollments (never existed before)
+        if (toCreate.length > 0) {
           await prisma.studentClass.createMany({
-            data: toAdd.map((classId: string) => ({
+            data: toCreate.map((classId: string) => ({
               studentId: id,
               classId,
               enrollmentDate: new Date(),
@@ -317,7 +336,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res,
           "HAS_CLASSES",
           "Cannot delete student with active class enrollments",
-          400
+          400,
         );
       }
 
