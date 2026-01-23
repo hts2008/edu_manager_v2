@@ -101,13 +101,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let totalSessions = 0,
           totalPresent = 0,
           totalAbsentFee = 0,
-          totalAbsentNoFee = 0;
+          totalAbsentNoFee = 0,
+          totalHoliday = 0;
         stats.forEach((s) => {
           const count = s._count.status;
           totalSessions += count;
           if (s.status === "present") totalPresent = count;
           else if (s.status === "absent_with_fee") totalAbsentFee = count;
           else if (s.status === "absent_no_fee") totalAbsentNoFee = count;
+          else if (s.status === "holiday") totalHoliday = count;
         });
 
         await prisma.attendancePeriod.update({
@@ -120,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             totalPresent,
             totalAbsentFee,
             totalAbsentNoFee,
+            totalHoliday,
           },
         });
 
@@ -130,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             total_present: totalPresent,
             total_absent_fee: totalAbsentFee,
             total_absent_no_fee: totalAbsentNoFee,
+            total_holiday: totalHoliday,
           },
         });
       }

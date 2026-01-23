@@ -24,17 +24,19 @@ const PERIOD_STATUS = {
   locked: { label: "Đã chốt", color: "bg-gray-100 text-gray-700", icon: "🔒" },
 };
 
-const STATUS_CYCLE = ["present", "absent_with_fee", "absent_no_fee"];
+const STATUS_CYCLE = ["present", "absent_with_fee", "absent_no_fee", "holiday"];
 const STATUS_ICONS = {
   present: "✅",
   absent_with_fee: "⚠️",
   absent_no_fee: "❌",
+  holiday: "🎉",
   empty: "−",
 };
 const STATUS_LABELS = {
   present: "Có mặt",
   absent_with_fee: "Nghỉ có phép",
   absent_no_fee: "Nghỉ không phép",
+  holiday: "Ngày lễ",
 };
 
 // Calendar Legend colors matching SAP style
@@ -43,6 +45,7 @@ const LEGEND = [
   { status: "incomplete", label: "Chưa hoàn thành", color: "bg-yellow-500" },
   { status: "empty", label: "Chưa điểm danh", color: "bg-gray-200" },
   { status: "locked", label: "Đã chốt", color: "bg-blue-500" },
+  { status: "holiday", label: "Ngày lễ", color: "bg-red-500" },
   { status: "today", label: "Hôm nay", color: "border-2 border-primary-600" },
 ];
 
@@ -218,14 +221,17 @@ export default function AttendancePage() {
       let presentDays = 0;
       let absentWithFee = 0;
       let absentNoFee = 0;
+      let holidayDays = 0;
 
       weekDates.forEach(({ dateStr }) => {
         const status = studentAtt[dateStr];
         if (status === "present") presentDays++;
         else if (status === "absent_with_fee") absentWithFee++;
         else if (status === "absent_no_fee") absentNoFee++;
+        else if (status === "holiday") holidayDays++;
       });
 
+      // Holiday doesn't count towards fees
       const totalDays = presentDays + absentWithFee;
       const fee = totalDays * feePerSession;
       // Check if exceeding the limit
@@ -236,6 +242,7 @@ export default function AttendancePage() {
         presentDays,
         absentWithFee,
         absentNoFee,
+        holidayDays,
         totalDays,
         sessionsLimit: sessionsPerWeek, // Use configured limit, not weekDates.length
         fee,
