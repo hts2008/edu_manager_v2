@@ -1,0 +1,56 @@
+# Project Control Configuration
+# Version: 4.0 (NEW)
+
+operational_truth:
+  source: KANBAN.md
+  format: markdown-table
+  hierarchy:
+    - story    # epic-level business goal
+    - phase    # time-based grouping (P0, P1, P2...)
+    - work_package  # deliverable scope
+    - milestone     # verifiable checkpoint
+    - task          # atomic unit of work (1 row)
+
+status_vocabulary:
+  PLANNED: "Task scheduled, not started"
+  IN_PROGRESS: "Currently being worked on"
+  REVIEW: "Code complete, awaiting review/verification"
+  IMPLEMENTED: "Complete with evidence"
+  PARTIAL: "Has code but incomplete scope"
+  BLOCKED: "Blocked by dependency"
+  DEFERRED: "Postponed with documented reason"
+
+derived_files:
+  - path: project-control/sprint-map.md
+    description: "Current sprint visualization"
+    sync_from: KANBAN.md
+
+  - path: project-control/dependency-map.md
+    description: "Task dependency graph"
+    sync_from: KANBAN.md
+
+  - path: project-control/phase-status.md
+    description: "Phase completion percentages"
+    sync_from: KANBAN.md
+
+  - path: project-control/milestone-status.md
+    description: "Milestone progress tracking"
+    sync_from: KANBAN.md
+
+  - path: project-control/next-actions.md
+    description: "Recommended next tasks based on board state"
+    sync_from: KANBAN.md
+
+sync_rules:
+  after_every_task:
+    - update KANBAN row (status, evidence, timestamp)
+    - update evidence links
+    - update progress.md
+    - update activeContext.md
+    - update next-actions.md
+    - emit kanban event to memory/kanban/kanban-events.jsonl
+
+scripts:
+  - scripts/kanban-sync.py
+  - scripts/next-task-from-kanban.py
+  - scripts/reconcile-memory-vs-kanban.py

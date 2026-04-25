@@ -1,0 +1,11 @@
+﻿{
+  "version": "4.0",
+  "name": "universal-ai-coding",
+  "primary_brain": "GEMINI.md",
+  "memory_path": "memory/",
+  "kanban_path": "KANBAN.md",
+  "agents_path": "agents/",
+  "skills_path": "skills/",
+  "rules_path": "rules/",
+  "policies_path": "policies/"
+}

@@ -1,0 +1,56 @@
+# Session Governance Configuration
+# Version: 4.0 (NEW)
+
+session_start_checklist:
+  mandatory:
+    - action: read KANBAN.md
+      purpose: "Determine current sprint, active tasks, blockers"
+    - action: read memory/memory-bank/activeContext.md
+      purpose: "Load technical state"
+    - action: read memory/memory-bank/progress.md (last 5 entries)
+      purpose: "Understand recent work"
+    - action: read memory/memory-bank/decisionLog.md
+      purpose: "Know architectural decisions"
+    - action: read memory/sessions/current-session.md
+      purpose: "Continue from last session"
+    - action: identify active task + next recommended task
+      purpose: "Know what to work on"
+  output: "Sprint status report to user"
+
+session_close_checklist:
+  mandatory:
+    - action: verify evidence for completed tasks
+      purpose: "No 'done' without proof"
+    - action: sync KANBAN.md
+      purpose: "Operational truth current"
+    - action: sync activeContext.md
+      purpose: "Cognitive truth current"
+    - action: append progress.md
+      purpose: "Historical record"
+    - action: update memory/sessions/handoff.md
+      purpose: "Next session bootstrap"
+    - action: append memory/sessions/session-events.jsonl
+      purpose: "Audit trail"
+    - action: if blocked — document blocker + proposed unblock path
+      purpose: "Unblock path for next session"
+
+current_session_file:
+  path: memory/sessions/current-session.md
+  required_fields:
+    - current_focus
+    - active_task_id
+    - files_touched
+    - unresolved_risks
+    - next_recommended_step
+    - pending_validations
+
+handoff_file:
+  path: memory/sessions/handoff.md
+  required_fields:
+    - what_was_done
+    - what_is_partially_done
+    - what_is_blocked
+    - what_should_be_done_next
+    - what_must_not_be_forgotten
+
+session_close_script: scripts/session-close.py

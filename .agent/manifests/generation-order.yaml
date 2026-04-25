@@ -1,0 +1,108 @@
+# Generation Order — Build Sequence
+# Version: 4.0 (V3 base + V4 additions)
+
+phases:
+  - phase: 1
+    name: foundation
+    description: "Root files, config, manifests"
+    outputs:
+      - README.md
+      - .gitignore
+      - .editorconfig
+      - manifests/*.yaml
+    dependencies: []
+    rollback: "Delete created files"
+
+  - phase: 2
+    name: brain-and-context
+    description: "GEMINI.md, root runtime files, memory init, project control"
+    outputs:
+      - GEMINI.md
+      - Gemini.local.md
+      - KANBAN.md
+      - AGENTS.md
+      - CLAUDE.md
+      - CODEX.md
+      - memory/**
+      - project-control/**
+    dependencies: [phase-1]
+    rollback: "Restore from phase-1 snapshot"
+
+  - phase: 3
+    name: agents
+    description: "23 specialist agents + registry"
+    outputs:
+      - agents/registry.yaml
+      - agents/*.md
+    dependencies: [phase-2]
+    rollback: "Delete agents/"
+
+  - phase: 4
+    name: commands-and-workflows
+    description: "19 commands + 17 workflows"
+    outputs:
+      - commands/*.md
+      - workflows/*.md
+    dependencies: [phase-3]
+    rollback: "Delete commands/ and workflows/"
+
+  - phase: 5
+    name: skills-and-rules
+    description: "50+ skills in 20 categories + 12 rules"
+    outputs:
+      - skills/**/*.md
+      - rules/*.md
+    dependencies: [phase-3]
+    rollback: "Delete skills/ and rules/"
+
+  - phase: 6
+    name: memory-and-receipts
+    description: "Full memory fabric + receipt schema + KANBAN state"
+    outputs:
+      - memory/**
+      - receipts/**
+    dependencies: [phase-2]
+    rollback: "Re-initialize memory from templates"
+
+  - phase: 7
+    name: policies-templates-scripts-docs
+    description: "11 policies, 9 template dirs, 14 scripts, 9 doc categories"
+    outputs:
+      - policies/*.yaml
+      - templates/**
+      - scripts/*
+      - docs/**
+    dependencies: [phase-1, phase-2]
+    rollback: "Delete and recreate from canonical"
+
+  - phase: 8
+    name: runtime-compilation
+    description: "Compile canonical → .agent/, .gemini/, .claude/, .codex/, .github/"
+    outputs:
+      - .agent/**
+      - .gemini/**
+      - .claude/**
+      - .codex/**
+      - .github/**
+    dependencies: [phase-3, phase-4, phase-5, phase-6, phase-7]
+    rollback: "Re-compile from canonical"
+
+  - phase: 9
+    name: artifact-compilation
+    description: "Build report, assumptions, review/release packages"
+    outputs:
+      - docs/migration/build-report.md
+      - docs/migration/assumptions.md
+      - docs/artifacts/**
+    dependencies: [phase-8]
+    rollback: "Regenerate from current state"
+
+  - phase: 10
+    name: validation-and-sync
+    description: "Cross-reference check, KANBAN sync, memory sync, final summary"
+    outputs:
+      - validation results
+      - updated KANBAN.md
+      - updated memory/
+    dependencies: [phase-9]
+    rollback: "Re-run validation"

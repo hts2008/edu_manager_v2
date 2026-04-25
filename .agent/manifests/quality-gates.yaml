@@ -1,0 +1,110 @@
+# Quality Gates Configuration
+# Version: 4.0 (V3 base 9 gates + V4 adds gate 10, 11)
+
+gates:
+  - id: gate-01
+    name: lint
+    type: deterministic
+    command: "lint tool for project language"
+    pass_criteria: "0 errors, 0 warnings"
+    mandatory_for: [all]
+    optional_for: []
+    fallback: "Fix lint errors before proceeding"
+
+  - id: gate-02
+    name: type-check
+    type: deterministic
+    command: "tsc --noEmit (TypeScript) / mypy (Python)"
+    pass_criteria: "strict mode pass, 0 errors"
+    mandatory_for: [architecture, new_feature, backend_api, frontend_ui, refactor]
+    optional_for: [documentation, seo]
+    fallback: "Fix type errors"
+
+  - id: gate-03
+    name: unit-tests
+    type: deterministic
+    command: "test runner for project"
+    pass_criteria: "all pass, coverage ≥ 80%"
+    mandatory_for: [new_feature, backend_api, frontend_ui, bug_fix, refactor]
+    optional_for: [documentation, seo, exploration]
+    fallback: "Write missing tests, fix failures"
+
+  - id: gate-04
+    name: integration-tests
+    type: deterministic
+    command: "integration test suite"
+    pass_criteria: "API endpoints correct, E2E flows pass"
+    mandatory_for: [backend_api, deployment, release]
+    optional_for: [frontend_ui, bug_fix]
+    fallback: "Fix integration failures"
+
+  - id: gate-05
+    name: security-scan
+    type: deterministic
+    command: "semgrep / npm audit / dependency check"
+    pass_criteria: "0 critical, 0 high vulnerabilities"
+    mandatory_for: [security, deployment, release, database, architecture]
+    optional_for: [new_feature, backend_api]
+    fallback: "Remediate vulnerabilities"
+
+  - id: gate-06
+    name: memory-update
+    type: procedural
+    command: "verify activeContext + progress updated"
+    pass_criteria: "memory files reflect current state"
+    mandatory_for: [all]
+    optional_for: []
+    fallback: "Update memory before claiming done"
+
+  - id: gate-07
+    name: browser-ui
+    type: probabilistic
+    command: "visual inspection / screenshot comparison"
+    pass_criteria: "loading/empty/error/success states work, responsive, accessible"
+    mandatory_for: [frontend_ui]
+    optional_for: [new_feature]
+    fallback: "Fix UI issues"
+
+  - id: gate-08
+    name: deploy-smoke
+    type: deterministic
+    command: "health check endpoint / smoke test suite"
+    pass_criteria: "health check returns 200, core flows work"
+    mandatory_for: [deployment, release]
+    optional_for: []
+    fallback: "Rollback and investigate"
+
+  - id: gate-09
+    name: release-readiness
+    type: procedural
+    command: "release-manager sign-off checklist"
+    pass_criteria: "changelog, migration notes, rollback plan exist"
+    mandatory_for: [release]
+    optional_for: []
+    fallback: "Complete release checklist"
+
+  # V4 new gates
+  - id: gate-10
+    name: project-control
+    type: procedural
+    command: "verify KANBAN status updated, evidence links attached, blockers reflected"
+    pass_criteria: "task status current, evidence linked, no orphan tasks"
+    mandatory_for: [all]
+    optional_for: []
+    fallback: "Update KANBAN before claiming done"
+
+  - id: gate-11
+    name: session-hygiene
+    type: procedural
+    command: "verify handoff updated, activeContext synced, unresolved risks recorded"
+    pass_criteria: "session files reflect current state"
+    mandatory_for: [all]
+    optional_for: []
+    fallback: "Update session files before ending"
+
+adversarial_review:
+  triggers:
+    - task_type in [security, database, architecture, deployment, release]
+    - risk_level == high
+  reviewers: [judge-agent, security-auditor, penetration-tester]
+  protocol: "builder creates → reviewer challenges → builder responds → verdict"

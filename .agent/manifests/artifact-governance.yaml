@@ -1,0 +1,76 @@
+# Artifact Governance Configuration
+# Version: 4.0 (NEW)
+
+purpose: "Map receipts to review artifacts, ensure human reviewability"
+
+artifact_outputs:
+  task_summary:
+    path: docs/artifacts/task-summary.md
+    when: after every medium/high risk task
+    content:
+      - task scope
+      - files changed
+      - tests run
+      - evidence summary
+      - unresolved risks
+
+  review_package:
+    path: docs/artifacts/review-package.md
+    when: before human review
+    content:
+      - task scope
+      - files changed with diff links
+      - tests run with results
+      - screenshots/recordings if UI
+      - unresolved risks
+      - reviewer checklist
+      - reviewer prompts
+
+  release_package:
+    path: docs/artifacts/release-package.md
+    when: before release
+    content:
+      - milestone impact
+      - regression status
+      - rollout notes
+      - rollback notes
+      - final readiness verdict
+
+  session_receipt:
+    path: receipts/artifacts/summary-{session}.json
+    when: end of session
+    content:
+      - session_id
+      - tasks_completed
+      - evidence_paths
+      - unresolved_risks
+      - next_actions
+
+review_surface:
+  antigravity_artifacts:
+    - implementation_plan.md
+    - walkthrough.md
+    - task.md
+  mapping:
+    receipt -> artifact_summary
+    review_package -> human_review
+    release_package -> release_gate
+
+build_report:
+  path: docs/migration/build-report.md
+  required_after: initial build, major migration, version upgrade
+  content:
+    - what was created
+    - assumptions made
+    - extensibility points
+    - known limitations
+
+assumptions_file:
+  path: docs/migration/assumptions.md
+  required_after: initial build
+  content:
+    - ambiguities resolved
+    - defaults chosen
+    - interpretations made
+
+script: scripts/build-artifact-summary.py

@@ -1,0 +1,175 @@
+# Task Routing Matrix
+# Version: 4.0
+# Maps task types to agents, workflows, risk levels, CLI preferences
+
+task_routing:
+  architecture:
+    agent: orchestrator
+    workflow: plan
+    risk: high
+    cli: claude-opus
+    verification: [type-check, security, adversarial-review]
+    review_mode: adversarial
+
+  new_feature:
+    agent: project-planner
+    workflow: create
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, type-check, unit-tests, integration]
+    review_mode: paired
+
+  frontend_ui:
+    agent: frontend-specialist
+    workflow: create
+    risk: medium
+    cli: gemini
+    verification: [lint, type-check, unit-tests, browser-ui]
+    review_mode: paired
+
+  backend_api:
+    agent: backend-specialist
+    workflow: create
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, type-check, unit-tests, integration, security]
+    review_mode: paired
+
+  database:
+    agent: database-architect
+    workflow: spec
+    risk: high
+    cli: claude-opus
+    verification: [type-check, integration, security]
+    review_mode: adversarial
+
+  bug_fix:
+    agent: debugger
+    workflow: debug
+    risk: medium
+    cli: codex
+    verification: [lint, unit-tests, integration]
+    review_mode: self-check
+
+  security:
+    agent: security-auditor
+    workflow: security-audit
+    risk: high
+    cli: claude-opus
+    verification: [security, adversarial-review]
+    review_mode: adversarial
+
+  penetration_test:
+    agent: penetration-tester
+    workflow: security-audit
+    risk: high
+    cli: claude-opus
+    verification: [security]
+    review_mode: adversarial
+
+  deployment:
+    agent: devops-engineer
+    workflow: deploy
+    risk: high
+    cli: claude-sonnet
+    verification: [deploy-smoke, security]
+    review_mode: paired
+
+  testing:
+    agent: test-engineer
+    workflow: test
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, unit-tests, integration]
+    review_mode: self-check
+
+  performance:
+    agent: performance-optimizer
+    workflow: enhance
+    risk: medium
+    cli: claude-sonnet
+    verification: [unit-tests, integration]
+    review_mode: paired
+
+  documentation:
+    agent: documentation-writer
+    workflow: document
+    risk: low
+    cli: gemini
+    verification: [memory-update]
+    review_mode: self-check
+
+  review:
+    agent: judge-agent
+    workflow: review
+    risk: medium
+    cli: codex
+    verification: [adversarial-review]
+    review_mode: adversarial
+
+  release:
+    agent: release-manager
+    workflow: handoff
+    risk: high
+    cli: native
+    verification: [release-readiness, security, deploy-smoke]
+    review_mode: adversarial
+
+  mobile:
+    agent: mobile-developer
+    workflow: create
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, type-check, unit-tests]
+    review_mode: paired
+
+  game:
+    agent: game-developer
+    workflow: create
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, unit-tests]
+    review_mode: paired
+
+  seo:
+    agent: seo-specialist
+    workflow: enhance
+    risk: low
+    cli: gemini
+    verification: [browser-ui]
+    review_mode: self-check
+
+  exploration:
+    agent: explorer-agent
+    workflow: brainstorm
+    risk: low
+    cli: native
+    verification: [memory-update]
+    review_mode: self-check
+
+  refactor:
+    agent: code-archaeologist
+    workflow: refactor
+    risk: medium
+    cli: claude-sonnet
+    verification: [lint, type-check, unit-tests, integration]
+    review_mode: paired
+
+  memory_curation:
+    agent: memory-curator
+    workflow: status
+    risk: low
+    cli: native
+    verification: [memory-update]
+    review_mode: self-check
+
+fallback_chain:
+  - claude-sonnet
+  - codex
+  - gemini
+  - antigravity-native
+
+risk_escalation:
+  high: requires human approval before merge/deploy
+  medium: requires at least self-check verification
+  low: can proceed with standard quality gates

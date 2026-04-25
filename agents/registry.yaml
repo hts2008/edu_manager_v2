@@ -1,0 +1,221 @@
+# Agent Registry — Universal AI Coding V4
+# This is the canonical list of all agents in the system
+
+version: "4.6"
+total_agents: 23
+categories:
+  core: 20
+  platform: 3
+
+agents:
+  # === Core Agents (20) ===
+  - id: orchestrator
+    file: agents/orchestrator.md
+    category: core
+    title: "PM Orchestrator"
+    domain: "Product/project management, task routing, multi-agent coordination, delivery governance"
+    risk: medium
+    review_mode: self-check
+    cli_preference: native
+    activation: "/pm, /orchestrate (legacy), /start-session, ambiguous requests"
+
+  - id: project-planner
+    file: agents/project-planner.md
+    category: core
+    domain: "Planning, task decomposition, sprint planning"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: product-manager
+    file: agents/product-manager.md
+    category: core
+    domain: "Requirements gathering, specifications, user stories"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: product-owner
+    file: agents/product-owner.md
+    category: core
+    domain: "Backlog management, MVP strategy, prioritization"
+    risk: medium
+    review_mode: self-check
+    cli_preference: native
+
+  - id: frontend-specialist
+    file: agents/frontend-specialist.md
+    category: core
+    domain: "UI, web, accessibility, responsive design"
+    risk: medium
+    review_mode: paired
+    cli_preference: gemini
+
+  - id: backend-specialist
+    file: agents/backend-specialist.md
+    category: core
+    domain: "API, services, domain logic, data layer"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: database-architect
+    file: agents/database-architect.md
+    category: core
+    domain: "Schema design, migrations, indexing, query optimization"
+    risk: high
+    review_mode: adversarial
+    cli_preference: claude-opus
+
+  - id: mobile-developer
+    file: agents/mobile-developer.md
+    category: core
+    domain: "Mobile apps (React Native, Flutter, Swift, Kotlin)"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: game-developer
+    file: agents/game-developer.md
+    category: core
+    domain: "Game logic, physics, rendering, state machines"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: devops-engineer
+    file: agents/devops-engineer.md
+    category: core
+    domain: "CI/CD, cloud, deployment, monitoring, infrastructure"
+    risk: high
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: security-auditor
+    file: agents/security-auditor.md
+    category: core
+    domain: "Security review, OWASP, vulnerability assessment"
+    risk: high
+    review_mode: adversarial
+    cli_preference: claude-opus
+
+  - id: penetration-tester
+    file: agents/penetration-tester.md
+    category: core
+    domain: "Offensive testing, attack simulation, exploit analysis"
+    risk: high
+    review_mode: adversarial
+    cli_preference: claude-opus
+
+  - id: test-engineer
+    file: agents/test-engineer.md
+    category: core
+    domain: "Test strategy, test architecture, coverage analysis"
+    risk: medium
+    review_mode: self-check
+    cli_preference: claude-sonnet
+
+  - id: qa-automation-engineer
+    file: agents/qa-automation-engineer.md
+    category: core
+    domain: "E2E testing, automation frameworks, CI test integration"
+    risk: medium
+    review_mode: self-check
+    cli_preference: claude-sonnet
+
+  - id: debugger
+    file: agents/debugger.md
+    category: core
+    domain: "Root cause analysis, stack trace analysis, reproduction"
+    risk: medium
+    review_mode: self-check
+    cli_preference: codex
+
+  - id: performance-optimizer
+    file: agents/performance-optimizer.md
+    category: core
+    domain: "Performance bottlenecks, profiling, optimization"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: seo-specialist
+    file: agents/seo-specialist.md
+    category: core
+    domain: "SEO optimization, meta tags, Core Web Vitals"
+    risk: low
+    review_mode: self-check
+    cli_preference: gemini
+
+  - id: documentation-writer
+    file: agents/documentation-writer.md
+    category: core
+    domain: "Documentation, API docs, handoff packages"
+    risk: low
+    review_mode: self-check
+    cli_preference: gemini
+
+  - id: code-archaeologist
+    file: agents/code-archaeologist.md
+    category: core
+    domain: "Legacy code analysis, refactoring, migration"
+    risk: medium
+    review_mode: paired
+    cli_preference: claude-sonnet
+
+  - id: explorer-agent
+    file: agents/explorer-agent.md
+    category: core
+    domain: "Exploration, discovery, research, brainstorming"
+    risk: low
+    review_mode: self-check
+    cli_preference: native
+
+  # === Platform Agents (3) ===
+  - id: judge-agent
+    file: agents/judge-agent.md
+    category: platform
+    domain: "Independent review, adversarial testing, quality verdicts"
+    risk: medium
+    review_mode: adversarial
+    cli_preference: codex
+
+  - id: memory-curator
+    file: agents/memory-curator.md
+    category: platform
+    domain: "Memory hygiene, compaction, anti-context-rot"
+    risk: low
+    review_mode: self-check
+    cli_preference: native
+
+  - id: release-manager
+    file: agents/release-manager.md
+    category: platform
+    domain: "Release readiness, changelog, rollback planning"
+    risk: high
+    review_mode: adversarial
+    cli_preference: native
+
+# === Optional Integrations ===
+integrations:
+  paperclip:
+    description: "Paperclip AI — company-level control plane for autonomous AI companies"
+    version: "0.5+"
+    protocol: heartbeat
+    port: 3100
+    health_endpoint: /api/health
+    check_timeout_seconds: 3
+    degradation: "graceful — falls back to KANBAN.md when offline"
+    skill_ref: skills/paperclip-orchestration/SKILL.md
+    command_ref: commands/paperclip.md
+    workflow_ref: workflows/paperclip.md
+    doctrine_ref: "GEMINI.md §XXIII"
+    adapter_mapping:
+      gemini-local: [orchestrator, frontend-specialist, seo-specialist, documentation-writer]
+      claude-local: [backend-specialist, database-architect, code-archaeologist]
+      codex-local: [debugger, judge-agent, test-engineer]
+    agent_capabilities:
+      - task_checkout: "Atomic issue lock via POST /api/issues/:id/checkout"
+      - cost_reporting: "Token spend via POST /api/companies/:cid/cost-events"
+      - evidence_posting: "Results via POST /api/issues/:id/comments"
+      - budget_awareness: "Check remaining budget before expensive operations"

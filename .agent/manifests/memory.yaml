@@ -1,0 +1,117 @@
+# Memory System Configuration
+# Version: 4.0
+
+stores:
+  memory_bank:
+    path: memory/memory-bank/
+    type: human-readable-markdown
+    retention: permanent
+    files:
+      - projectBrief.md
+      - productContext.md
+      - systemPatterns.md
+      - techContext.md
+      - activeContext.md
+      - progress.md
+      - decisionLog.md
+
+  brain:
+    path: memory/brain/
+    type: learning-store
+    retention: permanent
+    files:
+      - learned-patterns.md
+      - error-catalog.md
+      - model-preferences.md
+      - project-insights.md
+
+  events:
+    path: memory/events/
+    type: append-only-jsonl
+    retention: 90-days
+    files:
+      - task-events.jsonl
+      - agent-events.jsonl
+      - tool-events.jsonl
+      - verification-events.jsonl
+
+  action_memory:
+    path: memory/action-memory/
+    type: append-only-jsonl
+    retention: 90-days
+    files:
+      - cli-actions.jsonl
+      - mcp-actions.jsonl
+      - deploy-actions.jsonl
+
+  graph:
+    path: memory/graph/
+    type: structured-graph
+    retention: permanent
+    subdirs:
+      - nodes/     # task, decision, bug, fix, pattern, component
+      - edges/     # caused_by, depends_on, fixes, validates
+      - synapses/  # connection strength, decay
+      - indexes/   # lookup indexes
+
+  summaries:
+    path: memory/summaries/
+    type: compacted-markdown
+    retention: permanent
+
+  schemas:
+    path: memory/schemas/
+    type: json-schema
+    retention: permanent
+
+  kanban:
+    path: memory/kanban/
+    type: sync-state
+    retention: permanent
+    files:
+      - current-sprint.md
+      - backlog.md
+      - kanban-events.jsonl    # V4
+
+  sessions:
+    path: memory/sessions/
+    type: session-state
+    retention: permanent
+    files:
+      - current-session.md     # V4
+      - handoff.md             # V4
+      - session-events.jsonl   # V4
+
+read_order:
+  session_start:
+    - memory/memory-bank/activeContext.md
+    - memory/memory-bank/progress.md       # last 5 entries
+    - memory/memory-bank/decisionLog.md
+    - memory/brain/learned-patterns.md
+    - memory/brain/error-catalog.md
+    - KANBAN.md                            # current sprint
+    - memory/sessions/current-session.md   # V4
+
+write_back_order:
+  after_task:
+    - memory/memory-bank/activeContext.md
+    - memory/memory-bank/progress.md       # append only
+    - memory/memory-bank/decisionLog.md    # if decision made
+    - memory/brain/*                       # if pattern/error/insight
+    - memory/sessions/current-session.md   # V4
+    - memory/sessions/handoff.md           # V4
+    - KANBAN.md                            # update task status
+    - receipts/                            # emit receipt
+    - docs/artifacts/                      # V4 artifact summary
+
+compaction:
+  trigger: context_usage > 50%
+  strategy: keep-decisions-patterns-risks-next-step
+  discard: noise-logs-repetitive-details
+  executor: memory-curator agent + memory-compact.py
+
+global_memory_policy:
+  save_memory_usage: restricted
+  allowed_for: short-facts, cross-project-stable-knowledge
+  forbidden_for: task-state, sprint-state, bug-logs, transient-notes
+  reason: "save_memory appends to global ~/.gemini/GEMINI.md — workspace state must stay in workspace memory/"

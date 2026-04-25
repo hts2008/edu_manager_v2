@@ -1,0 +1,72 @@
+# Policies Summary Manifest
+# Version: 4.0
+
+policies:
+  - name: command-safety
+    file: policies/command-safety.yaml
+    scope: all-agents
+    enforcement: block
+    description: "Controls which commands are allowed, require confirmation, or forbidden"
+
+  - name: model-routing
+    file: policies/model-routing.yaml
+    scope: orchestrator
+    enforcement: route
+    description: "Maps task types to AI models with effort levels and fallback chains"
+
+  - name: tool-access
+    file: policies/tool-access.yaml
+    scope: all-agents
+    enforcement: block
+    description: "Controls agent permissions for Read, Write, Browser, MCP, Dangerous tools"
+
+  - name: mcp-governance
+    file: policies/mcp-governance.yaml
+    scope: mcp-enabled-agents
+    enforcement: block-and-log
+    description: "MCP server allowlist, per-tool permissions, audit logging"
+
+  - name: memory-retention
+    file: policies/memory-retention.yaml
+    scope: memory-plane
+    enforcement: auto
+    description: "Retention periods, compaction triggers, what to keep vs discard"
+
+  - name: verification-gates
+    file: policies/verification-gates.yaml
+    scope: all-tasks
+    enforcement: block
+    description: "11 quality gates, pass criteria, mandatory vs optional per task type"
+
+  - name: escalation
+    file: policies/escalation.yaml
+    scope: all-agents
+    enforcement: halt
+    description: "3-strikes, quota exhaustion, high-risk, policy violation escalation"
+
+  # V4 new policies
+  - name: kanban-governance
+    file: policies/kanban-governance.yaml
+    scope: project-control-plane
+    enforcement: block
+    description: "KANBAN update rules, status transitions, evidence requirements"
+
+  - name: session-governance
+    file: policies/session-governance.yaml
+    scope: session-plane
+    enforcement: warn-then-block
+    description: "Session start/close checklists, handoff requirements"
+
+  - name: artifact-governance
+    file: policies/artifact-governance.yaml
+    scope: artifact-plane
+    enforcement: warn
+    description: "Review package requirements, release package format, audit trail"
+
+  - name: context-boundaries
+    file: policies/context-boundaries.yaml
+    scope: context-plane
+    enforcement: warn
+    description: "Brain size limits, import rules, command precedence, anti-monolith"
+
+total_policies: 11

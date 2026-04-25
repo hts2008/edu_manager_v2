@@ -1,0 +1,102 @@
+# Canonical Source → Runtime Targets Mapping
+# Version: 4.0
+
+compilation_targets:
+
+  antigravity:
+    target_dir: .agent/
+    mappings:
+      - source: agents/
+        target: .agent/agents/
+        strategy: copy
+      - source: commands/
+        target: .agent/commands/
+        strategy: copy
+      - source: workflows/
+        target: .agent/workflows/
+        strategy: copy
+      - source: skills/
+        target: .agent/skills/
+        strategy: selective  # Only active skills
+      - source: rules/
+        target: .agent/rules/
+        strategy: copy
+      - source: manifests/
+        target: .agent/manifests/
+        strategy: copy
+      - source: memory/memory-bank/
+        target: .agent/memory-bank/
+        strategy: symlink-or-copy
+      - source: memory/brain/
+        target: .agent/brain/
+        strategy: symlink-or-copy
+      - source: GEMINI.md
+        target: .agent/GEMINI.md
+        strategy: copy
+      - source: project-control/
+        target: .agent/project-control/
+        strategy: copy
+    additional_files:
+      - .agent/ARCHITECTURE.md
+      - .agent/settings.json
+      - .agent/contracts/
+      - .agent/signals/
+      - .agent/outputs/
+      - .agent/receipts/
+
+  gemini_cli:
+    target_dir: .gemini/
+    mappings:
+      - source: commands/
+        target: .gemini/commands/
+        strategy: compile  # V4: first-class runtime target
+      - source: skills/
+        target: .gemini/skills/
+        strategy: selective
+    additional_files:
+      - .gemini/settings.json
+      - .gemini/antigravity/brain/
+      - .gemini/antigravity/mcp_config.json
+      - .gemini/memory/
+
+  claude_code:
+    target_dir: .claude/
+    mappings:
+      - source: agents/
+        target: .claude/agents/
+        strategy: selective
+      - source: commands/
+        target: .claude/commands/
+        strategy: selective
+      - source: skills/
+        target: .claude/skills/
+        strategy: selective
+
+  codex_cli:
+    target_dir: .codex/
+    mappings:
+      - source: skills/
+        target: .codex/skills/
+        strategy: selective
+    additional_files:
+      - .codex/config.toml
+
+  github_copilot:
+    target_dir: .github/
+    mappings: []
+    additional_files:
+      - .github/copilot-instructions.md
+      - .github/instructions/
+
+  root_files:
+    mappings:
+      - source: GEMINI.md
+        target: GEMINI.md
+        strategy: canonical
+      - source: agents/
+        target: AGENTS.md
+        strategy: compile-summary
+      - target: CLAUDE.md
+        strategy: generate
+      - target: CODEX.md
+        strategy: generate

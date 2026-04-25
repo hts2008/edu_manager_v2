@@ -1,0 +1,67 @@
+# Context Architecture Configuration
+# Version: 4.0 (NEW)
+
+hierarchy:
+  root_brain:
+    file: GEMINI.md
+    scope: workspace-wide doctrine
+    max_lines: 1200
+    content:
+      - identity
+      - project-block
+      - cognitive-doctrine
+      - routing-doctrine
+      - memory-doctrine
+      - verification-doctrine
+      - governance-doctrine
+      - kanban-discipline
+      - session-governance
+      - context-architecture
+      - artifact-governance
+      - workspace-safety
+
+  component_brains:
+    pattern: "{apps,services,packages}/*/GEMINI.md"
+    scope: component-local truth only
+    max_lines: 300
+    rules:
+      - must_not_duplicate_root
+      - must_not_contain_full_skills
+      - must_import_shared_doctrine
+
+  imports:
+    mechanism: "@file.md"
+    description: "Gemini CLI Memory Import Processor"
+    allowed_sources:
+      - docs/
+      - templates/brain/
+      - memory/memory-bank/
+    max_imports_per_brain: 10
+
+  project_commands:
+    source: commands/
+    target: .gemini/commands/
+    compile_script: scripts/compile-gemini-commands.py
+    description: "Reusable task prompts as first-class Gemini CLI commands"
+
+  skills:
+    activation: on-demand
+    description: "Progressive disclosure — load expertise when needed, not in persistent brain"
+    storage: skills/
+    runtime_target: .agent/skills/
+
+command_precedence:
+  - explicit-user-intent
+  - active-task-scope
+  - project-commands-in-gemini-commands
+  - agent-workflows
+  - skills
+  - general-brain-doctrine
+
+anti_monolith_rules:
+  - "Root brain must not exceed max_lines"
+  - "Skills must NOT be inlined into GEMINI.md"
+  - "Component brains must only contain local truth"
+  - "Shared doctrine must be imported, not copied"
+  - "Project commands must be compiled, not embedded"
+  - "Local overrides must not override source of truth"

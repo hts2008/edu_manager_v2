@@ -1,0 +1,107 @@
+# Universal AI Coding — Master Manifest
+# Version: 4.0
+# This is the Single Source of Truth for repo configuration
+
+metadata:
+  name: universal-ai-coding
+  version: "4.0"
+  scope: workspace-only
+  created: "2026-03-26"
+  description: "AI Engineering Operating System — workspace level"
+
+architecture:
+  model: twelve-plane
+  planes:
+    - name: cognitive-doctrine
+      plane: P1
+      components: [GEMINI.md, 8-engines, 13-stage-pipeline]
+    - name: control-plane
+      plane: P2
+      components: [orchestrator, task-routing, cli-spawn]
+    - name: execution-plane
+      plane: P3
+      components: [23-agents, cli-workers, mcp-tools]
+    - name: knowledge-plane
+      plane: P4
+      components: [skills, rules, templates, conventions]
+    - name: memory-plane
+      plane: P5
+      components: [memory-bank, brain, events, graph, action-memory]
+    - name: verification-plane
+      plane: P6
+      components: [quality-gates, tdd, adversarial-review, judge-agent]
+    - name: governance-plane
+      plane: P7
+      components: [policies, command-safety, escalation]
+    - name: compilation-observability
+      plane: P8
+      components: [manifests, compile-targets, receipts, cost-tracking]
+    - name: project-control
+      plane: P9
+      components: [KANBAN.md, project-control-dir, sprint-map]
+    - name: context-architecture
+      plane: P10
+      components: [root-gemini, component-gemini, imports, gemini-commands]
+    - name: session-governance
+      plane: P11
+      components: [session-start, session-close, handoff, current-session]
+    - name: artifact-governance
+      plane: P12
+      components: [review-package, release-package, artifact-summary]
+
+enabled_targets:
+  - .agent/    # Antigravity (primary)
+  - .gemini/   # Gemini CLI
+  - .claude/   # Claude Code
+  - .codex/    # Codex CLI
+  - .github/   # GitHub Copilot
+
+required_directories:
+  canonical:
+    - agents
+    - commands
+    - workflows
+    - skills
+    - rules
+    - policies
+    - memory
+    - manifests
+    - templates
+    - scripts
+    - docs
+    - receipts
+    - project-control
+  runtime:
+    - .agent
+    - .gemini
+    - .claude
+    - .codex
+    - .github
+
+required_agents: 23
+required_skill_categories: 20
+required_commands: 19
+required_workflows: 17
+required_rules: 12
+required_policies: 11
+required_manifests: 11
+required_scripts: 14
+
+three_sources_of_truth:
+  operational: KANBAN.md
+  cognitive: [memory/, GEMINI.md]
+  evidence: [receipts/, docs/artifacts/, docs/migration/build-report.md]
+
+verification_gates: 11
+completion_criteria:
+  - all-directories-exist
+  - all-agents-have-contracts
+  - all-commands-have-workflows
+  - all-skills-have-content
+  - all-rules-have-enforcement
+  - all-policies-are-yaml
+  - memory-bank-initialized
+  - receipts-schema-exists
+  - runtime-targets-compiled
+  - kanban-initialized
+  - build-report-exists
