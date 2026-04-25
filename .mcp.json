@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "context-plus": {
+      "command": "cmd",
+      "args": ["/c", "npx -y contextplus ."],
+      "env": {
+        "OLLAMA_EMBED_MODEL": "nomic-embed-text-v2-moe",
+        "OLLAMA_CHAT_MODEL": "qwen3.5:2b",
+        "OLLAMA_HOST": "http://127.0.0.1:11434",
+        "CONTEXTPLUS_EMBED_NUM_GPU": "99",
+        "CONTEXTPLUS_EMBED_LOW_VRAM": "true",
+        "CONTEXTPLUS_EMBED_NUM_CTX": "512",
+        "CONTEXTPLUS_EMBED_BATCH_SIZE": "4"
+      },
+      "disabled": false
+    },
+    "neural-memory": {
+      "command": "C:\\Users\\haitr\\AppData\\Roaming\\Python\\Python314\\Scripts\\nmem-mcp.exe",
+      "args": [],
+      "env": {
+        "NEURALMEMORY_BRAIN": "edu_manager"
+      },
+      "disabled": false
+    }
+  }
+}
