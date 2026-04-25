@@ -1,0 +1,14 @@
+model = "gpt-5.5"
+model_provider = "openai"
+model_reasoning_effort = "xhigh"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+
+[features]
+shell_snapshot = true
+multi_agent = true
+memories = true
+
+[windows]
+sandbox = "elevated"
