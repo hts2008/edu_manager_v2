@@ -19,7 +19,9 @@
 - Root `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - Frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed: 8/8.
+- Production API smoke passed after Vercel deployment of commit `e5cdcfa`: `GET /api/activity-logs?limit=5` returned `success=true`, 5 logs, total 45.
+- Production browser smoke passed: `/audit-logs` rendered the "Nhật ký hoạt động" page, the "Nhật ký" sidebar item, the total cards, and the log table; no network/error text or console errors were observed.
 
 ## Notes
 - No schema migration was required; C8 uses the existing `activity_logs` table.
-- Production smoke is pending until Vercel deploys the scoped commit.
+- Production smoke is recorded above for commit `e5cdcfa`.

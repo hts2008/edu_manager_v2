@@ -201,7 +201,7 @@
 | C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
 | C6 | Fee Reminders | SMS/Zalo overdue fee reminders | PLANNED | Needs provider and opt-in approval |
 | C7 | Advanced Reports | Revenue trend, teacher utilization, retention/cohort, stable export | PLANNED | Not started |
-| C8 | Audit Log UI | Admin filterable activity log view | REVIEW | Local API/UI/E2E pass; production smoke pending |
+| C8 | Audit Log UI | Admin filterable activity log view | IMPLEMENTED | `receipts/2026-05-15-phase-c-audit-log-ui.md`; local 8/8 E2E + production API/browser smoke pass |
 | C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
 | C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
 | C11 | User Management | Admin CRUD users, reset password, deactivate | PLANNED | Not started |
@@ -325,4 +325,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-15 22:33
+**Last Updated:** 2026-05-15 23:05

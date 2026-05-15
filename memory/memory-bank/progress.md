@@ -206,4 +206,5 @@
 - **Scope**: Add admin filterable activity log view backed by existing `activity_logs` data.
 - **Implementation**: Added Vercel `/api/activity-logs`, Express reference `/api/activity-logs`, `activityLogsService`, `/audit-logs` route, sidebar menu item, and `AuditLogsPage`.
 - **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 8/8 pass locally.
-- **STATUS**: REVIEW — production smoke pending after Vercel deploy.
+- **Production Smoke**: After Vercel deployment of commit `e5cdcfa`, `GET /api/activity-logs?limit=5` returned 5 logs with total 45, and browser `/audit-logs` rendered the admin audit UI with no console errors.
+- **STATUS**: IMPLEMENTED ✅
