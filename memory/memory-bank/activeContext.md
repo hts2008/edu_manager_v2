@@ -4,7 +4,7 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, dependency audit cleanup, and E2E smoke baseline are implemented.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, and E2E smoke baseline are implemented.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
@@ -21,8 +21,8 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Form Validation** — React Hook Form validation for Student, Class, Receipt, and Payment forms.
-2. **Phase B Observability/Security** — Sentry or equivalent, structured logs, mutation audit expansion, and production credential rotation.
+1. **Phase B Observability/Security** — Sentry or equivalent, structured logs, mutation audit expansion, and production credential rotation.
+2. **Phase C Readiness** — product expansion tasks should wait until observability/security hardening is closed.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -93,13 +93,13 @@ Phase B foundation hardening baseline: removed tracked `.backup` files, added `V
 
 Phase B validation/security slice: added zod validation for Login, Student, Class, Receipt, and Payment server-side payloads; removed `xlsx`; replaced Excel export implementation with CSV; removed vulnerable root Vercel dev/type dependencies in favor of local request/response types and `npx vercel dev`; root and frontend audits now report 0 vulnerabilities.
 
-Phase B E2E baseline: added Playwright smoke suite under `frontend/e2e` covering auth, student onboarding surface, attendance, fee collection, payment surface, receipts/templates, and reports/API financial shape. Local serverless target `http://127.0.0.1:3000` passed 6/6.
+Phase B E2E/Form baseline: added Playwright smoke suite under `frontend/e2e` covering auth, student onboarding validation, class creation validation, attendance, fee collection, payment validation, receipt validation, templates, and reports/API financial shape. Added React Hook Form + zod submit boundaries for Student, Class, Receipt, and Payment forms. Local serverless target `http://127.0.0.1:3000` passed 7/7.
 
 ## Now Doing
-Phase B hardening continuation. Production is usable for existing Phase A UI flows; React Hook Form validation and observability/security hardening remain.
+Phase B hardening continuation. Production is usable for existing Phase A UI flows; observability/security hardening remains.
 
 ## Next Recommended Action
-1. Add React Hook Form validation layer for Student, Class, Receipt, and Payment forms.
-2. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
-3. Run production Playwright smoke only when login rate-limit window is clear or when a non-production target/token is approved.
+1. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
+2. Run production Playwright smoke only when login rate-limit window is clear or when a non-production target/token is approved.
+3. Prepare Phase C tasks only after B7c has evidence.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

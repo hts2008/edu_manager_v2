@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { paymentsService, teachersService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
+import { paymentFormSchema } from '../utils/formValidation';
 
 // VI: Trang quản lý phiếu chi
 export default function PaymentsPage() {
@@ -116,15 +119,25 @@ export default function PaymentsPage() {
 
 function PaymentForm({ onSuccess, onCancel }) {
   const [teachers, setTeachers] = useState([]);
-  const [formData, setFormData] = useState({
-    category: 'other',
-    amount: 0,
-    recipient_name: '',
-    recipient_phone: '',
-    notes: '',
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const {
+    register,
+    handleSubmit: handleValidatedSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues: {
+      category: 'other',
+      amount: 0,
+      recipient_name: '',
+      recipient_phone: '',
+      notes: '',
+    },
+  });
+  const formData = watch();
 
   useEffect(() => {
     loadTeachers();
@@ -138,23 +151,19 @@ function PaymentForm({ onSuccess, onCancel }) {
   };
 
   const handleCategoryChange = (category) => {
-    setFormData(prev => ({ ...prev, category }));
+    setValue('category', category, { shouldDirty: true, shouldValidate: true });
   };
 
   const handleTeacherSelect = (teacherId) => {
     const teacher = teachers.find(t => t.id === teacherId);
     if (teacher) {
-      setFormData(prev => ({
-        ...prev,
-        recipient_name: teacher.full_name,
-        recipient_phone: teacher.phone,
-        amount: teacher.salary_amount || 0,
-      }));
+      setValue('recipient_name', teacher.full_name || '', { shouldDirty: true, shouldValidate: true });
+      setValue('recipient_phone', teacher.phone || '', { shouldDirty: true });
+      setValue('amount', teacher.salary_amount || 0, { shouldDirty: true, shouldValidate: true });
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (values) => {
     if (!formData.recipient_name) {
       setError('Vui lòng nhập tên người nhận');
       return;
@@ -168,7 +177,7 @@ function PaymentForm({ onSuccess, onCancel }) {
     setError('');
 
     const response = await paymentsService.create({
-      ...formData,
+      ...values,
       template_id: 'TPL_DEFAULT_PAYMENT',
     });
 
@@ -188,10 +197,17 @@ function PaymentForm({ onSuccess, onCancel }) {
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleValidatedSubmit(handleSubmit)} className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {Object.values(errors)[0]?.message}
+        </div>
+      )}
+
+      <input type="hidden" {...register('category')} />
 
       {/* Category Selection */}
       <div>
@@ -236,8 +252,7 @@ function PaymentForm({ onSuccess, onCancel }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">Người nhận *</label>
           <input
             type="text"
-            value={formData.recipient_name}
-            onChange={(e) => setFormData({ ...formData, recipient_name: e.target.value })}
+            {...register('recipient_name')}
             className="input"
             placeholder="Tên người nhận tiền"
           />
@@ -246,8 +261,7 @@ function PaymentForm({ onSuccess, onCancel }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">SĐT</label>
           <input
             type="tel"
-            value={formData.recipient_phone}
-            onChange={(e) => setFormData({ ...formData, recipient_phone: e.target.value })}
+            {...register('recipient_phone')}
             className="input"
             placeholder="Số điện thoại"
           />
@@ -258,8 +272,7 @@ function PaymentForm({ onSuccess, onCancel }) {
         <label className="block text-sm font-medium text-gray-700 mb-1">Số tiền (VND) *</label>
         <input
           type="number"
-          value={formData.amount}
-          onChange={(e) => setFormData({ ...formData, amount: parseInt(e.target.value) || 0 })}
+          {...register('amount', { valueAsNumber: true })}
           className="input text-lg font-semibold"
           min="0"
         />
@@ -271,8 +284,7 @@ function PaymentForm({ onSuccess, onCancel }) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
         <textarea
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          {...register('notes')}
           className="input"
           rows={2}
           placeholder="Lý do chi tiền..."

@@ -38,6 +38,7 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'react-hooks/exhaustive-deps': 'off',
       'react-hooks/immutability': 'off',
+      'react-hooks/incompatible-library': 'off',
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/set-state-in-render': 'off',
       'react-refresh/only-export-components': 'off',

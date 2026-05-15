@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PHASE B FOUNDATION HARDENING
 - **Primary Objective**: Continue after Phase A by hardening quality, API reliability, CI, and safety baseline.
-- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, and local Playwright E2E baseline are implemented.
+- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, React Hook Form validation, and local Playwright E2E baseline are implemented.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -59,8 +59,12 @@
 - [x] Implement Phase B Playwright E2E smoke baseline.
   - [x] Add `frontend/playwright.config.js`.
   - [x] Add `frontend/e2e/phase-b-smoke.spec.js`.
-  - [x] Cover auth, student onboarding surface, attendance, fee collection, payment surface, receipts/templates, and reports/API financial shape.
-  - [x] Verify local serverless target with 6/6 Playwright smoke tests.
+  - [x] Cover auth, student onboarding validation, class validation, attendance, fee collection, payment validation, receipt validation, templates, and reports/API financial shape.
+  - [x] Verify local serverless target with 7/7 Playwright smoke tests.
+- [x] Implement Phase B React Hook Form validation layer.
+  - [x] Add frontend form schemas.
+  - [x] Add React Hook Form + zod resolver to Student, Class, Receipt, and Payment forms.
+  - [x] Extend E2E smoke to assert validation messages without mutating data.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -77,9 +81,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Commit/push Phase B E2E baseline with explicit staged paths only.
-2. Continue B2b React Hook Form validation.
-3. Add B7c observability hardening and rotate default credentials before real production operation.
+1. Commit/push Phase B form validation/E2E update with explicit staged paths only.
+2. Add B7c observability hardening and rotate default credentials before real production operation.
+3. Keep Phase C expansion gated until B7c evidence exists.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -91,4 +95,4 @@
 - Production API smoke passed for Auth/RBAC, attendance fee, monthly fees, receipts/payments/PDF, templates/upload, and reports.
 - Chrome UI smoke passed across `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` with no failed fetch requests.
 - `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
-- `cd frontend && npm run test:e2e -- --reporter=list` passed 6/6 against local serverless target.
+- `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.

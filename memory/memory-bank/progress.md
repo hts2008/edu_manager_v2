@@ -180,3 +180,12 @@
 - **Safety**: Default E2E target is local `http://127.0.0.1:3000`; production can be targeted explicitly with `E2E_BASE_URL`. Mutation actions remain disabled unless `E2E_ALLOW_MUTATION=1`.
 - **Validation**: `cd frontend && npm run test:e2e -- --reporter=list` passed 6/6 against local serverless target.
 - **STATUS**: IMPLEMENTED ✅
+
+---
+
+### 2026-05-15 — Phase B React Hook Form Validation
+- **Scope**: Add frontend form validation for Student, Class, Receipt, and Payment forms.
+- **Implementation**: Added shared frontend zod schemas in `frontend/src/utils/formValidation.js`; wired React Hook Form + zod resolver into the four target forms while preserving existing payload contracts.
+- **E2E Update**: Extended Playwright smoke to assert Student/Class/Receipt/Payment validation messages without mutating data.
+- **Validation**: lint max-warnings=0, build, unit tests, audit, type-check, and Playwright smoke all pass; Playwright local serverless target passed 7/7.
+- **STATUS**: IMPLEMENTED ✅

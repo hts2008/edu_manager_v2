@@ -179,8 +179,8 @@
 | B9 | Improve API client reliability | `frontend/src/services/api.js` | IMPLEMENTED | `VITE_API_BASE`, GET retry, safer parse, 401 event |
 | B10 | Bring lint to zero warnings | `frontend/eslint.config.js` | IMPLEMENTED | `cd frontend && npm run lint -- --max-warnings=0` passed |
 | B2a | Server-side zod validation baseline | Login, Student, Class, Receipt, Payment API payloads | IMPLEMENTED | `receipts/2026-05-15-phase-b-validation-security.md` |
-| B2b | React Hook Form validation | Student, Class, Receipt, Payment forms | PLANNED | Not started |
-| B5 | E2E Playwright smoke suite | Auth, student, attendance, fee, payment, reports | IMPLEMENTED | `receipts/2026-05-15-phase-b-e2e-smoke.md` |
+| B2b | React Hook Form validation | Student, Class, Receipt, Payment forms | IMPLEMENTED | `receipts/2026-05-15-phase-b-e2e-smoke.md` |
+| B5 | E2E Playwright smoke suite | Auth, student, class, attendance, fee, payment, reports | IMPLEMENTED | `receipts/2026-05-15-phase-b-e2e-smoke.md` |
 | B7b | Dependency audit remediation | root + frontend dependency graph | IMPLEMENTED | `npm audit --audit-level=high` passes in both packages |
 | B7c | Observability/security hardening | Sentry, structured logs, audit middleware expansion | PLANNED | Not started |
 
@@ -245,7 +245,7 @@
 | Tests/CI | Phase B baseline implemented; unit 8/8, Playwright smoke 6/6, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, audit cleanup, and E2E smoke baseline are implemented. React Hook Form and observability remain.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, and E2E smoke baseline are implemented. Observability/security hardening remains.
 
 ---
 

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { studentsService, receiptsService, attendanceService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
+import { receiptFormSchema } from '../utils/formValidation';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
@@ -147,18 +150,28 @@ export default function ReceiptsPage() {
 
 function ReceiptForm({ onSuccess, onCancel }) {
   const [students, setStudents] = useState([]);
-  const [formData, setFormData] = useState({
-    student_id: '',
-    month: new Date().toISOString().slice(0, 7),
-    days_count: 0,
-    fee_per_day: 0,
-    amount: 0,
-    payment_method: 'cash',
-    notes: '',
-  });
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState('');
+  const {
+    register,
+    handleSubmit: handleValidatedSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(receiptFormSchema),
+    defaultValues: {
+      student_id: '',
+      month: new Date().toISOString().slice(0, 7),
+      days_count: 0,
+      fee_per_day: 0,
+      amount: 0,
+      payment_method: 'cash',
+      notes: '',
+    },
+  });
+  const formData = watch();
 
   useEffect(() => {
     loadData();
@@ -170,45 +183,38 @@ function ReceiptForm({ onSuccess, onCancel }) {
   };
 
   const handleStudentChange = async (studentId) => {
-    setFormData(prev => ({ ...prev, student_id: studentId }));
+    setValue('student_id', studentId, { shouldDirty: true, shouldValidate: true });
     
     if (studentId && formData.month) {
       setCalculating(true);
       const response = await attendanceService.calculateFee(studentId, formData.month);
       if (response.success && response.data) {
         const { days_count, fee_per_day, total_fee } = response.data;
-        setFormData(prev => ({
-          ...prev,
-          days_count: days_count || 0,
-          fee_per_day: fee_per_day || 0,
-          amount: total_fee || 0,
-        }));
+        setValue('days_count', days_count || 0, { shouldDirty: true });
+        setValue('fee_per_day', fee_per_day || 0, { shouldDirty: true });
+        setValue('amount', total_fee || 0, { shouldDirty: true, shouldValidate: true });
       }
       setCalculating(false);
     }
   };
 
   const handleMonthChange = async (month) => {
-    setFormData(prev => ({ ...prev, month }));
+    setValue('month', month, { shouldDirty: true, shouldValidate: true });
     
     if (formData.student_id && month) {
       setCalculating(true);
       const response = await attendanceService.calculateFee(formData.student_id, month);
       if (response.success && response.data) {
         const { days_count, fee_per_day, total_fee } = response.data;
-        setFormData(prev => ({
-          ...prev,
-          days_count: days_count || 0,
-          fee_per_day: fee_per_day || 0,
-          amount: total_fee || 0,
-        }));
+        setValue('days_count', days_count || 0, { shouldDirty: true });
+        setValue('fee_per_day', fee_per_day || 0, { shouldDirty: true });
+        setValue('amount', total_fee || 0, { shouldDirty: true, shouldValidate: true });
       }
       setCalculating(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (values) => {
     if (!formData.student_id) {
       setError('Vui lòng chọn học viên');
       return;
@@ -218,7 +224,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
     setError('');
 
     const response = await receiptsService.create({
-      ...formData,
+      ...values,
       template_id: 'TPL_DEFAULT_RECEIPT',
     });
 
@@ -234,10 +240,22 @@ function ReceiptForm({ onSuccess, onCancel }) {
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleValidatedSubmit(handleSubmit)} className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
       )}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {Object.values(errors)[0]?.message}
+        </div>
+      )}
+
+      <input type="hidden" {...register('student_id')} />
+      <input type="hidden" {...register('month')} />
+      <input type="hidden" {...register('payment_method')} />
+      <input type="hidden" {...register('days_count', { valueAsNumber: true })} />
+      <input type="hidden" {...register('fee_per_day', { valueAsNumber: true })} />
+      <input type="hidden" {...register('amount', { valueAsNumber: true })} />
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -299,7 +317,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
                 name="payment_method"
                 value={opt.value}
                 checked={formData.payment_method === opt.value}
-                onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                onChange={(e) => setValue('payment_method', e.target.value, { shouldDirty: true, shouldValidate: true })}
                 className="sr-only"
               />
               <div className={`p-4 rounded-xl border-2 text-center transition-all ${
@@ -318,8 +336,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
         <textarea
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          {...register('notes')}
           className="input"
           rows={2}
           placeholder="Ghi chú thêm..."

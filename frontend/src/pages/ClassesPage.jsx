@@ -1,37 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { classesService, teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useAsyncData } from "../hooks/useAsyncData";
+import { classFormSchema } from "../utils/formValidation";
 
 // VI: Trang quản lý lớp học
 export default function ClassesPage() {
-  const [classes, setClasses] = useState([]);
-  const [teachers, setTeachers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
+  const {
+    data: pageData,
+    loading,
+    reload: reloadData,
+  } = useAsyncData(async () => {
     const [classesRes, teachersRes] = await Promise.all([
       classesService.getAll(),
       teachersService.getAll(),
     ]);
-    if (classesRes.success) setClasses(classesRes.data.classes || []);
-    if (teachersRes.success) setTeachers(teachersRes.data.teachers || []);
-    setLoading(false);
-  };
+
+    return {
+      classes: classesRes.success ? classesRes.data.classes || [] : [],
+      teachers: teachersRes.success ? teachersRes.data.teachers || [] : [],
+    };
+  }, "classes-index");
+
+  const classes = pageData?.classes || [];
+  const teachers = pageData?.teachers || [];
 
   const handleDelete = async () => {
     if (selectedClass) {
       await classesService.delete(selectedClass.id);
-      loadData();
+      await reloadData();
       setSelectedClass(null);
     }
   };
@@ -112,12 +116,7 @@ export default function ClassesPage() {
             }}
             className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -134,12 +133,7 @@ export default function ClassesPage() {
             }}
             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -153,47 +147,148 @@ export default function ClassesPage() {
     },
   ];
 
+  const activeClasses = classes.filter((item) => item.status === "active").length;
+  const totalStudents = classes.reduce(
+    (sum, item) => sum + Number(item.student_count || 0),
+    0
+  );
+  const totalWeeklySessions = classes.reduce((sum, item) => {
+    const count = Number(item.sessions_per_week || 0);
+    if (count > 0) return sum + count;
+    try {
+      const days =
+        typeof item.schedule_days === "string"
+          ? JSON.parse(item.schedule_days || "[]")
+          : item.schedule_days || [];
+      return sum + days.length;
+    } catch {
+      return sum;
+    }
+  }, 0);
+  const averageFee = classes.length
+    ? Math.round(
+        classes.reduce((sum, item) => sum + Number(item.fee_per_day || 0), 0) /
+          classes.length
+      )
+    : 0;
+
+  const statCards = [
+    {
+      label: "Lớp đang mở",
+      value: activeClasses,
+      helper: `${classes.length} lớp trong hệ thống`,
+      icon: "🏫",
+      tone: "from-sky-500 to-blue-600",
+      bg: "from-sky-50 to-blue-50",
+    },
+    {
+      label: "Học viên đang học",
+      value: totalStudents,
+      helper: "Tổng lượt ghi danh active",
+      icon: "👥",
+      tone: "from-emerald-500 to-teal-600",
+      bg: "from-emerald-50 to-teal-50",
+    },
+    {
+      label: "Buổi/tuần",
+      value: totalWeeklySessions,
+      helper: "Từ lịch cố định hoặc số buổi",
+      icon: "📅",
+      tone: "from-violet-500 to-indigo-600",
+      bg: "from-violet-50 to-indigo-50",
+    },
+    {
+      label: "Học phí TB/buổi",
+      value: new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(averageFee),
+      helper: "Theo biểu phí hiện hành",
+      icon: "💎",
+      tone: "from-amber-500 to-orange-600",
+      bg: "from-amber-50 to-orange-50",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Lớp học</h1>
-          <p className="text-gray-500">Quản lý các lớp học của trung tâm</p>
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
+        <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-4">
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100 backdrop-blur">
+              Academic operations
+            </span>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight md:text-5xl">
+                Lớp học
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">
+                Điều phối lớp, giáo viên, lịch học và biểu phí trong một bảng vận hành thống nhất cho trung tâm.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditingClass(null);
+              setShowForm(true);
+            }}
+            className="group inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 shadow-xl shadow-cyan-500/20 transition-all hover:-translate-y-0.5 hover:bg-cyan-50"
+          >
+            <svg className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm lớp học
+          </button>
         </div>
-        <button
-          onClick={() => {
-            setEditingClass(null);
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((card) => (
+          <div
+            key={card.label}
+            className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
+          >
+            <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${card.tone} opacity-20 blur-2xl transition-opacity group-hover:opacity-40`} />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                  {card.value}
+                </p>
+                <p className="mt-2 text-xs font-medium text-slate-500">{card.helper}</p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tone} text-xl shadow-lg shadow-slate-300/60`}>
+                {card.icon}
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Danh sách lớp học</h2>
+            <p className="text-sm text-slate-500">Nhấn vào một dòng để chỉnh sửa nhanh thông tin lớp.</p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            {classes.length} records
+          </span>
+        </div>
+        <DataTable
+          columns={columns}
+          data={classes}
+          loading={loading}
+          onRowClick={(row) => {
+            setEditingClass(row);
             setShowForm(true);
           }}
-          className="btn-primary"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm lớp học
-        </button>
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={classes}
-        loading={loading}
-        onRowClick={(row) => {
-          setEditingClass(row);
-          setShowForm(true);
-        }}
-        emptyMessage="Chưa có lớp học nào"
-      />
+          emptyMessage="Chưa có lớp học nào"
+        />
+      </section>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -212,9 +307,9 @@ export default function ClassesPage() {
         <ClassForm
           classData={editingClass}
           teachers={teachers}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowForm(false);
-            loadData();
+            await reloadData();
           }}
           onCancel={() => setShowForm(false)}
         />
@@ -250,6 +345,22 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const {
+    handleSubmit: handleValidatedSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(classFormSchema),
+    defaultValues: {
+      class_name: formData.class_name,
+      teacher_id: formData.teacher_id,
+      start_time: formData.start_time,
+      end_time: formData.end_time,
+      fee_per_day: formData.fee_per_day,
+      max_students: formData.max_students,
+      status: formData.status,
+    },
+  });
 
   // Toggle states for enabling schedule options
   const [useWeekdays, setUseWeekdays] = useState(
@@ -269,6 +380,11 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
     { value: 1, label: "CN" },
   ];
 
+  const updateField = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setValue(name, value, { shouldDirty: true, shouldValidate: true });
+  };
+
   const toggleDay = (day) => {
     setFormData((prev) => ({
       ...prev,
@@ -278,8 +394,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError("");
 
     if (!formData.class_name.trim()) {
@@ -335,17 +450,22 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
       } else {
         setError(response.error?.message || "Có lỗi xảy ra");
       }
-    } catch (err) {
+    } catch {
       setError("Không thể lưu dữ liệu");
     }
     setLoading(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleValidatedSubmit(handleSubmit)} className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
+        </div>
+      )}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {Object.values(errors)[0]?.message}
         </div>
       )}
 
@@ -358,9 +478,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           <input
             type="text"
             value={formData.class_name}
-            onChange={(e) =>
-              setFormData({ ...formData, class_name: e.target.value })
-            }
+            onChange={(e) => updateField("class_name", e.target.value)}
             className="input"
             placeholder="VD: Anh Văn 10 - Tối T3,T5"
           />
@@ -371,9 +489,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           </label>
           <select
             value={formData.teacher_id}
-            onChange={(e) =>
-              setFormData({ ...formData, teacher_id: e.target.value })
-            }
+            onChange={(e) => updateField("teacher_id", e.target.value)}
             className="input"
           >
             <option value="">-- Chọn giáo viên --</option>
@@ -506,9 +622,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           <input
             type="time"
             value={formData.start_time}
-            onChange={(e) =>
-              setFormData({ ...formData, start_time: e.target.value })
-            }
+            onChange={(e) => updateField("start_time", e.target.value)}
             className="input"
           />
         </div>
@@ -519,9 +633,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           <input
             type="time"
             value={formData.end_time}
-            onChange={(e) =>
-              setFormData({ ...formData, end_time: e.target.value })
-            }
+            onChange={(e) => updateField("end_time", e.target.value)}
             className="input"
           />
         </div>
@@ -536,12 +648,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           <input
             type="number"
             value={formData.fee_per_day}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                fee_per_day: parseInt(e.target.value) || 0,
-              })
-            }
+            onChange={(e) => updateField("fee_per_day", parseInt(e.target.value) || 0)}
             className="input"
           />
         </div>
@@ -552,12 +659,7 @@ function ClassForm({ classData, teachers, onSuccess, onCancel }) {
           <input
             type="number"
             value={formData.max_students}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                max_students: parseInt(e.target.value) || 20,
-              })
-            }
+            onChange={(e) => updateField("max_students", parseInt(e.target.value) || 20)}
             className="input"
           />
         </div>

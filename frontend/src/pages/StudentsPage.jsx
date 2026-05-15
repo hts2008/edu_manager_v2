@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { studentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { studentFormSchema } from "../utils/formValidation";
 
 // VI: Trang danh sách học viên
 export default function StudentsPage() {
@@ -165,96 +168,59 @@ export default function StudentsPage() {
     },
   ];
 
-  // Calculate stats
   const activeStudents = students.filter((s) => s.status === "active").length;
   const maleStudents = students.filter((s) => s.gender === "male").length;
   const femaleStudents = students.filter((s) => s.gender === "female").length;
+  const inactiveStudents = students.length - activeStudents;
+  const activationRate = students.length
+    ? Math.round((activeStudents / students.length) * 100)
+    : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">
-            Học viên
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Quản lý danh sách học viên của trung tâm
-          </p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-2xl shadow-indigo-950/20">
+        <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl"></div>
+        <div className="absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl"></div>
+        <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-lg shadow-cyan-300/50"></span>
+              Hồ sơ học viên • {students.length} bản ghi
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+              Quản lý học viên
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100/85 sm:text-base">
+              Theo dõi trạng thái học tập, phụ huynh liên hệ và phân bổ lớp trong một không gian vận hành rõ ràng cho giáo vụ.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={handleAdd}
+                className="rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-xl shadow-white/10 transition-all hover:-translate-y-0.5 hover:shadow-2xl"
+              >
+                Thêm học viên
+              </button>
+              <Link
+                to="/classes"
+                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/15"
+              >
+                Xem lớp học
+              </Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <StudentHeroMetric label="Đang học" value={activeStudents} tone="emerald" />
+            <StudentHeroMetric label="Tỷ lệ active" value={`${activationRate}%`} tone="cyan" />
+            <StudentHeroMetric label="Cần chăm sóc" value={inactiveStudents} tone="amber" wide />
+          </div>
         </div>
-        <button
-          onClick={handleAdd}
-          className="btn-primary shadow-lg shadow-primary-500/30"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm học viên
-        </button>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-              👨‍🎓
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {students.length}
-              </p>
-              <p className="text-sm text-gray-500">Tổng số</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-lg">
-              ✓
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {activeStudents}
-              </p>
-              <p className="text-sm text-gray-500">Đang học</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-              👦
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{maleStudents}</p>
-              <p className="text-sm text-gray-500">Nam</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-lg">
-              👧
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {femaleStudents}
-              </p>
-              <p className="text-sm text-gray-500">Nữ</p>
-            </div>
-          </div>
-        </div>
+        <StudentStatCard icon="👨‍🎓" label="Tổng số" value={students.length} tone="from-blue-500 to-indigo-600" />
+        <StudentStatCard icon="✓" label="Đang học" value={activeStudents} tone="from-emerald-500 to-green-600" />
+        <StudentStatCard icon="👦" label="Nam" value={maleStudents} tone="from-sky-500 to-blue-600" />
+        <StudentStatCard icon="👧" label="Nữ" value={femaleStudents} tone="from-pink-500 to-rose-600" />
       </div>
 
       {/* Data Table */}
@@ -297,6 +263,43 @@ export default function StudentsPage() {
 }
 
 // Student Form Component with Class Enrollment
+function StudentHeroMetric({ label, value, tone, wide }) {
+  const toneClass = {
+    emerald: "from-emerald-300/25 to-green-400/10 text-emerald-100 border-emerald-300/20",
+    amber: "from-amber-300/25 to-orange-400/10 text-amber-100 border-amber-300/20",
+    cyan: "from-cyan-300/25 to-blue-400/10 text-cyan-100 border-cyan-300/20",
+  }[tone];
+
+  return (
+    <div
+      className={`rounded-3xl border bg-gradient-to-br p-4 shadow-xl backdrop-blur-xl ${toneClass} ${
+        wide ? "col-span-2" : ""
+      }`}
+    >
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+        {label}
+      </p>
+      <p className="mt-2 truncate text-2xl font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function StudentStatCard({ icon, label, value, tone }) {
+  return (
+    <div className="stat-card stagger-item transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="flex items-center gap-3">
+        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tone} flex items-center justify-center text-white shadow-lg`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-sm text-gray-500">{label}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudentForm({ student, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     full_name: student?.full_name || "",
@@ -315,7 +318,22 @@ function StudentForm({ student, onSuccess, onCancel }) {
   const [classes, setClasses] = useState([]);
   const [parents, setParents] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState([]);
-  const [enrolledClasses, setEnrolledClasses] = useState([]);
+  const {
+    register,
+    handleSubmit: handleValidatedSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(studentFormSchema),
+    defaultValues: {
+      full_name: student?.full_name || "",
+      date_of_birth: student?.date_of_birth || "",
+      gender: student?.gender || "male",
+      parent_id: student?.parent_id || "",
+      notes: student?.notes || "",
+      status: student?.status || "active",
+    },
+  });
 
   useEffect(() => {
     loadClasses();
@@ -345,7 +363,6 @@ function StudentForm({ student, onSuccess, onCancel }) {
     const { studentsService } = await import("../services/api");
     const res = await studentsService.getById(student.id);
     if (res.success && res.data.classes) {
-      setEnrolledClasses(res.data.classes);
       setSelectedClasses(res.data.classes.map((c) => c.class_id || c.id));
     }
   };
@@ -353,6 +370,7 @@ function StudentForm({ student, onSuccess, onCancel }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setValue(name, value, { shouldDirty: true, shouldValidate: true });
   };
 
   const handleClassToggle = (classId) => {
@@ -363,8 +381,7 @@ function StudentForm({ student, onSuccess, onCancel }) {
     );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError("");
 
     if (!formData.full_name.trim()) {
@@ -389,19 +406,31 @@ function StudentForm({ student, onSuccess, onCancel }) {
       } else {
         setError(response.error?.message || "Có lỗi xảy ra");
       }
-    } catch (err) {
+    } catch {
       setError("Không thể lưu dữ liệu");
     }
     setLoading(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleValidatedSubmit(handleSubmit)} className="space-y-4">
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}
+      {Object.keys(errors).length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {Object.values(errors)[0]?.message}
+        </div>
+      )}
+
+      <input type="hidden" {...register("full_name")} />
+      <input type="hidden" {...register("date_of_birth")} />
+      <input type="hidden" {...register("gender")} />
+      <input type="hidden" {...register("parent_id")} />
+      <input type="hidden" {...register("notes")} />
+      <input type="hidden" {...register("status")} />
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -471,6 +500,10 @@ function StudentForm({ student, onSuccess, onCancel }) {
           value={formData.parent_id}
           onChange={(e) => {
             const selectedParent = parents.find((p) => p.id === e.target.value);
+            setValue("parent_id", e.target.value, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
             setFormData((prev) => ({
               ...prev,
               parent_id: e.target.value,

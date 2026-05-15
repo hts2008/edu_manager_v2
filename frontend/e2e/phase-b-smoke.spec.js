@@ -82,10 +82,23 @@ test("student onboarding surface opens without mutating data", async ({ page }) 
 
   await page.getByRole("button", { name: "Thêm học viên" }).click();
   await expect(page.getByRole("heading", { name: "Thêm học viên mới" })).toBeVisible();
-  await expect(page.locator('input[name="full_name"]')).toBeVisible();
+  await expect(page.locator('input[type="text"][name="full_name"]')).toBeVisible();
   await expect(page.locator('select[name="parent_id"]')).toBeVisible();
+  await page.locator("form").getByRole("button", { name: "Thêm mới" }).click();
+  await expect(page.getByText("Vui long nhap ho ten hoc vien")).toBeVisible();
   await page.getByRole("button", { name: "Hủy" }).click();
   await expect(page.getByRole("heading", { name: "Thêm học viên mới" })).toHaveCount(0);
+});
+
+test("class creation surface validates before mutation", async ({ page }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/classes", 'main h1:has-text("Lớp học")');
+
+  await page.getByRole("button", { name: "Thêm lớp học" }).click();
+  await expect(page.getByRole("heading", { name: "Thêm lớp học mới" })).toBeVisible();
+  await page.locator("form").getByRole("button", { name: "Thêm mới" }).click();
+  await expect(page.getByText("Vui long nhap ten lop")).toBeVisible();
+  await page.getByRole("button", { name: "Hủy" }).click();
 });
 
 test("attendance and fee collection workspaces load", async ({ page }) => {
@@ -107,6 +120,8 @@ test("payment creation surface validates before mutation", async ({ page }) => {
   await expect(page.getByPlaceholder("Tên người nhận tiền")).toBeVisible();
 
   if (!allowMutation) {
+    await page.locator("form").getByRole("button", { name: "Tạo phiếu chi" }).click();
+    await expect(page.getByText("Vui long nhap nguoi nhan")).toBeVisible();
     await page.getByRole("button", { name: "Hủy" }).click();
     await expect(page.getByRole("heading", { name: "Tạo phiếu chi mới" })).toHaveCount(0);
   }
@@ -115,7 +130,11 @@ test("payment creation surface validates before mutation", async ({ page }) => {
 test("receipts and templates surfaces load", async ({ page }) => {
   await seedAuth(page);
   await expectHealthyPage(page, "/receipts", 'main h1:has-text("Thu tiền")');
-  await expect(page.getByRole("button", { name: "Tạo phiếu thu" })).toBeVisible();
+  await page.getByRole("button", { name: "Tạo phiếu thu" }).click();
+  await expect(page.getByRole("heading", { name: "Tạo phiếu thu mới" })).toBeVisible();
+  await page.locator("form").getByRole("button", { name: "Tạo phiếu thu" }).click();
+  await expect(page.getByText("Vui long chon hoc vien")).toBeVisible();
+  await page.getByRole("button", { name: "Hủy" }).click();
 
   await expectHealthyPage(page, "/templates", 'main h1:has-text("Mẫu in")');
   await expect(page.getByRole("button", { name: "Tạo mẫu mới" })).toBeVisible();
