@@ -55,8 +55,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
-      if (!period || period.status !== "locked") continue;
-
       const counts = await prisma.attendance.groupBy({
         by: ["status"],
         where: {
@@ -78,6 +76,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         fee_per_day: feePerDay,
         days_count: daysCount,
         amount,
+        period_status: period?.status || null,
       });
 
       totalDays += daysCount;
@@ -85,11 +84,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     if (breakdown.length === 0) {
-      throw new ApiError(
-        "ATTENDANCE_PERIOD_NOT_LOCKED",
-        "No locked attendance period found for this student and month",
-        400
-      );
+      throw new ApiError("NO_ACTIVE_CLASS", "Student has no active class", 400);
     }
 
     const existing = await prisma.monthlyFee.findUnique({
