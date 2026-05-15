@@ -18,6 +18,6 @@
       "~/*": ["./lib/*"]
     }
   },
-  "include": ["api/**/*", "lib/**/*", "prisma/**/*"],
+  "include": ["api/**/*", "server/**/*", "lib/**/*", "prisma/**/*"],
   "exclude": ["node_modules", "dist", "frontend"]
 }
