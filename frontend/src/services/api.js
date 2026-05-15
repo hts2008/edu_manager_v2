@@ -306,6 +306,16 @@ export const activityLogsService = {
   },
 };
 
+// Center Settings API
+export const centerSettingsService = {
+  get: () => request("/center-settings"),
+  update: (data) =>
+    request("/center-settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+};
+
 // Attendance Periods API (SAP Timesheet-style)
 export const attendancePeriodsService = {
   getAll: (params = {}) => {

@@ -208,3 +208,11 @@
 - **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 8/8 pass locally.
 - **Production Smoke**: After Vercel deployment of commit `e5cdcfa`, `GET /api/activity-logs?limit=5` returned 5 logs with total 45, and browser `/audit-logs` rendered the admin audit UI with no console errors.
 - **STATUS**: IMPLEMENTED ✅
+
+---
+
+### 2026-05-15 — Phase C C12 Center Settings
+- **Scope**: Add admin UI and API for center profile fields already present in `CenterSettings`.
+- **Implementation**: Added Vercel `/api/center-settings`, Express reference `/api/center-settings`, `centerSettingsService`, `/settings` route, sidebar menu item, and `CenterSettingsPage`.
+- **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 9/9 pass locally.
+- **STATUS**: REVIEW — production smoke pending after Vercel deploy.

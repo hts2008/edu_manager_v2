@@ -18,6 +18,7 @@ import templatesRoutes from './routes/templates.js';
 import reportsRoutes from './routes/reports.js';
 import kanbanRoutes from './routes/kanban.js';
 import activityLogsRoutes from './routes/activity-logs.js';
+import centerSettingsRoutes from './routes/center-settings.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -69,6 +70,7 @@ app.use('/api/templates', templatesRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/kanban', kanbanRoutes);
 app.use('/api/activity-logs', activityLogsRoutes);
+app.use('/api/center-settings', centerSettingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

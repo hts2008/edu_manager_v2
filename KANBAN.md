@@ -205,7 +205,7 @@
 | C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
 | C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
 | C11 | User Management | Admin CRUD users, reset password, deactivate | PLANNED | Not started |
-| C12 | Center Settings | Admin UI for center profile/logo/defaults | PLANNED | Not started |
+| C12 | Center Settings | Admin UI for center profile/logo/defaults | REVIEW | Local API/UI/E2E pass; production smoke pending |
 
 ---
 
@@ -263,7 +263,7 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 8/8, audit/tsc/build/lint pass |
+| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 9/9, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked |
 
 **Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Production credential rotation remains before real operation.

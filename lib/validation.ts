@@ -97,3 +97,11 @@ export const classUpdateSchema = classCreateSchema
     status: z.enum(["active", "inactive"]).optional(),
   })
   .partial();
+
+export const centerSettingsSchema = z.object({
+  center_name: z.string().trim().min(1, "center_name is required").optional(),
+  center_address: optionalNullableText,
+  center_phone: optionalNullableText,
+  center_email: optionalNullableText,
+  center_logo: optionalNullableText,
+});

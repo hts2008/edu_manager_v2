@@ -167,3 +167,16 @@ test("audit log page and API contract are available", async ({ page, request }) 
   expect(Array.isArray(body.data?.logs)).toBeTruthy();
   expect(typeof body.data?.total).toBe("number");
 });
+
+test("center settings page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/settings", 'main h1:has-text("Cài đặt trung tâm")');
+  await expect(page.getByLabel("Tên trung tâm")).toBeVisible();
+
+  const response = await request.get("/api/center-settings", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.data?.center_name).toBeTruthy();
+});
