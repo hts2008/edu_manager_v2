@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `d6f5081` before the B7c observability/security scoped commit.
+- **Current Git HEAD observed in Codex session**: `20949c2` after the B7c observability/security scoped commit; production smoke evidence update is pending commit.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,8 +21,8 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Closeout** — observability/security hardening is implemented; production deployment smoke and credential rotation remain operational follow-ups.
-2. **Phase C Readiness** — product expansion can begin after the B7c deployment evidence is recorded.
+1. **Phase B Closeout** — observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+2. **Phase C Readiness** — product expansion can begin from a hardened Phase B baseline.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -98,11 +98,13 @@ Phase B E2E/Form baseline: added Playwright smoke suite under `frontend/e2e` cov
 
 Phase B observability/security baseline: added security headers, request ID propagation, structured JSON API logs with secret redaction, shared error logging, and a router-level mutation audit baseline for authenticated `POST/PUT/PATCH/DELETE` API calls.
 
+Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` exposes the new security/request-id headers, production login + `/api/auth/me` succeeds for the approved admin smoke account, and browser `/payments` smoke shows no network/error text or console errors.
+
 ## Now Doing
-Phase B B7c verification and deployment evidence. Production is usable for existing Phase A UI flows; B7c local gates pass.
+Phase B B7c closeout. Production is usable for existing Phase A UI flows; B7c local and production smoke gates pass.
 
 ## Next Recommended Action
-1. Push B7c and confirm Vercel production deployment exposes the new security headers.
-2. Rotate production default credentials and JWT secret before real operation.
-3. Begin Phase C only after B7c production evidence is recorded.
+1. Rotate production default credentials and JWT secret before real operation.
+2. Begin Phase C product expansion from the current hardened baseline.
+3. Keep production smoke evidence updated after the next deploy.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

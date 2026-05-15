@@ -20,8 +20,11 @@
 - Root `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - Frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed: 7/7.
+- Production API header smoke passed after Vercel deployment of commit `20949c2`: `/api/auth/me` returned 401 with `X-Request-Id`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, and `Cross-Origin-Opener-Policy`.
+- Production auth smoke passed: login with approved admin smoke credentials succeeded, `/api/auth/me` returned `role=admin`.
+- Production browser smoke passed: dashboard was accessible, `/payments` loaded, no `Network error`/404/500/Internal Server Error text was visible, and browser console errors list was empty.
 
 ## Notes
 - No external Sentry dependency was added because dependency installation/third-party telemetry was not approved. The Phase B baseline uses Vercel-compatible structured JSON logs plus request IDs.
 - MCPProxy/Neural Memory/Context+ tools were not exposed in this Codex session, so B7c used markdown-only/manual memory write-back.
-- Production deployment smoke should verify headers after the pushed commit is promoted by Vercel.
+- Production deployment smoke is recorded above for commit `20949c2`.

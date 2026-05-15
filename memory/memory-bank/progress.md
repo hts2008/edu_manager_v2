@@ -196,5 +196,6 @@
 - **Scope**: Close B7c baseline for API observability, security headers, and authenticated mutation audit.
 - **Implementation**: Added `lib/observability.ts`, wired security headers/request IDs through `api/router.ts` and `handleCors`, replaced shared `sendApiError` raw logging with structured redacted logging, and added router-level `API_<METHOD>` audit events for authenticated mutation requests.
 - **Validation**: `npm run test:unit` passed 13/13; `npx tsc --noEmit` passed; `npm run build` passed with existing Vite chunk warnings; `cd frontend && npm run lint -- --max-warnings=0` passed; root/frontend `npm audit --audit-level=high` passed; `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7.
+- **Production Smoke**: After Vercel deployment of commit `20949c2`, `/api/auth/me` returned the new security/request-id headers, login + `/api/auth/me` succeeded for the approved admin smoke account, and browser `/payments` loaded with no network/error text or console errors.
 - **Degradation**: MCPProxy/Neural Memory/Context+ tools were not exposed in this Codex session; work used markdown-only/manual memory write-back.
 - **STATUS**: IMPLEMENTED ✅

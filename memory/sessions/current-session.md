@@ -77,7 +77,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `d6f5081` before B7c scoped commit.
+- **Current Git HEAD observed in Codex session**: `20949c2` after B7c scoped commit; production smoke evidence update is pending commit.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -86,9 +86,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Push B7c scoped commit and wait for Vercel production deployment.
-2. Smoke production security headers and API auth after deploy.
-3. Rotate default credentials and JWT secret before real production operation.
+1. Rotate default credentials and JWT secret before real production operation.
+2. Begin Phase C product expansion from the hardened Phase B baseline.
+3. Keep production smoke evidence updated after the next deploy.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -102,3 +102,4 @@
 - `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.
 - `npm run test:unit` passed 13/13 after observability tests were added.
+- Production B7c smoke passed after commit `20949c2`: API headers, auth login/me, and `/payments` browser page verified.
