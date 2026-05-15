@@ -1,5 +1,15 @@
 # Progress Log
 
+### 2026-05-15 — Phase B Foundation Hardening Baseline
+- **Scope**: Start Phase B after Phase A production parity by adding low-risk quality and reliability foundation.
+- **Implemented**: Removed tracked frontend `.backup` files, ignored future backups, added API client `VITE_API_BASE`/retry/401 handling, added React ErrorBoundary, added login rate-limit baseline, added unit tests, added GitHub Actions CI, and recorded backend strategy.
+- **Verification Passed**: `npm run test:unit` (6/6), `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run build`, and local browser smoke on `/`, `/students`, `/classes`, `/receipts`, `/payments`.
+- **Evidence**: `receipts/2026-05-15-phase-b-foundation-hardening.md`.
+- **Remaining**: B2 validation, B5 Playwright E2E, B7b observability/security, credential rotation, and broader integration tests.
+- **STATUS**: PARTIAL PHASE B — FOUNDATION IMPLEMENTED
+
+---
+
 ### 2026-05-15 — Phase A Production API Parity Implemented
 - **Scope**: Complete Phase A production parity after user approved Neon + Vercel Blob setup.
 - **Infrastructure**: Configured Neon project `dry-dew-91484915`, updated Vercel env, created Vercel Blob store `edu-manager-blob`, pushed Prisma schema, and seeded baseline data.

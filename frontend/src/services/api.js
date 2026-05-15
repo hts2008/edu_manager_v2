@@ -1,16 +1,62 @@
 // VI: API service module - Gọi backend APIs
 
-const API_BASE = "/api";
+const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/$/, "");
+const RETRYABLE_METHODS = new Set(["GET", "HEAD"]);
+
+function isUnauthorized(response, data) {
+  if (response.status !== 401) return false;
+  const code = data?.error?.code;
+  return (
+    code === "TOKEN_EXPIRED" ||
+    code === "TOKEN_INVALID" ||
+    code === "UNAUTHORIZED"
+  );
+}
+
+function handleUnauthorized(data) {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  window.dispatchEvent(
+    new CustomEvent("auth:unauthorized", { detail: data?.error || null })
+  );
+}
+
+async function parseResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return {
+      success: response.ok,
+      data: response.ok ? null : undefined,
+      error: response.ok
+        ? undefined
+        : { code: `HTTP_${response.status}`, message: response.statusText },
+    };
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      success: false,
+      error: {
+        code: "INVALID_RESPONSE",
+        message: "Server returned an invalid response",
+      },
+    };
+  }
+}
 
 // Helper function to make API requests
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem("token");
+  const method = String(options.method || "GET").toUpperCase();
+  const retries = options.retries ?? (RETRYABLE_METHODS.has(method) ? 1 : 0);
 
   const config = {
     headers: {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
+      ...(options.headers || {}),
     },
     ...options,
     // Add 30-second timeout for all requests
@@ -18,19 +64,49 @@ async function request(endpoint, options = {}) {
   };
 
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
-    const data = await response.json();
+    let lastNetworkError = null;
 
-    // Handle token expiry
-    if (response.status === 401 && data.error?.code === "TOKEN_EXPIRED") {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-      return { success: false, error: data.error };
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const response = await fetch(`${API_BASE}${endpoint}`, config);
+        const data = await parseResponse(response);
+
+        if (isUnauthorized(response, data)) {
+          handleUnauthorized(data);
+          return { success: false, error: data.error };
+        }
+
+        if (!response.ok && data.success !== false) {
+          return {
+            success: false,
+            error: {
+              code: `HTTP_${response.status}`,
+              message: response.statusText || "Request failed",
+            },
+          };
+        }
+
+        if (response.status >= 500 && attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          continue;
+        }
+
+        return data;
+      } catch (error) {
+        lastNetworkError = error;
+        if (attempt < retries && error.name !== "AbortError") {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          continue;
+        }
+        throw error;
+      }
     }
 
-    return data;
+    throw lastNetworkError || new Error("Request failed");
   } catch (error) {
-    console.error("API Error:", error);
+    if (import.meta.env.DEV) {
+      console.error("API Error:", error);
+    }
 
     // Differentiate between timeout and network errors
     if (error.name === "TimeoutError" || error.name === "AbortError") {

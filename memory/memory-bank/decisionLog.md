@@ -130,3 +130,10 @@
 **Decision**: Use Neon Postgres project `dry-dew-91484915` as the approved database target and Vercel Blob store `edu-manager-blob` for template image uploads. Consolidate Vercel API routing into one `api/router.ts` function that dispatches to `server/api/*` handlers.
 **Rationale**: Neon restores a controllable Postgres target quickly; Vercel Blob removes Supabase Storage dependency; one router function avoids Vercel function-count limits while preserving frontend API paths.
 **Status**: IMPLEMENTED
+
+### ADR-19: Vercel + Prisma Is Production Backend Truth
+**Date**: 2026-05-15
+**Context**: Phase A restored production behavior by porting reference Express endpoints into Vercel Serverless TypeScript handlers backed by Prisma and Neon. Keeping Express as a production-equivalent backend would create two divergent contracts.
+**Decision**: Treat `server/api/*` plus `api/router.ts` as the production backend. Keep `backend/` Express + SQLite as reference/dev comparison only.
+**Rationale**: Production smoke, parity, and deployment evidence now validate Vercel + Prisma. New production behavior must be tested against that path and preserve the existing frontend API boundary.
+**Status**: IMPLEMENTED. See `docs/architecture/backend-strategy.md`.

@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `cd77f48`.
+- **Current Git HEAD observed in Codex session**: `ddaee20` before Phase B foundation changes.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,11 +21,10 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase A Production API Parity** — port missing Express/reference backend modules to Vercel TypeScript + Prisma.
-2. **Documentation Truth Reset** — keep KANBAN and memory aligned with agency PRD: production live but not yet production-ready.
+1. **Phase B Foundation Hardening** — cleanup backups, API client reliability, ErrorBoundary, login rate-limit, unit tests, CI, lint zero-warning gate.
+2. **Phase B Remaining** — validation, full Playwright E2E, observability/security, and production credential rotation.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
-4. **Post-Phase-A Work** — UI/UX improvements and seed-data expansion are deferred until production API parity passes.
-5. **Phase B Quality** — tests, CI, validation, rate-limit, Sentry, and cleanup after Phase A.
+4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention React 18.
@@ -90,13 +89,13 @@
 - `receipts/2026-05-14-phase-a-closeout-attempt.md`
 
 ## Just Completed
-Phase A production parity is deployed and smoked. The Supabase blocker was bypassed by moving the approved target to Neon Postgres and Vercel Blob. Serverless function-count failure was fixed by consolidating routes behind `api/router.ts`. PDF runtime failure was fixed by using the pdfmake Printer runtime correctly. Production API, Chrome UI, and parity/contract checks now pass.
+Phase B foundation hardening baseline: removed tracked `.backup` files, added `VITE_API_BASE`/retry/401 handling to the API client, added ErrorBoundary, added login rate-limit, added unit tests and CI, recorded backend strategy, and brought frontend lint to zero warnings.
 
 ## Now Doing
-Phase A closeout documentation/evidence write-back. Production is usable for existing Phase A UI flows.
+Phase B hardening continuation. Production is usable for existing Phase A UI flows; full validation/E2E/observability still remains.
 
 ## Next Recommended Action
-1. Start Phase B quality hardening: tests, CI, validation, error handling, rate limiting, Sentry/logging, and cleanup.
-2. Rotate default production credentials before real operation.
-3. Decide whether Express/SQLite remains reference/dev mock only and record the decision.
-4. Clean existing frontend lint warnings and `.backup` files under Phase B.
+1. Add validation layer for high-risk forms and API endpoints.
+2. Add Playwright E2E smoke suite for auth, student onboarding, attendance, fee collection, payment, and reports.
+3. Add observability/security hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
+4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

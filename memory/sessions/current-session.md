@@ -3,9 +3,9 @@
 ## Session Info
 - **Started**: 2026-05-14
 - **Workspace**: EDU_MANAGER_V2
-- **Mode**: PHASE A API PARITY IMPLEMENTATION
-- **Primary Objective**: Port missing production Vercel API modules so existing UI flows stop hitting 404/network errors.
-- **Outcome**: Phase A production API parity is `IMPLEMENTED`: production deploy, API smoke, Chrome UI smoke, PDF smoke, and parity/contract run passed.
+- **Mode**: PHASE B FOUNDATION HARDENING
+- **Primary Objective**: Continue after Phase A by hardening quality, API reliability, CI, and safety baseline.
+- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation baseline is implemented locally and ready for scoped commit.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -41,6 +41,15 @@
   - [x] Attempt local Vercel dev; blocked by missing Vercel credentials/token.
   - [x] Record evidence in `receipts/2026-05-14-phase-a-closeout-attempt.md`.
 - [ ] Decide whether to isolate/commit remaining operational hygiene changes before Phase B work.
+- [x] Implement Phase B foundation hardening baseline.
+  - [x] Remove tracked `.backup` files and ignore future backups.
+  - [x] Add frontend API client `VITE_API_BASE`, controlled retry, parse guard, and 401 event.
+  - [x] Add React ErrorBoundary around app routes.
+  - [x] Add login rate-limit helper and auth login protection.
+  - [x] Add unit tests for API utilities and rate limiter.
+  - [x] Add CI baseline.
+  - [x] Record backend strategy decision.
+  - [x] Run unit, typecheck, lint zero-warning, build, and local browser smoke.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -57,10 +66,10 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Start Phase B quality hardening: tests, validation, CI, observability, rate limiting, and lint cleanup.
-2. Rotate default credentials before real production operation.
-3. Decide and document backend strategy: Express/SQLite as reference/dev mock, Prisma + Vercel API as production source of truth.
-4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside the Phase A app-code deploy commits.
+1. Commit/push Phase B foundation hardening with explicit staged paths only.
+2. Continue B2 validation and B5 Playwright E2E.
+3. Add B7b observability/security hardening and rotate default credentials before real production operation.
+4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.

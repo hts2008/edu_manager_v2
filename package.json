@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts",
     "test:parity": "node scripts/parity-test.mjs"
   },
   "dependencies": {

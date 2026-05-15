@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 // Layout
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -36,46 +37,48 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
+        <ErrorBoundary>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected routes */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DashboardPage />} />
-            <Route path="students" element={<StudentsPage />} />
-            <Route path="parents" element={<ParentsPage />} />
-            <Route path="classes" element={<ClassesPage />} />
-            <Route path="teachers" element={<TeachersPage />} />
-            <Route path="attendance" element={<AttendancePage />} />
-            <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
-            <Route path="receipts" element={<ReceiptsPage />} />
-            <Route path="payments" element={<PaymentsPage />} />
-            <Route path="fee-collection" element={<FeeCollectionPage />} />
-            <Route path="history" element={<HistoryPage />} />
-            <Route path="templates" element={<TemplatesPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-          </Route>
+            {/* Protected routes */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DashboardPage />} />
+              <Route path="students" element={<StudentsPage />} />
+              <Route path="parents" element={<ParentsPage />} />
+              <Route path="classes" element={<ClassesPage />} />
+              <Route path="teachers" element={<TeachersPage />} />
+              <Route path="attendance" element={<AttendancePage />} />
+              <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
+              <Route path="receipts" element={<ReceiptsPage />} />
+              <Route path="payments" element={<PaymentsPage />} />
+              <Route path="fee-collection" element={<FeeCollectionPage />} />
+              <Route path="history" element={<HistoryPage />} />
+              <Route path="templates" element={<TemplatesPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+            </Route>
 
-          {/* Template Designer - Full screen without sidebar */}
-          <Route
-            path="/templates/:id/design"
-            element={
-              <ProtectedRoute>
-                <TemplateDesignerPage />
-              </ProtectedRoute>
-            }
-          />
+            {/* Template Designer - Full screen without sidebar */}
+            <Route
+              path="/templates/:id/design"
+              element={
+                <ProtectedRoute>
+                  <TemplateDesignerPage />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
   );

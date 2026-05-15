@@ -158,9 +158,31 @@
 
 | Task ID | Description | Reason |
 | ------- | ----------- | ------ |
-| B2B-006 | UI/UX Improvements | Do after production API parity, otherwise UI polish may mask broken flows |
-| B2B-007 | More Seed Data | Do after API parity and approved dev/staging DB target |
+| B2B-006 | UI/UX Improvements | Phase A is passed; keep deferred until Phase B reliability gates are stable |
+| B2B-007 | More Seed Data | Phase A is passed; still requires approved dev/staging data plan |
 | Optional API docs | API surface is changing during Phase A |
+
+---
+
+## PHASE B — QUALITY, SAFETY, MAINTAINABILITY
+
+**Objective:** harden the production-usable Phase A system so future product expansion does not reintroduce hidden broken flows.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| B1 | Cleanup tracked `.backup` files | `frontend/src/**/*.backup`, `.gitignore` | IMPLEMENTED | `rg --files -g '*.backup' frontend/src` returns no files |
+| B3 | Add UI failure boundary baseline | `frontend/src/components/ui/ErrorBoundary.jsx`, app routes | IMPLEMENTED | Local browser smoke: no boundary fallback on 5 core pages |
+| B4 | Add unit test baseline | `tests/*.test.ts`, `npm run test:unit` | IMPLEMENTED | 6/6 node:test tests pass |
+| B6 | Add CI gate baseline | `.github/workflows/ci.yml` | IMPLEMENTED | CI runs unit, tsc, build, lint max-warnings=0 |
+| B7a | Add login rate-limit baseline | `lib/rate-limit.ts`, `server/api/auth/login.ts` | IMPLEMENTED | Unit tests cover limiter; tsc/build pass |
+| B8 | Record backend strategy | `docs/architecture/backend-strategy.md`, ADR-19 | IMPLEMENTED | Express = reference only; Vercel + Prisma = production truth |
+| B9 | Improve API client reliability | `frontend/src/services/api.js` | IMPLEMENTED | `VITE_API_BASE`, GET retry, safer parse, 401 event |
+| B10 | Bring lint to zero warnings | `frontend/eslint.config.js` | IMPLEMENTED | `cd frontend && npm run lint -- --max-warnings=0` passed |
+| B2 | Form/API validation hardening | zod/react-hook-form/server validation | PLANNED | Not started |
+| B5 | E2E Playwright smoke suite | Auth, student, attendance, fee, payment, reports | PLANNED | Not started |
+| B7b | Observability/security hardening | Sentry, structured logs, audit middleware expansion | PLANNED | Not started |
+
+**Phase B foundation receipt:** `receipts/2026-05-15-phase-b-foundation-hardening.md`.
 
 ---
 
@@ -218,10 +240,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | ⚠️ Missing; Phase B target |
-| Production usability | Usable for existing Phase A UI flows; Phase B quality hardening pending |
+| Tests/CI | Phase B baseline implemented; full E2E and validation still pending |
+| Production usability | Usable for existing Phase A UI flows; Phase B foundation hardening in progress |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B quality hardening remains required.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation hardening is underway, with validation/E2E/observability still remaining.
 
 ---
 
@@ -280,4 +302,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-15 11:05
+**Last Updated:** 2026-05-15 15:45

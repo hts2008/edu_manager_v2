@@ -3,8 +3,15 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../../../lib/prisma.js";
 import { handleCors, errorResponse, successResponse } from "../../../lib/auth.js";
+import {
+  checkRateLimit,
+  getClientIp,
+  setRateLimitHeaders,
+} from "../../../lib/rate-limit.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const LOGIN_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 900000);
+const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX || 10);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -13,7 +20,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
 
-  const { username, password } = req.body;
+  const body = typeof req.body === "object" && req.body ? req.body : {};
+  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  const limit = checkRateLimit(
+    `login:${getClientIp(req)}:${username.toLowerCase() || "unknown"}`,
+    {
+      windowMs: LOGIN_WINDOW_MS,
+      max: LOGIN_MAX_ATTEMPTS,
+    }
+  );
+  setRateLimitHeaders(res, limit);
+
+  if (!limit.allowed) {
+    return errorResponse(
+      res,
+      "RATE_LIMITED",
+      "Too many login attempts. Please try again later.",
+      429
+    );
+  }
 
   if (!username || !password) {
     return errorResponse(
