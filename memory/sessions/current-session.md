@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PHASE B FOUNDATION HARDENING
 - **Primary Objective**: Continue after Phase A by hardening quality, API reliability, CI, and safety baseline.
-- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, React Hook Form validation, and local Playwright E2E baseline are implemented.
+- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, React Hook Form validation, local Playwright E2E baseline, and observability/security hardening are implemented.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -65,6 +65,11 @@
   - [x] Add frontend form schemas.
   - [x] Add React Hook Form + zod resolver to Student, Class, Receipt, and Payment forms.
   - [x] Extend E2E smoke to assert validation messages without mutating data.
+- [x] Implement Phase B observability/security hardening.
+  - [x] Add security headers and request ID propagation.
+  - [x] Add structured redacted API logs and shared error logging.
+  - [x] Add router-level mutation audit baseline for authenticated write requests.
+  - [x] Verify unit/type/build/lint/audit/E2E gates.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -72,7 +77,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `cd77f48`.
+- **Current Git HEAD observed in Codex session**: `d6f5081` before B7c scoped commit.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -81,9 +86,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Commit/push Phase B form validation/E2E update with explicit staged paths only.
-2. Add B7c observability hardening and rotate default credentials before real production operation.
-3. Keep Phase C expansion gated until B7c evidence exists.
+1. Push B7c scoped commit and wait for Vercel production deployment.
+2. Smoke production security headers and API auth after deploy.
+3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -96,3 +101,4 @@
 - Chrome UI smoke passed across `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` with no failed fetch requests.
 - `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.
+- `npm run test:unit` passed 13/13 after observability tests were added.

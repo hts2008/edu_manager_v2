@@ -33,6 +33,7 @@
 - `npx tsc --noEmit` passed.
 - `npm run build` passed.
 - Root and frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
+- Production Chrome smoke after deploy passed for Payment form validation: `/payments` opened, submit without required recipient showed `Vui long nhap nguoi nhan`, and no console errors were captured.
 
 ## Notes
 - Production Playwright run was not used for the full suite because repeated production logins hit the login rate-limit during test development. Production was already smoke-tested separately with Chrome and API probes after deploy.

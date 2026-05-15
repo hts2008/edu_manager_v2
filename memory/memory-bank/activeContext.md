@@ -4,11 +4,11 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, and E2E smoke baseline are implemented.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `c1ad9d4` after Phase B validation/audit cleanup; E2E baseline changes are pending scoped commit.
+- **Current Git HEAD observed in Codex session**: `d6f5081` before the B7c observability/security scoped commit.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,8 +21,8 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Observability/Security** — Sentry or equivalent, structured logs, mutation audit expansion, and production credential rotation.
-2. **Phase C Readiness** — product expansion tasks should wait until observability/security hardening is closed.
+1. **Phase B Closeout** — observability/security hardening is implemented; production deployment smoke and credential rotation remain operational follow-ups.
+2. **Phase C Readiness** — product expansion can begin after the B7c deployment evidence is recorded.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -75,7 +75,7 @@
 - **Windows Shell**: If PowerShell execution policy blocks scripts, run build commands via `cmd /c`.
 - **Serverless Routing**: Dynamic folders like `[id]` can shadow each other; prefer query-param actions for ambiguous operations.
 - **Dual-Brain Tooling Degradation (Codex session 2026-05-14)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
-- **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, and audit baselines; React Hook Form and observability remain.
+- **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, dependency audit, React Hook Form, and observability/security baselines.
 - **Default Credentials Risk**: `admin / admin123` is useful for dev/smoke, but production operation must rotate credentials and JWT secret.
 - **Docs Drift**: README and old memory may mention React 18, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
 
@@ -84,6 +84,7 @@
 - `api/auth/*`, `api/attendance/calculate-fee.ts`, `api/monthly-fees/*`, `api/receipts/*`, `api/payments/*`, `api/templates/*`, `api/reports/*`
 - `frontend/src/services/api.js`, `frontend/eslint.config.js`, and lint-only frontend cleanup files
 - `package.json`, `package-lock.json`, `.env.example`, `prisma/seed.ts`, `scripts/parity-test.mjs`
+- `api/router.ts`, `lib/observability.ts`, `tests/observability.test.ts`
 - `KANBAN.md`, `memory/memory-bank/activeContext.md`, `memory/memory-bank/progress.md`, `memory/memory-bank/decisionLog.md`, `memory/sessions/current-session.md`
 - `receipts/2026-05-14-phase-a-api-parity-static.md`
 - `receipts/2026-05-14-phase-a-closeout-attempt.md`
@@ -95,11 +96,13 @@ Phase B validation/security slice: added zod validation for Login, Student, Clas
 
 Phase B E2E/Form baseline: added Playwright smoke suite under `frontend/e2e` covering auth, student onboarding validation, class creation validation, attendance, fee collection, payment validation, receipt validation, templates, and reports/API financial shape. Added React Hook Form + zod submit boundaries for Student, Class, Receipt, and Payment forms. Local serverless target `http://127.0.0.1:3000` passed 7/7.
 
+Phase B observability/security baseline: added security headers, request ID propagation, structured JSON API logs with secret redaction, shared error logging, and a router-level mutation audit baseline for authenticated `POST/PUT/PATCH/DELETE` API calls.
+
 ## Now Doing
-Phase B hardening continuation. Production is usable for existing Phase A UI flows; observability/security hardening remains.
+Phase B B7c verification and deployment evidence. Production is usable for existing Phase A UI flows; B7c local gates pass.
 
 ## Next Recommended Action
-1. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
-2. Run production Playwright smoke only when login rate-limit window is clear or when a non-production target/token is approved.
-3. Prepare Phase C tasks only after B7c has evidence.
+1. Push B7c and confirm Vercel production deployment exposes the new security headers.
+2. Rotate production default credentials and JWT secret before real operation.
+3. Begin Phase C only after B7c production evidence is recorded.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

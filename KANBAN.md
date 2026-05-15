@@ -172,7 +172,7 @@
 | ------- | ----------- | ----- | ------ | -------- |
 | B1 | Cleanup tracked `.backup` files | `frontend/src/**/*.backup`, `.gitignore` | IMPLEMENTED | `rg --files -g '*.backup' frontend/src` returns no files |
 | B3 | Add UI failure boundary baseline | `frontend/src/components/ui/ErrorBoundary.jsx`, app routes | IMPLEMENTED | Local browser smoke: no boundary fallback on 5 core pages |
-| B4 | Add unit test baseline | `tests/*.test.ts`, `npm run test:unit` | IMPLEMENTED | 8/8 node:test tests pass |
+| B4 | Add unit test baseline | `tests/*.test.ts`, `npm run test:unit` | IMPLEMENTED | 13/13 node:test tests pass |
 | B6 | Add CI gate baseline | `.github/workflows/ci.yml` | IMPLEMENTED | CI runs audit, unit, tsc, build, lint max-warnings=0 |
 | B7a | Add login rate-limit baseline | `lib/rate-limit.ts`, `server/api/auth/login.ts` | IMPLEMENTED | Unit tests cover limiter; tsc/build pass |
 | B8 | Record backend strategy | `docs/architecture/backend-strategy.md`, ADR-19 | IMPLEMENTED | Express = reference only; Vercel + Prisma = production truth |
@@ -182,9 +182,9 @@
 | B2b | React Hook Form validation | Student, Class, Receipt, Payment forms | IMPLEMENTED | `receipts/2026-05-15-phase-b-e2e-smoke.md` |
 | B5 | E2E Playwright smoke suite | Auth, student, class, attendance, fee, payment, reports | IMPLEMENTED | `receipts/2026-05-15-phase-b-e2e-smoke.md` |
 | B7b | Dependency audit remediation | root + frontend dependency graph | IMPLEMENTED | `npm audit --audit-level=high` passes in both packages |
-| B7c | Observability/security hardening | Sentry, structured logs, audit middleware expansion | PLANNED | Not started |
+| B7c | Observability/security hardening | Security headers, request IDs, structured redacted API logs, mutation audit baseline | IMPLEMENTED | `receipts/2026-05-15-phase-b-observability-security.md`; unit/type/build/lint/audit/E2E pass |
 
-**Phase B receipts:** `receipts/2026-05-15-phase-b-foundation-hardening.md`, `receipts/2026-05-15-phase-b-validation-security.md`, `receipts/2026-05-15-phase-b-e2e-smoke.md`.
+**Phase B receipts:** `receipts/2026-05-15-phase-b-foundation-hardening.md`, `receipts/2026-05-15-phase-b-validation-security.md`, `receipts/2026-05-15-phase-b-e2e-smoke.md`, `receipts/2026-05-15-phase-b-observability-security.md`.
 
 ---
 
@@ -242,10 +242,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B baseline implemented; unit 8/8, Playwright smoke 6/6, audit/tsc/build/lint pass |
+| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 7/7, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, and E2E smoke baseline are implemented. Observability/security hardening remains.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Production credential rotation remains before real operation.
 
 ---
 
@@ -304,4 +304,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-15 15:45
+**Last Updated:** 2026-05-15 22:33

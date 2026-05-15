@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "./vercel-types.js";
 import jwt from "jsonwebtoken";
 import prisma from "./prisma.js";
+import { setSecurityHeaders } from "./observability.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -164,6 +165,7 @@ export function requireAdmin(
 
 // CORS handler for OPTIONS requests
 export function handleCors(req: VercelRequest, res: VercelResponse): boolean {
+  setSecurityHeaders(res);
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(

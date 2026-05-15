@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "./vercel-types.js";
 import type { TemplateType } from "@prisma/client";
 import prisma from "./prisma.js";
 import { errorResponse } from "./auth.js";
+import { logApiError } from "./observability.js";
 
 export class ApiError extends Error {
   code: string;
@@ -24,7 +25,7 @@ export function sendApiError(
     return errorResponse(res, error.code, error.message, error.status);
   }
 
-  console.error(fallbackCode, error);
+  logApiError(error, { code: fallbackCode });
   return errorResponse(res, fallbackCode, fallbackMessage, 500);
 }
 

@@ -189,3 +189,12 @@
 - **E2E Update**: Extended Playwright smoke to assert Student/Class/Receipt/Payment validation messages without mutating data.
 - **Validation**: lint max-warnings=0, build, unit tests, audit, type-check, and Playwright smoke all pass; Playwright local serverless target passed 7/7.
 - **STATUS**: IMPLEMENTED ✅
+
+---
+
+### 2026-05-15 — Phase B Observability/Security Hardening
+- **Scope**: Close B7c baseline for API observability, security headers, and authenticated mutation audit.
+- **Implementation**: Added `lib/observability.ts`, wired security headers/request IDs through `api/router.ts` and `handleCors`, replaced shared `sendApiError` raw logging with structured redacted logging, and added router-level `API_<METHOD>` audit events for authenticated mutation requests.
+- **Validation**: `npm run test:unit` passed 13/13; `npx tsc --noEmit` passed; `npm run build` passed with existing Vite chunk warnings; `cd frontend && npm run lint -- --max-warnings=0` passed; root/frontend `npm audit --audit-level=high` passed; `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7.
+- **Degradation**: MCPProxy/Neural Memory/Context+ tools were not exposed in this Codex session; work used markdown-only/manual memory write-back.
+- **STATUS**: IMPLEMENTED ✅

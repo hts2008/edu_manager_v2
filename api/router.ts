@@ -1,5 +1,12 @@
 import type { VercelRequest, VercelResponse } from "../lib/vercel-types.js";
-import { errorResponse, handleCors } from "../lib/auth.js";
+import { errorResponse, handleCors, verifyAuth } from "../lib/auth.js";
+import { logActivity } from "../lib/api-utils.js";
+import {
+  getRequestId,
+  logApiError,
+  logApiEvent,
+  setSecurityHeaders,
+} from "../lib/observability.js";
 
 type Handler = (
   req: VercelRequest,
@@ -12,6 +19,8 @@ type RouteMatch = {
   load: Loader;
   params?: Record<string, string>;
 };
+
+const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const routes = {
   attendanceBulk: () => import("../server/api/attendance/bulk.js"),
@@ -128,16 +137,72 @@ function resolveRoute(parts: string[]): RouteMatch | null {
   );
 }
 
+async function recordMutationAudit(
+  req: VercelRequest,
+  requestId: string,
+  routePath: string
+) {
+  const method = req.method?.toUpperCase();
+  if (!method || !MUTATION_METHODS.has(method)) return;
+
+  const user = verifyAuth(req);
+  if (!user) return;
+
+  try {
+    await logActivity(req, user.userId, `API_${method}`, "api_route", routePath);
+  } catch (error) {
+    logApiError(
+      error,
+      {
+        requestId,
+        method,
+        path: routePath,
+      },
+      "api_audit_log_failed"
+    );
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const requestId = getRequestId(req);
+  setSecurityHeaders(res);
+  res.setHeader("X-Request-Id", requestId);
+
   if (handleCors(req, res)) return;
 
-  const match = resolveRoute(pathParts(req));
+  const startedAt = Date.now();
+  const parts = pathParts(req);
+  const routePath = `/api/${parts.join("/")}`;
+  const match = resolveRoute(parts);
   if (!match) {
+    logApiEvent("warn", "api_route_not_found", {
+      requestId,
+      method: req.method,
+      path: routePath,
+    });
     return errorResponse(res, "NOT_FOUND", "API route not found", 404);
   }
 
   delete req.query.path;
   Object.assign(req.query, match.params || {});
-  const module = await match.load();
-  return module.default(req, res);
+  try {
+    const module = await match.load();
+    const result = await module.default(req, res);
+    await recordMutationAudit(req, requestId, routePath);
+    logApiEvent("info", "api_request_handled", {
+      requestId,
+      method: req.method,
+      path: routePath,
+      durationMs: Date.now() - startedAt,
+    });
+    return result;
+  } catch (error) {
+    logApiError(error, {
+      requestId,
+      method: req.method,
+      path: routePath,
+      durationMs: Date.now() - startedAt,
+    });
+    return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+  }
 }
