@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { templatesService } from '../services/api';
 import { useToast } from '../components/ui/Toast';
@@ -13,8 +13,7 @@ export default function TemplateDesignerPage() {
   const [template, setTemplate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedObject, setSelectedObject] = useState(null);
-  const [zoom, setZoom] = useState(100);
-  const [showGrid, setShowGrid] = useState(true);
+  const showGrid = true;
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 

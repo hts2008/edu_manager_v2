@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { studentsService, classesService, receiptsService, attendanceService } from '../services/api';
+import { studentsService, receiptsService, attendanceService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
@@ -147,7 +147,6 @@ export default function ReceiptsPage() {
 
 function ReceiptForm({ onSuccess, onCancel }) {
   const [students, setStudents] = useState([]);
-  const [classes, setClasses] = useState([]);
   const [formData, setFormData] = useState({
     student_id: '',
     month: new Date().toISOString().slice(0, 7),
@@ -166,12 +165,8 @@ function ReceiptForm({ onSuccess, onCancel }) {
   }, []);
 
   const loadData = async () => {
-    const [studentsRes, classesRes] = await Promise.all([
-      studentsService.getAll(),
-      classesService.getAll(),
-    ]);
+    const studentsRes = await studentsService.getAll();
     if (studentsRes.success) setStudents(studentsRes.data.students || []);
-    if (classesRes.success) setClasses(classesRes.data.classes || []);
   };
 
   const handleStudentChange = async (studentId) => {

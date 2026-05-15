@@ -2,11 +2,9 @@ import { useState, useEffect } from "react";
 import { teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
-import { useAuth } from "../context/AuthContext";
 
 // VI: Trang quản lý giáo viên (Admin only) - Premium Design
 export default function TeachersPage() {
-  const { isAdmin } = useAuth();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -188,9 +186,6 @@ export default function TeachersPage() {
   const hourlyTeachers = teachers.filter(
     (t) => t.salary_type === "hourly"
   ).length;
-  const fixedTeachers = teachers.filter(
-    (t) => t.salary_type === "fixed"
-  ).length;
   const totalSalary = teachers.reduce(
     (sum, t) => sum + (t.salary_type === "fixed" ? t.salary_amount || 0 : 0),
     0
@@ -359,7 +354,7 @@ function TeacherForm({ teacher, onSuccess, onCancel }) {
       } else {
         setError(response.error?.message || "Có lỗi xảy ra");
       }
-    } catch (err) {
+    } catch {
       setError("Không thể lưu dữ liệu");
     }
     setLoading(false);

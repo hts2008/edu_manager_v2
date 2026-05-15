@@ -175,6 +175,18 @@ export const paymentsService = {
 };
 
 // Templates API
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export const templatesService = {
   getAll: (type) => request(`/templates${type ? `?type=${type}` : ""}`),
   getById: (id) => request(`/templates/${id}`),
@@ -186,14 +198,16 @@ export const templatesService = {
   delete: (id) => request(`/templates/${id}`, { method: "DELETE" }),
   setDefault: (id) =>
     request(`/templates/${id}/set-default`, { method: "POST" }),
-  uploadImage: (file) => {
-    const formData = new FormData();
-    formData.append("image", file);
-    return fetch(`${API_BASE}/templates/upload-image`, {
+  uploadImage: async (file) => {
+    const base64 = await fileToBase64(file);
+    return request("/templates/upload-image", {
       method: "POST",
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      body: formData,
-    }).then((r) => r.json());
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        base64,
+      }),
+    });
   },
 };
 
@@ -242,16 +256,26 @@ export const monthlyFeesService = {
     return request(`/monthly-fees${query ? `?${query}` : ""}`);
   },
   getById: (id) => request(`/monthly-fees/${id}`),
-  calculate: (data) =>
-    request("/monthly-fees/calculate", {
+  calculate: (studentOrData, month) => {
+    const payload =
+      typeof studentOrData === "object"
+        ? studentOrData
+        : { student_id: studentOrData, month };
+    return request("/monthly-fees/calculate", {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   confirm: (id) => request(`/monthly-fees/${id}/confirm`, { method: "POST" }),
-  pay: (id, data) =>
-    request(`/monthly-fees/${id}/pay`, {
+  pay: (id, paymentMethodOrData) => {
+    const payload =
+      typeof paymentMethodOrData === "object"
+        ? paymentMethodOrData
+        : { payment_method: paymentMethodOrData };
+    return request(`/monthly-fees/${id}/pay`, {
       method: "POST",
-      body: JSON.stringify(data),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   cancel: (id) => request(`/monthly-fees/${id}/cancel`, { method: "POST" }),
 };

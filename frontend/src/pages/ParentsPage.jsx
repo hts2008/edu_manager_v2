@@ -344,7 +344,7 @@ function ParentForm({ parent, onSuccess, onCancel }) {
       } else {
         setError(response.error?.message || "Có lỗi xảy ra");
       }
-    } catch (err) {
+    } catch {
       setError("Không thể lưu dữ liệu");
     }
     setLoading(false);

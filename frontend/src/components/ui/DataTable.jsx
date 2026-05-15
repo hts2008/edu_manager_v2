@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 // VI: DataTable component với sorting, filtering, và pagination
 export default function DataTable({
@@ -59,7 +59,7 @@ export default function DataTable({
   );
 
   // Reset page when search changes
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 

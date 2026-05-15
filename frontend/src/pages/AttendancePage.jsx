@@ -50,7 +50,6 @@ const LEGEND = [
 ];
 
 export default function AttendancePage() {
-  const [activeTab, setActiveTab] = useState("calendar");
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedWeek, setSelectedWeek] = useState(null); // { start: Date, end: Date }

@@ -325,7 +325,10 @@ async function main() {
 
       // Only create attendance for scheduled days
       const dayOfWeek = date.getDay();
-      if (!classItem.scheduleDays.includes(dayOfWeek)) continue;
+      const scheduleDays = Array.isArray(classItem.scheduleDays)
+        ? (classItem.scheduleDays as number[])
+        : [];
+      if (!scheduleDays.includes(dayOfWeek)) continue;
 
       // Get students in this class
       const enrollments = await prisma.studentClass.findMany({

@@ -31,7 +31,7 @@ export function exportToExcel(data, filename, sheetName = 'Sheet1', columns = nu
   // Auto-size columns
   const colWidths = [];
   if (columns) {
-    columns.forEach((col, i) => {
+    columns.forEach((col) => {
       let maxWidth = col.title.length;
       data.forEach(row => {
         const value = String(row[col.key] ?? '');

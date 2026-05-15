@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { reportsService } from '../services/api';
+import { useAsyncData } from '../hooks/useAsyncData';
 
 // VI: Trang báo cáo tài chính
 export default function ReportsPage() {
@@ -8,25 +9,15 @@ export default function ReportsPage() {
     to: new Date().toISOString().split('T')[0],
   });
   const [reportType, setReportType] = useState('monthly');
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadReport();
-  }, [dateRange, reportType]);
-
-  const loadReport = async () => {
-    setLoading(true);
+  const { data, loading } = useAsyncData(async () => {
     const response = await reportsService.getFinancial({
       from: dateRange.from,
       to: dateRange.to,
       type: reportType,
     });
-    if (response.success) {
-      setData(response.data);
-    }
-    setLoading(false);
-  };
+
+    return response.success ? response.data : null;
+  }, `${dateRange.from}:${dateRange.to}:${reportType}`);
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);

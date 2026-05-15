@@ -11,18 +11,22 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:parity": "node scripts/parity-test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
+    "@vercel/blob": "^2.3.3",
     "@vercel/node": "^3.0.0",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "pdfmake": "^0.3.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.12.0",
+    "@types/pdfmake": "^0.3.2",
     "prisma": "^5.14.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",

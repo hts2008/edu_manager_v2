@@ -44,7 +44,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
       } else {
         setError(res.error?.message || 'Có lỗi xảy ra');
       }
-    } catch (err) {
+    } catch {
       setError('Không thể kết nối server');
     } finally {
       setLoading(false);

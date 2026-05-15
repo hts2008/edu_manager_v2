@@ -28,7 +28,7 @@ export function AuthProvider({ children }) {
       } else {
         localStorage.removeItem('token');
       }
-    } catch (err) {
+    } catch {
       localStorage.removeItem('token');
     } finally {
       setLoading(false);
@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await authService.logout();
-    } catch (err) {
+    } catch {
       // Ignore logout errors
     } finally {
       localStorage.removeItem('token');

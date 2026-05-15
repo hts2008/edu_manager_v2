@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { studentsService, monthlyFeesService, receiptsService, classesService } from '../services/api';
+import { studentsService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
-import { useAuth } from '../context/AuthContext';
 
 // VI: Thu học phí theo tháng với đầy đủ thông tin học viên
 
@@ -25,7 +24,6 @@ export default function FeeCollectionPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [processing, setProcessing] = useState(false);
   const toast = useToast();
-  const { isAdmin } = useAuth();
 
   useEffect(() => {
     loadData();
@@ -139,9 +137,19 @@ export default function FeeCollectionPage() {
       toast.error('Chưa có phiếu thu');
       return;
     }
-    
-    // Navigate to print
-    window.open(`/api/receipts/${fee.receipt_id}/pdf`, '_blank');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/receipts/${fee.receipt_id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('PDF request failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch {
+      toast.error('Không thể tạo PDF. Vui lòng thử lại.');
+    }
   };
 
   // Navigate months

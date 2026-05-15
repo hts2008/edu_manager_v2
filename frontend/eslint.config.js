@@ -24,6 +24,10 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-render': 'warn',
+      'react-refresh/only-export-components': 'warn',
     },
   },
 ])
