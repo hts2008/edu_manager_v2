@@ -76,12 +76,12 @@
   - [x] Add frontend service, sidebar item, route, and `AuditLogsPage`.
   - [x] Extend Playwright smoke to 8 tests.
   - [x] Smoke production after Vercel deploy.
-- [ ] Implement Phase C C12 Center Settings.
+- [x] Implement Phase C C12 Center Settings.
   - [x] Add Vercel `/api/center-settings` GET/PUT route.
   - [x] Add Express reference `/api/center-settings` route for local E2E parity.
   - [x] Add frontend service, sidebar item, route, and `CenterSettingsPage`.
   - [x] Extend Playwright smoke to 9 tests.
-  - [ ] Smoke production after Vercel deploy.
+  - [x] Smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -98,9 +98,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Push C12 scoped commit and wait for Vercel production deployment.
-2. Smoke production `/api/center-settings` and `/settings` in browser.
-3. Rotate default credentials and JWT secret before real production operation.
+1. Select the next lowest-risk Phase C slice.
+2. Rotate default credentials and JWT secret before real production operation.
+3. Keep production smoke evidence updated after the next deploy.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -118,3 +118,4 @@
 - C8 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 8/8 after adding audit log UI/API coverage.
 - C8 production smoke passed after commit `e5cdcfa`: `/api/activity-logs` returned logs and `/audit-logs` rendered in browser without console errors.
 - C12 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 9/9 after adding center settings UI/API coverage.
+- C12 production smoke passed after commit `903544f`: `/api/center-settings` returned settings and `/settings` rendered in browser without console errors.

@@ -20,7 +20,9 @@
 - Root `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - Frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed: 9/9.
+- Production API smoke passed after Vercel deployment of commit `903544f`: `GET /api/center-settings` returned `success=true` and a populated `center_name`.
+- Production browser smoke passed: `/settings` rendered the "Cài đặt trung tâm" page, the "Cài đặt" sidebar item, center profile fields, preview panel, and no network/error text or console errors were observed.
 
 ## Notes
 - No schema migration was required; C12 uses the existing `center_settings` / `CenterSettings` model.
-- Production smoke is pending until Vercel deploys the scoped commit.
+- Production smoke is recorded above for commit `903544f`. PUT was not run against production to avoid mutating live settings without explicit approval.

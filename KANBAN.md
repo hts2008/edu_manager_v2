@@ -205,7 +205,7 @@
 | C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
 | C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
 | C11 | User Management | Admin CRUD users, reset password, deactivate | PLANNED | Not started |
-| C12 | Center Settings | Admin UI for center profile/logo/defaults | REVIEW | Local API/UI/E2E pass; production smoke pending |
+| C12 | Center Settings | Admin UI for center profile/logo/defaults | IMPLEMENTED | `receipts/2026-05-15-phase-c-center-settings.md`; local 9/9 E2E + production API/browser smoke pass |
 
 ---
 
@@ -325,4 +325,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-15 23:05
+**Last Updated:** 2026-05-15 23:20
