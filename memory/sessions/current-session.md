@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PHASE B FOUNDATION HARDENING
 - **Primary Objective**: Continue after Phase A by hardening quality, API reliability, CI, and safety baseline.
-- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation baseline is implemented locally and ready for scoped commit.
+- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, and local Playwright E2E baseline are implemented.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -56,13 +56,18 @@
   - [x] Remove vulnerable `xlsx` dependency and replace spreadsheet exports with CSV.
   - [x] Remove root Vercel dev/type dependencies and use local request/response types.
   - [x] Verify root/frontend audits at 0 vulnerabilities.
+- [x] Implement Phase B Playwright E2E smoke baseline.
+  - [x] Add `frontend/playwright.config.js`.
+  - [x] Add `frontend/e2e/phase-b-smoke.spec.js`.
+  - [x] Cover auth, student onboarding surface, attendance, fee collection, payment surface, receipts/templates, and reports/API financial shape.
+  - [x] Verify local serverless target with 6/6 Playwright smoke tests.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
 - **Status**: Production live; Phase A API parity passed for existing UI flows.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
-- **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Supabase PostgreSQL.
+- **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
 - **Current Git HEAD observed in Codex session**: `cd77f48`.
 
 ## Key Restoration Notes
@@ -72,17 +77,18 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Commit/push Phase B foundation hardening with explicit staged paths only.
-2. Continue B2b React Hook Form validation and B5 Playwright E2E.
+1. Commit/push Phase B E2E baseline with explicit staged paths only.
+2. Continue B2b React Hook Form validation.
 3. Add B7c observability hardening and rotate default credentials before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
 - `npm run build` passed.
-- `cd frontend && npm run lint` passed with warnings only.
+- `cd frontend && npm run lint -- --max-warnings=0` passed.
 - `node --check scripts\parity-test.mjs` passed.
 - `git diff --check` passed.
 - Production API smoke passed for Auth/RBAC, attendance fee, monthly fees, receipts/payments/PDF, templates/upload, and reports.
 - Chrome UI smoke passed across `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` with no failed fetch requests.
 - `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
+- `cd frontend && npm run test:e2e -- --reporter=list` passed 6/6 against local serverless target.

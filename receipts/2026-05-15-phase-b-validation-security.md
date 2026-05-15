@@ -26,6 +26,10 @@
 - `npm run build` passed.
 - Root `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - Frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
+- Vercel production contract probe passed after deploy:
+  - `POST /api/auth/login` with empty JSON returned `VALIDATION_ERROR`, confirming the deployed build includes the new zod validation path.
+  - API smoke passed: no-token `/api/auth/me` -> 401, login -> 200, `/api/auth/me` -> 200, financial report shape -> receipts/payments/paymentsByCategory/summary present, invalid payment payload -> `VALIDATION_ERROR`, logout -> 200.
+- Chrome production UI smoke passed across `/`, `/students`, `/classes`, `/attendance`, `/attendance-periods`, `/fee-collection`, `/receipts`, `/payments`, `/templates`, `/reports`, `/history`: no ErrorBoundary text, no visible 404/network error text, no captured console errors.
 
 ## Remaining
 - React Hook Form integration for Student/Class/Receipt/Payment forms is still pending.

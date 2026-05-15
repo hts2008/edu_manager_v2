@@ -4,11 +4,11 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B quality hardening remains pending.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, dependency audit cleanup, and E2E smoke baseline are implemented.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `ddaee20` before Phase B foundation changes.
+- **Current Git HEAD observed in Codex session**: `c1ad9d4` after Phase B validation/audit cleanup; E2E baseline changes are pending scoped commit.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,8 +21,8 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Foundation Hardening** — cleanup backups, API client reliability, ErrorBoundary, login rate-limit, unit tests, CI, lint zero-warning gate.
-2. **Phase B Remaining** — validation, full Playwright E2E, observability/security, and production credential rotation.
+1. **Phase B Form Validation** — React Hook Form validation for Student, Class, Receipt, and Payment forms.
+2. **Phase B Observability/Security** — Sentry or equivalent, structured logs, mutation audit expansion, and production credential rotation.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -75,7 +75,7 @@
 - **Windows Shell**: If PowerShell execution policy blocks scripts, run build commands via `cmd /c`.
 - **Serverless Routing**: Dynamic folders like `[id]` can shadow each other; prefer query-param actions for ambiguous operations.
 - **Dual-Brain Tooling Degradation (Codex session 2026-05-14)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
-- **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B gates still need tests, CI, validation, and observability.
+- **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, and audit baselines; React Hook Form and observability remain.
 - **Default Credentials Risk**: `admin / admin123` is useful for dev/smoke, but production operation must rotate credentials and JWT secret.
 - **Docs Drift**: README and old memory may mention React 18, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
 
@@ -93,11 +93,13 @@ Phase B foundation hardening baseline: removed tracked `.backup` files, added `V
 
 Phase B validation/security slice: added zod validation for Login, Student, Class, Receipt, and Payment server-side payloads; removed `xlsx`; replaced Excel export implementation with CSV; removed vulnerable root Vercel dev/type dependencies in favor of local request/response types and `npx vercel dev`; root and frontend audits now report 0 vulnerabilities.
 
+Phase B E2E baseline: added Playwright smoke suite under `frontend/e2e` covering auth, student onboarding surface, attendance, fee collection, payment surface, receipts/templates, and reports/API financial shape. Local serverless target `http://127.0.0.1:3000` passed 6/6.
+
 ## Now Doing
-Phase B hardening continuation. Production is usable for existing Phase A UI flows; full validation/E2E/observability still remains.
+Phase B hardening continuation. Production is usable for existing Phase A UI flows; React Hook Form validation and observability/security hardening remain.
 
 ## Next Recommended Action
 1. Add React Hook Form validation layer for Student, Class, Receipt, and Payment forms.
-2. Add Playwright E2E smoke suite for auth, student onboarding, attendance, fee collection, payment, and reports.
-3. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
+2. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
+3. Run production Playwright smoke only when login rate-limit window is clear or when a non-production target/token is approved.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

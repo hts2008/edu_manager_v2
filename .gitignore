@@ -38,6 +38,10 @@ uploads/
 # Coverage
 coverage/
 
+# Test artifacts
+test-results/
+playwright-report/
+
 # Temp
 .tmp/
 tmp/

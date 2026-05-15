@@ -171,3 +171,12 @@
 - **Backend**: 70+ API endpoints, JWT auth + role access, PDF generation, Excel export, fee calculation, activity logging.
 - **Documentation**: README, Vietnamese user guide, KANBAN, project knowledge artifacts.
 - **STATUS**: HISTORICAL COMPLETION CLAIM — SUPERSEDED BY AGENCY PRD RESET
+
+---
+
+### 2026-05-15 — Phase B E2E Smoke Baseline
+- **Scope**: Add Playwright smoke suite for auth, student onboarding surface, attendance, fee collection, payment surface, receipts/templates, and reports/API financial shape.
+- **Implementation**: Added `frontend/playwright.config.js`, `frontend/e2e/phase-b-smoke.spec.js`, and `frontend` `test:e2e` script.
+- **Safety**: Default E2E target is local `http://127.0.0.1:3000`; production can be targeted explicitly with `E2E_BASE_URL`. Mutation actions remain disabled unless `E2E_ALLOW_MUTATION=1`.
+- **Validation**: `cd frontend && npm run test:e2e -- --reporter=list` passed 6/6 against local serverless target.
+- **STATUS**: IMPLEMENTED ✅
