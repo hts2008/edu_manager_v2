@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "../lib/vercel-types.js";
 import { errorResponse, handleCors } from "../lib/auth.js";
 
 type Handler = (

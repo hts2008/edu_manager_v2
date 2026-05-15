@@ -1,4 +1,4 @@
-import type { VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
@@ -8,14 +8,13 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import {
-  ApiError,
   getNumber,
-  getRequiredString,
   getString,
   logActivity,
   resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
+import { paymentCreateSchema, validateBody } from "../../../lib/validation.js";
 
 function paymentToDto(payment: any) {
   return {
@@ -80,39 +79,26 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     try {
-      const category = getRequiredString(req.body?.category, "category") as
-        | "salary"
-        | "utility"
-        | "office"
-        | "other";
-      const amount = Number(req.body?.amount ?? 0);
-      const recipientName = getRequiredString(
-        req.body?.recipient_name || req.body?.recipientName,
-        "recipient_name"
-      );
-
-      if (!["salary", "utility", "office", "other"].includes(category)) {
-        throw new ApiError("INVALID_CATEGORY", "Invalid payment category", 400);
-      }
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new ApiError("INVALID_AMOUNT", "Amount must be greater than 0", 400);
-      }
+      const body = validateBody(paymentCreateSchema, {
+        ...req.body,
+        recipient_name: req.body?.recipient_name || req.body?.recipientName,
+        recipient_phone: req.body?.recipient_phone || req.body?.recipientPhone,
+        template_id: req.body?.template_id || req.body?.templateId,
+      });
 
       const templateId = await resolveTemplateId(
         "payment",
-        req.body?.template_id || req.body?.templateId
+        body.template_id
       );
 
       const payment = await prisma.payment.create({
         data: {
-          category,
-          amount,
-          recipientName,
-          recipientPhone: getString(
-            req.body?.recipient_phone || req.body?.recipientPhone
-          ),
+          category: body.category,
+          amount: body.amount,
+          recipientName: body.recipient_name,
+          recipientPhone: getString(body.recipient_phone),
           templateId,
-          notes: getString(req.body?.notes),
+          notes: getString(body.notes),
           createdById: req.user.id,
         },
         include: { template: { select: { templateName: true } } },

@@ -1,4 +1,4 @@
-import type { VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
@@ -10,12 +10,12 @@ import {
 import {
   ApiError,
   getNumber,
-  getRequiredString,
   getString,
   logActivity,
   resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
+import { receiptCreateSchema, validateBody } from "../../../lib/validation.js";
 
 function receiptToDto(receipt: any) {
   return {
@@ -86,44 +86,33 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   if (req.method === "POST") {
     try {
-      const studentId = getRequiredString(
-        req.body?.student_id || req.body?.studentId,
-        "student_id"
-      );
-      const month = getRequiredString(req.body?.month, "month");
-      const daysCount = Number(req.body?.days_count ?? req.body?.daysCount ?? 0);
-      const feePerDay = Number(req.body?.fee_per_day ?? req.body?.feePerDay ?? 0);
-      const amount = Number(req.body?.amount ?? 0);
-      const paymentMethod = getRequiredString(
-        req.body?.payment_method || req.body?.paymentMethod,
-        "payment_method"
-      ) as "cash" | "transfer";
+      const body = validateBody(receiptCreateSchema, {
+        ...req.body,
+        student_id: req.body?.student_id || req.body?.studentId,
+        days_count: req.body?.days_count ?? req.body?.daysCount,
+        fee_per_day: req.body?.fee_per_day ?? req.body?.feePerDay,
+        payment_method: req.body?.payment_method || req.body?.paymentMethod,
+        template_id: req.body?.template_id || req.body?.templateId,
+      });
 
-      if (!["cash", "transfer"].includes(paymentMethod)) {
-        throw new ApiError("INVALID_PAYMENT_METHOD", "Invalid payment method", 400);
-      }
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new ApiError("INVALID_AMOUNT", "Amount must be greater than 0", 400);
-      }
-
-      const student = await prisma.student.findUnique({ where: { id: studentId } });
+      const student = await prisma.student.findUnique({ where: { id: body.student_id } });
       if (!student) throw new ApiError("STUDENT_NOT_FOUND", "Student not found", 404);
 
       const templateId = await resolveTemplateId(
         "receipt",
-        req.body?.template_id || req.body?.templateId
+        body.template_id
       );
 
       const receipt = await prisma.receipt.create({
         data: {
-          studentId,
-          month,
-          daysCount,
-          feePerDay,
-          amount,
-          paymentMethod,
+          studentId: body.student_id,
+          month: body.month,
+          daysCount: body.days_count,
+          feePerDay: body.fee_per_day,
+          amount: body.amount,
+          paymentMethod: body.payment_method,
           templateId,
-          notes: getString(req.body?.notes),
+          notes: getString(body.notes),
           createdById: req.user.id,
         },
         include: {

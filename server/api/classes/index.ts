@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
   handleCors,
@@ -6,6 +6,11 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import {
+  classCreateSchema,
+  classUpdateSchema,
+  validateBody,
+} from "../../../lib/validation.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -138,46 +143,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST - Create new class
   if (req.method === "POST") {
     try {
-      const {
-        class_name,
-        schedule_days,
-        schedule_required,
-        sessions_per_week,
-        session_required,
-        start_time,
-        end_time,
-        fee_per_day,
-        max_students,
-        teacher_id,
-        notes,
-      } = req.body;
+      const body = validateBody(classCreateSchema, req.body);
 
-      // Validate: at least one scheduling option should be provided
-      if (!class_name || !start_time || !end_time || !fee_per_day) {
-        return errorResponse(
-          res,
-          "MISSING_FIELDS",
-          "Required fields missing (class_name, start_time, end_time, fee_per_day)",
-          400
-        );
-      }
+      const data: any = {
+          className: body.class_name,
+          scheduleDays: body.schedule_days ?? null,
+          scheduleRequired: body.schedule_required || false,
+          sessionsPerWeek: body.sessions_per_week || null,
+          sessionRequired: body.session_required || false,
+          startTime: body.start_time,
+          endTime: body.end_time,
+          feePerDay: body.fee_per_day,
+          maxStudents: body.max_students || 50,
+          teacherId: body.teacher_id || null,
+          notes: body.notes,
+      };
 
       const newClass = await prisma.class.create({
-        data: {
-          className: class_name,
-          scheduleDays: schedule_days || null,
-          scheduleRequired: schedule_required || false,
-          sessionsPerWeek: sessions_per_week
-            ? parseInt(sessions_per_week)
-            : null,
-          sessionRequired: session_required || false,
-          startTime: start_time,
-          endTime: end_time,
-          feePerDay: parseFloat(fee_per_day),
-          maxStudents: max_students || 50,
-          teacherId: teacher_id || null,
-          notes,
-        },
+        data,
         include: { teacher: true },
       });
 
@@ -197,45 +180,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Class ID is required", 400);
       }
 
-      const {
-        class_name,
-        schedule_days,
-        schedule_required,
-        sessions_per_week,
-        session_required,
-        start_time,
-        end_time,
-        fee_per_day,
-        max_students,
-        teacher_id,
-        status,
-        notes,
-      } = req.body;
+      const body = validateBody(classUpdateSchema, req.body);
+
+      const data: any = {
+          ...(body.class_name && { className: body.class_name }),
+          ...(body.schedule_days !== undefined && { scheduleDays: body.schedule_days }),
+          ...(body.schedule_required !== undefined && {
+            scheduleRequired: body.schedule_required,
+          }),
+          ...(body.sessions_per_week !== undefined && {
+            sessionsPerWeek: body.sessions_per_week || null,
+          }),
+          ...(body.session_required !== undefined && {
+            sessionRequired: body.session_required,
+          }),
+          ...(body.start_time && { startTime: body.start_time }),
+          ...(body.end_time && { endTime: body.end_time }),
+          ...(body.fee_per_day && { feePerDay: body.fee_per_day }),
+          ...(body.max_students && { maxStudents: body.max_students }),
+          ...(body.teacher_id !== undefined && { teacherId: body.teacher_id }),
+          ...(body.status && { status: body.status }),
+          ...(body.notes !== undefined && { notes: body.notes }),
+      };
 
       const updatedClass = await prisma.class.update({
         where: { id },
-        data: {
-          ...(class_name && { className: class_name }),
-          ...(schedule_days !== undefined && { scheduleDays: schedule_days }),
-          ...(schedule_required !== undefined && {
-            scheduleRequired: schedule_required,
-          }),
-          ...(sessions_per_week !== undefined && {
-            sessionsPerWeek: sessions_per_week
-              ? parseInt(sessions_per_week)
-              : null,
-          }),
-          ...(session_required !== undefined && {
-            sessionRequired: session_required,
-          }),
-          ...(start_time && { startTime: start_time }),
-          ...(end_time && { endTime: end_time }),
-          ...(fee_per_day && { feePerDay: parseFloat(fee_per_day) }),
-          ...(max_students && { maxStudents: max_students }),
-          ...(teacher_id !== undefined && { teacherId: teacher_id }),
-          ...(status && { status }),
-          ...(notes !== undefined && { notes }),
-        },
+        data,
         include: { teacher: true },
       });
 

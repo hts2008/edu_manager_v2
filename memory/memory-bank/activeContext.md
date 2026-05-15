@@ -91,11 +91,13 @@
 ## Just Completed
 Phase B foundation hardening baseline: removed tracked `.backup` files, added `VITE_API_BASE`/retry/401 handling to the API client, added ErrorBoundary, added login rate-limit, added unit tests and CI, recorded backend strategy, and brought frontend lint to zero warnings.
 
+Phase B validation/security slice: added zod validation for Login, Student, Class, Receipt, and Payment server-side payloads; removed `xlsx`; replaced Excel export implementation with CSV; removed vulnerable root Vercel dev/type dependencies in favor of local request/response types and `npx vercel dev`; root and frontend audits now report 0 vulnerabilities.
+
 ## Now Doing
 Phase B hardening continuation. Production is usable for existing Phase A UI flows; full validation/E2E/observability still remains.
 
 ## Next Recommended Action
-1. Add validation layer for high-risk forms and API endpoints.
+1. Add React Hook Form validation layer for Student, Class, Receipt, and Payment forms.
 2. Add Playwright E2E smoke suite for auth, student onboarding, attendance, fee collection, payment, and reports.
-3. Add observability/security hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
+3. Add observability hardening: Sentry or equivalent, structured logs, mutation audit expansion, and credential rotation.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

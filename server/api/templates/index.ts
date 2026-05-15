@@ -1,4 +1,4 @@
-import type { VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,

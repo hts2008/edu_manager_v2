@@ -1,5 +1,15 @@
 # Progress Log
 
+### 2026-05-15 — Phase B Validation and Dependency Security
+- **Scope**: Continue Phase B with server-side validation and security audit remediation.
+- **Implemented**: Added zod validation helper and applied it to login, student, class, receipt, and payment write paths. Replaced vulnerable frontend `xlsx` export with CSV export. Removed root `vercel` and `@vercel/node` dependencies and replaced type imports with local type definitions.
+- **Verification Passed**: `npm run test:unit` (8/8), `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run build`, root `npm audit --audit-level=high`, frontend `npm audit --audit-level=high`.
+- **Evidence**: `receipts/2026-05-15-phase-b-validation-security.md`.
+- **Remaining**: React Hook Form form validation, Playwright E2E, observability, credential rotation.
+- **STATUS**: PARTIAL PHASE B — SERVER VALIDATION AND AUDIT CLEAN
+
+---
+
 ### 2026-05-15 — Phase B Foundation Hardening Baseline
 - **Scope**: Start Phase B after Phase A production parity by adding low-risk quality and reliability foundation.
 - **Implemented**: Removed tracked frontend `.backup` files, ignored future backups, added API client `VITE_API_BASE`/retry/401 handling, added React ErrorBoundary, added login rate-limit baseline, added unit tests, added GitHub Actions CI, and recorded backend strategy.

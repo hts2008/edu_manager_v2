@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
   handleCors,
@@ -6,6 +6,11 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import {
+  studentCreateSchema,
+  studentUpdateSchema,
+  validateBody,
+} from "../../../lib/validation.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -138,37 +143,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST - Create new student
   if (req.method === "POST") {
     try {
-      const {
-        full_name,
-        date_of_birth,
-        gender,
-        parent_id,
-        phone,
-        email,
-        address,
-        enrollment_date,
-        notes,
-        class_ids,
-      } = req.body;
-
-      if (
-        !full_name ||
-        !date_of_birth ||
-        !gender ||
-        !parent_id ||
-        !enrollment_date
-      ) {
-        return errorResponse(
-          res,
-          "MISSING_FIELDS",
-          "Required fields missing",
-          400,
-        );
-      }
+      const body = validateBody(studentCreateSchema, req.body);
 
       // Verify parent exists
       const parent = await prisma.parent.findUnique({
-        where: { id: parent_id },
+        where: { id: body.parent_id },
       });
       if (!parent) {
         return errorResponse(res, "PARENT_NOT_FOUND", "Parent not found", 404);
@@ -176,23 +155,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const student = await prisma.student.create({
         data: {
-          fullName: full_name,
-          dateOfBirth: new Date(date_of_birth),
-          gender,
-          parentId: parent_id,
-          phone,
-          email,
-          address,
-          enrollmentDate: new Date(enrollment_date),
-          notes,
+          fullName: body.full_name,
+          dateOfBirth: new Date(body.date_of_birth),
+          gender: body.gender,
+          parentId: body.parent_id,
+          phone: body.phone,
+          email: body.email,
+          address: body.address,
+          enrollmentDate: new Date(body.enrollment_date),
+          notes: body.notes,
         },
         include: { parent: true },
       });
 
       // Enroll in classes if provided
-      if (class_ids && Array.isArray(class_ids) && class_ids.length > 0) {
+      if (body.class_ids.length > 0) {
         await prisma.studentClass.createMany({
-          data: class_ids.map((classId: string) => ({
+          data: body.class_ids.map((classId: string) => ({
             studentId: student.id,
             classId,
             enrollmentDate: new Date(),
@@ -216,37 +195,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Student ID is required", 400);
       }
 
-      const {
-        full_name,
-        date_of_birth,
-        gender,
-        parent_id,
-        phone,
-        email,
-        address,
-        status,
-        notes,
-        class_ids,
-      } = req.body;
+      const body = validateBody(studentUpdateSchema, req.body);
 
       const updatedStudent = await prisma.student.update({
         where: { id },
         data: {
-          ...(full_name && { fullName: full_name }),
-          ...(date_of_birth && { dateOfBirth: new Date(date_of_birth) }),
-          ...(gender && { gender }),
-          ...(parent_id && { parentId: parent_id }),
-          ...(phone !== undefined && { phone }),
-          ...(email !== undefined && { email }),
-          ...(address !== undefined && { address }),
-          ...(status && { status }),
-          ...(notes !== undefined && { notes }),
+          ...(body.full_name && { fullName: body.full_name }),
+          ...(body.date_of_birth && { dateOfBirth: new Date(body.date_of_birth) }),
+          ...(body.gender && { gender: body.gender }),
+          ...(body.parent_id && { parentId: body.parent_id }),
+          ...(body.phone !== undefined && { phone: body.phone }),
+          ...(body.email !== undefined && { email: body.email }),
+          ...(body.address !== undefined && { address: body.address }),
+          ...(body.status && { status: body.status }),
+          ...(body.notes !== undefined && { notes: body.notes }),
         },
         include: { parent: true },
       });
 
       // Sync class enrollments if class_ids provided
-      if (class_ids !== undefined && Array.isArray(class_ids)) {
+      if (body.class_ids !== undefined && Array.isArray(body.class_ids)) {
         // Get ALL enrollments (including inactive) to handle re-enrollment
         const allEnrollments = await prisma.studentClass.findMany({
           where: { studentId: id },
@@ -263,12 +231,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Find classes to deactivate, re-activate, or create new
         const toDeactivate = activeEnrollments.filter(
-          (e: any) => !class_ids.includes(e.classId),
+          (e: any) => !body.class_ids?.includes(e.classId),
         );
         const toReactivate = inactiveEnrollments.filter((e: any) =>
-          class_ids.includes(e.classId),
+          body.class_ids?.includes(e.classId),
         );
-        const toCreate = class_ids.filter(
+        const toCreate = body.class_ids.filter(
           (cid: string) =>
             !activeClassIds.includes(cid) && !inactiveClassIds.includes(cid),
         );

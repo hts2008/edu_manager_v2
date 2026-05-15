@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../../../lib/prisma.js";
@@ -8,6 +8,7 @@ import {
   getClientIp,
   setRateLimitHeaders,
 } from "../../../lib/rate-limit.js";
+import { loginSchema, validateBody } from "../../../lib/validation.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const LOGIN_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 900000);
@@ -20,9 +21,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
 
-  const body = typeof req.body === "object" && req.body ? req.body : {};
-  const username = typeof body.username === "string" ? body.username.trim() : "";
-  const password = typeof body.password === "string" ? body.password : "";
+  let credentials;
+  try {
+    credentials = validateBody(loginSchema, req.body);
+  } catch (error) {
+    return errorResponse(
+      res,
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Invalid request body",
+      400
+    );
+  }
+  const { username, password } = credentials;
 
   const limit = checkRateLimit(
     `login:${getClientIp(req)}:${username.toLowerCase() || "unknown"}`,
@@ -39,15 +49,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "RATE_LIMITED",
       "Too many login attempts. Please try again later.",
       429
-    );
-  }
-
-  if (!username || !password) {
-    return errorResponse(
-      res,
-      "MISSING_FIELDS",
-      "Username and password required",
-      400
     );
   }
 

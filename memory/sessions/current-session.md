@@ -50,6 +50,12 @@
   - [x] Add CI baseline.
   - [x] Record backend strategy decision.
   - [x] Run unit, typecheck, lint zero-warning, build, and local browser smoke.
+- [x] Implement Phase B server validation and audit remediation.
+  - [x] Add zod validation helper.
+  - [x] Validate login, students, classes, receipts, and payments write payloads.
+  - [x] Remove vulnerable `xlsx` dependency and replace spreadsheet exports with CSV.
+  - [x] Remove root Vercel dev/type dependencies and use local request/response types.
+  - [x] Verify root/frontend audits at 0 vulnerabilities.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -67,8 +73,8 @@
 
 ## Next Recommended
 1. Commit/push Phase B foundation hardening with explicit staged paths only.
-2. Continue B2 validation and B5 Playwright E2E.
-3. Add B7b observability/security hardening and rotate default credentials before real production operation.
+2. Continue B2b React Hook Form validation and B5 Playwright E2E.
+3. Add B7c observability hardening and rotate default credentials before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done

@@ -6,6 +6,11 @@ import {
   parseMonthRange,
   toDateOnly,
 } from "../lib/api-utils.js";
+import {
+  paymentCreateSchema,
+  receiptCreateSchema,
+  validateBody,
+} from "../lib/validation.js";
 
 test("parseMonthRange returns inclusive month bounds", () => {
   const range = parseMonthRange("2026-05");
@@ -35,4 +40,45 @@ test("query coercion helpers handle arrays and invalid numbers", () => {
 test("toDateOnly normalizes date-like inputs", () => {
   assert.equal(toDateOnly("2026-05-15T10:20:30.000Z"), "2026-05-15");
   assert.equal(toDateOnly("invalid"), null);
+});
+
+test("payment validation coerces amount and rejects invalid categories", () => {
+  const body = validateBody(paymentCreateSchema, {
+    category: "office",
+    amount: "120000",
+    recipient_name: "Office supplier",
+  });
+
+  assert.equal(body.amount, 120000);
+  assert.throws(
+    () =>
+      validateBody(paymentCreateSchema, {
+        category: "bad",
+        amount: 1000,
+        recipient_name: "A",
+      }),
+    /Invalid option/
+  );
+});
+
+test("receipt validation requires month and positive amount", () => {
+  const body = validateBody(receiptCreateSchema, {
+    student_id: "student-1",
+    month: "2026-05",
+    amount: "150000",
+    payment_method: "cash",
+  });
+
+  assert.equal(body.days_count, 0);
+  assert.equal(body.amount, 150000);
+  assert.throws(
+    () =>
+      validateBody(receiptCreateSchema, {
+        student_id: "student-1",
+        month: "May",
+        amount: 0,
+        payment_method: "cash",
+      }),
+    /month must be YYYY-MM/
+  );
 });

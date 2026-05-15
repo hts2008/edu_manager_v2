@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "./vercel-types.js";
 import jwt from "jsonwebtoken";
 import prisma from "./prisma.js";
 
@@ -32,7 +32,10 @@ type AuthResult =
   | { ok: false; error: AuthFailure };
 
 function getBearerToken(req: VercelRequest): string | null {
-  const authHeader = req.headers.authorization;
+  const rawAuthHeader = req.headers.authorization;
+  const authHeader = Array.isArray(rawAuthHeader)
+    ? rawAuthHeader[0]
+    : rawAuthHeader;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
   }

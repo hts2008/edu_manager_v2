@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx vercel dev",
     "build": "prisma generate && cd frontend && npm run build",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
@@ -18,10 +18,10 @@
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "@vercel/blob": "^2.3.3",
-    "@vercel/node": "^3.0.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "pdfmake": "^0.3.8"
+    "pdfmake": "^0.3.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -30,8 +30,7 @@
     "@types/pdfmake": "^0.3.2",
     "prisma": "^5.14.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.4.0",
-    "vercel": "^34.0.0"
+    "typescript": "^5.4.0"
   },
   "engines": {
     "node": ">=20"

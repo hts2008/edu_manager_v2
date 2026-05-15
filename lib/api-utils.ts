@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "./vercel-types.js";
 import type { TemplateType } from "@prisma/client";
 import prisma from "./prisma.js";
 import { errorResponse } from "./auth.js";
