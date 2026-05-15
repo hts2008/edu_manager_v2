@@ -1,4 +1,4 @@
-import PdfPrinter from "pdfmake";
+import { createRequire } from "node:module";
 import type { TDocumentDefinitions } from "pdfmake/interfaces.js";
 import { parseJsonConfig } from "./api-utils.js";
 
@@ -13,13 +13,22 @@ const fonts = {
   },
 };
 
-const PdfPrinterCtor = PdfPrinter as unknown as new (fonts: any) => {
-  createPdfKitDocument(definition: TDocumentDefinitions): NodeJS.EventEmitter & {
-    end(): void;
-  };
+const require = createRequire(import.meta.url);
+const PrinterModule = require("pdfmake/js/Printer.js");
+const PdfPrinterCtor = (PrinterModule.default?.default ||
+  PrinterModule.default ||
+  PrinterModule) as new (fonts: any, virtualfs?: any, urlResolver?: any) => {
+  createPdfKitDocument(
+    definition: TDocumentDefinitions
+  ): Promise<NodeJS.EventEmitter & { end(): void }>;
 };
 
-const printer = new PdfPrinterCtor(fonts);
+const urlResolver = {
+  resolve: () => undefined,
+  resolved: async () => undefined,
+};
+
+const printer = new PdfPrinterCtor(fonts, undefined, urlResolver);
 
 const paperSizes: Record<string, { width: number; height: number }> = {
   a4: { width: 210, height: 297 },
@@ -246,9 +255,10 @@ export async function generatePdf(template: any, data: PdfData = {}) {
     },
   };
 
+  const pdfDoc = await printer.createPdfKitDocument(definition);
+
   return new Promise<Buffer>((resolve, reject) => {
     try {
-      const pdfDoc = printer.createPdfKitDocument(definition);
       const chunks: Buffer[] = [];
       pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
       pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
