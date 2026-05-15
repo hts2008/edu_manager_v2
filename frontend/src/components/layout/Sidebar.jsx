@@ -257,6 +257,26 @@ export default function Sidebar({ isOpen, onClose }) {
       path: "/reports",
       adminOnly: true,
     },
+    {
+      title: "Nhật ký",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"
+          />
+        </svg>
+      ),
+      path: "/audit-logs",
+      adminOnly: true,
+    },
   ];
 
   // Filter menu items based on role

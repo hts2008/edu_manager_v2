@@ -199,3 +199,11 @@
 - **Production Smoke**: After Vercel deployment of commit `20949c2`, `/api/auth/me` returned the new security/request-id headers, login + `/api/auth/me` succeeded for the approved admin smoke account, and browser `/payments` loaded with no network/error text or console errors.
 - **Degradation**: MCPProxy/Neural Memory/Context+ tools were not exposed in this Codex session; work used markdown-only/manual memory write-back.
 - **STATUS**: IMPLEMENTED ✅
+
+---
+
+### 2026-05-15 — Phase C C8 Audit Log UI
+- **Scope**: Add admin filterable activity log view backed by existing `activity_logs` data.
+- **Implementation**: Added Vercel `/api/activity-logs`, Express reference `/api/activity-logs`, `activityLogsService`, `/audit-logs` route, sidebar menu item, and `AuditLogsPage`.
+- **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 8/8 pass locally.
+- **STATUS**: REVIEW — production smoke pending after Vercel deploy.

@@ -17,6 +17,7 @@ import monthlyFeesRoutes from './routes/monthly-fees.js';
 import templatesRoutes from './routes/templates.js';
 import reportsRoutes from './routes/reports.js';
 import kanbanRoutes from './routes/kanban.js';
+import activityLogsRoutes from './routes/activity-logs.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -67,6 +68,7 @@ app.use('/api/monthly-fees', monthlyFeesRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/kanban', kanbanRoutes);
+app.use('/api/activity-logs', activityLogsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

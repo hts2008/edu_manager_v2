@@ -188,6 +188,27 @@
 
 ---
 
+## PHASE C — PRODUCT VALUE EXPANSION
+
+**Objective:** add operator-facing product value on top of the hardened Phase B baseline. Production data mutation, schema migration, cron, SMS, backup, and payment integrations still require explicit approval before running against production.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| C1 | Bulk Actions | Multi-select delete/archive for Students, Parents, Receipts, Payments | PLANNED | Not started |
+| C2 | Import Excel/CSV | Student + Parent import with preview, validation, duplicates, rollback | PLANNED | Not started |
+| C3 | Attendance Insight | Student/class attendance heatmap | PLANNED | Not started |
+| C4 | Monthly Fee Automation | Idempotent monthly fee generation job | PLANNED | Needs cron/mutation approval |
+| C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
+| C6 | Fee Reminders | SMS/Zalo overdue fee reminders | PLANNED | Needs provider and opt-in approval |
+| C7 | Advanced Reports | Revenue trend, teacher utilization, retention/cohort, stable export | PLANNED | Not started |
+| C8 | Audit Log UI | Admin filterable activity log view | REVIEW | Local API/UI/E2E pass; production smoke pending |
+| C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
+| C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
+| C11 | User Management | Admin CRUD users, reset password, deactivate | PLANNED | Not started |
+| C12 | Center Settings | Admin UI for center profile/logo/defaults | PLANNED | Not started |
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -242,7 +263,7 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 7/7, audit/tsc/build/lint pass |
+| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 8/8, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked |
 
 **Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Production credential rotation remains before real operation.

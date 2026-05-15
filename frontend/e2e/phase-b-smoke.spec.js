@@ -154,3 +154,16 @@ test("reports page and financial API contract are available", async ({ page, req
   expect(body.data?.paymentsByCategory).toBeTruthy();
   expect(body.data?.summary).toBeTruthy();
 });
+
+test("audit log page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/audit-logs", 'main h1:has-text("Nhật ký hoạt động")');
+
+  const response = await request.get("/api/activity-logs?limit=5", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(Array.isArray(body.data?.logs)).toBeTruthy();
+  expect(typeof body.data?.total).toBe("number");
+});

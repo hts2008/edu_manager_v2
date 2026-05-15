@@ -23,6 +23,7 @@ type RouteMatch = {
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const routes = {
+  activityLogsIndex: () => import("../server/api/activity-logs/index.js"),
   attendanceBulk: () => import("../server/api/attendance/bulk.js"),
   attendanceCalculateFee: () => import("../server/api/attendance/calculate-fee.js"),
   attendanceIndex: () => import("../server/api/attendance/index.js"),
@@ -76,6 +77,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
 
   return (
     exact(parts, ["auth", "login"], routes.authLogin) ||
+    exact(parts, ["activity-logs"], routes.activityLogsIndex) ||
     exact(parts, ["auth", "me"], routes.authMe) ||
     exact(parts, ["auth", "logout"], routes.authLogout) ||
     exact(parts, ["auth", "change-password"], routes.authChangePassword) ||

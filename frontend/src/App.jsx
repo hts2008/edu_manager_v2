@@ -22,6 +22,7 @@ import HistoryPage from './pages/HistoryPage';
 import ReportsPage from './pages/ReportsPage';
 import TemplatesPage from './pages/TemplatesPage';
 import TemplateDesignerPage from './pages/TemplateDesignerPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 
 // Placeholder pages (will be implemented later)
 const PlaceholderPage = ({ title }) => (
@@ -63,6 +64,7 @@ export default function App() {
               <Route path="history" element={<HistoryPage />} />
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="audit-logs" element={<AuditLogsPage />} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}

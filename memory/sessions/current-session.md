@@ -70,6 +70,12 @@
   - [x] Add structured redacted API logs and shared error logging.
   - [x] Add router-level mutation audit baseline for authenticated write requests.
   - [x] Verify unit/type/build/lint/audit/E2E gates.
+- [ ] Implement Phase C C8 Audit Log UI.
+  - [x] Add Vercel `/api/activity-logs` admin-only route.
+  - [x] Add Express reference `/api/activity-logs` route for local E2E parity.
+  - [x] Add frontend service, sidebar item, route, and `AuditLogsPage`.
+  - [x] Extend Playwright smoke to 8 tests.
+  - [ ] Smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -86,9 +92,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Rotate default credentials and JWT secret before real production operation.
-2. Begin Phase C product expansion from the hardened Phase B baseline.
-3. Keep production smoke evidence updated after the next deploy.
+1. Push C8 scoped commit and wait for Vercel production deployment.
+2. Smoke production `/api/activity-logs` and `/audit-logs` in browser.
+3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -103,3 +109,4 @@
 - `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.
 - `npm run test:unit` passed 13/13 after observability tests were added.
 - Production B7c smoke passed after commit `20949c2`: API headers, auth login/me, and `/payments` browser page verified.
+- C8 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 8/8 after adding audit log UI/API coverage.

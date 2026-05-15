@@ -298,6 +298,14 @@ export const reportsService = {
     request(`/reports/unpaid-students${month ? `?month=${month}` : ""}`),
 };
 
+// Activity Logs API
+export const activityLogsService = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/activity-logs${query ? `?${query}` : ""}`);
+  },
+};
+
 // Attendance Periods API (SAP Timesheet-style)
 export const attendancePeriodsService = {
   getAll: (params = {}) => {
