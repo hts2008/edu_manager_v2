@@ -1,6 +1,8 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: ✅ PRODUCTION LIVE (100%)
+> **Status**: PRODUCTION LIVE — Phase A API parity passed on Neon + Vercel Blob
+>
+> **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
 ---
 
@@ -8,15 +10,17 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-delta.vercel.app | ✅ Live |
-| **Local Dev**  | http://localhost:3000                | 🔧 Dev  |
+| **Production** | https://edu-manager-delta.vercel.app | Live, Phase A API parity passed |
+| **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
-**Login:** `admin / admin123`
+**Default/dev login:** `admin / admin123` — rotate before real production operation.
 
 ---
 
-## ✅ COMPLETED (ALL CORE FEATURES)
+## ✅ IMPLEMENTED ASSETS (UI + LOCAL/REFERENCE)
+
+> These assets exist and remain valuable, but production parity is not complete until the missing Vercel API modules are ported and smoke-tested.
 
 ### Infrastructure ✅
 
@@ -70,7 +74,97 @@
 
 ---
 
-## 🔄 IN PROGRESS
+## IMPLEMENTED — PHASE A PRODUCTION API PARITY
+
+**Strategic decision:** Option A — port Express local/reference backend logic to Vercel TypeScript + Prisma. Express/SQLite is reference only, not production truth.
+
+**Phase A objective:** No production page should return 404 / Network error for existing UI flows.
+
+### Sprint A.1 — Foundation
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| A1 | Add `requireAuth(handler, roles?)` middleware | `lib/auth.ts` | backend-specialist | None | IMPLEMENTED | Production smoke: no-token 401, staff 403, login/change-password/logout pass |
+| A8 | Add Vercel Blob Storage wrapper | `lib/storage.ts` | backend-specialist | Env/bucket | IMPLEMENTED | Production smoke: template image upload returns Blob URL |
+| A12 | Configure Vercel/Neon env and storage bucket | Vercel + Neon + Vercel Blob ops | devops-engineer | None | IMPLEMENTED | Vercel env patched; Blob store configured; production deploy ready |
+| A13 | Push Prisma schema and seed approved target | Prisma/Neon | database-architect | A12 | IMPLEMENTED | `prisma db push` and `npm run db:seed` completed on Neon |
+
+### Sprint A.2 — Auth + Attendance Fee
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| A2 | Add logout and change-password Vercel endpoints | `server/api/auth/*` | backend-specialist | A1 | IMPLEMENTED | Production smoke passed |
+| A4 | Add attendance calculate-fee endpoint | `server/api/attendance/calculate-fee.ts` | backend-specialist | A1 | IMPLEMENTED | Production smoke confirms legacy fields |
+
+### Sprint A.3 — Money Modules
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| A3 | Port monthly-fees lifecycle | `server/api/monthly-fees/*` | backend-specialist | A1, A4 | IMPLEMENTED | Production smoke: calculate -> confirm -> pay -> receipt |
+| A11 | Add PDF generation wrapper | `lib/pdf.ts`, Vercel PDF config | backend-specialist | A1 | IMPLEMENTED | Production smoke: receipt PDF 1964 bytes, payment PDF 2044 bytes |
+| A5 | Port receipts CRUD + PDF | `server/api/receipts/*` | backend-specialist | A1, A11 | IMPLEMENTED | Production smoke passed |
+| A6 | Port payments CRUD + PDF | `server/api/payments/*` | backend-specialist | A1, A11 | IMPLEMENTED | Production smoke passed |
+
+### Sprint A.4 — Templates + Reports
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| A7 | Port templates CRUD/default endpoints | `server/api/templates/*` | backend-specialist | A1 | IMPLEMENTED | Production smoke: CRUD, set-default, restore default pass |
+| A9 | Add template image upload endpoint | `server/api/templates/upload.ts` | backend-specialist | A1, A8 | IMPLEMENTED | Production smoke: Vercel Blob upload pass |
+| A10 | Port financial + unpaid reports | `server/api/reports/financial.ts`, `unpaid-students.ts` | backend-specialist | A1 | IMPLEMENTED | Production smoke confirms report shape |
+
+### Sprint A.5 — Closeout
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| A14 | Sync docs and board to real production state | `KANBAN.md`, project context/memory | documentation-writer | A1-A13 | IMPLEMENTED | Updated with production smoke and deployment evidence |
+| A15 | Run production smoke checklist | Browser + production URL | qa-automation-engineer | A1-A14 | IMPLEMENTED | Chrome UI smoke over 8 Phase A pages: no failed API requests |
+| A16 | Add parity/contract test script | `scripts/parity-test.mjs` | test-engineer | A1-A14 | IMPLEMENTED | Express local + Vercel production contract run passed 7/7 |
+
+### Phase A Evidence Snapshot — 2026-05-14
+
+- **Implemented in code**: A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A16.
+- **Static gates passed**: `npx tsc --noEmit`, `npm run build`, `cd frontend && npm run lint`, `node --check scripts\parity-test.mjs`, `git diff --check`.
+- **Receipt**: `receipts/2026-05-14-phase-a-api-parity-static.md`.
+- **Follow-up verification receipt**: `receipts/2026-05-14-phase-a-closeout-attempt.md`.
+- **A12 config finding**: `.env.example` now includes `SUPABASE_BUCKET`; `lib/storage.ts` resolves `SUPABASE_BUCKET` with `template-images` fallback. Current process/user/machine env has no Phase A keys loaded; local `.env` only declares `DATABASE_URL`, `DIRECT_URL`, and `JWT_SECRET`.
+- **A13 DB finding**: `npx prisma migrate status` failed against current `.env` with Supabase pooler tenant/user not found. No migration, seed, deploy, or production mutation was run.
+- **Production browser/API finding**: Browser login with `admin/admin123` shows `Internal server error` and direct `POST /api/auth/login` returns 500. `GET /api/auth/me` without token returns 401, but `receipts`, `payments`, `templates`, `reports/financial`, `reports/unpaid-students`, `monthly-fees`, and `attendance/calculate-fee` still return 404 on production. This proves the live target is blocked by deploy/config.
+- **Vercel dashboard finding**: Current Production Deployment is old commit `fc400eb` from Jan 24; Phase A code is not deployed. Runtime logs show `/api/auth/login` fails with Prisma `FATAL: (ENOTFOUND) tenant/user postgres.rdtqbivfnrdcureoazbh not found`. Env page only has `JWT_SECRET`, `DIRECT_URL`, and `DATABASE_URL`; missing `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`.
+- **Local Vercel dev blocker**: `npm run dev -- --listen 3000` could not start because Vercel CLI has no credentials/token in this environment.
+- **Local reference browser smoke**: After `npm rebuild better-sqlite3`, Express reference backend + Vite frontend login succeeds locally and `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, and `/attendance` show no visible Network/404/Internal error. This does not replace Vercel/prod smoke.
+- **Lint note**: frontend lint exits 0 with 26 warnings after preserving React Compiler migration findings as warnings; no lint errors remain.
+- **Not run yet**: API smoke, parity live run, 14-step manual production smoke, deploy, Prisma migrate/seed, or any production Supabase mutation.
+- **Reason not IMPLEMENTED yet**: Phase A acceptance requires deployment/config verification, runtime smoke against an approved target, and default template/storage/env verification.
+
+---
+
+### Phase A Production Closeout Evidence — 2026-05-15
+
+- **Deployment**: Production alias `https://edu-manager-delta.vercel.app` points to Vercel deployment for commit `cd77f48` (`test(api): relax parity script to frontend contract`), ready state `READY`.
+- **Database/storage**: Neon project `dry-dew-91484915` is the approved Postgres target; Vercel Blob store `edu-manager-blob` handles template image uploads. Supabase project is no longer the Phase A production dependency.
+- **Schema/data**: `prisma db push` and `npm run db:seed` completed against Neon. Prisma Migrate was not used because this repo has no `prisma/migrations` history.
+- **Serverless quota fix**: API handlers moved under `server/api/*`; Vercel exposes one `api/router.ts` function via rewrite to avoid Hobby/serverless function count failure.
+- **Static gates**: `npx tsc --noEmit`, `npm run build`, and `cd frontend && npm run lint` pass. Lint remains 26 warnings, 0 errors.
+- **API smoke**: Auth/RBAC/change-password/logout, attendance calculate-fee, monthly-fees calculate/confirm/pay, receipt PDF, payment create/PDF/delete, templates CRUD/default/upload, financial report, and unpaid-students report pass on production.
+- **PDF smoke**: Receipt PDF returns `application/pdf` with 1964 bytes; payment PDF returns `application/pdf` with 2044 bytes.
+- **Chrome UI smoke**: `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` show no failed fetch requests.
+- **Parity/contract run**: `node scripts\parity-test.mjs` with local Express reference and production Vercel target passed 7/7.
+- **Receipt**: `receipts/2026-05-15-phase-a-production-closeout.md`.
+
+---
+
+## ⏸️ DEFERRED UNTIL PHASE A PASSES
+
+| Task ID | Description | Reason |
+| ------- | ----------- | ------ |
+| B2B-006 | UI/UX Improvements | Do after production API parity, otherwise UI polish may mask broken flows |
+| B2B-007 | More Seed Data | Do after API parity and approved dev/staging DB target |
+| Optional API docs | API surface is changing during Phase A |
+
+---
+
+## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
 | ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
@@ -81,8 +175,14 @@
 | CTX-005 | Verify Context+ tools and integration gates | MCP tools + git audit | test-engineer + judge-agent | CTX-004 | ✅ IMPLEMENTED | `get_context_tree` and semantic search both succeed after reload |
 | CTX-006 | Update memory, receipt, and walkthrough | State/evidence | documentation-writer + memory-curator | CTX-005 | ✅ IMPLEMENTED | KANBAN, activeContext, progress, task, walkthrough updated |
 | Dual-Brain Runtime Completion | Restore complete Dual-Brain operation | NM + C+ | memory-curator | CTX-005 | ✅ IMPLEMENTED | NM healthy on `edu_manager`; C+ operational after MCP host reload |
-| UI/UX Improvements | Product task after operational hygiene | App UI | frontend-specialist | Dual-Brain complete | Pending | Not started |
-| More Seed Data | Product task after git scope clean | Prisma seed | backend-specialist | Git hygiene | Pending | Not started |
+| B2B-001 | Confirm approved continuation plan | Plan objective, tasks, dependencies, owners, gates | project-planner | User approval | ✅ IMPLEMENTED | Plan restated; task tracker created |
+| B2B-002 | Register approved plan tasks before code | KANBAN operational rows | project-planner | B2B-001 | ✅ IMPLEMENTED | All tasks registered with owner, scope, dependencies, status, gates |
+| B2B-003 | Doctrine diff audit | `GEMINI.md`, `CLAUDE.md`, `CODEX.md`, memory/session files | project-planner + documentation-writer | B2B-002 | ✅ IMPLEMENTED | Workspace scan identified external path/name contamination; no app-code mutation |
+| B2B-004 | Minimal doctrine contamination cleanup | Canonical doctrine and memory truth files only | documentation-writer | B2B-003 | ✅ IMPLEMENTED | Post-clean scan clean for external workspace names and out-of-scope paths |
+| B2B-005 | Context+ blocker handling and deep-sync reconciliation | Context+ status, KANBAN, activeContext, current-session | memory-curator + debugger | B2B-004 | PLANNED | C+ tool passes or degraded fallback recorded with evidence |
+| B2B-006 | UI/UX Improvements | Frontend UI focused enhancement | frontend-specialist | Phase A API parity | DEFERRED | Existing design patterns followed; lint/build/browser evidence captured |
+| B2B-007 | More Seed Data | `prisma/schema.prisma`, seed script | backend-specialist | Phase A API parity + approved DB target | DEFERRED | Schema-safe realistic seed additions; no production mutation without approval |
+| B2B-008 | Final verification and write-back | Evidence, receipts, memory, KANBAN, walkthrough | test-engineer + memory-curator | Phase A closeout | PLANNED | Git status, contamination scan, verification output, NM write-back |
 
 ---
 
@@ -93,8 +193,9 @@
 | Neural Memory edu_manager runtime restore | ✅ IMPLEMENTED | `neural-memory-edu-manager:nmem_health` returned `brain=edu_manager`, Grade C, purity 62.2 → 62.7 |
 | Edu Manager brain-maintenance recall cycle | ✅ IMPLEMENTED | Recalled Vercel, Supabase, Prisma, attendance, billing, holiday, review, deployment topics |
 | Safe mature consolidation attempt | ✅ IMPLEMENTED | `nmem_consolidate(strategy=mature)` ran on `edu_manager`; no promotion yet because memories need repeated recall over time |
-| Git dirty state classification | ✅ IMPLEMENTED | App-code paths clean; dirty state is UAIC framework sync + restored memory/board files; no app feature code mixed in |
+| Git dirty state classification | ✅ IMPLEMENTED | App-code paths clean; dirty state is framework sync + restored memory/board files; no app feature code mixed in |
 | Context+ runtime remediation and verification | ✅ IMPLEMENTED | `.mcp.json` patched to Windows-safe `cmd /c npx -y contextplus .`; after MCP host reload, both `get_context_tree` and `semantic_code_search` succeeded |
+| EDU_MANAGER_V2 scope/path cleanup | ✅ IMPLEMENTED | No remaining known external workspace markers or hard-coded out-of-scope paths in workspace text scan |
 
 ---
 
@@ -109,20 +210,18 @@
 
 ---
 
-## 📊 FINAL PROGRESS
+## 📊 PRODUCT READINESS
 
-| Phase            | Status  |
-| ---------------- | ------- |
-| 0. Foundation    | ✅ 100% |
-| 1. Auth & Layout | ✅ 100% |
-| 2. Dashboard     | ✅ 100% |
-| 3. CRUD Pages    | ✅ 100% |
-| 4. Operations    | ✅ 100% |
-| 5. Templates     | ✅ 100% |
-| 6. Reports       | ✅ 100% |
-| 7. Deployment    | ✅ 100% |
+| Area | Status |
+| ---- | ------ |
+| UI pages | Broadly implemented |
+| Local/reference Express backend | Broadly implemented |
+| Vercel production API | Phase A parity implemented and production-smoked |
+| Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
+| Tests/CI | ⚠️ Missing; Phase B target |
+| Production usability | Usable for existing Phase A UI flows; Phase B quality hardening pending |
 
-**Overall: 100% COMPLETE**
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B quality hardening remains required.
 
 ---
 
@@ -181,4 +280,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-04-25 16:17
+**Last Updated:** 2026-05-15 11:05

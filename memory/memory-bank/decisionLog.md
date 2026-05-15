@@ -1,6 +1,6 @@
 # Decision Log
 
-> Architectural and strategic decisions for EDU_MANAGER_V2. Restored 2026-04-25 after TTNDD_Ops memory cross-contamination.
+> Architectural and strategic decisions for EDU_MANAGER_V2. Restored 2026-04-25 after external workspace memory cross-contamination.
 
 ---
 
@@ -75,24 +75,24 @@
 **Rationale**: Reduces route shadowing risk and simplifies deployment behavior.
 **Status**: ACTIVE
 
-### ADR-11: Keep UAIC Framework, Restore Project Truth
+### ADR-11: Keep Local Workflow Framework, Restore Project Truth
 **Date**: 2026-04-25
-**Context**: Workspace memory was contaminated with TTNDD_Ops context after UAIC framework import/sync.
-**Decision**: Keep UAIC operational structure, but overwrite memory/session files with EDU_MANAGER_V2-specific facts.
+**Context**: Workspace memory was contaminated with external project context after framework import/sync.
+**Decision**: Keep the local operational structure, but overwrite memory/session files with EDU_MANAGER_V2-specific facts.
 **Rationale**: Preserves useful workflow infrastructure while preventing project truth contamination.
 **Status**: IMPLEMENTED
 
 ### ADR-12: Classify Dirty State Before Any Feature Commit
 **Date**: 2026-04-25
-**Context**: Git working tree contains a large UAIC framework sync/import delta plus restored Edu Manager memory files.
-**Decision**: Separate dirty state into three buckets before committing or coding further: UAIC framework sync, memory restoration, and app-code changes.
+**Context**: Git working tree contains a large framework sync/import delta plus restored Edu Manager memory files.
+**Decision**: Separate dirty state into three buckets before committing or coding further: framework sync, memory restoration, and app-code changes.
 **Rationale**: Prevents framework drift and contamination cleanup from being mixed into feature commits.
 **Status**: ACTIVE
 
 ### ADR-13: Keep Contamination Evidence Only as Historical Evidence
 **Date**: 2026-04-25
-**Context**: TTNDD/UAIC references may appear in memory logs because the restoration task must document the contamination source.
-**Decision**: Retain contamination mentions only where they explain cleanup history; do not treat them as EDU_MANAGER_V2 project truth.
+**Context**: External workspace references may appear in historical memory logs because the restoration task documented the contamination source.
+**Decision**: Retain only generic contamination notes where they explain cleanup history; do not treat them as EDU_MANAGER_V2 project truth.
 **Rationale**: Maintains auditability while keeping active project context clean.
 **Status**: ACTIVE
 
@@ -102,3 +102,31 @@
 **Decision**: Do not edit app code. First plan, isolate, and approve runtime/config remediation; prefer reversible config/process changes before dependency changes.
 **Rationale**: Prevents operational tooling fixes from being mixed with production app commits and protects the already-live Edu Manager system.
 **Status**: ACTIVE
+
+### ADR-15: Neural Memory via MCPProxy `neural-memory-default` with `edu_manager` Brain
+**Date**: 2026-04-26
+**Context**: The user confirmed that EDU_MANAGER_V2 must use Neural Memory through MCPProxy server `neural-memory-default`, exposed in the MCPProxy UI at `http://127.0.0.1:8080/ui/servers/neural-memory-default`. This server contains the existing `edu_manager` brain with the correct prior brain and memory history.
+**Decision**: Always route EDU_MANAGER_V2 Neural Memory access through MCPProxy server `neural-memory-default`, then use the `edu_manager` brain as the authoritative workspace memory. Do not route this workspace to any other brain.
+**Rationale**: Preserves continuity with the correct Edu Manager memory history and prevents cross-project contamination during Dual-Brain startup, recall, consolidation, and post-task write-back.
+**Status**: ACTIVE
+
+### ADR-16: EDU_MANAGER_V2 Workspace Boundary
+**Date**: 2026-05-14
+**Context**: The user confirmed this workspace is EDU_MANAGER_V2 only and that external workspace paths/names were accidental contamination.
+**Decision**: Treat `C:\Users\haitr\OneDrive\0. GAU DATA\0.APP\EDU_MANAGER_V2` as the canonical workspace path. Workflow, doctrine, memory, and skill files must not reference project-specific external workspace names or hard-coded out-of-scope paths.
+**Rationale**: Prevents cross-project context leakage and keeps future agents focused on EDU_MANAGER_V2 production API parity work.
+**Status**: ACTIVE
+
+### ADR-17: Phase A Vercel API Parity Before UI/Seed Expansion
+**Date**: 2026-05-14
+**Context**: Agency PRD reset found production live but only partial usable because Vercel API modules were missing for existing UI flows.
+**Decision**: Port the missing Express/reference backend behavior into Vercel Serverless TypeScript + Prisma first, keep `prisma/schema.prisma` as data source of truth, and defer UI polish/seed expansion until Phase A smoke passes.
+**Rationale**: Existing UI already expects these modules. API parity removes production 404/network failures without broad frontend redesign or unapproved production DB mutation.
+**Status**: IMPLEMENTED — production deploy, API smoke, Chrome UI smoke, PDF smoke, and parity/contract run passed on 2026-05-15. See `receipts/2026-05-15-phase-a-production-closeout.md`.
+
+### ADR-18: Neon + Vercel Blob for Phase A Production Runtime
+**Date**: 2026-05-15
+**Context**: The original Supabase project was paused/unusable and Supabase Storage created operational risk for Phase A. Vercel Hobby also failed when the API was expanded to 35 separate serverless functions.
+**Decision**: Use Neon Postgres project `dry-dew-91484915` as the approved database target and Vercel Blob store `edu-manager-blob` for template image uploads. Consolidate Vercel API routing into one `api/router.ts` function that dispatches to `server/api/*` handlers.
+**Rationale**: Neon restores a controllable Postgres target quickly; Vercel Blob removes Supabase Storage dependency; one router function avoids Vercel function-count limits while preserving frontend API paths.
+**Status**: IMPLEMENTED

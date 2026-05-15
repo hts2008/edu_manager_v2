@@ -1,6 +1,48 @@
 # Progress Log
 
-> Append only. Most recent entry at top. Restored for EDU_MANAGER_V2 after TTNDD_Ops memory cross-contamination.
+### 2026-05-15 — Phase A Production API Parity Implemented
+- **Scope**: Complete Phase A production parity after user approved Neon + Vercel Blob setup.
+- **Infrastructure**: Configured Neon project `dry-dew-91484915`, updated Vercel env, created Vercel Blob store `edu-manager-blob`, pushed Prisma schema, and seeded baseline data.
+- **Deployment Fixes**: Deployed Phase A API code, then fixed Vercel function quota by consolidating API handlers behind `api/router.ts`; fixed router rewrite/lazy-loading; fixed monthly-fee calculate fallback and pdfmake runtime.
+- **Verification Passed**: `npx tsc --noEmit`, `npm run build`, `cd frontend && npm run lint` (26 warnings, 0 errors), `node --check scripts\parity-test.mjs`, production API smoke, Chrome UI smoke, receipt/payment PDF smoke, and parity/contract run.
+- **Production Evidence**: Vercel production alias points to commit `cd77f48`; Chrome UI smoke over `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` had no failed fetch requests.
+- **Residual Risks**: Default credentials still need rotation; Phase B must add automated tests, validation, CI, observability, rate limiting, and lint cleanup.
+- **Evidence**: `receipts/2026-05-15-phase-a-production-closeout.md`.
+- **STATUS**: IMPLEMENTED
+
+---
+
+### 2026-05-14 — Phase A Closeout Attempt Blocked on Deploy/Config
+- **Scope**: Implement safe parts of the Phase A/B/C plan by verifying Phase A closeout gates without production mutation.
+- **Code/Config Change**: Added `SUPABASE_BUCKET` to `.env.example`; updated `lib/storage.ts` to read `SUPABASE_BUCKET` with `template-images` fallback.
+- **Static Verification**: `npx tsc --noEmit`, `npm run build`, `cd frontend && npm run lint`, `node --check scripts\parity-test.mjs`, and `git diff --check` all pass. Lint remains 26 warnings, 0 errors.
+- **Runtime Verification**: Production no-token probe returns 401 for `/api/auth/me` but 404 for Phase A routes (`receipts`, `payments`, `templates`, `reports/financial`, `reports/unpaid-students`, `monthly-fees`, `attendance/calculate-fee`), so live Vercel does not yet have Phase A code.
+- **Browser Verification**: Production browser login with `admin/admin123` shows `Internal server error`; local reference browser smoke succeeds after rebuilding `better-sqlite3` and starting Express + Vite.
+- **Blockers**: `npx prisma migrate status` fails against current `.env`/direct-host retry; local `vercel dev` fails because Vercel CLI has no credentials/token; live production needs Vercel deploy/config access.
+- **Evidence**: `receipts/2026-05-14-phase-a-closeout-attempt.md`.
+- **STATUS**: PARTIAL — PHASE A CLOSEOUT BLOCKED ON DEPLOY/CONFIG
+
+---
+
+### 2026-05-14 — Phase A Production API Parity Code Port
+- **Scope**: Implement Phase A Vercel Serverless TypeScript + Prisma parity for Auth, Attendance fee, Monthly Fees, Receipts, Payments, Templates, Reports, PDF, Storage, frontend service shims, and parity testing.
+- **Implemented**: Added `requireAuth(handler, roles?)`, logout/change-password, `attendance/calculate-fee`, `monthly-fees/*`, `receipts/*`, `payments/*`, `templates/*`, `reports/financial`, `reports/unpaid-students`, `lib/pdf.ts`, `lib/storage.ts`, and `scripts/parity-test.mjs`.
+- **Frontend Compatibility**: Updated `frontend/src/services/api.js` for monthly fee calculate/pay signatures and base64 JSON template image upload. Fixed lint-only unused-variable issues and kept React Compiler migration findings as warnings.
+- **Verification Passed**: `npx tsc --noEmit`, `npm run build`, `cd frontend && npm run lint`, `node --check scripts\parity-test.mjs`, and `git diff --check`.
+- **Not Run**: API smoke, parity live run, 14-step manual production smoke, deploy, Prisma migrate/seed, or any production Supabase mutation.
+- **Status**: REVIEW — code port complete with static evidence; runtime smoke and approved target verification pending before `IMPLEMENTED`.
+
+> Append only. Most recent entry at top. Restored for EDU_MANAGER_V2 after external workspace memory cross-contamination.
+
+---
+
+### 2026-05-14 — EDU_MANAGER_V2 Scope/Path Cleanup
+- **Scope**: Remove hard-coded out-of-scope paths and project-specific external workspace names from workflows, doctrine, memory/session files, and related skills.
+- **Action**: Replaced the stale `D:\...` infrastructure path in `.agent/workflows/start-session.md` with the workspace-relative `.\scripts\start-infrastructure.ps1` fallback and aligned Neural Memory guidance to `edu_manager` only.
+- **Files Updated**: `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `.agent/workflows/start-session.md`, `KANBAN.md`, `memory/memory-bank/*`, `memory/sessions/*`, `skills/ai-coding/swot-analysis/SKILL.md`, and `skills/cli-orchestration/SKILL.md`.
+- **Verification**: Workspace text scan returned no remaining known external workspace markers or hard-coded out-of-scope paths.
+- **App Code Safety**: No frontend/backend application source files changed for this cleanup.
+- **STATUS**: IMPLEMENTED ✅
 
 ---
 
@@ -27,7 +69,7 @@
 
 ### 2026-04-25 — Gate Check and Context+ Stabilization Intake
 - **Scope**: Complete pre-code gate after Neural Memory maintenance and dirty-state classification.
-- **Result**: Confirmed app-code paths are clean; dirty state is UAIC framework sync plus restored board/memory files.
+- **Result**: Confirmed app-code paths are clean; dirty state is framework sync plus restored board/memory files.
 - **NM Gate**: `neural-memory-edu-manager:nmem_health` confirmed `brain=edu_manager`, Grade C, purity 62.7, 117 neurons, 357 synapses, 15 fibers.
 - **C+ Gate**: Context+ remains degraded. MCP `get_context_tree` fails with `connection closed: EOF`; direct `npx -y contextplus --help` starts stdio server and treats `--help` as root path.
 - **Reports/Evidence**: `receipts/` and `reports/` directories are absent; evidence currently lives in command output, KANBAN, and memory files.
@@ -43,31 +85,31 @@
 - **Consolidation**: `nmem_consolidate(strategy=mature)` ran safely on `edu_manager`; no memories promoted because Neural Memory requires repeated recalls over time.
 - **Gates**: No app build/lint/type/test executed because no app source code changed. Operational gates passed for NM health, recall specificity, KANBAN update, and memory update.
 - **Open Issue**: Context+ `get_context_tree` fails with `connection closed: EOF`; Dual-Brain remains degraded until fixed.
-- **Next Work**: Classify git dirty state into UAIC framework sync, memory restoration, and app-code buckets; then repair/escalate Context+ runtime.
+- **Next Work**: Classify git dirty state into framework sync, memory restoration, and app-code buckets; then repair/escalate Context+ runtime.
 - **STATUS**: IMPLEMENTED WITH KNOWN C+ BLOCKER ⚠️
 
 ---
 
 ### 2026-04-25 — Memory Restoration: EDU_MANAGER_V2 Context Recovered
-- **Scope**: Correct workspace memory files that had been overwritten by unrelated TTNDD_Ops/UAIC state.
+- **Scope**: Correct workspace memory files that had been overwritten by unrelated external workspace state.
 - **Action**: Re-established EDU_MANAGER_V2 as the active project context.
-- **Confirmed Product State**: ✅ 100% complete and production live.
+- **Confirmed Product State**: Historical claim recorded as complete and production live; superseded by agency PRD reset on 2026-05-06, which classifies production as partial usable until Phase A API parity passes.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Known Login**: `admin / admin123`
 - **Known HEAD from prior audit**: `fc400eb` — `feat(attendance): add review modal before approving`.
 - **Important Warning**: Working tree was reported dirty with many framework-related deletions/untracked files. Avoid broad commits.
-- **Validation**: `progress.md`, `decisionLog.md`, `current-session.md`, and `handoff.md` were read back and contain Edu Manager truth; remaining TTNDD_Ops mentions are explicit contamination warnings, not project facts.
+- **Validation**: `progress.md`, `decisionLog.md`, `current-session.md`, and `handoff.md` were read back and contain Edu Manager truth; remaining external-workspace mentions are contamination warnings, not project facts.
 - **NM Status**: `neural-memory-edu-manager` upstream verified with `brain=edu_manager`; 5 initial project memories saved and recall verified.
 - **NM Health**: Improved from empty-brain Grade F to Grade D after seeding; further improvement requires more recalls/memories over time.
-- **Next Work**: UI/UX improvements or seed data expansion.
+- **Next Work**: Superseded by Phase A production API parity; UI/UX improvements and seed data expansion are deferred.
 - **STATUS**: RESTORED + VALIDATED ✅
 
 ---
 
 ### 2026-04-25 — Cross-Contamination Audit and Option B Decision
-- **Finding**: `memory/memory-bank/*` and session handoff files contained TTNDD_Ops project facts instead of EDU_MANAGER_V2 facts.
-- **Decision**: Option B selected — keep UAIC framework structure, but overwrite project memory/session content with accurate EDU_MANAGER_V2 truth.
-- **Reason**: UAIC orchestration can remain useful as workflow infrastructure, but project truth must remain Edu Manager-specific.
+- **Finding**: `memory/memory-bank/*` and session handoff files contained external project facts instead of EDU_MANAGER_V2 facts.
+- **Decision**: Option B selected — keep the local workflow framework structure, but overwrite project memory/session content with accurate EDU_MANAGER_V2 truth.
+- **Reason**: The orchestration framework can remain useful as workflow infrastructure, but project truth must remain Edu Manager-specific.
 - **Source of Correct Truth**: EduManage Knowledge Item plus project KANBAN and current repository state.
 - **STATUS**: DECIDED ✅
 
@@ -108,4 +150,4 @@
 - **Frontend**: Login, Dashboard, Students, Parents, Teachers, Classes, Attendance, Receipts, Payments, History, Reports, Templates, Template Designer, Attendance Periods.
 - **Backend**: 70+ API endpoints, JWT auth + role access, PDF generation, Excel export, fee calculation, activity logging.
 - **Documentation**: README, Vietnamese user guide, KANBAN, project knowledge artifacts.
-- **STATUS**: 100% COMPLETE ✅
+- **STATUS**: HISTORICAL COMPLETION CLAIM — SUPERSEDED BY AGENCY PRD RESET
