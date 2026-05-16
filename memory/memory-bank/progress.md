@@ -301,3 +301,14 @@
 - **Finding**: C4, C5, C6, C9, and C10 cannot be safely completed without explicit approval or external configuration.
 - **Blocked Items**: C4 needs cron/production mutation approval; C5 needs parent auth strategy; C6 needs SMS/Zalo provider, opt-in policy, and rate controls; C9 needs backup target and restore-drill target; C10 needs schema migration plan and migration approval.
 - **STATUS**: RECORDED
+
+---
+
+### 2026-05-16 - Phase C Operations + Soft Delete Closeout
+- **Scope**: Complete C4 monthly fee automation, C5 parent portal, C6 fee reminders, C9 backup automation, and C10 soft delete/recycle bin after explicit approval.
+- **Implementation**: Commit `142b99a` added cron endpoints protected by `CRON_SECRET`, shared monthly fee generation, parent portal JWT login, reminder preview/send-disabled flow, encrypted Vercel Blob backups, `deleted_at` schema fields, and recycle-bin UI/API.
+- **Production Mutation**: `npx prisma db push` synced Neon schema. Production monthly fee generation for 2026-05 created 22 fees with total amount 20,150,000 VND.
+- **Validation**: `npx tsc --noEmit`, `npm run test:unit` 18/18, `npm run build`, frontend lint max-warnings=0, root/frontend audits, `git diff --check`, and local Playwright smoke 17/17 passed.
+- **Production Smoke**: Vercel deployment for `142b99a` reached Production Current Ready; backup upload/verify passed; unauthenticated cron returned 403; fee reminder preview returned 22 and live send remained disabled; recycle-bin temp delete/purge passed; parent portal login returned 2 students; Google Chrome UI smoke for `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal` passed with no API failures.
+- **Operational Note**: Live SMS/Zalo delivery remains disabled until provider webhook, opt-in policy, and `REMINDER_SEND_ENABLED=true` are intentionally configured. MCPProxy/Neural Memory/Context+ were unavailable in this Codex turn, so write-back used markdown files only.
+- **STATUS**: IMPLEMENTED

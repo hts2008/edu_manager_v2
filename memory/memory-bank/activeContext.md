@@ -4,11 +4,11 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C1/C2/C3/C7/C8/C11/C12 are implemented and production-smoked; C4 dry-run monthly fee automation is in `REVIEW` pending cron/mutation approval.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B reliability/security baseline is implemented; Phase C C1-C12 product slices are implemented and production-smoked.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest scoped product code commit observed in Codex session**: `aed68f2` after the C2 student CSV import commit; C2 evidence is recorded separately in workspace docs.
+- **Latest scoped product code commit observed in Codex session**: `142b99a` after Phase C operations + soft-delete closeout; evidence is recorded in `receipts/2026-05-16-phase-c-operations-soft-delete.md`.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,8 +21,8 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Closeout** — observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-2. **Phase C Product Slices** — C1, C2, C3, C7, C8, C11, and C12 are implemented and production-smoked on Google Chrome/Playwright after deploy; C4 dry-run endpoint is deployed and smoked.
+1. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+2. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -74,7 +74,7 @@
 - **Actual Git State Changed**: Current `git status --short` shows app-code modifications in `frontend/src/pages/ClassesPage.jsx`, `DashboardPage.jsx`, `ReportsPage.jsx`, `StudentsPage.jsx`, plus untracked `frontend/src/hooks/`. Review before editing or committing those areas.
 - **Windows Shell**: If PowerShell execution policy blocks scripts, run build commands via `cmd /c`.
 - **Serverless Routing**: Dynamic folders like `[id]` can shadow each other; prefer query-param actions for ambiguous operations.
-- **Dual-Brain Tooling Degradation (Codex session 2026-05-14)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
+- **Dual-Brain Tooling Degradation (Codex session 2026-05-16)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
 - **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, dependency audit, React Hook Form, and observability/security baselines.
 - **Default Credentials Risk**: `admin / admin123` is useful for dev/smoke, but production operation must rotate credentials and JWT secret.
 - **Docs Drift**: README and old memory may mention React 18, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
@@ -108,11 +108,13 @@ Phase C C4 Monthly Fee Automation dry-run: commit `26dfa7e` deployed to Vercel; 
 
 Phase C C2 Student CSV Import: commit `aed68f2` deployed to Vercel; added admin-only `/api/import/students`, CSV parser/preview validation, duplicate detection, rollback-protected commit path, Express reference route, `/imports` UI, import service, and Playwright coverage. Local mutation smoke committed 1 temporary student + parent and cleaned up to 0 remaining temp rows. Production smoke used preview only: API returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`, and Google Chrome/Playwright `/imports` smoke passed 1/1. No production import commit was run.
 
+Phase C operations + soft-delete closeout: commit `142b99a` deployed to Vercel; C4 cron/monthly fee generation, C5 parent portal, C6 fee reminders, C9 encrypted Blob backup, and C10 soft delete/recycle bin are implemented. `npx prisma db push` synced the Neon schema; production smoke generated 22 monthly fees for 2026-05, verified cron 403 without auth, uploaded and verified an encrypted backup, tested recycle-bin delete/purge with a temporary record, verified parent portal login/data, and passed Google Chrome UI smoke for `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal`.
+
 ## Now Doing
-Phase C C2 is implemented. Remaining Phase C tasks are approval-sensitive: C4 requires cron/mutation approval, C5 requires an approved parent-auth strategy, C6 requires SMS/Zalo provider + opt-in approval, C9 requires a backup target, and C10 requires schema migration approval.
+Phase C C1-C12 implementation is complete. Current work is closeout documentation, board/memory sync, and preserving git hygiene around unrelated framework drift.
 
 ## Next Recommended Action
-1. Approve or choose one blocked Phase C dependency: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, or C10 schema migration plan.
-2. Rotate production default credentials and JWT secret before real operation.
+1. Rotate production default credentials and JWT secret before real operation.
+2. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
-4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.
+4. Keep remaining dirty framework/UI-polish changes out of product commits unless explicitly reviewed.

@@ -3,9 +3,9 @@
 ## Session Info
 - **Started**: 2026-05-14
 - **Workspace**: EDU_MANAGER_V2
-- **Mode**: PHASE B FOUNDATION HARDENING
-- **Primary Objective**: Continue after Phase A by hardening quality, API reliability, CI, and safety baseline.
-- **Outcome**: Phase A production API parity is `IMPLEMENTED`; Phase B foundation, validation/audit cleanup, React Hook Form validation, local Playwright E2E baseline, and observability/security hardening are implemented.
+- **Mode**: PHASE C CLOSEOUT
+- **Primary Objective**: Complete remaining Phase C product/operations slices after explicit approval and record production evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, and Phase C C1-C12 product slices are implemented and production-smoked.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -122,6 +122,14 @@
   - [x] Verify local commit/cleanup smoke.
   - [x] Smoke production preview only after Vercel deploy.
   - [ ] Native `.xlsx` parsing remains deferred until dependency/security plan approval.
+- [x] Implement Phase C C4/C5/C6/C9/C10 operations closeout.
+  - [x] Enable `CRON_SECRET`-protected monthly fee cron and production generation.
+  - [x] Add parent portal read-only login/data flow.
+  - [x] Add fee reminder preview/send-disabled workflow with live provider gate.
+  - [x] Add encrypted Vercel Blob backup and verify drill.
+  - [x] Add `deleted_at` soft delete and admin recycle-bin UI/API.
+  - [x] Sync Neon schema with `npx prisma db push`.
+  - [x] Smoke production API and Chrome UI after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -129,7 +137,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest scoped product code commit observed in Codex session**: `aed68f2` after C2 scoped code commit; production smoke evidence is recorded separately in workspace docs.
+- **Latest scoped product code commit observed in Codex session**: `142b99a` after Phase C operations + soft-delete closeout; production smoke evidence is recorded in `receipts/2026-05-16-phase-c-operations-soft-delete.md`.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -138,10 +146,10 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Approve or choose one blocked Phase C dependency: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, or C10 schema migration plan.
-2. Do not run production mutations, migrations, provider setup, or backup jobs without explicit approval.
-3. Rotate default credentials and JWT secret before real production operation.
-4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+1. Rotate default credentials and JWT secret before real production operation.
+2. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+3. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+4. Treat MCPProxy/Neural Memory/Context+ as degraded in this Codex session unless the tools become available again.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
@@ -172,4 +180,7 @@
 - C2 local smoke passed: red unit test first failed on missing import module, then `npm run test:unit` 16/16 passed; `npx tsc --noEmit`, lint max-warnings=0, build, root/frontend audit, and local Playwright smoke 15/15 passed.
 - C2 local mutation smoke passed: `POST /api/import/students` committed 1 temporary student + 1 parent and cleanup verified `cleanup_remaining=0`.
 - C2 production preview smoke passed after commit `aed68f2`: route probe changed 404 -> 401 after deploy; authenticated preview returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`; Google Chrome/Playwright production `/imports` smoke passed 1/1. Production commit import was not run.
-- Remaining Phase C blockers were classified: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, and C10 schema migration all need explicit approval/configuration before implementation can safely continue.
+- C4/C5/C6/C9/C10 code closeout passed after commit `142b99a`: `npx prisma generate`, `npx prisma db push`, `npx tsc --noEmit`, `npm run test:unit` 18/18, `npm run build`, frontend lint max-warnings=0, root/frontend audits, `git diff --check`, and local Playwright smoke 17/17.
+- C4/C5/C6/C9/C10 production smoke passed: Vercel showed `142b99a` as Production Current Ready; production monthly fee generation created 22 fees for 2026-05; cron no-auth probe returned 403; backup upload + verify passed; fee reminder preview returned 22 and send stayed disabled; recycle-bin temp delete/purge passed; parent portal login/data passed.
+- C4/C5/C6/C9/C10 Chrome UI smoke passed: `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal` rendered with no API failures or network/internal-error text.
+- Remaining operational follow-up: live SMS/Zalo delivery is disabled until provider webhook and opt-in policy are approved; default admin credentials must be rotated before real operation.

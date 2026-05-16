@@ -144,3 +144,24 @@
 **Decision**: Implement C2 as CSV import for Student + Parent records, including Excel-exported CSV support, robust preview validation, duplicate detection, and rollback-protected commit. Defer native `.xlsx` binary parsing until there is an approved dependency/security plan.
 **Rationale**: CSV covers the immediate operator workflow without adding dependency risk, keeps production deploy small, and allows production smoke to remain non-mutating via preview-only checks.
 **Status**: IMPLEMENTED
+
+### ADR-21: Phase C Operational Safety Gates
+**Date**: 2026-05-16
+**Context**: The user approved completing remaining Phase C work, including cron generation, parent portal, fee reminders, backup automation, and soft delete/recycle bin. Some flows can create production side effects or require external providers.
+**Decision**: Enable production cron and backup only behind explicit server-side secrets; keep live fee-reminder delivery disabled unless `REMINDER_SEND_ENABLED=true` and a provider webhook is configured; use parent phone + student DOB as the Phase C parent portal baseline.
+**Rationale**: This completes the operator workflows while preventing unauthenticated cron calls, accidental SMS/Zalo sending, and secret leakage.
+**Status**: IMPLEMENTED
+
+### ADR-22: Phase C Soft Delete Scope
+**Date**: 2026-05-16
+**Context**: C10 required recoverable deletion without rewriting the full data model during production closeout.
+**Decision**: Add nullable `deleted_at` soft delete to Students, Parents, Receipts, and Payments, then provide admin recycle-bin list/restore/purge operations for those entities.
+**Rationale**: These are the user-facing records most likely to need recovery. Keeping the scope narrow reduces migration risk while preserving fee and receipt history through guarded delete behavior.
+**Status**: IMPLEMENTED
+
+### ADR-23: Encrypted Vercel Blob Backups
+**Date**: 2026-05-16
+**Context**: C9 required backup automation and a restore drill without introducing another storage provider during the same closeout.
+**Decision**: Store encrypted JSON backups in Vercel Blob using AES-256-GCM, with verification that decrypts and validates payload shape/table counts. Do not run destructive restore operations automatically.
+**Rationale**: Vercel Blob is already part of the production stack and avoids a second external dependency. Verification proves the backup can be read without risking production data overwrite.
+**Status**: IMPLEMENTED
