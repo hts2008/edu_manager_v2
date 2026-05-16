@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { studentsService, receiptsService, attendanceService } from '../services/api';
+import { bulkActionsService, studentsService, receiptsService, attendanceService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
+import BulkActionBar from '../components/ui/BulkActionBar';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { receiptFormSchema } from '../utils/formValidation';
@@ -12,6 +13,7 @@ export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState([]);
   const toast = useToast();
 
   useEffect(() => {
@@ -23,8 +25,34 @@ export default function ReceiptsPage() {
     const response = await receiptsService.getAll();
     if (response.success) {
       setReceipts(response.data.receipts || []);
+      const currentIds = new Set((response.data.receipts || []).map((receipt) => receipt.id));
+      setSelectedReceiptIds((ids) => ids.filter((id) => currentIds.has(id)));
     }
     setLoading(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedReceiptIds.length) return;
+    if (!window.confirm(`delete ${selectedReceiptIds.length} receipts?`)) return;
+
+    const response = await bulkActionsService.execute({
+      resource: 'receipts',
+      action: 'delete',
+      ids: selectedReceiptIds,
+    });
+    if (!response.success) {
+      toast.error(response.error?.message || 'Bulk delete failed');
+      return;
+    }
+
+    const { requested, succeeded, failed } = response.data;
+    if (failed) {
+      toast.warning(`${succeeded}/${requested} processed; ${failed} failed`);
+    } else {
+      toast.success(`${succeeded}/${requested} processed`);
+    }
+    setSelectedReceiptIds([]);
+    loadReceipts();
   };
 
   const handlePrintPdf = (receiptId) => {
@@ -126,10 +154,25 @@ export default function ReceiptsPage() {
         </button>
       </div>
 
+      <BulkActionBar
+        count={selectedReceiptIds.length}
+        onClear={() => setSelectedReceiptIds([])}
+        actions={[
+          {
+            label: 'Delete',
+            className: 'btn-danger',
+            onClick: handleBulkDelete,
+          },
+        ]}
+      />
+
       <DataTable
         columns={columns}
         data={receipts}
         loading={loading}
+        selectable
+        selectedIds={selectedReceiptIds}
+        onSelectionChange={setSelectedReceiptIds}
         emptyMessage="Chưa có phiếu thu nào"
       />
 

@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 
 // Import routes
 import authRoutes from './routes/auth.js';
+import bulkActionsRoutes from './routes/bulk-actions.js';
 import studentsRoutes from './routes/students.js';
 import parentsRoutes from './routes/parents.js';
 import teachersRoutes from './routes/teachers.js';
@@ -58,6 +59,7 @@ app.use('/uploads', express.static(join(__dirname, '../uploads')));
 // ========================================
 
 app.use('/api/auth', authRoutes);
+app.use('/api/bulk-actions', bulkActionsRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/parents', parentsRoutes);
 app.use('/api/teachers', teachersRoutes);

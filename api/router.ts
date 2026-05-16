@@ -35,6 +35,7 @@ const routes = {
   authLogin: () => import("../server/api/auth/login.js"),
   authLogout: () => import("../server/api/auth/logout.js"),
   authMe: () => import("../server/api/auth/me.js"),
+  bulkActionsIndex: () => import("../server/api/bulk-actions/index.js"),
   centerSettingsIndex: () => import("../server/api/center-settings/index.js"),
   classesIndex: () => import("../server/api/classes/index.js"),
   monthlyFeeCancel: () => import("../server/api/monthly-fees/[id]/cancel.js"),
@@ -87,6 +88,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["auth", "me"], routes.authMe) ||
     exact(parts, ["auth", "logout"], routes.authLogout) ||
     exact(parts, ["auth", "change-password"], routes.authChangePassword) ||
+    exact(parts, ["bulk-actions"], routes.bulkActionsIndex) ||
     exact(parts, ["center-settings"], routes.centerSettingsIndex) ||
     exact(parts, ["students"], routes.studentsIndex) ||
     exact(parts, ["parents"], routes.parentsIndex) ||

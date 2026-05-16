@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { paymentsService, teachersService } from '../services/api';
+import { bulkActionsService, paymentsService, teachersService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
+import BulkActionBar from '../components/ui/BulkActionBar';
 import Modal from '../components/ui/Modal';
+import { useToast } from '../components/ui/Toast';
 import { paymentFormSchema } from '../utils/formValidation';
 
 // VI: Trang quản lý phiếu chi
@@ -11,6 +13,8 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
+  const toast = useToast();
 
   useEffect(() => {
     loadPayments();
@@ -21,8 +25,34 @@ export default function PaymentsPage() {
     const response = await paymentsService.getAll();
     if (response.success) {
       setPayments(response.data.payments || []);
+      const currentIds = new Set((response.data.payments || []).map((payment) => payment.id));
+      setSelectedPaymentIds((ids) => ids.filter((id) => currentIds.has(id)));
     }
     setLoading(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedPaymentIds.length) return;
+    if (!window.confirm(`delete ${selectedPaymentIds.length} payments?`)) return;
+
+    const response = await bulkActionsService.execute({
+      resource: 'payments',
+      action: 'delete',
+      ids: selectedPaymentIds,
+    });
+    if (!response.success) {
+      toast.error(response.error?.message || 'Bulk delete failed');
+      return;
+    }
+
+    const { requested, succeeded, failed } = response.data;
+    if (failed) {
+      toast.warning(`${succeeded}/${requested} processed; ${failed} failed`);
+    } else {
+      toast.success(`${succeeded}/${requested} processed`);
+    }
+    setSelectedPaymentIds([]);
+    loadPayments();
   };
 
   const categoryLabels = {
@@ -95,10 +125,25 @@ export default function PaymentsPage() {
         </button>
       </div>
 
+      <BulkActionBar
+        count={selectedPaymentIds.length}
+        onClear={() => setSelectedPaymentIds([])}
+        actions={[
+          {
+            label: 'Delete',
+            className: 'btn-danger',
+            onClick: handleBulkDelete,
+          },
+        ]}
+      />
+
       <DataTable
         columns={columns}
         data={payments}
         loading={loading}
+        selectable
+        selectedIds={selectedPaymentIds}
+        onSelectionChange={setSelectedPaymentIds}
         emptyMessage="Chưa có phiếu chi nào"
       />
 

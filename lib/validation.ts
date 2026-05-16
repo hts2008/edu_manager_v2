@@ -129,3 +129,12 @@ export const userUpdateSchema = z
 export const userResetPasswordSchema = z.object({
   password: z.string().min(6, "password must be at least 6 characters"),
 });
+
+export const bulkActionSchema = z.object({
+  resource: z.enum(["students", "parents", "receipts", "payments"]),
+  action: z.enum(["archive", "delete"]),
+  ids: z
+    .array(z.string().trim().min(1, "id is required"))
+    .min(1, "ids must include at least one id")
+    .max(100, "bulk actions are limited to 100 records"),
+});

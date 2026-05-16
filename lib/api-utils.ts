@@ -25,6 +25,24 @@ export function sendApiError(
     return errorResponse(res, error.code, error.message, error.status);
   }
 
+  const maybeApiError = error as {
+    code?: unknown;
+    message?: unknown;
+    status?: unknown;
+  };
+  if (
+    typeof maybeApiError.code === "string" &&
+    typeof maybeApiError.message === "string" &&
+    typeof maybeApiError.status === "number"
+  ) {
+    return errorResponse(
+      res,
+      maybeApiError.code,
+      maybeApiError.message,
+      maybeApiError.status
+    );
+  }
+
   logApiError(error, { code: fallbackCode });
   return errorResponse(res, fallbackCode, fallbackMessage, 500);
 }

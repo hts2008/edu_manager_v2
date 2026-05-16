@@ -232,3 +232,28 @@ test("user management page and API contract are available", async ({ page, reque
   expect(Array.isArray(body.data?.users)).toBeTruthy();
   expect(typeof body.data?.total).toBe("number");
 });
+
+test("bulk action selection surfaces and API validation are available", async ({ page, request }) => {
+  await seedAuth(page);
+
+  for (const path of ["/students", "/parents", "/receipts", "/payments"]) {
+    await expectHealthyPage(page, path, "main h1");
+    const firstRowSelect = page.getByTestId("row-select").first();
+    if ((await firstRowSelect.count()) === 0) continue;
+
+    await firstRowSelect.check();
+    await expect(page.getByTestId("bulk-action-bar")).toBeVisible();
+    await expect(page.getByText("1 selected")).toBeVisible();
+    await page.getByRole("button", { name: "Clear" }).click();
+    await expect(page.getByTestId("bulk-action-bar")).toHaveCount(0);
+  }
+
+  const response = await request.post("/api/bulk-actions", {
+    headers: { Authorization: `Bearer ${authToken}` },
+    data: { resource: "students", action: "archive", ids: [] },
+  });
+  expect(response.status()).toBe(400);
+  const body = await response.json();
+  expect(body.success).toBe(false);
+  expect(body.error?.code).toBeTruthy();
+});

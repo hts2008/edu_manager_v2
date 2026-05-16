@@ -254,6 +254,15 @@ export const paymentsService = {
   delete: (id) => request(`/payments/${id}`, { method: "DELETE" }),
 };
 
+// Bulk Actions API
+export const bulkActionsService = {
+  execute: ({ resource, action, ids }) =>
+    request("/bulk-actions", {
+      method: "POST",
+      body: JSON.stringify({ resource, action, ids }),
+    }),
+};
+
 // Templates API
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {

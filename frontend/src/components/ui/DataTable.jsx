@@ -8,10 +8,15 @@ export default function DataTable({
   onRowClick,
   emptyMessage = 'Không có dữ liệu',
   pageSize = 10,
+  selectable = false,
+  selectedIds = [],
+  onSelectionChange,
+  getRowId = (row) => row.id,
 }) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   // Handle sorting
   const handleSort = (key) => {
@@ -57,6 +62,35 @@ export default function DataTable({
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
+  const selectableRows = paginatedData.filter((row) => getRowId(row));
+  const allPageSelected =
+    selectableRows.length > 0 &&
+    selectableRows.every((row) => selectedSet.has(getRowId(row)));
+
+  const updateSelection = (ids) => {
+    onSelectionChange?.(Array.from(new Set(ids)));
+  };
+
+  const toggleRowSelection = (event, row) => {
+    event.stopPropagation();
+    const rowId = getRowId(row);
+    if (!rowId) return;
+    if (selectedSet.has(rowId)) {
+      updateSelection(selectedIds.filter((id) => id !== rowId));
+      return;
+    }
+    updateSelection([...selectedIds, rowId]);
+  };
+
+  const togglePageSelection = (event) => {
+    event.stopPropagation();
+    const pageIds = selectableRows.map((row) => getRowId(row));
+    if (allPageSelected) {
+      updateSelection(selectedIds.filter((id) => !pageIds.includes(id)));
+      return;
+    }
+    updateSelection([...selectedIds, ...pageIds]);
+  };
 
   // Reset page when search changes
   useEffect(() => {
@@ -99,6 +133,18 @@ export default function DataTable({
         <table className="table">
           <thead>
             <tr>
+              {selectable && (
+                <th className="w-12" onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    aria-label="Select page rows"
+                    data-testid="select-page-rows"
+                    checked={allPageSelected}
+                    onChange={togglePageSelection}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                </th>
+              )}
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -120,13 +166,13 @@ export default function DataTable({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="text-center py-8">
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className="text-center py-8">
                   <div className="spinner w-6 h-6 mx-auto"></div>
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="text-center py-8 text-gray-500">
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className="text-center py-8 text-gray-500">
                   {emptyMessage}
                 </td>
               </tr>
@@ -137,6 +183,18 @@ export default function DataTable({
                   onClick={() => onRowClick?.(row)}
                   className={onRowClick ? 'cursor-pointer' : ''}
                 >
+                  {selectable && (
+                    <td onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select row"
+                        data-testid="row-select"
+                        checked={selectedSet.has(getRowId(row))}
+                        onChange={(event) => toggleRowSelection(event, row)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
+                  )}
                   {columns.map((col) => (
                     <td key={col.key}>
                       {col.render ? col.render(row[col.key], row) : row[col.key]}

@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { studentsService } from "../services/api";
+import { bulkActionsService, studentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
+import BulkActionBar from "../components/ui/BulkActionBar";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
 import { studentFormSchema } from "../utils/formValidation";
 
 // VI: Trang danh sách học viên
@@ -15,6 +17,8 @@ export default function StudentsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const toast = useToast();
 
   useEffect(() => {
     loadStudents();
@@ -25,8 +29,34 @@ export default function StudentsPage() {
     const response = await studentsService.getAll();
     if (response.success) {
       setStudents(response.data.students);
+      const currentIds = new Set((response.data.students || []).map((student) => student.id));
+      setSelectedStudentIds((ids) => ids.filter((id) => currentIds.has(id)));
     }
     setLoading(false);
+  };
+
+  const handleBulkAction = async (action) => {
+    if (!selectedStudentIds.length) return;
+    if (!window.confirm(`${action} ${selectedStudentIds.length} students?`)) return;
+
+    const response = await bulkActionsService.execute({
+      resource: "students",
+      action,
+      ids: selectedStudentIds,
+    });
+    if (!response.success) {
+      toast.error(response.error?.message || "Bulk action failed");
+      return;
+    }
+
+    const { requested, succeeded, failed } = response.data;
+    if (failed) {
+      toast.warning(`${succeeded}/${requested} processed; ${failed} failed`);
+    } else {
+      toast.success(`${succeeded}/${requested} processed`);
+    }
+    setSelectedStudentIds([]);
+    loadStudents();
   };
 
   const handleDelete = async () => {
@@ -224,11 +254,30 @@ export default function StudentsPage() {
       </div>
 
       {/* Data Table */}
+      <BulkActionBar
+        count={selectedStudentIds.length}
+        onClear={() => setSelectedStudentIds([])}
+        actions={[
+          {
+            label: "Archive",
+            className: "btn-secondary",
+            onClick: () => handleBulkAction("archive"),
+          },
+          {
+            label: "Delete",
+            className: "btn-danger",
+            onClick: () => handleBulkAction("delete"),
+          },
+        ]}
+      />
       <DataTable
         columns={columns}
         data={students}
         loading={loading}
         onRowClick={(row) => handleEdit(row)}
+        selectable
+        selectedIds={selectedStudentIds}
+        onSelectionChange={setSelectedStudentIds}
         emptyMessage="Chưa có học viên nào"
       />
 

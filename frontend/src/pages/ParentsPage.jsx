@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { parentsService } from "../services/api";
+import { bulkActionsService, parentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
+import BulkActionBar from "../components/ui/BulkActionBar";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
 
 // VI: Trang danh sách phụ huynh - Premium Design
 export default function ParentsPage() {
@@ -11,6 +13,8 @@ export default function ParentsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingParent, setEditingParent] = useState(null);
+  const [selectedParentIds, setSelectedParentIds] = useState([]);
+  const toast = useToast();
 
   useEffect(() => {
     loadParents();
@@ -21,8 +25,34 @@ export default function ParentsPage() {
     const response = await parentsService.getAll();
     if (response.success) {
       setParents(response.data.parents);
+      const currentIds = new Set((response.data.parents || []).map((parent) => parent.id));
+      setSelectedParentIds((ids) => ids.filter((id) => currentIds.has(id)));
     }
     setLoading(false);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedParentIds.length) return;
+    if (!window.confirm(`delete ${selectedParentIds.length} parents?`)) return;
+
+    const response = await bulkActionsService.execute({
+      resource: "parents",
+      action: "delete",
+      ids: selectedParentIds,
+    });
+    if (!response.success) {
+      toast.error(response.error?.message || "Bulk delete failed");
+      return;
+    }
+
+    const { requested, succeeded, failed } = response.data;
+    if (failed) {
+      toast.warning(`${succeeded}/${requested} processed; ${failed} failed`);
+    } else {
+      toast.success(`${succeeded}/${requested} processed`);
+    }
+    setSelectedParentIds([]);
+    loadParents();
   };
 
   const handleDelete = async () => {
@@ -258,11 +288,25 @@ export default function ParentsPage() {
       </div>
 
       {/* Data Table */}
+      <BulkActionBar
+        count={selectedParentIds.length}
+        onClear={() => setSelectedParentIds([])}
+        actions={[
+          {
+            label: "Delete",
+            className: "btn-danger",
+            onClick: handleBulkDelete,
+          },
+        ]}
+      />
       <DataTable
         columns={columns}
         data={parents}
         loading={loading}
         onRowClick={handleEdit}
+        selectable
+        selectedIds={selectedParentIds}
+        onSelectionChange={setSelectedParentIds}
         emptyMessage="Chưa có phụ huynh nào"
       />
 
