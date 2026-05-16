@@ -196,7 +196,7 @@
 | ------- | ----------- | ----- | ------ | -------- |
 | C1 | Bulk Actions | Multi-select delete/archive for Students, Parents, Receipts, Payments | PLANNED | Not started |
 | C2 | Import Excel/CSV | Student + Parent import with preview, validation, duplicates, rollback | PLANNED | Not started |
-| C3 | Attendance Insight | Student/class attendance heatmap | PLANNED | Not started |
+| C3 | Attendance Insight | Student/class attendance heatmap | REVIEW | Local API/UI/E2E pass; production smoke pending |
 | C4 | Monthly Fee Automation | Idempotent monthly fee generation job | PLANNED | Needs cron/mutation approval |
 | C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
 | C6 | Fee Reminders | SMS/Zalo overdue fee reminders | PLANNED | Needs provider and opt-in approval |
@@ -263,7 +263,7 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 9/9, audit/tsc/build/lint pass |
+| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 10/10, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked |
 
 **Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Production credential rotation remains before real operation.

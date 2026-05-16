@@ -180,3 +180,17 @@ test("center settings page and API contract are available", async ({ page, reque
   const body = await response.json();
   expect(body.data?.center_name).toBeTruthy();
 });
+
+test("attendance insights page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/attendance-insights", 'main h1:has-text("Insight điểm danh")');
+  await expect(page.getByRole("heading", { name: "Heatmap 365 ngày" })).toBeVisible();
+
+  const response = await request.get("/api/attendance/insights", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(Array.isArray(body.data?.days)).toBeTruthy();
+  expect(body.data?.summary).toBeTruthy();
+});

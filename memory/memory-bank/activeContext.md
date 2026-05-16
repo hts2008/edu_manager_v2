@@ -22,7 +22,7 @@
 
 ## Current Sprint Focus
 1. **Phase B Closeout** — observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-2. **Phase C Center Settings** — C12 is implemented and production-smoked.
+2. **Phase C Attendance Insight** — C3 local API/UI/E2E implementation is in review; production smoke pending after deploy.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -101,10 +101,10 @@ Phase B observability/security baseline: added security headers, request ID prop
 Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` exposes the new security/request-id headers, production login + `/api/auth/me` succeeds for the approved admin smoke account, and browser `/payments` smoke shows no network/error text or console errors.
 
 ## Now Doing
-Phase C continuation after C12. Center Settings is implemented and production-smoked.
+Phase C C3 Attendance Insight. Local API/UI/E2E gates pass; production deploy and smoke are pending.
 
 ## Next Recommended Action
-1. Pick the next lowest-risk Phase C slice.
+1. Push C3 and confirm Vercel production exposes `/api/attendance/insights` and `/attendance-insights`.
 2. Rotate production default credentials and JWT secret before real operation.
-3. Keep production smoke evidence updated after each deploy.
+3. Continue Phase C from the next lowest-risk slice after C3 production evidence is recorded.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

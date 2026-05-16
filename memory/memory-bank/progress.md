@@ -217,3 +217,11 @@
 - **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 9/9 pass locally.
 - **Production Smoke**: After Vercel deployment of commit `903544f`, `GET /api/center-settings` returned populated settings, and browser `/settings` rendered the center profile UI with no console errors. Production PUT was not run to avoid live settings mutation without approval.
 - **STATUS**: IMPLEMENTED ✅
+
+---
+
+### 2026-05-15 — Phase C C3 Attendance Insight
+- **Scope**: Add read-only attendance heatmap insight for all-center, class, or student filters.
+- **Implementation**: Added Vercel `/api/attendance/insights`, Express reference `/api/attendance/insights`, `attendanceService.getInsights`, `/attendance-insights` route, sidebar menu item, and `AttendanceInsightsPage`.
+- **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 10/10 pass locally.
+- **STATUS**: REVIEW — production smoke pending after Vercel deploy.

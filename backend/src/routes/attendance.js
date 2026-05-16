@@ -6,6 +6,120 @@ import { AppError } from '../middleware/errorHandler.js';
 const router = Router();
 router.use(verifyToken);
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dateOnly(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function parseBoundary(value, fallback, endOfDay = false) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
+}
+
+function emptyInsightDay(date) {
+  return {
+    date,
+    total: 0,
+    present: 0,
+    absent_with_fee: 0,
+    absent_no_fee: 0,
+    holiday: 0,
+    make_up: 0,
+    attendance_rate: 0,
+  };
+}
+
+// GET /api/attendance/insights
+router.get('/insights', (req, res, next) => {
+  try {
+    const today = new Date();
+    const defaultFrom = new Date(today.getTime() - 364 * DAY_MS);
+    const from = parseBoundary(req.query.from, defaultFrom);
+    const to = parseBoundary(req.query.to, today, true);
+    const cappedTo =
+      to.getTime() - from.getTime() > 370 * DAY_MS
+        ? new Date(from.getTime() + 370 * DAY_MS)
+        : to;
+
+    const hasMakeUpColumn = getDb()
+      .pragma('table_info(attendance)')
+      .some((column) => column.name === 'is_make_up');
+    const makeUpExpr = hasMakeUpColumn ? 'COALESCE(is_make_up, 0)' : '0';
+
+    let sql = `
+      SELECT date(attendance_date) as date, status, ${makeUpExpr} as is_make_up
+      FROM attendance
+      WHERE date(attendance_date) >= date(?) AND date(attendance_date) <= date(?)
+    `;
+    const params = [dateOnly(from), dateOnly(cappedTo)];
+    if (req.query.student_id) {
+      sql += ' AND student_id = ?';
+      params.push(req.query.student_id);
+    }
+    if (req.query.class_id) {
+      sql += ' AND class_id = ?';
+      params.push(req.query.class_id);
+    }
+    sql += ' ORDER BY attendance_date ASC';
+
+    const rows = query(sql, params);
+    const dayMap = new Map();
+    for (
+      let cursor = new Date(`${dateOnly(from)}T00:00:00.000Z`);
+      cursor <= cappedTo;
+      cursor = new Date(cursor.getTime() + DAY_MS)
+    ) {
+      const key = dateOnly(cursor);
+      dayMap.set(key, emptyInsightDay(key));
+    }
+
+    rows.forEach((row) => {
+      const day = dayMap.get(row.date) || emptyInsightDay(row.date);
+      day.total += 1;
+      day[row.status] += 1;
+      if (row.is_make_up) day.make_up += 1;
+      day.attendance_rate = day.total ? Math.round((day.present / day.total) * 100) : 0;
+      dayMap.set(row.date, day);
+    });
+
+    const days = Array.from(dayMap.values());
+    const summary = days.reduce((acc, day) => {
+      acc.total_records += day.total;
+      acc.present += day.present;
+      acc.absent_with_fee += day.absent_with_fee;
+      acc.absent_no_fee += day.absent_no_fee;
+      acc.holiday += day.holiday;
+      acc.make_up += day.make_up;
+      return acc;
+    }, {
+      total_days: days.length,
+      total_records: 0,
+      present: 0,
+      absent_with_fee: 0,
+      absent_no_fee: 0,
+      holiday: 0,
+      make_up: 0,
+      attendance_rate: 0,
+    });
+    summary.attendance_rate = summary.total_records
+      ? Math.round((summary.present / summary.total_records) * 100)
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        from: dateOnly(from),
+        to: dateOnly(cappedTo),
+        student_id: req.query.student_id || null,
+        class_id: req.query.class_id || null,
+        days,
+        summary,
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 // GET /api/attendance?class_id=&date=
 router.get('/', (req, res, next) => {
   try {

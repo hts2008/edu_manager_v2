@@ -27,6 +27,7 @@ const routes = {
   attendanceBulk: () => import("../server/api/attendance/bulk.js"),
   attendanceCalculateFee: () => import("../server/api/attendance/calculate-fee.js"),
   attendanceIndex: () => import("../server/api/attendance/index.js"),
+  attendanceInsights: () => import("../server/api/attendance/insights.js"),
   attendanceMonth: () => import("../server/api/attendance/month.js"),
   attendancePeriodById: () => import("../server/api/attendance-periods/[id]/index.js"),
   attendancePeriodsIndex: () => import("../server/api/attendance-periods/index.js"),
@@ -89,6 +90,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["classes"], routes.classesIndex) ||
     exact(parts, ["attendance"], routes.attendanceIndex) ||
     exact(parts, ["attendance", "bulk"], routes.attendanceBulk) ||
+    exact(parts, ["attendance", "insights"], routes.attendanceInsights) ||
     exact(parts, ["attendance", "month"], routes.attendanceMonth) ||
     exact(parts, ["attendance", "calculate-fee"], routes.attendanceCalculateFee) ||
     exact(parts, ["attendance-periods"], routes.attendancePeriodsIndex) ||

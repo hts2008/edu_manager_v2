@@ -14,6 +14,7 @@ import ParentsPage from './pages/ParentsPage';
 import ClassesPage from './pages/ClassesPage';
 import TeachersPage from './pages/TeachersPage';
 import AttendancePage from './pages/AttendancePage';
+import AttendanceInsightsPage from './pages/AttendanceInsightsPage';
 import AttendancePeriodsPage from './pages/AttendancePeriodsPage';
 import ReceiptsPage from './pages/ReceiptsPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="classes" element={<ClassesPage />} />
               <Route path="teachers" element={<TeachersPage />} />
               <Route path="attendance" element={<AttendancePage />} />
+              <Route path="attendance-insights" element={<AttendanceInsightsPage />} />
               <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
               <Route path="receipts" element={<ReceiptsPage />} />
               <Route path="payments" element={<PaymentsPage />} />

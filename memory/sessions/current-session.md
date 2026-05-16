@@ -82,6 +82,12 @@
   - [x] Add frontend service, sidebar item, route, and `CenterSettingsPage`.
   - [x] Extend Playwright smoke to 9 tests.
   - [x] Smoke production after Vercel deploy.
+- [ ] Implement Phase C C3 Attendance Insight.
+  - [x] Add Vercel `/api/attendance/insights` read-only route.
+  - [x] Add Express reference `/api/attendance/insights` route for local E2E parity.
+  - [x] Add frontend service, sidebar item, route, and `AttendanceInsightsPage`.
+  - [x] Extend Playwright smoke to 10 tests.
+  - [ ] Smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -98,9 +104,9 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Select the next lowest-risk Phase C slice.
-2. Rotate default credentials and JWT secret before real production operation.
-3. Keep production smoke evidence updated after the next deploy.
+1. Push C3 scoped commit and wait for Vercel production deployment.
+2. Smoke production `/api/attendance/insights` and `/attendance-insights` in browser.
+3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
@@ -119,3 +125,4 @@
 - C8 production smoke passed after commit `e5cdcfa`: `/api/activity-logs` returned logs and `/audit-logs` rendered in browser without console errors.
 - C12 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 9/9 after adding center settings UI/API coverage.
 - C12 production smoke passed after commit `903544f`: `/api/center-settings` returned settings and `/settings` rendered in browser without console errors.
+- C3 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 10/10 after adding attendance insight UI/API coverage.

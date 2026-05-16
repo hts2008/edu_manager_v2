@@ -224,6 +224,10 @@ export const attendanceService = {
     }),
   calculateFee: (studentId, month) =>
     request(`/attendance/calculate-fee?student_id=${studentId}&month=${month}`),
+  getInsights: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/attendance/insights${query ? `?${query}` : ""}`);
+  },
 };
 
 // Receipts API
