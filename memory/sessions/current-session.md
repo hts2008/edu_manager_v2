@@ -100,6 +100,12 @@
   - [x] Add frontend service, sidebar item, route, `UserManagementPage`, and `UserModal`.
   - [x] Extend Playwright smoke to 12 tests.
   - [x] Smoke production read-only after Vercel deploy.
+- [x] Implement Phase C C1 Bulk Actions.
+  - [x] Add Vercel `/api/bulk-actions` admin-only route.
+  - [x] Add Express reference `/api/bulk-actions` route for local E2E parity.
+  - [x] Add frontend service, selectable `DataTable`, `BulkActionBar`, and bulk controls on Students/Parents/Receipts/Payments.
+  - [x] Extend Playwright smoke to 13 tests.
+  - [x] Smoke production without destructive mutation after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -107,7 +113,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `e05239e` after C11 scoped commit; production smoke evidence update is pending commit.
+- **Current Git HEAD observed in Codex session**: `53e1b42` after C1 scoped commit; production smoke evidence update is pending commit.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -116,7 +122,7 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Pick the next Phase C slice with explicit production boundary: C1 bulk actions, C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Pick the next Phase C slice with explicit production boundary: C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
 2. Do not run production mutations, migrations, provider setup, or backup jobs without explicit approval.
 3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
@@ -143,3 +149,5 @@
 - C7 production smoke passed after commit `bc8880a`: `/api/reports/advanced` returned revenue trend, 5 teacher rows, and summary; Google Chrome/Playwright production smoke for `/advanced-reports` passed 1/1.
 - C11 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 12/12 after adding user management UI/API coverage.
 - C11 production read-only smoke passed after commit `e05239e`: login succeeded, `GET /api/users` returned `success=true` with 2 users, and Google Chrome/Playwright production smoke for `/users` passed 1/1. No production user mutations were run.
+- C1 local smoke passed: typecheck, lint, unit 13/13, build, audits, local temporary-parent bulk delete, and `cd frontend && npm run test:e2e -- --reporter=list` 13/13.
+- C1 production smoke passed after commit `53e1b42`: bulk validation returned `400 VALIDATION_ERROR`, non-mutating missing-ID smoke returned `failed=1/NOT_FOUND`, and Google Chrome/Playwright production smoke for bulk selection passed 1/1. Destructive production bulk actions were not run.

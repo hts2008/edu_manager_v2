@@ -4,11 +4,11 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C3/C7/C8/C11/C12 are implemented and production-smoked.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C1/C3/C7/C8/C11/C12 are implemented and production-smoked.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `e05239e` after the C11 user management scoped commit; C11 production smoke evidence update is pending commit.
+- **Current Git HEAD observed in Codex session**: `53e1b42` after the C1 bulk actions scoped commit; C1 production smoke evidence update is pending commit.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -22,7 +22,7 @@
 
 ## Current Sprint Focus
 1. **Phase B Closeout** — observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-2. **Phase C Product Slices** — C3, C7, C8, C11, and C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+2. **Phase C Product Slices** — C1, C3, C7, C8, C11, and C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -102,11 +102,13 @@ Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` expose
 
 Phase C C11 User Management closeout: commit `e05239e` deployed to Vercel; production login succeeded, read-only `GET /api/users` returned `success=true` with 2 users, and Google Chrome/Playwright production smoke for `/users` passed 1/1. No production user mutations were run.
 
+Phase C C1 Bulk Actions closeout: commit `53e1b42` deployed to Vercel; local mutation smoke created and bulk-deleted a temporary parent successfully, full local Playwright smoke passed 13/13, production API validation/non-mutating missing-ID smoke passed, and Google Chrome/Playwright production smoke for bulk selection passed 1/1. No destructive production bulk action was run.
+
 ## Now Doing
-Phase C continuation after C11 closeout. Remaining Phase C tasks are mostly mutation-heavy, schema-heavy, provider-dependent, or operationally sensitive; production mutations, migrations, provider setup, and backup targets still require explicit approval.
+Phase C continuation after C1 closeout. Remaining Phase C tasks are mostly import/cron/schema/provider/backup sensitive; production mutations, migrations, provider setup, and backup targets still require explicit approval.
 
 ## Next Recommended Action
-1. Pick the next Phase C slice with explicit production boundary: C1 bulk actions, C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Pick the next Phase C slice with explicit production boundary: C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

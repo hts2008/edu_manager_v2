@@ -1,5 +1,17 @@
 # Progress Log
 
+### 2026-05-16 — Phase C C1 Bulk Actions Production Closeout
+- **Scope**: Add multi-select bulk actions for Students, Parents, Receipts, and Payments without changing schema.
+- **Implementation**: Added Vercel `/api/bulk-actions`, Express reference `/api/bulk-actions`, shared `bulkActionsService`, selectable `DataTable`, reusable `BulkActionBar`, and bulk controls on the four target pages.
+- **Safety**: Admin-only API; students support archive via `status=inactive`; destructive delete paths guard linked records and report per-row failures. Parents/receipts/payments support delete only because current schema has no archive/deletedAt field.
+- **Verification Passed**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, local mutation smoke using a temporary parent, and `cd frontend && npm run test:e2e -- --reporter=list` 13/13.
+- **Production Smoke**: After commit `53e1b42`, production API validation returned `400 VALIDATION_ERROR`, non-mutating missing-ID smoke returned `success=true` with `failed=1/NOT_FOUND`, and Google Chrome/Playwright production smoke passed 1/1 for the bulk action UI/API contract.
+- **Evidence**: `receipts/2026-05-16-phase-c-bulk-actions.md`.
+- **Remaining**: Destructive production bulk actions were not run and still require explicit approval.
+- **STATUS**: IMPLEMENTED
+
+---
+
 ### 2026-05-16 — Phase C C11 User Management Production Closeout
 - **Scope**: Add admin user management with list/create/update/deactivate/reset-password, using existing `User` schema.
 - **Implementation**: Added Vercel `/api/users` routes, Express reference route, `usersService`, `/users` route/sidebar item, `UserManagementPage`, and `UserModal`.
