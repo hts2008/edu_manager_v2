@@ -137,3 +137,10 @@
 **Decision**: Treat `server/api/*` plus `api/router.ts` as the production backend. Keep `backend/` Express + SQLite as reference/dev comparison only.
 **Rationale**: Production smoke, parity, and deployment evidence now validate Vercel + Prisma. New production behavior must be tested against that path and preserve the existing frontend API boundary.
 **Status**: IMPLEMENTED. See `docs/architecture/backend-strategy.md`.
+
+### ADR-20: CSV Import Before Reintroducing XLSX
+**Date**: 2026-05-16
+**Context**: Phase C C2 requested Excel/CSV import. Phase B removed the vulnerable `xlsx` dependency and both root/frontend audits are clean. Reintroducing spreadsheet parsing would expand the dependency and security surface during product-slice closeout.
+**Decision**: Implement C2 as CSV import for Student + Parent records, including Excel-exported CSV support, robust preview validation, duplicate detection, and rollback-protected commit. Defer native `.xlsx` binary parsing until there is an approved dependency/security plan.
+**Rationale**: CSV covers the immediate operator workflow without adding dependency risk, keeps production deploy small, and allows production smoke to remain non-mutating via preview-only checks.
+**Status**: IMPLEMENTED

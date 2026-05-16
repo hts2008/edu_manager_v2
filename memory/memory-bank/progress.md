@@ -283,3 +283,13 @@
 - **Implementation**: Added Vercel `/api/attendance/insights`, Express reference `/api/attendance/insights`, `attendanceService.getInsights`, `/attendance-insights` route, sidebar menu item, and `AttendanceInsightsPage`.
 - **Validation**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and Playwright smoke 10/10 pass locally.
 - **STATUS**: REVIEW — production smoke pending after Vercel deploy.
+
+---
+
+### 2026-05-16 - Phase C C2 Student CSV Import
+- **Scope**: Implement student + parent CSV import with preview, validation, duplicate detection, and rollback-protected commit.
+- **Implementation**: Added shared import parser/preview logic in `lib/import-students.ts`, Vercel `/api/import/students`, Express reference `/api/import/students`, frontend `importService`, `/imports` route/sidebar page, and Playwright preview coverage.
+- **Safety**: Production smoke was preview-only. Import commit was verified locally with a temporary student + parent and immediate direct cleanup; no production import commit or data mutation was run.
+- **Validation**: Initial red unit test failed on missing module, then `npm run test:unit` passed 16/16; `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run build`, root/frontend audit, and local Playwright 15/15 passed.
+- **Production Smoke**: After commit `aed68f2` deployed, no-token route probe changed 404 -> 401, production preview API returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`, and Google Chrome/Playwright `/imports` smoke passed 1/1.
+- **STATUS**: IMPLEMENTED

@@ -113,6 +113,15 @@
   - [x] Extend Playwright smoke to 14 tests.
   - [x] Smoke production dry-run after Vercel deploy.
   - [ ] Enable cron and production mutation only after explicit approval.
+- [x] Implement Phase C C2 Student CSV Import.
+  - [x] Add shared CSV parser/preview validation and duplicate detection.
+  - [x] Add Vercel `/api/import/students` admin-only preview/commit route.
+  - [x] Add Express reference `/api/import/students` route for local E2E parity.
+  - [x] Add frontend service, sidebar item, route, and `ImportPage`.
+  - [x] Extend Playwright smoke to 15 tests.
+  - [x] Verify local commit/cleanup smoke.
+  - [x] Smoke production preview only after Vercel deploy.
+  - [ ] Native `.xlsx` parsing remains deferred until dependency/security plan approval.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -120,7 +129,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `26dfa7e` after C4 scoped commit; production smoke evidence update is pending commit.
+- **Latest scoped product code commit observed in Codex session**: `aed68f2` after C2 scoped code commit; production smoke evidence is recorded separately in workspace docs.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -129,7 +138,7 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Pick the next Phase C slice with explicit production boundary: C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Pick the next Phase C slice with explicit production boundary: C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
 2. Do not run production mutations, migrations, provider setup, or backup jobs without explicit approval.
 3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
@@ -160,3 +169,6 @@
 - C1 production smoke passed after commit `53e1b42`: bulk validation returned `400 VALIDATION_ERROR`, non-mutating missing-ID smoke returned `failed=1/NOT_FOUND`, and Google Chrome/Playwright production smoke for bulk selection passed 1/1. Destructive production bulk actions were not run.
 - C4 local smoke passed: typecheck, lint, unit 13/13, build, audits, and `cd frontend && npm run test:e2e -- --reporter=list` 14/14.
 - C4 production dry-run smoke passed after commit `26dfa7e`: `POST /api/monthly-fees/generate` with `dry_run=true` returned 22 active students, `would_create=22`, and Google Chrome/Playwright production smoke passed 1/1. Cron and `dry_run=false` production mutation were not run.
+- C2 local smoke passed: red unit test first failed on missing import module, then `npm run test:unit` 16/16 passed; `npx tsc --noEmit`, lint max-warnings=0, build, root/frontend audit, and local Playwright smoke 15/15 passed.
+- C2 local mutation smoke passed: `POST /api/import/students` committed 1 temporary student + 1 parent and cleanup verified `cleanup_remaining=0`.
+- C2 production preview smoke passed after commit `aed68f2`: route probe changed 404 -> 401 after deploy; authenticated preview returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`; Google Chrome/Playwright production `/imports` smoke passed 1/1. Production commit import was not run.

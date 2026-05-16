@@ -195,7 +195,7 @@
 | Task ID | Description | Scope | Status | Evidence |
 | ------- | ----------- | ----- | ------ | -------- |
 | C1 | Bulk Actions | Multi-select delete/archive for Students, Parents, Receipts, Payments | IMPLEMENTED | `receipts/2026-05-16-phase-c-bulk-actions.md`; local mutation smoke + 13/13 E2E + production non-mutating API/Google Chrome smoke pass |
-| C2 | Import Excel/CSV | Student + Parent import with preview, validation, duplicates, rollback | PLANNED | Not started |
+| C2 | Import Excel/CSV | Student + Parent CSV import with preview, validation, duplicates, rollback | IMPLEMENTED | `receipts/2026-05-16-phase-c-import-csv.md`; unit parser tests + local 15/15 E2E + local commit/cleanup smoke + production preview API/Google Chrome smoke pass |
 | C3 | Attendance Insight | Student/class attendance heatmap | IMPLEMENTED | `receipts/2026-05-15-phase-c-attendance-insight.md`; local 10/10 E2E + production API/Google Chrome smoke pass |
 | C4 | Monthly Fee Automation | Idempotent monthly fee generation job | REVIEW | `receipts/2026-05-16-phase-c-monthly-fee-automation.md`; dry-run endpoint deployed/smoked; cron activation and production mutation approval pending |
 | C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
@@ -264,9 +264,9 @@
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
 | Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 14/14, audit/tsc/build/lint pass |
-| Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C1/C3/C7/C8/C11/C12 Phase C slices deployed and smoked; C4 dry-run automation deployed |
+| Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C1/C2/C3/C7/C8/C11/C12 Phase C slices deployed and smoked; C4 dry-run automation deployed |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C1/C3/C7/C8/C11/C12 value slices are implemented. C4 dry-run automation is deployed but cron/mutation activation still needs approval. Production credential rotation remains before real operation.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C1/C2/C3/C7/C8/C11/C12 value slices are implemented. C4 dry-run automation is deployed but cron/mutation activation still needs approval. Production credential rotation remains before real operation.
 
 ---
 
@@ -325,4 +325,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-16 10:35
+**Last Updated:** 2026-05-16 10:55

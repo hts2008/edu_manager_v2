@@ -4,11 +4,11 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C1/C3/C7/C8/C11/C12 are implemented and production-smoked; C4 dry-run monthly fee automation is in `REVIEW` pending cron/mutation approval.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C1/C2/C3/C7/C8/C11/C12 are implemented and production-smoked; C4 dry-run monthly fee automation is in `REVIEW` pending cron/mutation approval.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Current Git HEAD observed in Codex session**: `26dfa7e` after the C4 monthly fee automation dry-run scoped commit; C4 evidence update is pending commit.
+- **Latest scoped product code commit observed in Codex session**: `aed68f2` after the C2 student CSV import commit; C2 evidence is recorded separately in workspace docs.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -22,7 +22,7 @@
 
 ## Current Sprint Focus
 1. **Phase B Closeout** — observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-2. **Phase C Product Slices** — C1, C3, C7, C8, C11, and C12 are implemented and production-smoked on Google Chrome/Playwright after deploy; C4 dry-run endpoint is deployed and smoked.
+2. **Phase C Product Slices** — C1, C2, C3, C7, C8, C11, and C12 are implemented and production-smoked on Google Chrome/Playwright after deploy; C4 dry-run endpoint is deployed and smoked.
 3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
 4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
 
@@ -106,11 +106,13 @@ Phase C C1 Bulk Actions closeout: commit `53e1b42` deployed to Vercel; local mut
 
 Phase C C4 Monthly Fee Automation dry-run: commit `26dfa7e` deployed to Vercel; endpoint `POST /api/monthly-fees/generate` computes active-student fees idempotently and defaults to `dry_run=true`. Production dry-run returned 22 active students with `would_create=22` for 2026-05 and Playwright production smoke passed 1/1. Cron activation and `dry_run=false` production mutation were not run.
 
+Phase C C2 Student CSV Import: commit `aed68f2` deployed to Vercel; added admin-only `/api/import/students`, CSV parser/preview validation, duplicate detection, rollback-protected commit path, Express reference route, `/imports` UI, import service, and Playwright coverage. Local mutation smoke committed 1 temporary student + parent and cleaned up to 0 remaining temp rows. Production smoke used preview only: API returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`, and Google Chrome/Playwright `/imports` smoke passed 1/1. No production import commit was run.
+
 ## Now Doing
 Phase C continuation after C4 dry-run review. Remaining Phase C tasks are mostly import/schema/provider/backup sensitive; production mutations, migrations, provider setup, cron activation, and backup targets still require explicit approval.
 
 ## Next Recommended Action
-1. Pick the next Phase C slice with explicit production boundary: C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Pick the next Phase C slice with explicit production boundary: C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.
