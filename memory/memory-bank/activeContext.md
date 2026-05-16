@@ -4,7 +4,7 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C3/C8/C12 are implemented and production-smoked.
+- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B foundation, server-side validation, React Hook Form validation, dependency audit cleanup, E2E smoke baseline, and observability/security hardening are implemented. Phase C C3/C7/C8/C12 are implemented and production-smoked.
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
@@ -101,10 +101,10 @@ Phase B observability/security baseline: added security headers, request ID prop
 Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` exposes the new security/request-id headers, production login + `/api/auth/me` succeeds for the approved admin smoke account, and browser `/payments` smoke shows no network/error text or console errors.
 
 ## Now Doing
-Phase C C7 Advanced Reports. Local API/UI/E2E gates pass; production deploy and smoke are pending.
+Phase C continuation after C7 closeout. Remaining Phase C items are mostly mutation/schema/provider/ops-heavy and require tighter approval boundaries before production execution.
 
 ## Next Recommended Action
-1. Push C7 scoped commit and confirm Vercel production exposes `/api/reports/advanced` and `/advanced-reports`.
+1. Choose the next Phase C slice with explicit production-mutation boundaries; likely C11 User Management or C1 Bulk Actions in local-only/safe API mode, or defer mutation-heavy items until approval.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

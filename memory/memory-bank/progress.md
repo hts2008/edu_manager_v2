@@ -5,8 +5,9 @@
 - **Implementation**: Added Vercel `/api/reports/advanced`, Express reference parity route, `reportsService.getAdvanced`, `/advanced-reports` route/sidebar item, `AdvancedReportsPage`, and `exportAdvancedReport`.
 - **Verification Passed**: `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run test:unit` 13/13, `npm run build`, root/frontend `npm audit --audit-level=high`, and `cd frontend && npm run test:e2e -- --reporter=list` 11/11.
 - **Evidence**: `receipts/2026-05-16-phase-c-advanced-reports.md`.
-- **Remaining**: Production deploy and smoke before C7 can be marked `IMPLEMENTED`.
-- **STATUS**: REVIEW
+- **Production Smoke**: After commit `bc8880a`, production `/api/reports/advanced` returned `success=true`, one revenue trend row, five teacher utilization rows, and summary; Google Chrome/Playwright production smoke passed 1/1 for `/advanced-reports`.
+- **Remaining**: Mutation-heavy Phase C tasks still need explicit production boundaries before execution.
+- **STATUS**: IMPLEMENTED
 
 ---
 
