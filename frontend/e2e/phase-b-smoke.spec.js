@@ -257,3 +257,16 @@ test("bulk action selection surfaces and API validation are available", async ({
   expect(body.success).toBe(false);
   expect(body.error?.code).toBeTruthy();
 });
+
+test("monthly fee automation dry-run API contract is available", async ({ request }) => {
+  const response = await request.post("/api/monthly-fees/generate", {
+    headers: { Authorization: `Bearer ${authToken}` },
+    data: { month: "2026-05", dry_run: true },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.data?.month).toBe("2026-05");
+  expect(body.data?.dry_run).toBe(true);
+  expect(Array.isArray(body.data?.items)).toBeTruthy();
+  expect(body.data?.summary).toBeTruthy();
+});

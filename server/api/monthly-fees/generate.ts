@@ -1,0 +1,215 @@
+import type { VercelResponse } from "../../../lib/vercel-types.js";
+import prisma from "../../../lib/prisma.js";
+import {
+  AuthedRequest,
+  handleCors,
+  requireAuth,
+  errorResponse,
+  successResponse,
+} from "../../../lib/auth.js";
+import { getString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
+
+type GenerateItem = {
+  student_id: string;
+  student_name: string;
+  month: string;
+  total_days: number;
+  total_amount: number;
+  existing_status: string | null;
+  action: "created" | "updated" | "skipped" | "would_create" | "would_update";
+  reason?: string;
+};
+
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function parseDryRun(value: unknown) {
+  const raw = getString(value);
+  return raw === undefined ? true : raw !== "false";
+}
+
+function countKey(studentId: string, classId: string) {
+  return `${studentId}:${classId}`;
+}
+
+function calculateStudentFee(student: any, attendanceCounts: Map<string, number>) {
+  const breakdown = [];
+  let totalDays = 0;
+  let totalAmount = 0;
+
+  for (const enrollment of student.studentClasses || []) {
+    const daysCount = attendanceCounts.get(countKey(student.id, enrollment.classId)) || 0;
+    const feePerDay = enrollment.class.feePerDay;
+    const amount = daysCount * feePerDay;
+
+    breakdown.push({
+      class_id: enrollment.classId,
+      class_name: enrollment.class.className,
+      fee_per_day: feePerDay,
+      days_count: daysCount,
+      amount,
+    });
+    totalDays += daysCount;
+    totalAmount += amount;
+  }
+
+  return { breakdown, totalDays, totalAmount };
+}
+
+function summarize(items: GenerateItem[], dryRun: boolean) {
+  return {
+    dry_run: dryRun,
+    total_students: items.length,
+    created: items.filter((item) => item.action === "created").length,
+    updated: items.filter((item) => item.action === "updated").length,
+    skipped: items.filter((item) => item.action === "skipped").length,
+    would_create: items.filter((item) => item.action === "would_create").length,
+    would_update: items.filter((item) => item.action === "would_update").length,
+    total_amount: items.reduce((sum, item) => sum + item.total_amount, 0),
+  };
+}
+
+async function handler(req: AuthedRequest, res: VercelResponse) {
+  if (handleCors(req, res)) return;
+
+  if (req.method !== "POST") {
+    return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
+  }
+
+  try {
+    const month = getString(req.body?.month || req.query.month) || currentMonth();
+    const dryRun = parseDryRun(req.body?.dry_run ?? req.query.dry_run);
+    const { startDate, endDate } = parseMonthRange(month);
+
+    const students = await prisma.student.findMany({
+      where: { status: "active" },
+      include: {
+        monthlyFees: { where: { month } },
+        studentClasses: {
+          where: { status: "active" },
+          include: { class: true },
+        },
+      },
+      orderBy: { fullName: "asc" },
+    });
+    const studentIds = students.map((student) => student.id);
+    const attendanceRows =
+      studentIds.length > 0
+        ? await prisma.attendance.groupBy({
+            by: ["studentId", "classId"],
+            where: {
+              studentId: { in: studentIds },
+              attendanceDate: { gte: startDate, lte: endDate },
+              status: { in: ["present", "absent_with_fee"] },
+            },
+            _count: { id: true },
+          })
+        : [];
+    const attendanceCounts = new Map(
+      attendanceRows.map((row) => [
+        countKey(row.studentId, row.classId),
+        row._count.id,
+      ])
+    );
+
+    const items: GenerateItem[] = [];
+    for (const student of students) {
+      const existing = student.monthlyFees?.[0] || null;
+      const { totalDays, totalAmount } = calculateStudentFee(student, attendanceCounts);
+
+      if (!student.studentClasses?.length) {
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: 0,
+          total_amount: 0,
+          existing_status: existing?.status || null,
+          action: "skipped",
+          reason: "NO_ACTIVE_CLASS",
+        });
+        continue;
+      }
+
+      if (existing && !["pending", "ready"].includes(existing.status)) {
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: existing.totalDays,
+          total_amount: existing.totalAmount,
+          existing_status: existing.status,
+          action: "skipped",
+          reason: `STATUS_${existing.status.toUpperCase()}`,
+        });
+        continue;
+      }
+
+      if (dryRun) {
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: totalDays,
+          total_amount: totalAmount,
+          existing_status: existing?.status || null,
+          action: existing ? "would_update" : "would_create",
+        });
+        continue;
+      }
+
+      if (existing) {
+        await prisma.monthlyFee.update({
+          where: { id: existing.id },
+          data: {
+            totalDays,
+            totalAmount,
+            status: "ready",
+            receiptId: null,
+            paidAt: null,
+          },
+        });
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: totalDays,
+          total_amount: totalAmount,
+          existing_status: existing.status,
+          action: "updated",
+        });
+      } else {
+        await prisma.monthlyFee.create({
+          data: {
+            studentId: student.id,
+            month,
+            totalDays,
+            totalAmount,
+            status: "ready",
+          },
+        });
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: totalDays,
+          total_amount: totalAmount,
+          existing_status: null,
+          action: "created",
+        });
+      }
+    }
+
+    return successResponse(res, {
+      month,
+      dry_run: dryRun,
+      items,
+      summary: summarize(items, dryRun),
+    });
+  } catch (error) {
+    return sendApiError(res, error, "MONTHLY_FEES_GENERATE_ERROR");
+  }
+}
+
+export default requireAuth(handler, ["admin"]);

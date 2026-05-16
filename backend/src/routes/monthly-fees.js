@@ -6,6 +6,62 @@ import { AppError } from '../middleware/errorHandler.js';
 const router = Router();
 router.use(verifyToken);
 
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function parseDryRun(value) {
+  if (value === undefined || value === null || value === '') return true;
+  return String(value) !== 'false';
+}
+
+function validateMonth(month) {
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    throw new AppError('month must be YYYY-MM', 400, 'INVALID_MONTH');
+  }
+}
+
+function summarizeGenerated(items, dryRun) {
+  return {
+    dry_run: dryRun,
+    total_students: items.length,
+    created: items.filter((item) => item.action === 'created').length,
+    updated: items.filter((item) => item.action === 'updated').length,
+    skipped: items.filter((item) => item.action === 'skipped').length,
+    would_create: items.filter((item) => item.action === 'would_create').length,
+    would_update: items.filter((item) => item.action === 'would_update').length,
+    total_amount: items.reduce((sum, item) => sum + (item.total_amount || 0), 0),
+  };
+}
+
+function calculateStudentFee(studentId, month) {
+  const classes = query(`
+    SELECT c.id as class_id, c.class_name, c.fee_per_day
+    FROM student_classes sc
+    JOIN classes c ON sc.class_id = c.id
+    WHERE sc.student_id = ? AND sc.status = 'active'
+  `, [studentId]);
+
+  let totalDays = 0;
+  let totalAmount = 0;
+  const breakdown = classes.map((cls) => {
+    const daysCount = queryOne(`
+      SELECT COUNT(*) as c
+      FROM attendance
+      WHERE student_id = ?
+        AND class_id = ?
+        AND strftime('%Y-%m', attendance_date) = ?
+        AND status IN ('present', 'absent_with_fee')
+    `, [studentId, cls.class_id, month]).c;
+    const amount = daysCount * cls.fee_per_day;
+    totalDays += daysCount;
+    totalAmount += amount;
+    return { ...cls, days_count: daysCount, amount };
+  });
+
+  return { breakdown, totalDays, totalAmount };
+}
+
 // GET /api/monthly-fees - List with filters
 router.get('/', (req, res, next) => {
   try {
@@ -43,6 +99,113 @@ router.get('/', (req, res, next) => {
     };
     
     res.json({ success: true, data: { fees, summary } });
+  } catch (error) { next(error); }
+});
+
+// POST /api/monthly-fees/generate - Idempotent dry-run/default monthly fee generation
+router.post('/generate', adminOnly, (req, res, next) => {
+  try {
+    const month = req.body?.month || req.query.month || currentMonth();
+    const dryRun = parseDryRun(req.body?.dry_run ?? req.query.dry_run);
+    validateMonth(month);
+
+    const students = query(
+      "SELECT id, full_name FROM students WHERE status = 'active' ORDER BY full_name"
+    );
+    const items = [];
+
+    students.forEach((student) => {
+      const existing = queryOne(
+        'SELECT * FROM monthly_fees WHERE student_id = ? AND month = ?',
+        [student.id, month]
+      );
+      const { breakdown, totalDays, totalAmount } = calculateStudentFee(student.id, month);
+
+      if (breakdown.length === 0) {
+        items.push({
+          student_id: student.id,
+          student_name: student.full_name,
+          month,
+          total_days: 0,
+          total_amount: 0,
+          existing_status: existing?.status || null,
+          action: 'skipped',
+          reason: 'NO_ACTIVE_CLASS',
+        });
+        return;
+      }
+
+      if (existing && !['pending', 'ready'].includes(existing.status)) {
+        items.push({
+          student_id: student.id,
+          student_name: student.full_name,
+          month,
+          total_days: existing.total_days,
+          total_amount: existing.total_amount,
+          existing_status: existing.status,
+          action: 'skipped',
+          reason: `STATUS_${existing.status.toUpperCase()}`,
+        });
+        return;
+      }
+
+      if (dryRun) {
+        items.push({
+          student_id: student.id,
+          student_name: student.full_name,
+          month,
+          total_days: totalDays,
+          total_amount: totalAmount,
+          existing_status: existing?.status || null,
+          action: existing ? 'would_update' : 'would_create',
+        });
+        return;
+      }
+
+      if (existing) {
+        execute(`
+          UPDATE monthly_fees
+          SET total_days = ?, total_amount = ?, status = 'ready', receipt_id = NULL,
+              paid_at = NULL, updated_at = datetime('now', 'localtime')
+          WHERE id = ?
+        `, [totalDays, totalAmount, existing.id]);
+        items.push({
+          student_id: student.id,
+          student_name: student.full_name,
+          month,
+          total_days: totalDays,
+          total_amount: totalAmount,
+          existing_status: existing.status,
+          action: 'updated',
+        });
+        return;
+      }
+
+      const id = `MF${month.replace('-', '')}${student.id}`;
+      execute(`
+        INSERT INTO monthly_fees (id, student_id, month, total_days, total_amount, status)
+        VALUES (?, ?, ?, ?, ?, 'ready')
+      `, [id, student.id, month, totalDays, totalAmount]);
+      items.push({
+        student_id: student.id,
+        student_name: student.full_name,
+        month,
+        total_days: totalDays,
+        total_amount: totalAmount,
+        existing_status: null,
+        action: 'created',
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        dry_run: dryRun,
+        items,
+        summary: summarizeGenerated(items, dryRun),
+      },
+    });
   } catch (error) { next(error); }
 });
 

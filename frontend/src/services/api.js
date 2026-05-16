@@ -396,6 +396,11 @@ export const monthlyFeesService = {
       body: JSON.stringify(payload),
     });
   },
+  generate: (data = {}) =>
+    request("/monthly-fees/generate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   confirm: (id) => request(`/monthly-fees/${id}/confirm`, { method: "POST" }),
   pay: (id, paymentMethodOrData) => {
     const payload =

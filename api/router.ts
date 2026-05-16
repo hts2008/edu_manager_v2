@@ -43,6 +43,7 @@ const routes = {
   monthlyFeeById: () => import("../server/api/monthly-fees/[id]/index.js"),
   monthlyFeePay: () => import("../server/api/monthly-fees/[id]/pay.js"),
   monthlyFeesCalculate: () => import("../server/api/monthly-fees/calculate.js"),
+  monthlyFeesGenerate: () => import("../server/api/monthly-fees/generate.js"),
   monthlyFeesIndex: () => import("../server/api/monthly-fees/index.js"),
   parentsIndex: () => import("../server/api/parents/index.js"),
   paymentById: () => import("../server/api/payments/[id]/index.js"),
@@ -142,6 +143,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
       : null) ||
     exact(parts, ["monthly-fees"], routes.monthlyFeesIndex) ||
     exact(parts, ["monthly-fees", "calculate"], routes.monthlyFeesCalculate) ||
+    exact(parts, ["monthly-fees", "generate"], routes.monthlyFeesGenerate) ||
     (resource === "monthly-fees" && action === "confirm" && parts.length === 3
       ? { load: routes.monthlyFeeConfirm, params: { id } }
       : null) ||
