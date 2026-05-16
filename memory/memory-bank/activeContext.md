@@ -101,10 +101,10 @@ Phase B observability/security baseline: added security headers, request ID prop
 Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` exposes the new security/request-id headers, production login + `/api/auth/me` succeeds for the approved admin smoke account, and browser `/payments` smoke shows no network/error text or console errors.
 
 ## Now Doing
-Phase C continuation after C7 closeout. Remaining Phase C items are mostly mutation/schema/provider/ops-heavy and require tighter approval boundaries before production execution.
+Phase C C11 User Management. Local API/UI/E2E gates pass; production deploy and read-only smoke are pending. Production user mutations must not be run without approval.
 
 ## Next Recommended Action
-1. Choose the next Phase C slice with explicit production-mutation boundaries; likely C11 User Management or C1 Bulk Actions in local-only/safe API mode, or defer mutation-heavy items until approval.
+1. Push C11 scoped commit and confirm Vercel production exposes `/api/users` and `/users` without running production mutations.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

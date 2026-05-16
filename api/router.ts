@@ -62,6 +62,9 @@ const routes = {
   templatesIndex: () => import("../server/api/templates/index.js"),
   templateUpload: () => import("../server/api/templates/upload.js"),
   templateUploadImage: () => import("../server/api/templates/upload-image.js"),
+  userById: () => import("../server/api/users/[id]/index.js"),
+  userResetPassword: () => import("../server/api/users/[id]/reset-password.js"),
+  usersIndex: () => import("../server/api/users/index.js"),
 } satisfies Record<string, Loader>;
 
 function pathParts(req: VercelRequest) {
@@ -127,6 +130,13 @@ function resolveRoute(parts: string[]): RouteMatch | null {
       : null) ||
     (resource === "templates" && parts.length === 2
       ? { load: routes.templateById, params: { id } }
+      : null) ||
+    exact(parts, ["users"], routes.usersIndex) ||
+    (resource === "users" && action === "reset-password" && parts.length === 3
+      ? { load: routes.userResetPassword, params: { id } }
+      : null) ||
+    (resource === "users" && parts.length === 2
+      ? { load: routes.userById, params: { id } }
       : null) ||
     exact(parts, ["monthly-fees"], routes.monthlyFeesIndex) ||
     exact(parts, ["monthly-fees", "calculate"], routes.monthlyFeesCalculate) ||

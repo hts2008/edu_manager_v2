@@ -342,6 +342,26 @@ export default function Sidebar({ isOpen, onClose }) {
       path: "/settings",
       adminOnly: true,
     },
+    {
+      title: "Người dùng",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5.121 17.804A7 7 0 0112 15a7 7 0 016.879 2.804M15 11a3 3 0 10-6 0 3 3 0 006 0z"
+          />
+        </svg>
+      ),
+      path: "/users",
+      adminOnly: true,
+    },
   ];
 
   // Filter menu items based on role

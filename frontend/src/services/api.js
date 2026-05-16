@@ -324,6 +324,25 @@ export const centerSettingsService = {
     }),
 };
 
+// Users API
+export const usersService = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/users${query ? `?${query}` : ""}`);
+  },
+  getById: (id) => request(`/users/${id}`),
+  create: (data) =>
+    request("/users", { method: "POST", body: JSON.stringify(data) }),
+  update: (id, data) =>
+    request(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deactivate: (id) => request(`/users/${id}`, { method: "DELETE" }),
+  resetPassword: (id, password) =>
+    request(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+};
+
 // Attendance Periods API (SAP Timesheet-style)
 export const attendancePeriodsService = {
   getAll: (params = {}) => {

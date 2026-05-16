@@ -212,3 +212,23 @@ test("advanced reports page and API contract are available", async ({ page, requ
   expect(Array.isArray(body.data?.retention_cohort)).toBeTruthy();
   expect(body.data?.summary).toBeTruthy();
 });
+
+test("user management page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/users", 'main h1:has-text("Quản lý người dùng")');
+  await expect(page.getByRole("heading", { name: "Danh sách người dùng" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Thêm người dùng" }).click();
+  await expect(page.getByRole("heading", { name: "Thêm người dùng" })).toBeVisible();
+  await page.getByRole("button", { name: "Lưu" }).click();
+  await expect(page.getByText("username is required")).toBeVisible();
+  await page.getByRole("button", { name: "Hủy" }).click();
+
+  const response = await request.get("/api/users", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(Array.isArray(body.data?.users)).toBeTruthy();
+  expect(typeof body.data?.total).toBe("number");
+});

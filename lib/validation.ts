@@ -105,3 +105,27 @@ export const centerSettingsSchema = z.object({
   center_email: optionalNullableText,
   center_logo: optionalNullableText,
 });
+
+export const userCreateSchema = z.object({
+  username: z.string().trim().min(1, "username is required"),
+  password: z.string().min(6, "password must be at least 6 characters"),
+  full_name: z.string().trim().min(1, "full_name is required"),
+  role: z.enum(["admin", "receptionist"]),
+  email: optionalNullableText,
+  phone: optionalNullableText,
+  status: z.enum(["active", "inactive"]).optional().default("active"),
+});
+
+export const userUpdateSchema = z
+  .object({
+    full_name: z.string().trim().min(1, "full_name is required").optional(),
+    role: z.enum(["admin", "receptionist"]).optional(),
+    email: optionalNullableText,
+    phone: optionalNullableText,
+    status: z.enum(["active", "inactive"]).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, "at least one field is required");
+
+export const userResetPasswordSchema = z.object({
+  password: z.string().min(6, "password must be at least 6 characters"),
+});
