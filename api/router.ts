@@ -38,6 +38,7 @@ const routes = {
   bulkActionsIndex: () => import("../server/api/bulk-actions/index.js"),
   centerSettingsIndex: () => import("../server/api/center-settings/index.js"),
   classesIndex: () => import("../server/api/classes/index.js"),
+  importStudents: () => import("../server/api/import/students.js"),
   monthlyFeeCancel: () => import("../server/api/monthly-fees/[id]/cancel.js"),
   monthlyFeeConfirm: () => import("../server/api/monthly-fees/[id]/confirm.js"),
   monthlyFeeById: () => import("../server/api/monthly-fees/[id]/index.js"),
@@ -91,6 +92,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["auth", "change-password"], routes.authChangePassword) ||
     exact(parts, ["bulk-actions"], routes.bulkActionsIndex) ||
     exact(parts, ["center-settings"], routes.centerSettingsIndex) ||
+    exact(parts, ["import", "students"], routes.importStudents) ||
     exact(parts, ["students"], routes.studentsIndex) ||
     exact(parts, ["parents"], routes.parentsIndex) ||
     exact(parts, ["teachers"], routes.teachersIndex) ||

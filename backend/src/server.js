@@ -21,6 +21,7 @@ import kanbanRoutes from './routes/kanban.js';
 import activityLogsRoutes from './routes/activity-logs.js';
 import centerSettingsRoutes from './routes/center-settings.js';
 import usersRoutes from './routes/users.js';
+import importRoutes from './routes/import.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -75,6 +76,7 @@ app.use('/api/kanban', kanbanRoutes);
 app.use('/api/activity-logs', activityLogsRoutes);
 app.use('/api/center-settings', centerSettingsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/import', importRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -27,6 +27,7 @@ import TemplateDesignerPage from './pages/TemplateDesignerPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import CenterSettingsPage from './pages/CenterSettingsPage';
 import UserManagementPage from './pages/UserManagementPage';
+import ImportPage from './pages/ImportPage';
 
 // Placeholder pages (will be implemented later)
 const PlaceholderPage = ({ title }) => (
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="audit-logs" element={<AuditLogsPage />} />
               <Route path="settings" element={<CenterSettingsPage />} />
               <Route path="users" element={<UserManagementPage />} />
+              <Route path="imports" element={<ImportPage />} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}

@@ -263,6 +263,20 @@ export const bulkActionsService = {
     }),
 };
 
+// Import API
+export const importService = {
+  previewStudents: (csv) =>
+    request("/import/students", {
+      method: "POST",
+      body: JSON.stringify({ mode: "preview", csv }),
+    }),
+  commitStudents: (csv) =>
+    request("/import/students", {
+      method: "POST",
+      body: JSON.stringify({ mode: "commit", csv }),
+    }),
+};
+
 // Templates API
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {

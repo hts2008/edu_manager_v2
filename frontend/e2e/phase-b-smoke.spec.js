@@ -270,3 +270,32 @@ test("monthly fee automation dry-run API contract is available", async ({ reques
   expect(Array.isArray(body.data?.items)).toBeTruthy();
   expect(body.data?.summary).toBeTruthy();
 });
+
+test("student CSV import preview page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/imports", 'main h1:has-text("Import CSV")');
+
+  const suffix = String(Date.now()).slice(-8);
+  const csv = [
+    "student_full_name,date_of_birth,gender,parent_full_name,parent_phone,relationship,enrollment_date",
+    `C2 Preview ${suffix},2015-01-02,male,Parent ${suffix},09${suffix},mother,2026-05-01`,
+    `C2 Invalid ${suffix},,male,Parent ${suffix} B,08${suffix},father,2026-05-01`,
+  ].join("\n");
+
+  await page.getByLabel("CSV content").fill(csv);
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Preview ready")).toBeVisible();
+  await expect(page.getByTestId("import-summary")).toBeVisible();
+  await expect(page.getByTestId("import-preview-table")).toContainText(`C2 Preview ${suffix}`);
+  await expect(page.getByTestId("import-preview-table")).toContainText("date_of_birth: REQUIRED");
+
+  const response = await request.post("/api/import/students", {
+    headers: { Authorization: `Bearer ${authToken}` },
+    data: { mode: "preview", csv },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.data?.summary?.total_rows).toBe(2);
+  expect(body.data?.summary?.valid_rows).toBe(1);
+  expect(body.data?.summary?.invalid_rows).toBe(1);
+});

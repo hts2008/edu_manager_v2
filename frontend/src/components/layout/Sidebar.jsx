@@ -362,6 +362,26 @@ export default function Sidebar({ isOpen, onClose }) {
       path: "/users",
       adminOnly: true,
     },
+    {
+      title: "Import CSV",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+          />
+        </svg>
+      ),
+      path: "/imports",
+      adminOnly: true,
+    },
   ];
 
   // Filter menu items based on role
