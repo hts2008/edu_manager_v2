@@ -198,12 +198,12 @@
 | C2 | Import Excel/CSV | Student + Parent CSV import with preview, validation, duplicates, rollback | IMPLEMENTED | `receipts/2026-05-16-phase-c-import-csv.md`; unit parser tests + local 15/15 E2E + local commit/cleanup smoke + production preview API/Google Chrome smoke pass |
 | C3 | Attendance Insight | Student/class attendance heatmap | IMPLEMENTED | `receipts/2026-05-15-phase-c-attendance-insight.md`; local 10/10 E2E + production API/Google Chrome smoke pass |
 | C4 | Monthly Fee Automation | Idempotent monthly fee generation job | REVIEW | `receipts/2026-05-16-phase-c-monthly-fee-automation.md`; dry-run endpoint deployed/smoked; cron activation and production mutation approval pending |
-| C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
-| C6 | Fee Reminders | SMS/Zalo overdue fee reminders | PLANNED | Needs provider and opt-in approval |
+| C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | BLOCKED | Needs approved parent auth strategy; OTP/SMS dependency remains unresolved |
+| C6 | Fee Reminders | SMS/Zalo overdue fee reminders | BLOCKED | Needs SMS/Zalo provider, opt-in policy, message templates, and rate-control approval |
 | C7 | Advanced Reports | Revenue trend, teacher utilization, retention/cohort, stable export | IMPLEMENTED | `receipts/2026-05-16-phase-c-advanced-reports.md`; local 11/11 E2E + production API/Google Chrome smoke pass |
 | C8 | Audit Log UI | Admin filterable activity log view | IMPLEMENTED | `receipts/2026-05-15-phase-c-audit-log-ui.md`; local 8/8 E2E + production API/browser smoke pass |
-| C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
-| C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
+| C9 | Backup Automation | Weekly DB backup and restore drill | BLOCKED | Needs backup target approval and restore-drill target; no production backup job configured |
+| C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | BLOCKED | Needs schema migration plan and production migration approval |
 | C11 | User Management | Admin CRUD users, reset password, deactivate | IMPLEMENTED | `receipts/2026-05-16-phase-c-user-management.md`; local 12/12 E2E + production read-only API/Google Chrome smoke pass |
 | C12 | Center Settings | Admin UI for center profile/logo/defaults | IMPLEMENTED | `receipts/2026-05-15-phase-c-center-settings.md`; local 9/9 E2E + production API/browser smoke pass |
 
@@ -266,7 +266,7 @@
 | Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 14/14, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C1/C2/C3/C7/C8/C11/C12 Phase C slices deployed and smoked; C4 dry-run automation deployed |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C1/C2/C3/C7/C8/C11/C12 value slices are implemented. C4 dry-run automation is deployed but cron/mutation activation still needs approval. Production credential rotation remains before real operation.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C1/C2/C3/C7/C8/C11/C12 value slices are implemented. C4 dry-run automation is deployed but cron/mutation activation still needs approval. C5/C6/C9/C10 are blocked by external auth/provider/backup/schema approvals. Production credential rotation remains before real operation.
 
 ---
 

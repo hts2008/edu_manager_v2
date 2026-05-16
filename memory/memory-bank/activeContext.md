@@ -109,10 +109,10 @@ Phase C C4 Monthly Fee Automation dry-run: commit `26dfa7e` deployed to Vercel; 
 Phase C C2 Student CSV Import: commit `aed68f2` deployed to Vercel; added admin-only `/api/import/students`, CSV parser/preview validation, duplicate detection, rollback-protected commit path, Express reference route, `/imports` UI, import service, and Playwright coverage. Local mutation smoke committed 1 temporary student + parent and cleaned up to 0 remaining temp rows. Production smoke used preview only: API returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`, and Google Chrome/Playwright `/imports` smoke passed 1/1. No production import commit was run.
 
 ## Now Doing
-Phase C continuation after C4 dry-run review. Remaining Phase C tasks are mostly import/schema/provider/backup sensitive; production mutations, migrations, provider setup, cron activation, and backup targets still require explicit approval.
+Phase C C2 is implemented. Remaining Phase C tasks are approval-sensitive: C4 requires cron/mutation approval, C5 requires an approved parent-auth strategy, C6 requires SMS/Zalo provider + opt-in approval, C9 requires a backup target, and C10 requires schema migration approval.
 
 ## Next Recommended Action
-1. Pick the next Phase C slice with explicit production boundary: C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Approve or choose one blocked Phase C dependency: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, or C10 schema migration plan.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

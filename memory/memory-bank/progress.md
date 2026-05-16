@@ -293,3 +293,11 @@
 - **Validation**: Initial red unit test failed on missing module, then `npm run test:unit` passed 16/16; `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run build`, root/frontend audit, and local Playwright 15/15 passed.
 - **Production Smoke**: After commit `aed68f2` deployed, no-token route probe changed 404 -> 401, production preview API returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`, and Google Chrome/Playwright `/imports` smoke passed 1/1.
 - **STATUS**: IMPLEMENTED
+
+---
+
+### 2026-05-16 - Phase C Remaining Blockers Classified
+- **Scope**: Reconcile the remaining Phase C board after C2 completion.
+- **Finding**: C4, C5, C6, C9, and C10 cannot be safely completed without explicit approval or external configuration.
+- **Blocked Items**: C4 needs cron/production mutation approval; C5 needs parent auth strategy; C6 needs SMS/Zalo provider, opt-in policy, and rate controls; C9 needs backup target and restore-drill target; C10 needs schema migration plan and migration approval.
+- **STATUS**: RECORDED

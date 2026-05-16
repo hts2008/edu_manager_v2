@@ -138,7 +138,7 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Pick the next Phase C slice with explicit production boundary: C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+1. Approve or choose one blocked Phase C dependency: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, or C10 schema migration plan.
 2. Do not run production mutations, migrations, provider setup, or backup jobs without explicit approval.
 3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
@@ -172,3 +172,4 @@
 - C2 local smoke passed: red unit test first failed on missing import module, then `npm run test:unit` 16/16 passed; `npx tsc --noEmit`, lint max-warnings=0, build, root/frontend audit, and local Playwright smoke 15/15 passed.
 - C2 local mutation smoke passed: `POST /api/import/students` committed 1 temporary student + 1 parent and cleanup verified `cleanup_remaining=0`.
 - C2 production preview smoke passed after commit `aed68f2`: route probe changed 404 -> 401 after deploy; authenticated preview returned `total_rows=2`, `valid_rows=1`, `invalid_rows=1`; Google Chrome/Playwright production `/imports` smoke passed 1/1. Production commit import was not run.
+- Remaining Phase C blockers were classified: C4 cron/mutation, C5 parent auth, C6 SMS/Zalo provider + opt-in, C9 backup target, and C10 schema migration all need explicit approval/configuration before implementation can safely continue.
