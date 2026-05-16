@@ -48,7 +48,10 @@ function notFound(id: string, action: BulkAction): BulkResult {
 }
 
 async function archiveStudent(id: string): Promise<BulkResult> {
-  const student = await prisma.student.findUnique({ where: { id }, select: { id: true } });
+  const student = await prisma.student.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  });
   if (!student) return notFound(id, "archive");
 
   await prisma.student.update({ where: { id }, data: { status: "inactive" } });
@@ -56,50 +59,47 @@ async function archiveStudent(id: string): Promise<BulkResult> {
 }
 
 async function deleteStudent(id: string): Promise<BulkResult> {
-  const student = await prisma.student.findUnique({
-    where: { id },
-    include: {
-      _count: {
-        select: {
-          attendance: true,
-          monthlyFees: true,
-          receipts: true,
-          studentClasses: true,
-        },
-      },
-    },
+  const student = await prisma.student.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
   });
   if (!student) return notFound(id, "delete");
 
-  const count = student._count;
-  if (count.attendance || count.monthlyFees || count.receipts || count.studentClasses) {
-    return dependencyError(
-      id,
-      "delete",
-      "Student has attendance, fee, receipt, or class records; archive instead"
-    );
-  }
-
-  await prisma.student.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.studentClass.updateMany({
+      where: { studentId: id, status: "active" },
+      data: { status: "inactive" },
+    });
+    await tx.student.update({
+      where: { id },
+      data: { status: "inactive", deletedAt: new Date() },
+    });
+  });
   return { id, action: "delete", success: true };
 }
 
 async function deleteParent(id: string): Promise<BulkResult> {
-  const parent = await prisma.parent.findUnique({
-    where: { id },
-    include: { _count: { select: { students: true } } },
+  const parent = await prisma.parent.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
   });
   if (!parent) return notFound(id, "delete");
-  if (parent._count.students > 0) {
+  const activeChildren = await prisma.student.count({
+    where: { parentId: id, deletedAt: null },
+  });
+  if (activeChildren > 0) {
     return dependencyError(id, "delete", "Parent has linked students");
   }
 
-  await prisma.parent.delete({ where: { id } });
+  await prisma.parent.update({ where: { id }, data: { deletedAt: new Date() } });
   return { id, action: "delete", success: true };
 }
 
 async function deleteReceipt(id: string): Promise<BulkResult> {
-  const receipt = await prisma.receipt.findUnique({ where: { id }, select: { id: true } });
+  const receipt = await prisma.receipt.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  });
   if (!receipt) return notFound(id, "delete");
 
   await prisma.$transaction(async (tx) => {
@@ -107,16 +107,19 @@ async function deleteReceipt(id: string): Promise<BulkResult> {
       where: { receiptId: id },
       data: { receiptId: null, status: "confirmed", paidAt: null },
     });
-    await tx.receipt.delete({ where: { id } });
+    await tx.receipt.update({ where: { id }, data: { deletedAt: new Date() } });
   });
   return { id, action: "delete", success: true };
 }
 
 async function deletePayment(id: string): Promise<BulkResult> {
-  const payment = await prisma.payment.findUnique({ where: { id }, select: { id: true } });
+  const payment = await prisma.payment.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true },
+  });
   if (!payment) return notFound(id, "delete");
 
-  await prisma.payment.delete({ where: { id } });
+  await prisma.payment.update({ where: { id }, data: { deletedAt: new Date() } });
   return { id, action: "delete", success: true };
 }
 

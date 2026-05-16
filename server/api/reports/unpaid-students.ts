@@ -31,6 +31,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       where: {
         month,
         status: { not: "paid" },
+        student: {
+          deletedAt: null,
+          parent: { deletedAt: null },
+        },
       },
       include: {
         student: {
@@ -50,6 +54,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const studentsWithAttendance = await prisma.student.findMany({
       where: {
         status: "active",
+        deletedAt: null,
         id: { notIn: Array.from(feeStudentIds) },
         attendance: {
           some: {

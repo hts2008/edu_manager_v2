@@ -32,6 +32,7 @@ function receiptToDto(receipt: any) {
     pdf_path: receipt.pdfPath,
     created_by: receipt.createdById,
     created_at: receipt.createdAt,
+    deleted_at: receipt.deletedAt,
   };
 }
 
@@ -42,8 +43,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getRequiredString(req.query.id, "id");
 
     if (req.method === "GET") {
-      const receipt = await prisma.receipt.findUnique({
-        where: { id },
+      const receipt = await prisma.receipt.findFirst({
+        where: { id, deletedAt: null },
         include: {
           student: { include: { parent: { select: { fullName: true, phone: true } } } },
           template: { select: { templateName: true } },
@@ -58,7 +59,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      const receipt = await prisma.receipt.findUnique({ where: { id } });
+      const receipt = await prisma.receipt.findFirst({ where: { id, deletedAt: null } });
       if (!receipt) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
 
       await prisma.$transaction(async (tx) => {
@@ -66,11 +67,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           where: { receiptId: id },
           data: { receiptId: null, status: "confirmed", paidAt: null },
         });
-        await tx.receipt.delete({ where: { id } });
+        await tx.receipt.update({ where: { id }, data: { deletedAt: new Date() } });
       });
 
       await logActivity(req, req.user.id, "DELETE_RECEIPT", "receipt", id);
-      return successResponse(res, { message: "Receipt deleted" });
+      return successResponse(res, { message: "Receipt moved to recycle bin" });
     }
 
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);

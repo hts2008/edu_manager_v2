@@ -27,6 +27,7 @@ function paymentToDto(payment: any) {
     pdf_path: payment.pdfPath,
     created_by: payment.createdById,
     created_at: payment.createdAt,
+    deleted_at: payment.deletedAt,
   };
 }
 
@@ -37,8 +38,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getRequiredString(req.query.id, "id");
 
     if (req.method === "GET") {
-      const payment = await prisma.payment.findUnique({
-        where: { id },
+      const payment = await prisma.payment.findFirst({
+        where: { id, deletedAt: null },
         include: { template: { select: { templateName: true } } },
       });
       if (!payment) throw new ApiError("NOT_FOUND", "Payment not found", 404);
@@ -50,12 +51,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      const payment = await prisma.payment.findUnique({ where: { id } });
+      const payment = await prisma.payment.findFirst({ where: { id, deletedAt: null } });
       if (!payment) throw new ApiError("NOT_FOUND", "Payment not found", 404);
 
-      await prisma.payment.delete({ where: { id } });
+      await prisma.payment.update({ where: { id }, data: { deletedAt: new Date() } });
       await logActivity(req, req.user.id, "DELETE_PAYMENT", "payment", id);
-      return successResponse(res, { message: "Payment deleted" });
+      return successResponse(res, { message: "Payment moved to recycle bin" });
     }
 
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);

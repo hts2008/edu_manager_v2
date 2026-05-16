@@ -29,8 +29,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const month = getRequiredString(req.body?.month, "month");
     const { startDate, endDate } = parseMonthRange(month);
 
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null },
       include: {
         studentClasses: {
           where: { status: "active" },

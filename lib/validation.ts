@@ -138,3 +138,9 @@ export const bulkActionSchema = z.object({
     .min(1, "ids must include at least one id")
     .max(100, "bulk actions are limited to 100 records"),
 });
+
+export const recycleBinActionSchema = z.object({
+  resource: z.enum(["students", "parents", "receipts", "payments"]),
+  action: z.enum(["restore", "purge"]),
+  id: z.string().trim().min(1, "id is required"),
+});

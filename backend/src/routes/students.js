@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query, queryOne, execute } from '../database/index.js';
+import { ensureSoftDeleteColumns } from '../database/soft-delete.js';
 import { verifyToken, adminOnly } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -14,6 +15,7 @@ router.use(verifyToken);
  */
 router.get('/', (req, res, next) => {
   try {
+    ensureSoftDeleteColumns();
     const { status, class_id, search, page = 1, limit = 20 } = req.query;
     
     let sql = `
@@ -24,7 +26,7 @@ router.get('/', (req, res, next) => {
               WHERE sc.student_id = s.id AND sc.status = 'active') as class_names
       FROM students s
       LEFT JOIN parents p ON s.parent_id = p.id
-      WHERE 1=1
+      WHERE s.deleted_at IS NULL
     `;
     const params = [];
     
@@ -52,7 +54,7 @@ router.get('/', (req, res, next) => {
     const students = query(sql, params);
     
     // Get total count
-    let countSql = 'SELECT COUNT(*) as total FROM students WHERE 1=1';
+    let countSql = 'SELECT COUNT(*) as total FROM students WHERE deleted_at IS NULL';
     if (status) countSql += ` AND status = '${status}'`;
     const { total } = queryOne(countSql);
     
@@ -79,13 +81,14 @@ router.get('/', (req, res, next) => {
  */
 router.get('/:id', (req, res, next) => {
   try {
+    ensureSoftDeleteColumns();
     const { id } = req.params;
     
     const student = queryOne(`
       SELECT s.*, p.full_name as parent_name, p.phone as parent_phone, p.email as parent_email
       FROM students s
       LEFT JOIN parents p ON s.parent_id = p.id
-      WHERE s.id = ?
+      WHERE s.id = ? AND s.deleted_at IS NULL
     `, [id]);
     
     if (!student) {
@@ -244,14 +247,16 @@ router.put('/:id', (req, res, next) => {
  */
 router.delete('/:id', adminOnly, (req, res, next) => {
   try {
+    ensureSoftDeleteColumns();
     const { id } = req.params;
     
-    const existing = queryOne('SELECT id FROM students WHERE id = ?', [id]);
+    const existing = queryOne('SELECT id FROM students WHERE id = ? AND deleted_at IS NULL', [id]);
     if (!existing) {
       throw new AppError('Student not found', 404, 'NOT_FOUND');
     }
     
-    execute(`UPDATE students SET status = 'inactive', updated_at = datetime('now', 'localtime') WHERE id = ?`, [id]);
+    execute("UPDATE student_classes SET status = 'inactive' WHERE student_id = ? AND status = 'active'", [id]);
+    execute(`UPDATE students SET status = 'inactive', deleted_at = datetime('now', 'localtime'), updated_at = datetime('now', 'localtime') WHERE id = ?`, [id]);
     
     // Log activity
     execute(`
@@ -261,7 +266,7 @@ router.delete('/:id', adminOnly, (req, res, next) => {
     
     res.json({
       success: true,
-      message: 'Student deleted successfully'
+      message: 'Student moved to recycle bin'
     });
   } catch (error) {
     next(error);

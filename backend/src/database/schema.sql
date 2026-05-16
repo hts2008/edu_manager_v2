@@ -39,11 +39,13 @@ CREATE TABLE IF NOT EXISTS parents (
     relationship TEXT NOT NULL CHECK (relationship IN ('father', 'mother', 'guardian')),
     notes TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
-    updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+    updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    deleted_at TEXT
 );
 
 CREATE INDEX idx_parents_phone ON parents(phone);
 CREATE INDEX idx_parents_name ON parents(full_name);
+CREATE INDEX idx_parents_deleted ON parents(deleted_at);
 
 -- ========================================
 -- STUDENTS TABLE
@@ -63,12 +65,14 @@ CREATE TABLE IF NOT EXISTS students (
     notes TEXT,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
     updated_at TEXT DEFAULT (datetime('now', 'localtime')),
+    deleted_at TEXT,
     FOREIGN KEY (parent_id) REFERENCES parents(id)
 );
 
 CREATE INDEX idx_students_parent ON students(parent_id);
 CREATE INDEX idx_students_status ON students(status);
 CREATE INDEX idx_students_name ON students(full_name);
+CREATE INDEX idx_students_deleted ON students(deleted_at);
 
 -- ========================================
 -- TEACHERS TABLE
@@ -241,6 +245,7 @@ CREATE TABLE IF NOT EXISTS receipts (
     pdf_path TEXT,
     created_by TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    deleted_at TEXT,
     FOREIGN KEY (student_id) REFERENCES students(id),
     FOREIGN KEY (template_id) REFERENCES templates(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
@@ -249,6 +254,7 @@ CREATE TABLE IF NOT EXISTS receipts (
 CREATE INDEX idx_receipts_student ON receipts(student_id);
 CREATE INDEX idx_receipts_month ON receipts(month);
 CREATE INDEX idx_receipts_created ON receipts(created_at);
+CREATE INDEX idx_receipts_deleted ON receipts(deleted_at);
 
 -- ========================================
 -- PAYMENTS TABLE (Phiếu Chi)
@@ -264,12 +270,14 @@ CREATE TABLE IF NOT EXISTS payments (
     pdf_path TEXT,
     created_by TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    deleted_at TEXT,
     FOREIGN KEY (template_id) REFERENCES templates(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
 CREATE INDEX idx_payments_category ON payments(category);
 CREATE INDEX idx_payments_created ON payments(created_at);
+CREATE INDEX idx_payments_deleted ON payments(deleted_at);
 
 -- ========================================
 -- ACTIVITY_LOGS TABLE

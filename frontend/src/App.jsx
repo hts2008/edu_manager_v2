@@ -28,6 +28,11 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import CenterSettingsPage from './pages/CenterSettingsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import ImportPage from './pages/ImportPage';
+import FeeRemindersPage from './pages/FeeRemindersPage';
+import BackupsPage from './pages/BackupsPage';
+import RecycleBinPage from './pages/RecycleBinPage';
+import ParentPortalLoginPage from './pages/ParentPortalLoginPage';
+import ParentPortalPage from './pages/ParentPortalPage';
 
 // Placeholder pages (will be implemented later)
 const PlaceholderPage = ({ title }) => (
@@ -47,6 +52,8 @@ export default function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/parent-login" element={<ParentPortalLoginPage />} />
+            <Route path="/parent-portal" element={<ParentPortalPage />} />
 
             {/* Protected routes */}
             <Route
@@ -75,6 +82,9 @@ export default function App() {
               <Route path="settings" element={<CenterSettingsPage />} />
               <Route path="users" element={<UserManagementPage />} />
               <Route path="imports" element={<ImportPage />} />
+              <Route path="fee-reminders" element={<FeeRemindersPage />} />
+              <Route path="backups" element={<BackupsPage />} />
+              <Route path="recycle-bin" element={<RecycleBinPage />} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}

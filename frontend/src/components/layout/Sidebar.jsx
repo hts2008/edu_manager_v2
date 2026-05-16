@@ -382,6 +382,66 @@ export default function Sidebar({ isOpen, onClose }) {
       path: "/imports",
       adminOnly: true,
     },
+    {
+      title: "Fee Reminders",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 01-6 0"
+          />
+        </svg>
+      ),
+      path: "/fee-reminders",
+      adminOnly: true,
+    },
+    {
+      title: "Backups",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 7a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7zm4 4h8m-8 4h5"
+          />
+        </svg>
+      ),
+      path: "/backups",
+      adminOnly: true,
+    },
+    {
+      title: "Recycle Bin",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 7l-.9 12.1A2 2 0 0116.1 21H7.9a2 2 0 01-2-1.9L5 7m5 4v6m4-6v6M4 7h16m-6 0V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v3"
+          />
+        </svg>
+      ),
+      path: "/recycle-bin",
+      adminOnly: true,
+    },
   ];
 
   // Filter menu items based on role

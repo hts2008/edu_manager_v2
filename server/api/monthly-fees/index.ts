@@ -43,7 +43,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const where: any = {};
+    const where: any = { student: { deletedAt: null } };
     const month = getString(req.query.month);
     const status = getString(req.query.status);
     const studentId = getString(req.query.student_id || req.query.studentId);

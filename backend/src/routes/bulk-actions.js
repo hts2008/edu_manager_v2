@@ -1,5 +1,6 @@
 import express from 'express';
 import { execute, queryOne, transaction } from '../database/index.js';
+import { ensureSoftDeleteColumns } from '../database/soft-delete.js';
 import { adminOnly, verifyToken } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -50,6 +51,7 @@ function dependencyError(id, action, message) {
 }
 
 function archiveStudent(id) {
+  ensureSoftDeleteColumns();
   const student = queryOne('SELECT id FROM students WHERE id = ?', [id]);
   if (!student) return notFound(id, 'archive');
   execute("UPDATE students SET status = 'inactive', updated_at = datetime('now', 'localtime') WHERE id = ?", [id]);
@@ -57,42 +59,32 @@ function archiveStudent(id) {
 }
 
 function deleteStudent(id) {
-  const student = queryOne('SELECT id FROM students WHERE id = ?', [id]);
+  ensureSoftDeleteColumns();
+  const student = queryOne('SELECT id FROM students WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!student) return notFound(id, 'delete');
 
-  const counts = {
-    attendance: queryOne('SELECT COUNT(*) as c FROM attendance WHERE student_id = ?', [id]).c,
-    monthlyFees: queryOne('SELECT COUNT(*) as c FROM monthly_fees WHERE student_id = ?', [id]).c,
-    receipts: queryOne('SELECT COUNT(*) as c FROM receipts WHERE student_id = ?', [id]).c,
-    studentClasses: queryOne('SELECT COUNT(*) as c FROM student_classes WHERE student_id = ?', [id]).c,
-  };
-  if (counts.attendance || counts.monthlyFees || counts.receipts || counts.studentClasses) {
-    return dependencyError(
-      id,
-      'delete',
-      'Student has attendance, fee, receipt, or class records; archive instead'
-    );
-  }
-
-  execute('DELETE FROM students WHERE id = ?', [id]);
+  execute("UPDATE student_classes SET status = 'inactive' WHERE student_id = ? AND status = 'active'", [id]);
+  execute("UPDATE students SET status = 'inactive', deleted_at = datetime('now', 'localtime'), updated_at = datetime('now', 'localtime') WHERE id = ?", [id]);
   return { id, action: 'delete', success: true };
 }
 
 function deleteParent(id) {
-  const parent = queryOne('SELECT id FROM parents WHERE id = ?', [id]);
+  ensureSoftDeleteColumns();
+  const parent = queryOne('SELECT id FROM parents WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!parent) return notFound(id, 'delete');
 
-  const children = queryOne('SELECT COUNT(*) as c FROM students WHERE parent_id = ?', [id]).c;
+  const children = queryOne('SELECT COUNT(*) as c FROM students WHERE parent_id = ? AND deleted_at IS NULL', [id]).c;
   if (children > 0) {
     return dependencyError(id, 'delete', 'Parent has linked students');
   }
 
-  execute('DELETE FROM parents WHERE id = ?', [id]);
+  execute("UPDATE parents SET deleted_at = datetime('now', 'localtime') WHERE id = ?", [id]);
   return { id, action: 'delete', success: true };
 }
 
 function deleteReceipt(id) {
-  const receipt = queryOne('SELECT id FROM receipts WHERE id = ?', [id]);
+  ensureSoftDeleteColumns();
+  const receipt = queryOne('SELECT id FROM receipts WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!receipt) return notFound(id, 'delete');
 
   transaction(() => {
@@ -100,16 +92,17 @@ function deleteReceipt(id) {
       "UPDATE monthly_fees SET receipt_id = NULL, status = 'confirmed', paid_at = NULL, updated_at = datetime('now', 'localtime') WHERE receipt_id = ?",
       [id]
     );
-    execute('DELETE FROM receipts WHERE id = ?', [id]);
+    execute("UPDATE receipts SET deleted_at = datetime('now', 'localtime') WHERE id = ?", [id]);
   });
   return { id, action: 'delete', success: true };
 }
 
 function deletePayment(id) {
-  const payment = queryOne('SELECT id FROM payments WHERE id = ?', [id]);
+  ensureSoftDeleteColumns();
+  const payment = queryOne('SELECT id FROM payments WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!payment) return notFound(id, 'delete');
 
-  execute('DELETE FROM payments WHERE id = ?', [id]);
+  execute("UPDATE payments SET deleted_at = datetime('now', 'localtime') WHERE id = ?", [id]);
   return { id, action: 'delete', success: true };
 }
 

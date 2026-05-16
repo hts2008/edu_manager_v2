@@ -35,9 +35,13 @@ const routes = {
   authLogin: () => import("../server/api/auth/login.js"),
   authLogout: () => import("../server/api/auth/logout.js"),
   authMe: () => import("../server/api/auth/me.js"),
+  backupsIndex: () => import("../server/api/backups/index.js"),
   bulkActionsIndex: () => import("../server/api/bulk-actions/index.js"),
   centerSettingsIndex: () => import("../server/api/center-settings/index.js"),
   classesIndex: () => import("../server/api/classes/index.js"),
+  cronBackup: () => import("../server/api/cron/backup.js"),
+  cronMonthlyFees: () => import("../server/api/cron/monthly-fees.js"),
+  feeRemindersIndex: () => import("../server/api/fee-reminders/index.js"),
   importStudents: () => import("../server/api/import/students.js"),
   monthlyFeeCancel: () => import("../server/api/monthly-fees/[id]/cancel.js"),
   monthlyFeeConfirm: () => import("../server/api/monthly-fees/[id]/confirm.js"),
@@ -50,6 +54,9 @@ const routes = {
   paymentById: () => import("../server/api/payments/[id]/index.js"),
   paymentPdf: () => import("../server/api/payments/[id]/pdf.js"),
   paymentsIndex: () => import("../server/api/payments/index.js"),
+  parentPortalLogin: () => import("../server/api/parent-portal/login.js"),
+  parentPortalMe: () => import("../server/api/parent-portal/me.js"),
+  recycleBinIndex: () => import("../server/api/recycle-bin/index.js"),
   receiptById: () => import("../server/api/receipts/[id]/index.js"),
   receiptPdf: () => import("../server/api/receipts/[id]/pdf.js"),
   receiptsIndex: () => import("../server/api/receipts/index.js"),
@@ -90,8 +97,12 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["auth", "me"], routes.authMe) ||
     exact(parts, ["auth", "logout"], routes.authLogout) ||
     exact(parts, ["auth", "change-password"], routes.authChangePassword) ||
+    exact(parts, ["backups"], routes.backupsIndex) ||
     exact(parts, ["bulk-actions"], routes.bulkActionsIndex) ||
     exact(parts, ["center-settings"], routes.centerSettingsIndex) ||
+    exact(parts, ["cron", "backup"], routes.cronBackup) ||
+    exact(parts, ["cron", "monthly-fees"], routes.cronMonthlyFees) ||
+    exact(parts, ["fee-reminders"], routes.feeRemindersIndex) ||
     exact(parts, ["import", "students"], routes.importStudents) ||
     exact(parts, ["students"], routes.studentsIndex) ||
     exact(parts, ["parents"], routes.parentsIndex) ||
@@ -124,6 +135,9 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     (resource === "payments" && action === "pdf" && parts.length === 3
       ? { load: routes.paymentPdf, params: { id } }
       : null) ||
+    exact(parts, ["parent-portal", "login"], routes.parentPortalLogin) ||
+    exact(parts, ["parent-portal", "me"], routes.parentPortalMe) ||
+    exact(parts, ["recycle-bin"], routes.recycleBinIndex) ||
     exact(parts, ["templates"], routes.templatesIndex) ||
     exact(parts, ["templates", "upload"], routes.templateUpload) ||
     exact(parts, ["templates", "upload-image"], routes.templateUploadImage) ||

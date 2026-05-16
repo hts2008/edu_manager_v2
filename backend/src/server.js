@@ -22,6 +22,10 @@ import activityLogsRoutes from './routes/activity-logs.js';
 import centerSettingsRoutes from './routes/center-settings.js';
 import usersRoutes from './routes/users.js';
 import importRoutes from './routes/import.js';
+import backupsRoutes from './routes/backups.js';
+import feeRemindersRoutes from './routes/fee-reminders.js';
+import parentPortalRoutes from './routes/parent-portal.js';
+import recycleBinRoutes from './routes/recycle-bin.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -77,6 +81,10 @@ app.use('/api/activity-logs', activityLogsRoutes);
 app.use('/api/center-settings', centerSettingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/backups', backupsRoutes);
+app.use('/api/fee-reminders', feeRemindersRoutes);
+app.use('/api/parent-portal', parentPortalRoutes);
+app.use('/api/recycle-bin', recycleBinRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

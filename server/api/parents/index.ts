@@ -19,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     try {
       const { id } = req.query;
+      const includeDeleted = req.query.include_deleted === "true";
 
       // Single parent retrieval
       if (id) {
@@ -31,10 +32,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           );
         }
 
-        const parent = await prisma.parent.findUnique({
-          where: { id },
+        const parent = await prisma.parent.findFirst({
+          where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
           include: {
-            students: { select: { id: true, fullName: true, status: true } },
+            students: {
+              where: includeDeleted ? {} : { deletedAt: null },
+              select: { id: true, fullName: true, status: true },
+            },
           },
         });
 
@@ -57,6 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status: s.status,
           })),
           created_at: parent.createdAt,
+          deleted_at: parent.deletedAt,
         };
 
         return successResponse(res, result);
@@ -64,10 +69,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // List all parents
       const rawParents = await prisma.parent.findMany({
+        where: includeDeleted ? {} : { deletedAt: null },
         orderBy: { fullName: "asc" },
         include: {
-          _count: {
-            select: { students: true },
+          students: {
+            where: includeDeleted ? {} : { deletedAt: null },
+            select: { id: true },
           },
         },
       });
@@ -80,8 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         address: p.address,
         relationship: p.relationship,
         notes: p.notes,
-        children_count: p._count?.students || 0,
+        children_count: p.students?.length || 0,
         created_at: p.createdAt,
+        deleted_at: p.deletedAt,
       }));
 
       return successResponse(res, { parents });
@@ -106,16 +114,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      const parent = await prisma.parent.create({
-        data: {
-          fullName: full_name,
-          phone,
-          email: email || null,
-          address: address || null,
-          relationship: relationship || "father",
-          notes: notes || null,
-        },
+      const data = {
+        fullName: full_name,
+        phone,
+        email: email || null,
+        address: address || null,
+        relationship: relationship || "father",
+        notes: notes || null,
+      };
+      const deletedParent = await prisma.parent.findFirst({
+        where: { phone, deletedAt: { not: null } },
       });
+      const parent = deletedParent
+        ? await prisma.parent.update({
+            where: { id: deletedParent.id },
+            data: { ...data, deletedAt: null },
+          })
+        : await prisma.parent.create({ data });
 
       return successResponse(
         res,
@@ -149,6 +164,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { full_name, phone, email, address, relationship, notes } =
         req.body;
 
+      const existingParent = await prisma.parent.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!existingParent) {
+        return errorResponse(res, "NOT_FOUND", "Parent not found", 404);
+      }
+
       const updatedParent = await prisma.parent.update({
         where: { id },
         data: {
@@ -177,21 +200,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Parent ID is required", 400);
       }
 
-      // Check if parent has children
-      const parentWithChildren = await prisma.parent.findUnique({
-        where: { id },
-        include: {
-          _count: {
-            select: { students: true },
-          },
-        },
+      const parent = await prisma.parent.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true },
       });
 
-      if (!parentWithChildren) {
+      if (!parent) {
         return errorResponse(res, "NOT_FOUND", "Parent not found", 404);
       }
 
-      if (parentWithChildren._count.students > 0) {
+      const activeChildren = await prisma.student.count({
+        where: { parentId: id, deletedAt: null },
+      });
+      if (activeChildren > 0) {
         return errorResponse(
           res,
           "HAS_CHILDREN",
@@ -200,9 +221,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      await prisma.parent.delete({ where: { id } });
+      await prisma.parent.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
 
-      return successResponse(res, { message: "Parent deleted successfully" });
+      return successResponse(res, { message: "Parent moved to recycle bin" });
     } catch (error) {
       console.error("Delete parent error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);

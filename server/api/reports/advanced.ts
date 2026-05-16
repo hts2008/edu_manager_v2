@@ -74,12 +74,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const dateWindow = { gte: from, lte: to };
     const [receipts, payments, classes, attendance, students] = await Promise.all([
       prisma.receipt.findMany({
-        where: { createdAt: dateWindow },
+        where: { createdAt: dateWindow, deletedAt: null },
         select: { amount: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
       prisma.payment.findMany({
-        where: { createdAt: dateWindow },
+        where: { createdAt: dateWindow, deletedAt: null },
         select: { amount: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
@@ -99,7 +99,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         select: { classId: true, status: true },
       }),
       prisma.student.findMany({
-        where: { enrollmentDate: dateWindow },
+        where: { enrollmentDate: dateWindow, deletedAt: null },
         select: { id: true, enrollmentDate: true, status: true },
       }),
     ]);

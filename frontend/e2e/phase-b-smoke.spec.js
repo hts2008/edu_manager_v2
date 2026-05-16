@@ -299,3 +299,53 @@ test("student CSV import preview page and API contract are available", async ({ 
   expect(body.data?.summary?.valid_rows).toBe(1);
   expect(body.data?.summary?.invalid_rows).toBe(1);
 });
+
+test("operations pages for reminders, backups, and recycle bin are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/fee-reminders", 'main h1:has-text("Fee Reminders")');
+  await expect(page.getByRole("button", { name: "Preview" })).toBeVisible();
+
+  const reminders = await request.get("/api/fee-reminders?month=2026-05", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(reminders.ok()).toBeTruthy();
+  const remindersBody = await reminders.json();
+  expect(Array.isArray(remindersBody.data?.items)).toBeTruthy();
+  expect(remindersBody.data?.summary).toBeTruthy();
+
+  await expectHealthyPage(page, "/backups", 'main h1:has-text("Backups")');
+  const backup = await request.post("/api/backups", {
+    headers: { Authorization: `Bearer ${authToken}` },
+    data: { action: "run", dry_run: true },
+  });
+  expect(backup.ok()).toBeTruthy();
+  const backupBody = await backup.json();
+  expect(backupBody.data?.dry_run).toBe(true);
+  expect(backupBody.data?.counts).toBeTruthy();
+
+  await expectHealthyPage(page, "/recycle-bin", 'main h1:has-text("Recycle Bin")');
+  const recycle = await request.get("/api/recycle-bin", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(recycle.ok()).toBeTruthy();
+  const recycleBody = await recycle.json();
+  expect(Array.isArray(recycleBody.data?.items)).toBeTruthy();
+  expect(recycleBody.data?.by_resource).toBeTruthy();
+});
+
+test("parent portal login rejects invalid credentials and exposes read-only login surface", async ({ page, request }) => {
+  await page.goto("/parent-login");
+  await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
+  await page.getByLabel("Parent phone").fill("0999999999");
+  await page.getByLabel("Student date of birth").fill("2010-01-01");
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByText("Invalid parent credentials")).toBeVisible();
+
+  const response = await request.post("/api/parent-portal/login", {
+    data: {
+      parent_phone: "0999999999",
+      student_date_of_birth: "2010-01-01",
+    },
+  });
+  expect(response.status()).toBe(401);
+});

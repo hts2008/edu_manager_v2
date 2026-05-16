@@ -23,8 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get counts
     const [totalStudents, activeStudents, totalClasses, totalTeachers] =
       await Promise.all([
-        prisma.student.count(),
-        prisma.student.count({ where: { status: "active" } }),
+        prisma.student.count({ where: { deletedAt: null } }),
+        prisma.student.count({ where: { status: "active", deletedAt: null } }),
         prisma.class.count({ where: { status: "active" } }),
         prisma.teacher.count({ where: { status: "active" } }),
       ]);
@@ -38,17 +38,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const [receiptsSum, paymentsSum] = await Promise.all([
       prisma.receipt.aggregate({
         _sum: { amount: true },
-        where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
+        where: { createdAt: { gte: startOfMonth, lte: endOfMonth }, deletedAt: null },
       }),
       prisma.payment.aggregate({
         _sum: { amount: true },
-        where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
+        where: { createdAt: { gte: startOfMonth, lte: endOfMonth }, deletedAt: null },
       }),
     ]);
 
     // Get recent transactions
     const [recentReceipts, recentPayments] = await Promise.all([
       prisma.receipt.findMany({
+        where: { deletedAt: null },
         take: 5,
         orderBy: { createdAt: "desc" },
         include: {
@@ -56,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       }),
       prisma.payment.findMany({
+        where: { deletedAt: null },
         take: 5,
         orderBy: { createdAt: "desc" },
       }),

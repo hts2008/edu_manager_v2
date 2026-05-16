@@ -22,8 +22,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const receipt = await prisma.receipt.findUnique({
-      where: { id },
+    const receipt = await prisma.receipt.findFirst({
+      where: { id, deletedAt: null },
       include: {
         student: {
           include: {

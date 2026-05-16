@@ -65,12 +65,14 @@ model Parent {
   notes        String?
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
+  deletedAt    DateTime?    @map("deleted_at")
 
   // Relations
   students Student[]
 
   @@index([phone])
   @@index([fullName])
+  @@index([deletedAt])
   @@map("parents")
 }
 
@@ -98,6 +100,7 @@ model Student {
   notes          String?
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
 
   // Relations
   parent         Parent         @relation(fields: [parentId], references: [id])
@@ -109,6 +112,7 @@ model Student {
   @@index([parentId])
   @@index([status])
   @@index([fullName])
+  @@index([deletedAt])
   @@map("students")
 }
 
@@ -380,6 +384,7 @@ model Receipt {
   pdfPath       String?       @map("pdf_path")
   createdById   String        @map("created_by")
   createdAt     DateTime      @default(now()) @map("created_at")
+  deletedAt     DateTime?     @map("deleted_at")
 
   // Relations
   student     Student      @relation(fields: [studentId], references: [id])
@@ -390,6 +395,7 @@ model Receipt {
   @@index([studentId])
   @@index([month])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("receipts")
 }
 
@@ -412,6 +418,7 @@ model Payment {
   pdfPath        String?         @map("pdf_path")
   createdById    String          @map("created_by")
   createdAt      DateTime        @default(now()) @map("created_at")
+  deletedAt      DateTime?       @map("deleted_at")
 
   // Relations
   template  Template @relation(fields: [templateId], references: [id])
@@ -419,6 +426,7 @@ model Payment {
 
   @@index([category])
   @@index([createdAt])
+  @@index([deletedAt])
   @@map("payments")
 }
 

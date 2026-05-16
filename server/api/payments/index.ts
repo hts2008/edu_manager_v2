@@ -29,6 +29,7 @@ function paymentToDto(payment: any) {
     pdf_path: payment.pdfPath,
     created_by: payment.createdById,
     created_at: payment.createdAt,
+    deleted_at: payment.deletedAt,
   };
 }
 
@@ -39,7 +40,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     try {
       const page = Math.max(getNumber(req.query.page) || 1, 1);
       const limit = Math.min(Math.max(getNumber(req.query.limit) || 100, 1), 500);
-      const where: any = {};
+      const includeDeleted = req.query.include_deleted === "true";
+      const where: any = includeDeleted ? {} : { deletedAt: null };
       const category = getString(req.query.category);
       const from = getString(req.query.from);
       const to = getString(req.query.to);

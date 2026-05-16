@@ -35,6 +35,7 @@ function receiptToDto(receipt: any) {
     pdf_path: receipt.pdfPath,
     created_by: receipt.createdById,
     created_at: receipt.createdAt,
+    deleted_at: receipt.deletedAt,
   };
 }
 
@@ -45,7 +46,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     try {
       const page = Math.max(getNumber(req.query.page) || 1, 1);
       const limit = Math.min(Math.max(getNumber(req.query.limit) || 100, 1), 500);
-      const where: any = {};
+      const includeDeleted = req.query.include_deleted === "true";
+      const where: any = includeDeleted ? {} : { deletedAt: null };
       const studentId = getString(req.query.student_id || req.query.studentId);
       const month = getString(req.query.month);
       const from = getString(req.query.from);
@@ -95,7 +97,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         template_id: req.body?.template_id || req.body?.templateId,
       });
 
-      const student = await prisma.student.findUnique({ where: { id: body.student_id } });
+      const student = await prisma.student.findFirst({
+        where: { id: body.student_id, deletedAt: null },
+      });
       if (!student) throw new ApiError("STUDENT_NOT_FOUND", "Student not found", 404);
 
       const templateId = await resolveTemplateId(

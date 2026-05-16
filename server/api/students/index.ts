@@ -24,6 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     try {
       const { id, search, status, limit = "100", offset = "0" } = req.query;
+      const includeDeleted = req.query.include_deleted === "true";
 
       // Single student retrieval
       if (id) {
@@ -36,8 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           );
         }
 
-        const student = await prisma.student.findUnique({
-          where: { id },
+        const student = await prisma.student.findFirst({
+          where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
           include: {
             parent: { select: { id: true, fullName: true, phone: true } },
             studentClasses: {
@@ -74,13 +75,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             enrollment_status: sc.status,
           })),
           created_at: student.createdAt,
+          deleted_at: student.deletedAt,
         };
 
         return successResponse(res, result);
       }
 
       // List all students
-      const where: any = {};
+      const where: any = includeDeleted ? {} : { deletedAt: null };
       if (status && status !== "all") {
         where.status = status as string;
       }
@@ -131,6 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .filter(Boolean)
             .join(", ") || null,
         created_at: s.createdAt,
+        deleted_at: s.deletedAt,
       }));
 
       return successResponse(res, { students, total });
@@ -146,8 +149,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = validateBody(studentCreateSchema, req.body);
 
       // Verify parent exists
-      const parent = await prisma.parent.findUnique({
-        where: { id: body.parent_id },
+      const parent = await prisma.parent.findFirst({
+        where: { id: body.parent_id, deletedAt: null },
       });
       if (!parent) {
         return errorResponse(res, "PARENT_NOT_FOUND", "Parent not found", 404);
@@ -196,6 +199,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const body = validateBody(studentUpdateSchema, req.body);
+
+      const existingStudent = await prisma.student.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true },
+      });
+      if (!existingStudent) {
+        return errorResponse(res, "NOT_FOUND", "Student not found", 404);
+      }
 
       const updatedStudent = await prisma.student.update({
         where: { id },
@@ -285,32 +296,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Student ID is required", 400);
       }
 
-      // Check if student has class enrollments
-      const studentWithClasses = await prisma.student.findUnique({
-        where: { id },
-        include: {
-          _count: {
-            select: { studentClasses: true },
-          },
-        },
+      const student = await prisma.student.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true },
       });
 
-      if (!studentWithClasses) {
+      if (!student) {
         return errorResponse(res, "NOT_FOUND", "Student not found", 404);
       }
 
-      if (studentWithClasses._count.studentClasses > 0) {
-        return errorResponse(
-          res,
-          "HAS_CLASSES",
-          "Cannot delete student with active class enrollments",
-          400,
-        );
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.studentClass.updateMany({
+          where: { studentId: id, status: "active" },
+          data: { status: "inactive" },
+        });
+        await tx.student.update({
+          where: { id },
+          data: { status: "inactive", deletedAt: new Date() },
+        });
+      });
 
-      await prisma.student.delete({ where: { id } });
-
-      return successResponse(res, { message: "Student deleted successfully" });
+      return successResponse(res, { message: "Student moved to recycle bin" });
     } catch (error) {
       console.error("Delete student error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);

@@ -39,7 +39,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const from = getString(req.query.from || req.query.start_date);
     const to = getString(req.query.to || req.query.end_date);
     const groupBy = getString(req.query.groupBy || req.query.period || req.query.type) || "day";
-    const where: any = {};
+    const where: any = { deletedAt: null };
 
     if (from || to) {
       where.createdAt = {};

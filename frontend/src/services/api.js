@@ -277,6 +277,73 @@ export const importService = {
     }),
 };
 
+// Backups API
+export const backupsService = {
+  run: (dryRun = true) =>
+    request("/backups", {
+      method: "POST",
+      body: JSON.stringify({ action: "run", dry_run: dryRun }),
+    }),
+  verify: (url) =>
+    request("/backups", {
+      method: "POST",
+      body: JSON.stringify({ action: "verify", url }),
+    }),
+};
+
+// Recycle Bin API
+export const recycleBinService = {
+  getAll: (resource) =>
+    request(`/recycle-bin${resource ? `?resource=${resource}` : ""}`),
+  restore: (resource, id) =>
+    request("/recycle-bin", {
+      method: "POST",
+      body: JSON.stringify({ resource, id, action: "restore" }),
+    }),
+  purge: (resource, id) =>
+    request("/recycle-bin", {
+      method: "POST",
+      body: JSON.stringify({ resource, id, action: "purge" }),
+    }),
+};
+
+// Fee Reminders API
+export const feeRemindersService = {
+  preview: (month) =>
+    request(`/fee-reminders${month ? `?month=${month}` : ""}`),
+  send: (month, dryRun = true) =>
+    request("/fee-reminders", {
+      method: "POST",
+      body: JSON.stringify({ month, dry_run: dryRun }),
+    }),
+};
+
+async function parentPortalRequest(endpoint, options = {}) {
+  const token = localStorage.getItem("parentPortalToken");
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  return parseResponse(response);
+}
+
+// Parent Portal API
+export const parentPortalService = {
+  login: (data) =>
+    parentPortalRequest("/parent-portal/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  me: () => parentPortalRequest("/parent-portal/me"),
+  logout: () => {
+    localStorage.removeItem("parentPortalToken");
+  },
+};
+
 // Templates API
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
