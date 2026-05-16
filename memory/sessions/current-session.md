@@ -106,6 +106,13 @@
   - [x] Add frontend service, selectable `DataTable`, `BulkActionBar`, and bulk controls on Students/Parents/Receipts/Payments.
   - [x] Extend Playwright smoke to 13 tests.
   - [x] Smoke production without destructive mutation after Vercel deploy.
+- [x] Implement Phase C C4 Monthly Fee Automation dry-run.
+  - [x] Add Vercel `/api/monthly-fees/generate` admin-only dry-run/default route.
+  - [x] Add Express reference `/api/monthly-fees/generate` route for local E2E parity.
+  - [x] Add frontend service method and Playwright dry-run API contract coverage.
+  - [x] Extend Playwright smoke to 14 tests.
+  - [x] Smoke production dry-run after Vercel deploy.
+  - [ ] Enable cron and production mutation only after explicit approval.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -113,7 +120,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `53e1b42` after C1 scoped commit; production smoke evidence update is pending commit.
+- **Current Git HEAD observed in Codex session**: `26dfa7e` after C4 scoped commit; production smoke evidence update is pending commit.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -151,3 +158,5 @@
 - C11 production read-only smoke passed after commit `e05239e`: login succeeded, `GET /api/users` returned `success=true` with 2 users, and Google Chrome/Playwright production smoke for `/users` passed 1/1. No production user mutations were run.
 - C1 local smoke passed: typecheck, lint, unit 13/13, build, audits, local temporary-parent bulk delete, and `cd frontend && npm run test:e2e -- --reporter=list` 13/13.
 - C1 production smoke passed after commit `53e1b42`: bulk validation returned `400 VALIDATION_ERROR`, non-mutating missing-ID smoke returned `failed=1/NOT_FOUND`, and Google Chrome/Playwright production smoke for bulk selection passed 1/1. Destructive production bulk actions were not run.
+- C4 local smoke passed: typecheck, lint, unit 13/13, build, audits, and `cd frontend && npm run test:e2e -- --reporter=list` 14/14.
+- C4 production dry-run smoke passed after commit `26dfa7e`: `POST /api/monthly-fees/generate` with `dry_run=true` returned 22 active students, `would_create=22`, and Google Chrome/Playwright production smoke passed 1/1. Cron and `dry_run=false` production mutation were not run.

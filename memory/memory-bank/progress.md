@@ -1,5 +1,17 @@
 # Progress Log
 
+### 2026-05-16 — Phase C C4 Monthly Fee Automation Dry-Run Review
+- **Scope**: Add idempotent monthly fee generation without enabling unattended production mutation.
+- **Implementation**: Added Vercel `/api/monthly-fees/generate`, Express reference `/api/monthly-fees/generate`, `monthlyFeesService.generate`, and Playwright API contract coverage. Endpoint defaults to `dry_run=true`; `dry_run=false` only creates/updates `pending|ready` fees and skips `confirmed|paid`.
+- **Performance Fix**: Initial production dry-run hit Vercel 504 due N+1 attendance queries. The serverless handler was rewritten to use one monthly attendance `groupBy` and in-memory map aggregation.
+- **Verification Passed**: `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 13/13, `npm run build`, root/frontend audit 0 vulnerabilities, and `cd frontend && npm run test:e2e -- --reporter=list` 14/14.
+- **Production Smoke**: After commit `26dfa7e`, production dry-run for `2026-05` returned `success=true`, `total_students=22`, `would_create=22`, `would_update=0`, `skipped=0`; Google Chrome/Playwright production smoke passed 1/1.
+- **Evidence**: `receipts/2026-05-16-phase-c-monthly-fee-automation.md`.
+- **Remaining**: Vercel Cron config and `dry_run=false` production mutation are not enabled until explicit approval.
+- **STATUS**: REVIEW
+
+---
+
 ### 2026-05-16 — Phase C C1 Bulk Actions Production Closeout
 - **Scope**: Add multi-select bulk actions for Students, Parents, Receipts, and Payments without changing schema.
 - **Implementation**: Added Vercel `/api/bulk-actions`, Express reference `/api/bulk-actions`, shared `bulkActionsService`, selectable `DataTable`, reusable `BulkActionBar`, and bulk controls on the four target pages.
