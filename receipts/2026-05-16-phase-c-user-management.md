@@ -22,7 +22,9 @@
 - Frontend `npm audit --audit-level=high` passed: 0 vulnerabilities.
 - Local API smoke for `http://127.0.0.1:5000/api/users` passed after Express restart.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed: 12/12.
+- Production API smoke after commit `e05239e` passed: login succeeded; read-only `GET https://edu-manager-delta.vercel.app/api/users` returned `success=true`, `total=2`, `users_count=2`.
+- Production Google Chrome/Playwright smoke passed: `E2E_BASE_URL=https://edu-manager-delta.vercel.app npm run test:e2e -- --grep "user management" --reporter=list` returned 1/1 passed.
 
 ## Notes
 - No schema migration was required; C11 uses the existing `User` table.
-- Production smoke must stay read-only unless production mutation is explicitly approved.
+- Production user mutations were not run; create/update/deactivate/reset-password on production still require explicit approval.

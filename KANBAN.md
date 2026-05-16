@@ -204,7 +204,7 @@
 | C8 | Audit Log UI | Admin filterable activity log view | IMPLEMENTED | `receipts/2026-05-15-phase-c-audit-log-ui.md`; local 8/8 E2E + production API/browser smoke pass |
 | C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
 | C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
-| C11 | User Management | Admin CRUD users, reset password, deactivate | REVIEW | Local API/UI/E2E pass; production read-only smoke pending |
+| C11 | User Management | Admin CRUD users, reset password, deactivate | IMPLEMENTED | `receipts/2026-05-16-phase-c-user-management.md`; local 12/12 E2E + production read-only API/Google Chrome smoke pass |
 | C12 | Center Settings | Admin UI for center profile/logo/defaults | IMPLEMENTED | `receipts/2026-05-15-phase-c-center-settings.md`; local 9/9 E2E + production API/browser smoke pass |
 
 ---
@@ -264,9 +264,9 @@
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
 | Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 12/12, audit/tsc/build/lint pass |
-| Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C3 attendance insight deployed and smoked |
+| Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C3/C7/C8/C11/C12 Phase C slices deployed and smoked |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C3/C7/C8/C12 read-only/admin value slices are implemented. Production credential rotation remains before real operation.
+**Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C3/C7/C8/C11/C12 read-only/admin value slices are implemented. Production credential rotation remains before real operation.
 
 ---
 
@@ -325,4 +325,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-16 09:46
+**Last Updated:** 2026-05-16 09:50

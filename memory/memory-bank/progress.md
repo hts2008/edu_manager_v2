@@ -1,13 +1,14 @@
 # Progress Log
 
-### 2026-05-16 — Phase C C11 User Management Local Review
+### 2026-05-16 — Phase C C11 User Management Production Closeout
 - **Scope**: Add admin user management with list/create/update/deactivate/reset-password, using existing `User` schema.
 - **Implementation**: Added Vercel `/api/users` routes, Express reference route, `usersService`, `/users` route/sidebar item, `UserManagementPage`, and `UserModal`.
 - **Safety**: Server responses never return password hashes; deactivate/delete is implemented as status change; self-deactivation is blocked. Production smoke remains read-only unless the user explicitly approves mutation.
 - **Verification Passed**: `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run test:unit` 13/13, `npm run build`, root/frontend `npm audit --audit-level=high`, local `/api/users` smoke, and `cd frontend && npm run test:e2e -- --reporter=list` 12/12.
 - **Evidence**: `receipts/2026-05-16-phase-c-user-management.md`.
-- **Remaining**: Production deploy and read-only smoke before C11 can be marked `IMPLEMENTED`.
-- **STATUS**: REVIEW
+- **Production Smoke**: After commit `e05239e`, production login succeeded, read-only `GET /api/users` returned `success=true` with 2 users, and Google Chrome/Playwright production smoke passed 1/1 for `/users`.
+- **Remaining**: Production user mutations were not run and still require explicit approval.
+- **STATUS**: IMPLEMENTED
 
 ---
 

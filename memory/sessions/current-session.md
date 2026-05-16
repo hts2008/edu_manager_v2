@@ -94,12 +94,12 @@
   - [x] Add frontend service, sidebar item, route, `AdvancedReportsPage`, and CSV export.
   - [x] Extend Playwright smoke to 11 tests.
   - [x] Smoke production after Vercel deploy.
-- [ ] Implement Phase C C11 User Management.
+- [x] Implement Phase C C11 User Management.
   - [x] Add Vercel `/api/users` list/create/update/deactivate/reset-password routes.
   - [x] Add Express reference `/api/users` route for local E2E parity.
   - [x] Add frontend service, sidebar item, route, `UserManagementPage`, and `UserModal`.
   - [x] Extend Playwright smoke to 12 tests.
-  - [ ] Smoke production read-only after Vercel deploy.
+  - [x] Smoke production read-only after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -107,7 +107,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Current Git HEAD observed in Codex session**: `20949c2` after B7c scoped commit; production smoke evidence update is pending commit.
+- **Current Git HEAD observed in Codex session**: `e05239e` after C11 scoped commit; production smoke evidence update is pending commit.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -116,8 +116,8 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Push C11 scoped commit and wait for Vercel production deployment.
-2. Smoke production `/api/users` and `/users` read-only; do not create/update/deactivate/reset users in production without approval.
+1. Pick the next Phase C slice with explicit production boundary: C1 bulk actions, C2 import, C4 cron, C5/C6 communications, C9 backup, or C10 schema/soft-delete.
+2. Do not run production mutations, migrations, provider setup, or backup jobs without explicit approval.
 3. Rotate default credentials and JWT secret before real production operation.
 4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
@@ -142,3 +142,4 @@
 - C7 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 11/11 after adding advanced reports UI/API coverage.
 - C7 production smoke passed after commit `bc8880a`: `/api/reports/advanced` returned revenue trend, 5 teacher rows, and summary; Google Chrome/Playwright production smoke for `/advanced-reports` passed 1/1.
 - C11 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 12/12 after adding user management UI/API coverage.
+- C11 production read-only smoke passed after commit `e05239e`: login succeeded, `GET /api/users` returned `success=true` with 2 users, and Google Chrome/Playwright production smoke for `/users` passed 1/1. No production user mutations were run.
