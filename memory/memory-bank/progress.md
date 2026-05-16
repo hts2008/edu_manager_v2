@@ -1,5 +1,16 @@
 # Progress Log
 
+### 2026-05-16 — Phase C C3 Attendance Insight Production Closeout
+- **Scope**: Close C3 after deploying the read-only attendance insight API and UI.
+- **Implementation**: Pushed scoped commit `2986240` with Vercel `/api/attendance/insights`, Express reference parity, frontend service, `/attendance-insights` route, sidebar item, heatmap page, and E2E coverage.
+- **Production Smoke**: Admin API login succeeded; `GET /api/attendance/insights` returned `success=true`, 365 days, and 465 records for `2025-05-17` to `2026-05-16`.
+- **Browser Verification**: Google Chrome/Playwright production smoke for `attendance insights page and API contract are available` passed 1/1 against `https://edu-manager-delta.vercel.app`.
+- **Evidence**: `receipts/2026-05-15-phase-c-attendance-insight.md`.
+- **Degradation**: MCPProxy/Neural Memory/Context+ tools were still not exposed in this Codex session; markdown-only/manual write-back used.
+- **STATUS**: IMPLEMENTED
+
+---
+
 ### 2026-05-15 — Phase B Validation and Dependency Security
 - **Scope**: Continue Phase B with server-side validation and security audit remediation.
 - **Implemented**: Added zod validation helper and applied it to login, student, class, receipt, and payment write paths. Replaced vulnerable frontend `xlsx` export with CSV export. Removed root `vercel` and `@vercel/node` dependencies and replaced type imports with local type definitions.
