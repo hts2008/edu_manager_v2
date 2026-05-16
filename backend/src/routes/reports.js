@@ -127,4 +127,119 @@ router.get('/unpaid-students', (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+// GET /api/reports/advanced
+router.get('/advanced', adminOnly, (req, res, next) => {
+  try {
+    const today = new Date();
+    const defaultFrom = new Date(today.getFullYear(), today.getMonth() - 11, 1).toISOString().slice(0, 10);
+    const from = req.query.from || req.query.start_date || defaultFrom;
+    const to = req.query.to || req.query.end_date || today.toISOString().slice(0, 10);
+    const groupBy = req.query.group_by || req.query.groupBy || req.query.period || 'month';
+
+    let dateFormat = '%Y-%m';
+    if (groupBy === 'day' || groupBy === 'daily') dateFormat = '%Y-%m-%d';
+    if (groupBy === 'week' || groupBy === 'weekly') dateFormat = '%Y-W%W';
+    if (groupBy === 'year' || groupBy === 'yearly') dateFormat = '%Y';
+
+    const receiptRows = query(`
+      SELECT strftime('${dateFormat}', created_at) as period, COALESCE(SUM(amount), 0) as total
+      FROM receipts
+      WHERE date(created_at) >= ? AND date(created_at) <= ?
+      GROUP BY strftime('${dateFormat}', created_at)
+    `, [from, to]);
+    const paymentRows = query(`
+      SELECT strftime('${dateFormat}', created_at) as period, COALESCE(SUM(amount), 0) as total
+      FROM payments
+      WHERE date(created_at) >= ? AND date(created_at) <= ?
+      GROUP BY strftime('${dateFormat}', created_at)
+    `, [from, to]);
+
+    const revenueMap = new Map();
+    for (const row of receiptRows) {
+      revenueMap.set(row.period, {
+        period: row.period,
+        total_receipts: row.total || 0,
+        total_payments: 0,
+        net_revenue: row.total || 0,
+      });
+    }
+    for (const row of paymentRows) {
+      const current = revenueMap.get(row.period) || {
+        period: row.period,
+        total_receipts: 0,
+        total_payments: 0,
+        net_revenue: 0,
+      };
+      current.total_payments += row.total || 0;
+      current.net_revenue = current.total_receipts - current.total_payments;
+      revenueMap.set(row.period, current);
+    }
+
+    const teacherUtilization = query(`
+      SELECT
+        t.id as teacher_id,
+        COALESCE(t.full_name, 'Chua phan cong') as teacher_name,
+        COUNT(DISTINCT c.id) as active_classes,
+        COUNT(DISTINCT sc.student_id) as active_students,
+        COUNT(a.id) as total_sessions,
+        SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_sessions,
+        SUM(CASE WHEN a.status = 'absent_with_fee' THEN 1 ELSE 0 END) as absent_with_fee,
+        SUM(CASE WHEN a.status = 'absent_no_fee' THEN 1 ELSE 0 END) as absent_no_fee,
+        SUM(CASE WHEN a.status = 'holiday' THEN 1 ELSE 0 END) as holiday
+      FROM classes c
+      LEFT JOIN teachers t ON c.teacher_id = t.id
+      LEFT JOIN student_classes sc ON sc.class_id = c.id AND sc.status = 'active'
+      LEFT JOIN attendance a ON a.class_id = c.id AND date(a.attendance_date) >= ? AND date(a.attendance_date) <= ?
+      WHERE c.status = 'active'
+      GROUP BY t.id, t.full_name
+      ORDER BY active_classes DESC, teacher_name ASC
+    `, [from, to]).map((row) => ({
+      ...row,
+      teacher_id: row.teacher_id || null,
+      utilization_rate: row.total_sessions ? Math.round((row.present_sessions / row.total_sessions) * 100) : 0,
+    }));
+
+    const retentionCohort = query(`
+      SELECT
+        strftime('%Y-%m', enrollment_date) as cohort,
+        COUNT(*) as total_students,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_students,
+        SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive_students,
+        SUM(CASE WHEN status = 'graduated' THEN 1 ELSE 0 END) as graduated_students
+      FROM students
+      WHERE date(enrollment_date) >= ? AND date(enrollment_date) <= ?
+      GROUP BY strftime('%Y-%m', enrollment_date)
+      ORDER BY cohort ASC
+    `, [from, to]).map((row) => ({
+      ...row,
+      retention_rate: row.total_students ? Math.round((row.active_students / row.total_students) * 100) : 0,
+    }));
+
+    const totalReceipts = receiptRows.reduce((sum, row) => sum + (row.total || 0), 0);
+    const totalPayments = paymentRows.reduce((sum, row) => sum + (row.total || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        from,
+        to,
+        group_by: groupBy,
+        revenue_trend: Array.from(revenueMap.values()).sort((a, b) => a.period.localeCompare(b.period)),
+        teacher_utilization: teacherUtilization,
+        retention_cohort: retentionCohort,
+        summary: {
+          total_receipts: totalReceipts,
+          total_payments: totalPayments,
+          net_revenue: totalReceipts - totalPayments,
+          receipt_count: receiptRows.length,
+          payment_count: paymentRows.length,
+          active_teacher_count: teacherUtilization.filter((item) => item.teacher_id).length,
+          active_class_count: teacherUtilization.reduce((sum, item) => sum + (item.active_classes || 0), 0),
+          cohort_student_count: retentionCohort.reduce((sum, item) => sum + (item.total_students || 0), 0),
+        },
+      },
+    });
+  } catch (error) { next(error); }
+});
+
 export default router;

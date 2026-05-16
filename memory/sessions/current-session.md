@@ -88,6 +88,12 @@
   - [x] Add frontend service, sidebar item, route, and `AttendanceInsightsPage`.
   - [x] Extend Playwright smoke to 10 tests.
   - [x] Smoke production after Vercel deploy.
+- [ ] Implement Phase C C7 Advanced Reports.
+  - [x] Add Vercel `/api/reports/advanced` read-only route.
+  - [x] Add Express reference `/api/reports/advanced` route for local E2E parity.
+  - [x] Add frontend service, sidebar item, route, `AdvancedReportsPage`, and CSV export.
+  - [x] Extend Playwright smoke to 11 tests.
+  - [ ] Smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -104,9 +110,10 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Continue Phase C with a low-risk read-only/reporting slice before mutation/schema-heavy work.
-2. Rotate default credentials and JWT secret before real production operation.
-3. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+1. Push C7 scoped commit and wait for Vercel production deployment.
+2. Smoke production `/api/reports/advanced` and `/advanced-reports`.
+3. Rotate default credentials and JWT secret before real production operation.
+4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
@@ -126,3 +133,4 @@
 - C12 production smoke passed after commit `903544f`: `/api/center-settings` returned settings and `/settings` rendered in browser without console errors.
 - C3 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 10/10 after adding attendance insight UI/API coverage.
 - C3 production smoke passed after commit `2986240`: `/api/attendance/insights` returned 365 days and 465 records; Google Chrome/Playwright production smoke for `/attendance-insights` passed 1/1.
+- C7 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 11/11 after adding advanced reports UI/API coverage.

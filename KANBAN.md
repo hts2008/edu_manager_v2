@@ -200,7 +200,7 @@
 | C4 | Monthly Fee Automation | Idempotent monthly fee generation job | PLANNED | Needs cron/mutation approval |
 | C5 | Parent Portal | Read-only parent view for attendance, fees, receipts | PLANNED | OTP/SMS auth dependency |
 | C6 | Fee Reminders | SMS/Zalo overdue fee reminders | PLANNED | Needs provider and opt-in approval |
-| C7 | Advanced Reports | Revenue trend, teacher utilization, retention/cohort, stable export | PLANNED | Not started |
+| C7 | Advanced Reports | Revenue trend, teacher utilization, retention/cohort, stable export | REVIEW | Local API/UI/E2E pass; production smoke pending |
 | C8 | Audit Log UI | Admin filterable activity log view | IMPLEMENTED | `receipts/2026-05-15-phase-c-audit-log-ui.md`; local 8/8 E2E + production API/browser smoke pass |
 | C9 | Backup Automation | Weekly DB backup and restore drill | PLANNED | Needs backup target approval |
 | C10 | Soft Delete + Recycle Bin | `deletedAt` strategy and recovery UI | PLANNED | Needs schema migration plan |
@@ -263,7 +263,7 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 10/10, audit/tsc/build/lint pass |
+| Tests/CI | Phase B baseline implemented; unit 13/13, Playwright smoke 11/11, audit/tsc/build/lint pass |
 | Production usability | Usable for existing Phase A UI flows; validation/security hardening deployed and production-smoked; C3 attendance insight deployed and smoked |
 
 **Overall:** Production live and usable for existing Phase A UI flows; Phase B foundation, server-side validation, React Hook Form validation, audit cleanup, E2E smoke baseline, observability/security hardening, and Phase C C3/C8/C12 read-only/admin value slices are implemented. Production credential rotation remains before real operation.

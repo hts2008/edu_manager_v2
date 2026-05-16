@@ -92,6 +92,58 @@ export function exportFinancialReport(data, dateRange) {
   downloadCsv(`bao_cao_tai_chinh_${dateRange.from}_${dateRange.to}`, rows);
 }
 
+export function exportAdvancedReport(data, dateRange) {
+  const {
+    revenue_trend: revenueTrend = [],
+    teacher_utilization: teacherUtilization = [],
+    retention_cohort: retentionCohort = [],
+    summary = {},
+  } = data || {};
+  const rows = [
+    ["BAO CAO NANG CAO"],
+    [`Tu ${dateRange.from} den ${dateRange.to}`],
+    [],
+    ["TONG QUAN"],
+    ["Tong thu", summary.total_receipts || 0],
+    ["Tong chi", summary.total_payments || 0],
+    ["Doanh thu rong", summary.net_revenue || 0],
+    ["So lop dang hoat dong", summary.active_class_count || 0],
+    [],
+    ["XU HUONG DOANH THU"],
+    ["Ky", "Tong thu", "Tong chi", "Doanh thu rong"],
+    ...revenueTrend.map((item) => [
+      item.period,
+      item.total_receipts || 0,
+      item.total_payments || 0,
+      item.net_revenue || 0,
+    ]),
+    [],
+    ["HIEU SUAT GIAO VIEN"],
+    ["Giao vien", "Lop", "Hoc vien", "Buoi", "Co mat", "Ti le co mat"],
+    ...teacherUtilization.map((item) => [
+      item.teacher_name,
+      item.active_classes || 0,
+      item.active_students || 0,
+      item.total_sessions || 0,
+      item.present_sessions || 0,
+      `${item.utilization_rate || 0}%`,
+    ]),
+    [],
+    ["COHORT HOC VIEN"],
+    ["Cohort", "Tong", "Dang hoc", "Tam dung", "Da tot nghiep", "Ti le duy tri"],
+    ...retentionCohort.map((item) => [
+      item.cohort,
+      item.total_students || 0,
+      item.active_students || 0,
+      item.inactive_students || 0,
+      item.graduated_students || 0,
+      `${item.retention_rate || 0}%`,
+    ]),
+  ];
+
+  downloadCsv(`bao_cao_nang_cao_${dateRange.from}_${dateRange.to}`, rows);
+}
+
 export function exportTransactions(transactions) {
   const columns = [
     { key: "created_at", title: "Ngay" },
@@ -116,5 +168,6 @@ export default {
   exportToExcel,
   exportStudents,
   exportFinancialReport,
+  exportAdvancedReport,
   exportTransactions,
 };

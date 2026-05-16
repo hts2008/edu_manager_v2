@@ -1,5 +1,15 @@
 # Progress Log
 
+### 2026-05-16 — Phase C C7 Advanced Reports Local Review
+- **Scope**: Add read-only advanced reports with revenue trend, teacher utilization, retention cohort, and stable CSV export.
+- **Implementation**: Added Vercel `/api/reports/advanced`, Express reference parity route, `reportsService.getAdvanced`, `/advanced-reports` route/sidebar item, `AdvancedReportsPage`, and `exportAdvancedReport`.
+- **Verification Passed**: `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run test:unit` 13/13, `npm run build`, root/frontend `npm audit --audit-level=high`, and `cd frontend && npm run test:e2e -- --reporter=list` 11/11.
+- **Evidence**: `receipts/2026-05-16-phase-c-advanced-reports.md`.
+- **Remaining**: Production deploy and smoke before C7 can be marked `IMPLEMENTED`.
+- **STATUS**: REVIEW
+
+---
+
 ### 2026-05-16 — Phase C C3 Attendance Insight Production Closeout
 - **Scope**: Close C3 after deploying the read-only attendance insight API and UI.
 - **Implementation**: Pushed scoped commit `2986240` with Vercel `/api/attendance/insights`, Express reference parity, frontend service, `/attendance-insights` route, sidebar item, heatmap page, and E2E coverage.

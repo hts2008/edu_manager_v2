@@ -51,6 +51,7 @@ const routes = {
   receiptPdf: () => import("../server/api/receipts/[id]/pdf.js"),
   receiptsIndex: () => import("../server/api/receipts/index.js"),
   reportsDashboard: () => import("../server/api/reports/dashboard.js"),
+  reportsAdvanced: () => import("../server/api/reports/advanced.js"),
   reportsFinancial: () => import("../server/api/reports/financial.js"),
   reportsUnpaidStudents: () => import("../server/api/reports/unpaid-students.js"),
   studentsIndex: () => import("../server/api/students/index.js"),
@@ -97,6 +98,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     (resource === "attendance-periods" && parts.length === 2
       ? { load: routes.attendancePeriodById, params: { id } }
       : null) ||
+    exact(parts, ["reports", "advanced"], routes.reportsAdvanced) ||
     exact(parts, ["reports", "dashboard"], routes.reportsDashboard) ||
     exact(parts, ["reports", "financial"], routes.reportsFinancial) ||
     exact(parts, ["reports", "unpaid-students"], routes.reportsUnpaidStudents) ||

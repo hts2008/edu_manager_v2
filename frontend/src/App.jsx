@@ -21,6 +21,7 @@ import PaymentsPage from './pages/PaymentsPage';
 import FeeCollectionPage from './pages/FeeCollectionPage';
 import HistoryPage from './pages/HistoryPage';
 import ReportsPage from './pages/ReportsPage';
+import AdvancedReportsPage from './pages/AdvancedReportsPage';
 import TemplatesPage from './pages/TemplatesPage';
 import TemplateDesignerPage from './pages/TemplateDesignerPage';
 import AuditLogsPage from './pages/AuditLogsPage';
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="history" element={<HistoryPage />} />
               <Route path="templates" element={<TemplatesPage />} />
               <Route path="reports" element={<ReportsPage />} />
+              <Route path="advanced-reports" element={<AdvancedReportsPage />} />
               <Route path="audit-logs" element={<AuditLogsPage />} />
               <Route path="settings" element={<CenterSettingsPage />} />
             </Route>

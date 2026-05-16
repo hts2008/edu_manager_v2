@@ -101,10 +101,10 @@ Phase B observability/security baseline: added security headers, request ID prop
 Production B7c smoke: commit `20949c2` deployed to Vercel; `/api/auth/me` exposes the new security/request-id headers, production login + `/api/auth/me` succeeds for the approved admin smoke account, and browser `/payments` smoke shows no network/error text or console errors.
 
 ## Now Doing
-Phase C continuation after C3 closeout. Prefer low-risk read-only/reporting slices before mutation/schema/cron/SMS work.
+Phase C C7 Advanced Reports. Local API/UI/E2E gates pass; production deploy and smoke are pending.
 
 ## Next Recommended Action
-1. Continue Phase C with the next low-risk slice, likely C7 Advanced Reports, before mutation-heavy C1/C2/C4/C6/C9/C10/C11.
+1. Push C7 scoped commit and confirm Vercel production exposes `/api/reports/advanced` and `/advanced-reports`.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
 4. Keep remaining dirty framework/UI-polish changes out of Phase B commits unless explicitly reviewed.

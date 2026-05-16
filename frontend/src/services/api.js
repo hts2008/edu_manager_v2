@@ -294,6 +294,10 @@ export const templatesService = {
 // Reports API
 export const reportsService = {
   getDashboard: () => request("/reports/dashboard"),
+  getAdvanced: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/advanced${query ? `?${query}` : ""}`);
+  },
   getFinancial: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/financial${query ? `?${query}` : ""}`);

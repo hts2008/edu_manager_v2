@@ -194,3 +194,21 @@ test("attendance insights page and API contract are available", async ({ page, r
   expect(Array.isArray(body.data?.days)).toBeTruthy();
   expect(body.data?.summary).toBeTruthy();
 });
+
+test("advanced reports page and API contract are available", async ({ page, request }) => {
+  await seedAuth(page);
+  await expectHealthyPage(page, "/advanced-reports", 'main h1:has-text("Báo cáo nâng cao")');
+  await expect(page.getByRole("heading", { name: "Xu hướng doanh thu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hiệu suất giáo viên" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cohort học viên" })).toBeVisible();
+
+  const response = await request.get("/api/reports/advanced?from=2026-05-01&to=2026-05-31", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(Array.isArray(body.data?.revenue_trend)).toBeTruthy();
+  expect(Array.isArray(body.data?.teacher_utilization)).toBeTruthy();
+  expect(Array.isArray(body.data?.retention_cohort)).toBeTruthy();
+  expect(body.data?.summary).toBeTruthy();
+});
