@@ -7,6 +7,7 @@ import BulkActionBar from '../components/ui/BulkActionBar';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { receiptFormSchema } from '../utils/formValidation';
+import { openAuthenticatedPdf } from '../utils/pdfPrint';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
@@ -55,19 +56,12 @@ export default function ReceiptsPage() {
     loadReceipts();
   };
 
-  const handlePrintPdf = (receiptId) => {
-    const token = localStorage.getItem('token');
-    fetch(`/api/receipts/${receiptId}/pdf`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      })
-      .catch(() => {
-        toast.error('Không thể tạo PDF. Vui lòng thử lại.');
-      });
+  const handlePrintPdf = async (receiptId) => {
+    try {
+      await openAuthenticatedPdf(`/api/receipts/${receiptId}/pdf`);
+    } catch (error) {
+      toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
+    }
   };
 
   const handleSuccess = (receiptId) => {
@@ -133,7 +127,12 @@ export default function ReceiptsPage() {
           className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
           title="In PDF"
         >
-          🖨️
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9V2h12v7" />
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            <path d="M6 14h12v8H6z" />
+          </svg>
+          <span className="sr-only">In PDF</span>
         </button>
       ),
     },

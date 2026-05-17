@@ -5,6 +5,7 @@ import Modal from '../components/ui/Modal';
 import { exportTransactions } from '../utils/excelExport';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
+import { openAuthenticatedPdf } from '../utils/pdfPrint';
 
 // VI: Trang lịch sử giao dịch thu/chi
 export default function HistoryPage() {
@@ -138,23 +139,16 @@ export default function HistoryPage() {
     },
   ];
 
-  const handlePrintPdf = (transaction) => {
+  const handlePrintPdf = async (transaction) => {
     const endpoint = transaction.type === 'receipt' 
       ? `/api/receipts/${transaction.id}/pdf`
       : `/api/payments/${transaction.id}/pdf`;
-    
-    const token = localStorage.getItem('token');
-    fetch(endpoint, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      })
-      .catch(() => {
-        toast.error('Không thể tạo PDF. Vui lòng thử lại.');
-      });
+
+    try {
+      await openAuthenticatedPdf(endpoint);
+    } catch (error) {
+      toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
+    }
   };
 
   const handleDelete = async () => {

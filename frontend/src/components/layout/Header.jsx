@@ -1,101 +1,134 @@
-import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
-// VI: Header component với user menu và logout
+const routeMeta = [
+  { path: "/", title: "Tổng quan", group: "Vận hành" },
+  { path: "/students", title: "Học viên", group: "Vận hành" },
+  { path: "/parents", title: "Phụ huynh", group: "Vận hành" },
+  { path: "/classes", title: "Lớp học", group: "Vận hành" },
+  { path: "/teachers", title: "Giáo viên", group: "Vận hành" },
+  { path: "/attendance", title: "Điểm danh", group: "Vận hành" },
+  { path: "/attendance-insights", title: "Insight điểm danh", group: "Vận hành" },
+  { path: "/attendance-periods", title: "Chốt điểm danh", group: "Vận hành" },
+  { path: "/receipts", title: "Thu tiền", group: "Tài chính" },
+  { path: "/fee-collection", title: "Thu học phí", group: "Tài chính" },
+  { path: "/payments", title: "Chi tiền", group: "Tài chính" },
+  { path: "/history", title: "Lịch sử", group: "Tài chính" },
+  { path: "/reports", title: "Báo cáo", group: "Báo cáo" },
+  { path: "/advanced-reports", title: "Báo cáo nâng cao", group: "Báo cáo" },
+  { path: "/audit-logs", title: "Nhật ký", group: "Báo cáo" },
+  { path: "/templates", title: "Mẫu in", group: "Quản trị" },
+  { path: "/settings", title: "Cài đặt", group: "Quản trị" },
+  { path: "/users", title: "Người dùng", group: "Quản trị" },
+  { path: "/imports", title: "Import CSV", group: "Quản trị" },
+  { path: "/fee-reminders", title: "Nhắc học phí", group: "Quản trị" },
+  { path: "/backups", title: "Sao lưu", group: "Quản trị" },
+  { path: "/recycle-bin", title: "Thùng rác", group: "Quản trị" },
+];
+
+function getRouteMeta(pathname) {
+  return (
+    routeMeta
+      .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
+      .sort((a, b) => b.path.length - a.path.length)[0] || routeMeta[0]
+  );
+}
+
 export default function Header({ onMenuClick }) {
   const { user, logout } = useAuth();
+  const { pathname } = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const currentRoute = useMemo(() => getRouteMeta(pathname), [pathname]);
+  const roleLabel = user?.role === "admin" ? "Admin" : "Lễ tân";
 
   return (
-    <header className="header sticky top-0 z-30">
-      {/* Mobile menu button */}
-      <button 
-        onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-      >
-        <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="hidden lg:flex items-center justify-center w-10 h-10 bg-primary-100 rounded-lg">
-          <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-        </div>
-        <span className="hidden lg:block font-semibold text-gray-900">Edu Manager</span>
-      </div>
-
-      {/* Right side */}
-      <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-        </button>
-
-        {/* User menu */}
-        <div className="relative">
-          <button 
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 pr-3 rounded-full hover:bg-gray-100 transition-colors"
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 backdrop-blur-xl lg:px-6">
+      <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 lg:hidden"
+            aria-label="Mở menu"
           >
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-primary-700">
-                {user?.full_name?.charAt(0) || 'U'}
-              </span>
-            </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700">
-              {user?.full_name || 'User'}
-            </span>
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
-          {/* Dropdown */}
-          {showUserMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.role === 'admin' ? 'Quản trị viên' : 'Lễ tân'}</p>
-                </div>
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Thông tin cá nhân
-                </button>
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                  </svg>
-                  Đổi mật khẩu
-                </button>
-                <div className="border-t border-gray-100 mt-2 pt-2">
-                  <button 
-                    onClick={logout}
-                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Đăng xuất
-                  </button>
-                </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+              <span>{currentRoute.group}</span>
+              <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block" />
+              <span className="hidden sm:inline">Production</span>
+            </div>
+            <h1 className="truncate text-lg font-bold text-slate-950 sm:text-xl">
+              {currentRoute.title}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 md:flex">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Online
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowUserMenu((value) => !value)}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-slate-50 sm:px-3"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-sm font-bold text-blue-700">
+                {user?.full_name?.charAt(0) || user?.username?.charAt(0) || "U"}
               </div>
-            </>
-          )}
+              <div className="hidden min-w-0 sm:block">
+                <p className="max-w-36 truncate text-sm font-semibold text-slate-900">
+                  {user?.full_name || user?.username || "User"}
+                </p>
+                <p className="text-xs text-slate-500">{roleLabel}</p>
+              </div>
+              <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showUserMenu && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Đóng menu người dùng"
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="truncate text-sm font-bold text-slate-950">
+                      {user?.full_name || user?.username}
+                    </p>
+                    <p className="text-xs text-slate-500">{roleLabel}</p>
+                  </div>
+                  <button className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">
+                    Thông tin cá nhân
+                  </button>
+                  <button className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">
+                    Đổi mật khẩu
+                  </button>
+                  <div className="border-t border-slate-100 p-2">
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>

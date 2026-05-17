@@ -209,6 +209,19 @@
 
 ---
 
+## PRODUCTION UX / PDF HARDENING - 2026-05-17
+
+**Objective:** close the visible receipt-print defect and make the expanded product surface easier to operate before the next production-live pass.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| UXPDF-001 | Fix Vietnamese receipt/payment PDF rendering | `lib/pdf.ts`, `backend/src/services/pdfService.js`, `tests/pdf.test.ts` | REVIEW | `receipts/2026-05-17-pdf-ux-production-hardening.md`; unit PDF asserts `/ToUnicode` + Roboto and local API PDF E2E passes |
+| UXPDF-002 | Harden frontend PDF print flow | `frontend/src/utils/pdfPrint.js`, receipt/history/fee pages | REVIEW | Shared opener checks status/content-type, closes failed popup, revokes object URLs |
+| UXNAV-001 | Group navigation into primary/secondary sections | `Sidebar.jsx`, `Header.jsx`, `MainLayout.jsx`, `DataTable.jsx`, `index.css` | REVIEW | Chrome-channel Playwright UX smoke desktop/mobile passes with no horizontal overflow |
+| UXDES-001 | Sync Figma source-of-truth UX frame | Figma `EDUMANAGER`, Stitch project `12785236930566023458` | REVIEW | Figma page `EDU_MANAGER_V2 Production UX`; nodes tokens `3:3`, desktop `3:36`, mobile `3:142` |
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |

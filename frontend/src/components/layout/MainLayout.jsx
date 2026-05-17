@@ -4,29 +4,23 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import PageTransition from "../ui/PageTransition";
 
-// VI: Main layout với Header, Sidebar, Page transitions và Content area
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 flex">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-slate-100">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-0">
-        {/* Header */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Page content with transitions */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">
+        <main className="flex-1 overflow-auto px-3 py-4 sm:px-4 lg:px-6 lg:py-6">
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>
         </main>
 
-        {/* Mobile bottom safe area */}
         <div className="h-safe-area-inset-bottom lg:hidden" />
       </div>
     </div>

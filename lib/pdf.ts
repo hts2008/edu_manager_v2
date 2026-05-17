@@ -4,16 +4,31 @@ import { parseJsonConfig } from "./api-utils.js";
 
 type PdfData = Record<string, unknown>;
 
-const fonts = {
-  Roboto: {
-    normal: "Helvetica",
-    bold: "Helvetica-Bold",
-    italics: "Helvetica-Oblique",
-    bolditalics: "Helvetica-BoldOblique",
+const require = createRequire(import.meta.url);
+const vfsFonts = require("pdfmake/build/vfs_fonts.js");
+const pdfMakeVfs =
+  vfsFonts.pdfMake?.vfs ||
+  vfsFonts.default?.pdfMake?.vfs ||
+  vfsFonts.default ||
+  vfsFonts;
+const virtualFileSystem = {
+  existsSync(filename: string) {
+    return typeof pdfMakeVfs[filename] === "string";
+  },
+  readFileSync(filename: string) {
+    return Buffer.from(pdfMakeVfs[filename], "base64");
   },
 };
 
-const require = createRequire(import.meta.url);
+const fonts = {
+  Roboto: {
+    normal: "Roboto-Regular.ttf",
+    bold: "Roboto-Medium.ttf",
+    italics: "Roboto-Italic.ttf",
+    bolditalics: "Roboto-MediumItalic.ttf",
+  },
+};
+
 const PrinterModule = require("pdfmake/js/Printer.js");
 const PdfPrinterCtor = (PrinterModule.default?.default ||
   PrinterModule.default ||
@@ -28,7 +43,7 @@ const urlResolver = {
   resolved: async () => undefined,
 };
 
-const printer = new PdfPrinterCtor(fonts, undefined, urlResolver);
+const printer = new PdfPrinterCtor(fonts, virtualFileSystem, urlResolver);
 
 const paperSizes: Record<string, { width: number; height: number }> = {
   a4: { width: 210, height: 297 },

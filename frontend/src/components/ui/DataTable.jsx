@@ -98,10 +98,10 @@ export default function DataTable({
   }, [searchTerm]);
 
   return (
-    <div className="card">
+    <div className="card overflow-hidden">
       {/* Search */}
-      <div className="card-header flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
             fill="none"
@@ -209,7 +209,7 @@ export default function DataTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="card-body border-t border-gray-200 flex items-center justify-between">
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
           <span className="text-sm text-gray-500">
             Trang {currentPage} / {totalPages}
           </span>

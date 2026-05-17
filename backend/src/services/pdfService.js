@@ -1,24 +1,38 @@
-import PdfPrinter from 'pdfmake';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // VI: PDF Service - Generate PDF từ template và data
 
-// Font definitions
-const fonts = {
-  Roboto: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique'
+const require = createRequire(import.meta.url);
+const vfsFonts = require('pdfmake/build/vfs_fonts.js');
+const pdfMakeVfs = vfsFonts.pdfMake?.vfs || vfsFonts.default?.pdfMake?.vfs || vfsFonts.default || vfsFonts;
+const virtualFileSystem = {
+  existsSync(filename) {
+    return typeof pdfMakeVfs[filename] === 'string';
+  },
+  readFileSync(filename) {
+    return Buffer.from(pdfMakeVfs[filename], 'base64');
   }
 };
 
-const printer = new PdfPrinter(fonts);
+// Font definitions
+const fonts = {
+  Roboto: {
+    normal: 'Roboto-Regular.ttf',
+    bold: 'Roboto-Medium.ttf',
+    italics: 'Roboto-Italic.ttf',
+    bolditalics: 'Roboto-MediumItalic.ttf'
+  }
+};
+
+const PrinterModule = require('pdfmake/js/Printer.js');
+const PdfPrinterCtor = PrinterModule.default?.default || PrinterModule.default || PrinterModule;
+const printer = new PdfPrinterCtor(fonts, virtualFileSystem);
 
 // Convert mm to points (1mm = 2.835 points)
 const mmToPt = (mm) => mm * 2.835;
@@ -169,19 +183,15 @@ export async function generatePdf(template, data = {}) {
     },
   };
   
+  const pdfDoc = await printer.createPdfKitDocument(docDefinition);
   return new Promise((resolve, reject) => {
-    try {
-      const pdfDoc = printer.createPdfKitDocument(docDefinition);
-      const chunks = [];
-      
-      pdfDoc.on('data', (chunk) => chunks.push(chunk));
-      pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-      pdfDoc.on('error', reject);
-      
-      pdfDoc.end();
-    } catch (error) {
-      reject(error);
-    }
+    const chunks = [];
+
+    pdfDoc.on('data', (chunk) => chunks.push(chunk));
+    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+    pdfDoc.on('error', reject);
+
+    pdfDoc.end();
   });
 }
 
@@ -191,7 +201,7 @@ function formatCurrency(amount) {
 }
 
 // Convert number to Vietnamese words
-function numberToWords(num) {
+export function numberToWords(num) {
   const ones = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
   const tens = ['', 'mười', 'hai mươi', 'ba mươi', 'bốn mươi', 'năm mươi', 'sáu mươi', 'bảy mươi', 'tám mươi', 'chín mươi'];
   

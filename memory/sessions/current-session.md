@@ -137,6 +137,15 @@
   - [x] Confirm no local listeners on 3000/5000.
   - [x] Run out-of-scope marker scan.
   - [x] Update KANBAN, active context, progress, and receipt.
+- [x] Implement PDF + UX production hardening.
+  - [x] Diagnose garbled Vietnamese receipt PDF with hypothesis testing.
+  - [x] Embed Unicode Roboto fonts in Vercel and Express PDF generation.
+  - [x] Fix Express reference pdfmake 0.3 constructor/async API issues.
+  - [x] Harden frontend print flow for receipts, history, and fee collection.
+  - [x] Redesign shell navigation into main/secondary grouped menus.
+  - [x] Sync Figma source-of-truth UX frames and inspect Figma context.
+  - [x] Verify unit/type/lint/build and local Chrome-channel E2E.
+  - [ ] Push scoped patch and smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -153,10 +162,11 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Rotate default credentials and JWT secret before real production operation.
-2. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-3. Plan Phase D only when there is a concrete customer or market requirement.
-4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+1. Push scoped UX/PDF patch and verify the Vercel production deploy.
+2. Smoke production receipt/payment PDF after deploy.
+3. Rotate default credentials and JWT secret before real production operation.
+4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+5. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.

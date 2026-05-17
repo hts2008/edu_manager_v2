@@ -21,10 +21,11 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-2. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-3. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable.
-4. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Production UX/PDF Hardening** - receipt/payment PDF Unicode fix, print-flow hardening, grouped navigation shell, and Figma UX source-of-truth are in REVIEW pending production deploy/smoke.
+2. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+3. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+4. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable.
+5. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention React 18.
@@ -112,11 +113,14 @@ Phase C operations + soft-delete closeout: commit `142b99a` deployed to Vercel; 
 
 Final verification + write-back closeout: commit `4fb8297` was pushed and matches `origin/main`; production probes returned `/` 200, protected API routes 401, and cron routes 403; local ports 3000/5000 had no listeners; out-of-scope marker scan returned no matches. `B2B-005` and `B2B-008` are closed with receipt `receipts/2026-05-17-final-verification-writeback.md`.
 
+Production UX/PDF hardening pass: fixed pdfmake Unicode embedding for Vercel and Express PDF generation, exported/reference-fixed Express `numberToWords`, hardened frontend PDF opening, grouped sidebar navigation into main/secondary sections, synced a Figma UX frame, and added `frontend/e2e/ux-redesign-smoke.spec.js`. Local verification passed: unit 20/20, typecheck, lint max-warnings=0, build, targeted UX smoke 3/3, and full local E2E 20/20. Evidence: `receipts/2026-05-17-pdf-ux-production-hardening.md`.
+
 ## Now Doing
-Phase A/B/C and operational closeout tasks are complete. Current state is production-live, verified, and ready for operational credential rotation/provider setup outside the code closeout.
+Production UX/PDF hardening is in REVIEW pending scoped commit/push and production deploy smoke.
 
 ## Next Recommended Action
-1. Rotate production default credentials and JWT secret before real operation.
-2. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-3. Plan Phase D only when there is a concrete customer/market requirement.
-4. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
+1. Push the scoped UX/PDF patch and confirm Vercel production deploy.
+2. Smoke production receipt/payment PDF after deploy, including Vietnamese text rendering.
+3. Rotate production default credentials and JWT secret before real operation.
+4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
+5. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.

@@ -3,6 +3,7 @@ import { studentsService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
+import { openAuthenticatedPdf } from '../utils/pdfPrint';
 
 // VI: Thu học phí theo tháng với đầy đủ thông tin học viên
 
@@ -139,16 +140,9 @@ export default function FeeCollectionPage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/receipts/${fee.receipt_id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('PDF request failed');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch {
-      toast.error('Không thể tạo PDF. Vui lòng thử lại.');
+      await openAuthenticatedPdf(`/api/receipts/${fee.receipt_id}/pdf`);
+    } catch (error) {
+      toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
     }
   };
 
