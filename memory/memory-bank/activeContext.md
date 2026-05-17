@@ -23,8 +23,8 @@
 ## Current Sprint Focus
 1. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
 2. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-3. **Operational Hygiene** — keep app-code changes isolated from framework drift.
-4. **Product Expansion** — UI/UX improvements and seed expansion remain secondary until Phase B reliability gates are stable.
+3. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable.
+4. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention React 18.
@@ -110,11 +110,13 @@ Phase C C2 Student CSV Import: commit `aed68f2` deployed to Vercel; added admin-
 
 Phase C operations + soft-delete closeout: commit `142b99a` deployed to Vercel; C4 cron/monthly fee generation, C5 parent portal, C6 fee reminders, C9 encrypted Blob backup, and C10 soft delete/recycle bin are implemented. `npx prisma db push` synced the Neon schema; production smoke generated 22 monthly fees for 2026-05, verified cron 403 without auth, uploaded and verified an encrypted backup, tested recycle-bin delete/purge with a temporary record, verified parent portal login/data, and passed Google Chrome UI smoke for `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal`.
 
+Final verification + write-back closeout: commit `4fb8297` was pushed and matches `origin/main`; production probes returned `/` 200, protected API routes 401, and cron routes 403; local ports 3000/5000 had no listeners; out-of-scope marker scan returned no matches. `B2B-005` and `B2B-008` are closed with receipt `receipts/2026-05-17-final-verification-writeback.md`.
+
 ## Now Doing
-Phase C C1-C12 implementation is complete. Current work is closeout documentation, board/memory sync, and preserving git hygiene around unrelated framework drift.
+Phase A/B/C and operational closeout tasks are complete. Current state is production-live, verified, and ready for operational credential rotation/provider setup outside the code closeout.
 
 ## Next Recommended Action
 1. Rotate production default credentials and JWT secret before real operation.
 2. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-3. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
-4. Keep remaining dirty framework/UI-polish changes out of product commits unless explicitly reviewed.
+3. Plan Phase D only when there is a concrete customer/market requirement.
+4. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.

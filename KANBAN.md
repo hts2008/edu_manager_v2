@@ -224,10 +224,10 @@
 | B2B-002 | Register approved plan tasks before code | KANBAN operational rows | project-planner | B2B-001 | ✅ IMPLEMENTED | All tasks registered with owner, scope, dependencies, status, gates |
 | B2B-003 | Doctrine diff audit | `GEMINI.md`, `CLAUDE.md`, `CODEX.md`, memory/session files | project-planner + documentation-writer | B2B-002 | ✅ IMPLEMENTED | Workspace scan identified external path/name contamination; no app-code mutation |
 | B2B-004 | Minimal doctrine contamination cleanup | Canonical doctrine and memory truth files only | documentation-writer | B2B-003 | ✅ IMPLEMENTED | Post-clean scan clean for external workspace names and out-of-scope paths |
-| B2B-005 | Context+ blocker handling and deep-sync reconciliation | Context+ status, KANBAN, activeContext, current-session | memory-curator + debugger | B2B-004 | PLANNED | C+ tool passes or degraded fallback recorded with evidence |
+| B2B-005 | Context+ blocker handling and deep-sync reconciliation | Context+ status, KANBAN, activeContext, current-session | memory-curator + debugger | B2B-004 | IMPLEMENTED | `receipts/2026-05-17-final-verification-writeback.md`; C+/NM unavailable in Codex, degraded markdown-only fallback recorded |
 | B2B-006 | UI/UX Improvements | Frontend UI focused enhancement | frontend-specialist | Phase A API parity | DEFERRED | Existing design patterns followed; lint/build/browser evidence captured |
 | B2B-007 | More Seed Data | `prisma/schema.prisma`, seed script | backend-specialist | Phase A API parity + approved DB target | DEFERRED | Schema-safe realistic seed additions; no production mutation without approval |
-| B2B-008 | Final verification and write-back | Evidence, receipts, memory, KANBAN, walkthrough | test-engineer + memory-curator | Phase A closeout | PLANNED | Git status, contamination scan, verification output, NM write-back |
+| B2B-008 | Final verification and write-back | Evidence, receipts, memory, KANBAN, walkthrough | test-engineer + memory-curator | Phase A closeout | IMPLEMENTED | `receipts/2026-05-17-final-verification-writeback.md`; production health probes, git alignment, scope scan, memory/KANBAN write-back |
 
 ---
 
@@ -325,4 +325,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-16 12:35
+**Last Updated:** 2026-05-17 09:40

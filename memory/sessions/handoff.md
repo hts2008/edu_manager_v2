@@ -1,5 +1,14 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Final Verification + Write-Back - 2026-05-17
+- **Mode**: Operational closeout.
+- **Current Outcome**: Phase A/B/C and B2B-005/B2B-008 closeout are implemented with evidence.
+- **Latest docs/evidence commit before this update**: `4fb8297 docs(phase-c): record operations closeout`.
+- **Verification**: Production `/` returned 200; protected APIs returned 401; cron routes returned 403; branch `main` matched `origin/main`; local ports 3000/5000 had no listeners; out-of-scope marker scan returned no matches.
+- **Evidence**: `receipts/2026-05-17-final-verification-writeback.md`.
+- **Tooling note**: MCPProxy/Neural Memory and Context+ tools were unavailable in this Codex turn, so B2B-005 was closed with degraded markdown-only fallback.
+- **Remaining operational follow-up**: rotate default credentials/JWT secret; keep live reminder send disabled until provider, opt-in policy, and message templates are approved.
+
 ## Phase C Operations + Soft Delete Closeout - 2026-05-16
 - **Mode**: Phase C completion after explicit approval.
 - **Current Outcome**: Phase A API parity, Phase B hardening, and Phase C C1-C12 product slices are implemented and production-smoked.

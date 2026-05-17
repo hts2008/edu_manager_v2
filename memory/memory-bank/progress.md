@@ -312,3 +312,13 @@
 - **Production Smoke**: Vercel deployment for `142b99a` reached Production Current Ready; backup upload/verify passed; unauthenticated cron returned 403; fee reminder preview returned 22 and live send remained disabled; recycle-bin temp delete/purge passed; parent portal login returned 2 students; Google Chrome UI smoke for `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal` passed with no API failures.
 - **Operational Note**: Live SMS/Zalo delivery remains disabled until provider webhook, opt-in policy, and `REMINDER_SEND_ENABLED=true` are intentionally configured. MCPProxy/Neural Memory/Context+ were unavailable in this Codex turn, so write-back used markdown files only.
 - **STATUS**: IMPLEMENTED
+
+---
+
+### 2026-05-17 - Final Verification + Write-Back
+- **Scope**: Close B2B-005 and B2B-008 after Phase C closeout.
+- **Verification**: Production probes returned `/` 200, protected API routes 401, and cron endpoints 403. Branch `main` HEAD `4fb8297` matches `origin/main`. Local ports 3000/5000 have no listeners.
+- **Scope Hygiene**: Text scan for out-of-scope markers returned no matches.
+- **Tooling**: MCPProxy/Neural Memory/Context+ tools were not exposed in this Codex turn; final write-back was completed in markdown-only degraded mode.
+- **Evidence**: `receipts/2026-05-17-final-verification-writeback.md`.
+- **STATUS**: IMPLEMENTED

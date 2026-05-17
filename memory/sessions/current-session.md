@@ -112,7 +112,7 @@
   - [x] Add frontend service method and Playwright dry-run API contract coverage.
   - [x] Extend Playwright smoke to 14 tests.
   - [x] Smoke production dry-run after Vercel deploy.
-  - [ ] Enable cron and production mutation only after explicit approval.
+  - [x] Enable cron and production mutation after explicit approval in the C4/C5/C6/C9/C10 closeout slice.
 - [x] Implement Phase C C2 Student CSV Import.
   - [x] Add shared CSV parser/preview validation and duplicate detection.
   - [x] Add Vercel `/api/import/students` admin-only preview/commit route.
@@ -130,6 +130,13 @@
   - [x] Add `deleted_at` soft delete and admin recycle-bin UI/API.
   - [x] Sync Neon schema with `npx prisma db push`.
   - [x] Smoke production API and Chrome UI after Vercel deploy.
+- [x] Complete B2B-005/B2B-008 final verification and write-back.
+  - [x] Record C+/NM unavailable degraded fallback.
+  - [x] Probe production health without logging secrets.
+  - [x] Confirm `main` HEAD matches `origin/main`.
+  - [x] Confirm no local listeners on 3000/5000.
+  - [x] Run out-of-scope marker scan.
+  - [x] Update KANBAN, active context, progress, and receipt.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -148,8 +155,8 @@
 ## Next Recommended
 1. Rotate default credentials and JWT secret before real production operation.
 2. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-3. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
-4. Treat MCPProxy/Neural Memory/Context+ as degraded in this Codex session unless the tools become available again.
+3. Plan Phase D only when there is a concrete customer or market requirement.
+4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
@@ -184,3 +191,4 @@
 - C4/C5/C6/C9/C10 production smoke passed: Vercel showed `142b99a` as Production Current Ready; production monthly fee generation created 22 fees for 2026-05; cron no-auth probe returned 403; backup upload + verify passed; fee reminder preview returned 22 and send stayed disabled; recycle-bin temp delete/purge passed; parent portal login/data passed.
 - C4/C5/C6/C9/C10 Chrome UI smoke passed: `/fee-reminders`, `/backups`, `/recycle-bin`, `/parent-login`, and `/parent-portal` rendered with no API failures or network/internal-error text.
 - Remaining operational follow-up: live SMS/Zalo delivery is disabled until provider webhook and opt-in policy are approved; default admin credentials must be rotated before real operation.
+- Final verification passed on 2026-05-17: production `/` returned 200, protected APIs returned 401, cron routes returned 403, `main` HEAD matched `origin/main`, local ports 3000/5000 had no listeners, and out-of-scope marker scan returned no matches. Evidence: `receipts/2026-05-17-final-verification-writeback.md`.
