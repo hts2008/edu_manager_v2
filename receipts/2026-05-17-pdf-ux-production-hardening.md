@@ -35,10 +35,14 @@
 - `npm run build` passed; existing Vite chunk-size/dynamic-import warnings remain.
 - `cd frontend && npm run test:e2e -- e2e/ux-redesign-smoke.spec.js --reporter=list` passed: 3/3.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed: 20/20.
+- Production PDF smoke on `https://edu-manager-delta.vercel.app` passed after commit `f544464` deployed: receipt PDF returned 200, `application/pdf`, 16871 bytes, starts with `%PDF`, includes `/ToUnicode`, includes `Roboto`, and does not include `Helvetica`.
+- Production Chrome-channel UI smoke for `/receipts` passed: desktop and mobile grouped menu render, horizontal overflow is 0, and API failure list is empty.
 - Screenshots captured:
   - `frontend/output/playwright/ux-redesign-desktop.png`
   - `frontend/output/playwright/ux-redesign-mobile.png`
   - `frontend/output/playwright/dashboard-desktop.png`
+  - `frontend/output/playwright/prod-ux-receipts-desktop.png`
+  - `frontend/output/playwright/prod-ux-receipts-mobile.png`
 
 ## Files
 - `lib/pdf.ts`
@@ -57,6 +61,5 @@
 - `frontend/e2e/ux-redesign-smoke.spec.js`
 
 ## Remaining Operational Notes
-- Production deploy/smoke still needs to run after this scoped patch is pushed.
 - `REMINDER_SEND_ENABLED` must stay false until a real SMS/Zalo provider, opt-in policy, rate controls, and approved templates are configured.
 - Existing broader workspace drift remains outside this task and must not be staged with this patch.

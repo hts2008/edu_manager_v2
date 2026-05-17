@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest scoped product code commit observed in Codex session**: `142b99a` after Phase C operations + soft-delete closeout; evidence is recorded in `receipts/2026-05-16-phase-c-operations-soft-delete.md`.
+- **Latest scoped product code commit observed in Codex session**: `f544464` after PDF + UX production hardening; evidence is recorded in `receipts/2026-05-17-pdf-ux-production-hardening.md`.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -21,7 +21,7 @@
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
 ## Current Sprint Focus
-1. **Production UX/PDF Hardening** - receipt/payment PDF Unicode fix, print-flow hardening, grouped navigation shell, and Figma UX source-of-truth are in REVIEW pending production deploy/smoke.
+1. **Production UX/PDF Hardening** - receipt/payment PDF Unicode fix, print-flow hardening, grouped navigation shell, and Figma UX source-of-truth are implemented and production-smoked.
 2. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
 3. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
 4. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable.
@@ -113,14 +113,13 @@ Phase C operations + soft-delete closeout: commit `142b99a` deployed to Vercel; 
 
 Final verification + write-back closeout: commit `4fb8297` was pushed and matches `origin/main`; production probes returned `/` 200, protected API routes 401, and cron routes 403; local ports 3000/5000 had no listeners; out-of-scope marker scan returned no matches. `B2B-005` and `B2B-008` are closed with receipt `receipts/2026-05-17-final-verification-writeback.md`.
 
-Production UX/PDF hardening pass: fixed pdfmake Unicode embedding for Vercel and Express PDF generation, exported/reference-fixed Express `numberToWords`, hardened frontend PDF opening, grouped sidebar navigation into main/secondary sections, synced a Figma UX frame, and added `frontend/e2e/ux-redesign-smoke.spec.js`. Local verification passed: unit 20/20, typecheck, lint max-warnings=0, build, targeted UX smoke 3/3, and full local E2E 20/20. Evidence: `receipts/2026-05-17-pdf-ux-production-hardening.md`.
+Production UX/PDF hardening pass: commit `f544464` fixed pdfmake Unicode embedding for Vercel and Express PDF generation, exported/reference-fixed Express `numberToWords`, hardened frontend PDF opening, grouped sidebar navigation into main/secondary sections, synced a Figma UX frame, and added `frontend/e2e/ux-redesign-smoke.spec.js`. Local verification passed: unit 20/20, typecheck, lint max-warnings=0, build, targeted UX smoke 3/3, and full local E2E 20/20. Production smoke passed: receipt PDF is a 16871-byte Unicode PDF with `/ToUnicode` and Roboto, and `/receipts` grouped menu has no API failure or horizontal overflow. Evidence: `receipts/2026-05-17-pdf-ux-production-hardening.md`.
 
 ## Now Doing
-Production UX/PDF hardening is in REVIEW pending scoped commit/push and production deploy smoke.
+Production UX/PDF hardening is implemented and production-smoked. The system is ready for operational credential rotation/provider setup outside the code closeout.
 
 ## Next Recommended Action
-1. Push the scoped UX/PDF patch and confirm Vercel production deploy.
-2. Smoke production receipt/payment PDF after deploy, including Vietnamese text rendering.
-3. Rotate production default credentials and JWT secret before real operation.
-4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-5. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
+1. Rotate production default credentials and JWT secret before real operation.
+2. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
+3. Continue UI production polish by page-specific workflows only after the core shell/PDF fix is stable.
+4. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.

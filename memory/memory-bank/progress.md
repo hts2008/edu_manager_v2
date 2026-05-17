@@ -330,5 +330,6 @@
 - **Implementation**: Embedded pdfmake Roboto VFS fonts in `lib/pdf.ts` and `backend/src/services/pdfService.js`; fixed Express reference pdfmake 0.3 constructor/async document creation; added shared `openAuthenticatedPdf`; replaced raw print blob handling in receipts/history/fee collection; rebuilt sidebar/header/layout/table shell; added Chrome-channel UX/PDF E2E smoke.
 - **Design Sync**: Stitch project `12785236930566023458` and design screen `11130771813747459123` were created; Stitch variant/design-system calls returned `invalid argument`. Figma file `EDUMANAGER` was updated with page `EDU_MANAGER_V2 Production UX`, tokens `3:3`, desktop shell `3:36`, and mobile drawer `3:142`; design context was inspected.
 - **Validation**: `npm run test:unit` 20/20, `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run build`, targeted UX smoke 3/3, and full local Playwright E2E 20/20 all passed.
+- **Production Smoke**: Commit `f544464` deployed; production receipt PDF returned 200 `application/pdf`, 16871 bytes, `%PDF`, `/ToUnicode`, Roboto, and no Helvetica. Production `/receipts` desktop/mobile menu grouping rendered with no API failures and horizontal overflow 0.
 - **Evidence**: `receipts/2026-05-17-pdf-ux-production-hardening.md`.
-- **STATUS**: REVIEW - production deploy/smoke pending.
+- **STATUS**: IMPLEMENTED

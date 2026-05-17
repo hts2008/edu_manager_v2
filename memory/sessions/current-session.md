@@ -145,7 +145,7 @@
   - [x] Redesign shell navigation into main/secondary grouped menus.
   - [x] Sync Figma source-of-truth UX frames and inspect Figma context.
   - [x] Verify unit/type/lint/build and local Chrome-channel E2E.
-  - [ ] Push scoped patch and smoke production after Vercel deploy.
+  - [x] Push scoped patch and smoke production after Vercel deploy.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -153,7 +153,7 @@
 - **Production URL**: https://edu-manager-delta.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest scoped product code commit observed in Codex session**: `142b99a` after Phase C operations + soft-delete closeout; production smoke evidence is recorded in `receipts/2026-05-16-phase-c-operations-soft-delete.md`.
+- **Latest scoped product code commit observed in Codex session**: `f544464` after PDF + UX production hardening; production smoke evidence is recorded in `receipts/2026-05-17-pdf-ux-production-hardening.md`.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -162,11 +162,10 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Push scoped UX/PDF patch and verify the Vercel production deploy.
-2. Smoke production receipt/payment PDF after deploy.
-3. Rotate default credentials and JWT secret before real production operation.
-4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-5. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+1. Rotate default credentials and JWT secret before real production operation.
+2. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+3. Continue page-specific UI polish only after the core shell/PDF fix is stable.
+4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
