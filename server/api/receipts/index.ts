@@ -95,6 +95,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         fee_per_day: req.body?.fee_per_day ?? req.body?.feePerDay,
         payment_method: req.body?.payment_method || req.body?.paymentMethod,
         template_id: req.body?.template_id || req.body?.templateId,
+        monthly_fee_id: req.body?.monthly_fee_id || req.body?.monthlyFeeId,
       });
 
       const student = await prisma.student.findFirst({
@@ -107,22 +108,84 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         body.template_id
       );
 
-      const receipt = await prisma.receipt.create({
-        data: {
-          studentId: body.student_id,
-          month: body.month,
-          daysCount: body.days_count,
-          feePerDay: body.fee_per_day,
-          amount: body.amount,
-          paymentMethod: body.payment_method,
-          templateId,
-          notes: getString(body.notes),
-          createdById: req.user.id,
-        },
-        include: {
-          student: { include: { parent: { select: { fullName: true, phone: true } } } },
-          template: { select: { templateName: true } },
-        },
+      const receipt = await prisma.$transaction(async (tx) => {
+        let monthlyFee = null;
+        if (body.monthly_fee_id) {
+          monthlyFee = await tx.monthlyFee.findFirst({
+            where: {
+              id: body.monthly_fee_id,
+              studentId: body.student_id,
+              month: body.month,
+            },
+          });
+          if (!monthlyFee) {
+            throw new ApiError("MONTHLY_FEE_NOT_FOUND", "Monthly fee not found", 404);
+          }
+          if (monthlyFee.status === "paid" || monthlyFee.receiptId) {
+            throw new ApiError("MONTHLY_FEE_ALREADY_PAID", "Monthly fee is already paid", 409);
+          }
+        } else {
+          monthlyFee = await tx.monthlyFee.findFirst({
+            where: {
+              studentId: body.student_id,
+              month: body.month,
+              status: { in: ["pending", "ready", "confirmed"] },
+              receiptId: null,
+            },
+            orderBy: { createdAt: "desc" },
+          });
+        }
+
+        const receiptDays = monthlyFee ? monthlyFee.totalDays : body.days_count;
+        const receiptAmount = monthlyFee ? monthlyFee.totalAmount : body.amount;
+        const receiptFeePerDay = monthlyFee
+          ? monthlyFee.totalDays > 0
+            ? Math.round(monthlyFee.totalAmount / monthlyFee.totalDays)
+            : 0
+          : body.fee_per_day;
+
+        const createdReceipt = await tx.receipt.create({
+          data: {
+            studentId: body.student_id,
+            month: body.month,
+            daysCount: receiptDays,
+            feePerDay: receiptFeePerDay,
+            amount: receiptAmount,
+            paymentMethod: body.payment_method,
+            templateId,
+            notes: getString(body.notes),
+            createdById: req.user.id,
+          },
+          include: {
+            student: { include: { parent: { select: { fullName: true, phone: true } } } },
+            template: { select: { templateName: true } },
+          },
+        });
+
+        if (monthlyFee) {
+          const linked = await tx.monthlyFee.updateMany({
+            where: {
+              id: monthlyFee.id,
+              status: { in: ["pending", "ready", "confirmed"] },
+              receiptId: null,
+            },
+            data: {
+              status: "paid",
+              receiptId: createdReceipt.id,
+              paidAt: new Date(),
+            },
+          });
+
+          if (linked.count !== 1) {
+            throw new ApiError(
+              "MONTHLY_FEE_LINK_CONFLICT",
+              "Monthly fee is already linked to another receipt",
+              409
+            );
+          }
+        }
+
+        return createdReceipt;
       });
 
       await logActivity(req, req.user.id, "CREATE_RECEIPT", "receipt", receipt.id);

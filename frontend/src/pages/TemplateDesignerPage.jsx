@@ -1,34 +1,61 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { templatesService } from '../services/api';
-import { useToast } from '../components/ui/Toast';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { templatesService } from "../services/api";
+import { useToast } from "../components/ui/Toast";
 
-// VI: Template Designer với Fabric.js canvas
+const PAPER_SIZES = {
+  a4: { width: 210, height: 297, label: "A4" },
+  a5: { width: 148, height: 210, label: "A5" },
+  letter: { width: 216, height: 279, label: "Letter" },
+  thermal_80mm: { width: 80, height: 200, label: "Thermal 80mm" },
+};
+
+const BINDING_FIELDS = [
+  { field: "receipt_id", label: "Mã phiếu" },
+  { field: "receipt_date", label: "Ngày thu" },
+  { field: "student_name", label: "Tên học viên" },
+  { field: "class_name", label: "Tên lớp" },
+  { field: "total_amount", label: "Số tiền" },
+  { field: "amount_in_words", label: "Số tiền bằng chữ" },
+  { field: "month", label: "Tháng" },
+  { field: "payment_method", label: "Phương thức" },
+  { field: "parent_name", label: "Tên phụ huynh" },
+  { field: "center_name", label: "Tên trung tâm" },
+];
+
+const CUSTOM_JSON_PROPS = [
+  "customType",
+  "bindingField",
+  "bindingLabel",
+  "imageUrl",
+  "excludeFromExport",
+  "lockMovementX",
+  "lockMovementY",
+  "lockScalingX",
+  "lockScalingY",
+  "lockRotation",
+];
+
+const mmToPx = (mm) => Math.round(mm * 3.7795275591);
+
 export default function TemplateDesignerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const canvasRef = useRef(null);
-  const fabricRef = useRef(null);
-  
-  const [template, setTemplate] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedObject, setSelectedObject] = useState(null);
-  const showGrid = true;
-  const [saving, setSaving] = useState(false);
   const toast = useToast();
 
-  // Paper size presets in mm
-  const paperSizes = {
-    a4: { width: 210, height: 297, label: 'A4' },
-    a5: { width: 148, height: 210, label: 'A5' },
-    letter: { width: 216, height: 279, label: 'Letter' },
-    thermal_80mm: { width: 80, height: 200, label: 'Thermal 80mm' },
-  };
+  const canvasElRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fabricModuleRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const imageUploadModeRef = useRef("object");
+  const keyboardCleanupRef = useRef(null);
 
-  // Convert mm to pixels (96 DPI)
-  const mmToPx = (mm) => Math.round(mm * 3.7795275591);
+  const [template, setTemplate] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [selectedObject, setSelectedObject] = useState(null);
+  const [, setSelectionVersion] = useState(0);
 
-  // Load template data
   useEffect(() => {
     if (id) {
       loadTemplate();
@@ -37,496 +64,684 @@ export default function TemplateDesignerPage() {
     }
   }, [id]);
 
-  // Initialize Fabric.js canvas
   useEffect(() => {
-    if (!loading && !fabricRef.current) {
+    if (!loading && !canvasRef.current) {
       initCanvas();
     }
+
     return () => {
-      if (fabricRef.current) {
-        fabricRef.current.dispose();
-      }
+      keyboardCleanupRef.current?.();
+      keyboardCleanupRef.current = null;
+      canvasRef.current?.dispose();
+      canvasRef.current = null;
     };
   }, [loading]);
+
+  const getFabric = async () => {
+    if (!fabricModuleRef.current) {
+      fabricModuleRef.current = await import("fabric");
+    }
+    return fabricModuleRef.current;
+  };
+
+  const refreshSelection = () => {
+    setSelectedObject(canvasRef.current?.getActiveObject() || null);
+    setSelectionVersion((value) => value + 1);
+  };
 
   const loadTemplate = async () => {
     const response = await templatesService.getById(id);
     if (response.success) {
       setTemplate(response.data.template);
+    } else {
+      toast.error("Không tải được mẫu in.");
     }
     setLoading(false);
   };
 
   const initCanvas = async () => {
-    // Dynamic import for Fabric.js (ESM)
-    const fabric = await import('fabric');
+    const fabric = await getFabric();
     const FabricCanvas = fabric.Canvas || fabric.default?.Canvas;
-    
-    if (!FabricCanvas) {
-      console.error('Fabric.js Canvas not found');
+    if (!FabricCanvas || !canvasElRef.current) {
+      toast.error("Không khởi tạo được Fabric canvas.");
       return;
     }
 
-    const paperSize = paperSizes[template?.paper_size || 'a4'];
-    const isLandscape = template?.orientation === 'landscape';
+    const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
+    const isLandscape = template?.orientation === "landscape";
     const width = mmToPx(isLandscape ? paperSize.height : paperSize.width);
     const height = mmToPx(isLandscape ? paperSize.width : paperSize.height);
 
-    const canvas = new FabricCanvas(canvasRef.current, {
-      width: width,
-      height: height,
-      backgroundColor: '#ffffff',
+    const canvas = new FabricCanvas(canvasElRef.current, {
+      width,
+      height,
+      backgroundColor: "#ffffff",
       selection: true,
       preserveObjectStacking: true,
     });
 
-    fabricRef.current = canvas;
+    canvasRef.current = canvas;
+    canvas.on("selection:created", refreshSelection);
+    canvas.on("selection:updated", refreshSelection);
+    canvas.on("selection:cleared", refreshSelection);
+    canvas.on("object:modified", refreshSelection);
 
-    // Selection events
-    canvas.on('selection:created', (e) => setSelectedObject(e.selected?.[0]));
-    canvas.on('selection:updated', (e) => setSelectedObject(e.selected?.[0]));
-    canvas.on('selection:cleared', () => setSelectedObject(null));
-
-    // Load existing template config
     if (template?.json_config) {
       try {
-        const config = JSON.parse(template.json_config);
-        if (config.objects) {
-          canvas.loadFromJSON(config, () => canvas.renderAll());
-        }
-      } catch (e) {
-        console.error('Error loading template config:', e);
+        await canvas.loadFromJSON(JSON.parse(template.json_config));
+      } catch (error) {
+        console.error("Template JSON load error:", error);
+        toast.error("JSON mẫu in lỗi, đã mở canvas trống.");
       }
     }
 
-    // Draw grid if enabled
-    if (showGrid) {
-      drawGrid(canvas, width, height);
-    }
+    drawGrid(canvas, width, height, fabric);
+    canvas.renderAll();
 
-    // Keyboard handler for Delete key
-    const handleKeyDown = (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const activeObj = canvas.getActiveObject();
-        if (activeObj && !activeObj.isEditing) {
-          canvas.remove(activeObj);
+    const handleKeyDown = (event) => {
+      const activeObject = canvas.getActiveObject();
+      if ((event.key === "Delete" || event.key === "Backspace") && activeObject) {
+        if (!activeObject.isEditing) {
+          canvas.remove(activeObject);
           canvas.renderAll();
-          setSelectedObject(null);
+          refreshSelection();
         }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        duplicateSelected();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    keyboardCleanupRef.current = () => document.removeEventListener("keydown", handleKeyDown);
   };
 
-  const drawGrid = (canvas, width, height) => {
+  const drawGrid = (canvas, width, height, fabric) => {
+    const Line = fabric.Line || fabric.default?.Line;
+    if (!Line) return;
+
     const gridSize = 20;
-    const fabric = window.fabric || fabricRef.current?.fabric;
-    
-    for (let i = 0; i < width / gridSize; i++) {
-      const line = new fabric.Line([i * gridSize, 0, i * gridSize, height], {
-        stroke: '#e5e7eb',
+    for (let x = 0; x <= width; x += gridSize) {
+      const line = new Line([x, 0, x, height], {
+        stroke: "#e2e8f0",
+        strokeWidth: x % 100 === 0 ? 1.2 : 0.6,
         selectable: false,
         evented: false,
         excludeFromExport: true,
       });
       canvas.add(line);
-      canvas.sendToBack(line);
+      canvas.sendObjectToBack(line);
     }
-    
-    for (let i = 0; i < height / gridSize; i++) {
-      const line = new fabric.Line([0, i * gridSize, width, i * gridSize], {
-        stroke: '#e5e7eb',
+
+    for (let y = 0; y <= height; y += gridSize) {
+      const line = new Line([0, y, width, y], {
+        stroke: "#e2e8f0",
+        strokeWidth: y % 100 === 0 ? 1.2 : 0.6,
         selectable: false,
         evented: false,
         excludeFromExport: true,
       });
       canvas.add(line);
-      canvas.sendToBack(line);
+      canvas.sendObjectToBack(line);
     }
   };
 
-  // Add text element
-  const addText = async () => {
-    const fabric = await import('fabric');
+  const addTextObject = async (text, options = {}) => {
+    const fabric = await getFabric();
     const Textbox = fabric.Textbox || fabric.default?.Textbox;
-    
-    const text = new Textbox('Nhập text...', {
-      left: 50,
-      top: 50,
-      width: 200,
+    const textbox = new Textbox(text, {
+      left: 56,
+      top: 56,
+      width: 240,
       fontSize: 16,
-      fontFamily: 'Arial',
-      fill: '#333333',
+      fontFamily: "Arial",
+      fill: "#0f172a",
+      ...options,
     });
-    
-    fabricRef.current?.add(text);
-    fabricRef.current?.setActiveObject(text);
-    fabricRef.current?.renderAll();
+
+    canvasRef.current?.add(textbox);
+    canvasRef.current?.setActiveObject(textbox);
+    canvasRef.current?.renderAll();
+    refreshSelection();
   };
 
-  // Add heading
-  const addHeading = async () => {
-    const fabric = await import('fabric');
-    const Textbox = fabric.Textbox || fabric.default?.Textbox;
-    
-    const text = new Textbox('TIÊU ĐỀ', {
-      left: 50,
-      top: 50,
-      width: 300,
-      fontSize: 24,
-      fontFamily: 'Arial',
-      fontWeight: 'bold',
-      fill: '#1f2937',
-      textAlign: 'center',
+  const addHeading = () =>
+    addTextObject("TIÊU ĐỀ", {
+      width: 340,
+      fontSize: 26,
+      fontWeight: "bold",
+      textAlign: "center",
+      customType: "heading",
     });
-    
-    fabricRef.current?.add(text);
-    fabricRef.current?.setActiveObject(text);
-    fabricRef.current?.renderAll();
-  };
 
-  // Add binding field (dynamic data)
-  const addBindingField = async (fieldName, label) => {
-    const fabric = await import('fabric');
-    const Textbox = fabric.Textbox || fabric.default?.Textbox;
-    
-    const text = new Textbox(`{{${fieldName}}}`, {
-      left: 50,
-      top: 50,
-      width: 200,
-      fontSize: 14,
-      fontFamily: 'Arial',
-      fill: '#2563eb',
-      backgroundColor: '#dbeafe',
-      customType: 'binding',
+  const addText = () => addTextObject("Nhập nội dung...", { customType: "text" });
+
+  const addBindingField = (fieldName, label) =>
+    addTextObject(`{{${fieldName}}}`, {
+      fill: "#1d4ed8",
+      backgroundColor: "#dbeafe",
+      customType: "binding",
       bindingField: fieldName,
       bindingLabel: label,
     });
-    
-    fabricRef.current?.add(text);
-    fabricRef.current?.setActiveObject(text);
-    fabricRef.current?.renderAll();
-  };
 
-  // Add rectangle
   const addRectangle = async () => {
-    const fabric = await import('fabric');
+    const fabric = await getFabric();
     const Rect = fabric.Rect || fabric.default?.Rect;
-    
     const rect = new Rect({
-      left: 50,
-      top: 50,
-      width: 200,
-      height: 100,
-      fill: 'transparent',
-      stroke: '#333333',
+      left: 60,
+      top: 70,
+      width: 220,
+      height: 110,
+      rx: 8,
+      ry: 8,
+      fill: "rgba(255,255,255,0)",
+      stroke: "#334155",
       strokeWidth: 1,
+      customType: "shape",
     });
-    
-    fabricRef.current?.add(rect);
-    fabricRef.current?.setActiveObject(rect);
-    fabricRef.current?.renderAll();
+
+    canvasRef.current?.add(rect);
+    canvasRef.current?.setActiveObject(rect);
+    canvasRef.current?.renderAll();
+    refreshSelection();
   };
 
-  // Add line
+  const addCircle = async () => {
+    const fabric = await getFabric();
+    const Circle = fabric.Circle || fabric.default?.Circle;
+    const circle = new Circle({
+      left: 80,
+      top: 80,
+      radius: 48,
+      fill: "rgba(219,234,254,0.55)",
+      stroke: "#2563eb",
+      strokeWidth: 1,
+      customType: "shape",
+    });
+
+    canvasRef.current?.add(circle);
+    canvasRef.current?.setActiveObject(circle);
+    canvasRef.current?.renderAll();
+    refreshSelection();
+  };
+
   const addLine = async () => {
-    const fabric = await import('fabric');
+    const fabric = await getFabric();
     const Line = fabric.Line || fabric.default?.Line;
-    
-    const line = new Line([50, 50, 250, 50], {
-      stroke: '#333333',
+    const line = new Line([60, 80, 320, 80], {
+      stroke: "#334155",
+      strokeWidth: 1.5,
+      customType: "line",
+    });
+
+    canvasRef.current?.add(line);
+    canvasRef.current?.setActiveObject(line);
+    canvasRef.current?.renderAll();
+    refreshSelection();
+  };
+
+  const addQrPlaceholder = async () => {
+    const fabric = await getFabric();
+    const Rect = fabric.Rect || fabric.default?.Rect;
+    const Textbox = fabric.Textbox || fabric.default?.Textbox;
+    const Group = fabric.Group || fabric.default?.Group;
+    const rect = new Rect({
+      width: 96,
+      height: 96,
+      fill: "#f8fafc",
+      stroke: "#0f172a",
       strokeWidth: 1,
     });
-    
-    fabricRef.current?.add(line);
-    fabricRef.current?.setActiveObject(line);
-    fabricRef.current?.renderAll();
+    const text = new Textbox("QR", {
+      left: 28,
+      top: 34,
+      width: 48,
+      fontSize: 18,
+      fontWeight: "bold",
+      fill: "#0f172a",
+      textAlign: "center",
+    });
+    const group = new Group([rect, text], {
+      left: 80,
+      top: 80,
+      customType: "qr_placeholder",
+    });
+
+    canvasRef.current?.add(group);
+    canvasRef.current?.setActiveObject(group);
+    canvasRef.current?.renderAll();
+    refreshSelection();
   };
 
-  // Delete selected
-  const deleteSelected = () => {
-    const activeObject = fabricRef.current?.getActiveObject();
-    if (activeObject) {
-      fabricRef.current?.remove(activeObject);
-      fabricRef.current?.renderAll();
-      setSelectedObject(null);
+  const openImagePicker = (mode) => {
+    imageUploadModeRef.current = mode;
+    imageInputRef.current?.click();
+  };
+
+  const handleImagePicked = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const response = await templatesService.uploadImage(file);
+    if (!response.success) {
+      toast.error(response.error?.message || "Upload ảnh thất bại.");
+      return;
     }
+
+    await addImageFromUrl(response.data.url, imageUploadModeRef.current);
+    toast.success("Đã thêm ảnh vào mẫu.");
   };
 
-  // Save template
+  const addImageFromUrl = async (url, mode = "object") => {
+    const fabric = await getFabric();
+    const FabricImage = fabric.FabricImage || fabric.Image || fabric.default?.FabricImage;
+    const image = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
+    const maxWidth = mode === "background" ? canvasRef.current.getWidth() : 260;
+    const maxHeight = mode === "background" ? canvasRef.current.getHeight() : 180;
+    const scale = Math.min(maxWidth / (image.width || maxWidth), maxHeight / (image.height || maxHeight), 1);
+
+    image.set({
+      left: mode === "background" ? 0 : 70,
+      top: mode === "background" ? 0 : 70,
+      scaleX: scale,
+      scaleY: scale,
+      opacity: mode === "background" ? 0.24 : 1,
+      customType: mode === "background" ? "background_image" : "image",
+      imageUrl: url,
+      selectable: true,
+      evented: true,
+    });
+
+    canvasRef.current.add(image);
+    if (mode === "background") {
+      canvasRef.current.sendObjectToBack(image);
+    }
+    canvasRef.current.setActiveObject(image);
+    canvasRef.current.renderAll();
+    refreshSelection();
+  };
+
+  const deleteSelected = () => {
+    const activeObject = canvasRef.current?.getActiveObject();
+    if (!activeObject) return;
+    canvasRef.current.remove(activeObject);
+    canvasRef.current.renderAll();
+    refreshSelection();
+  };
+
+  const duplicateSelected = async () => {
+    const activeObject = canvasRef.current?.getActiveObject();
+    if (!activeObject) return;
+    const clone = await activeObject.clone(CUSTOM_JSON_PROPS);
+    clone.set({
+      left: (activeObject.left || 0) + 18,
+      top: (activeObject.top || 0) + 18,
+    });
+    canvasRef.current.add(clone);
+    canvasRef.current.setActiveObject(clone);
+    canvasRef.current.renderAll();
+    refreshSelection();
+  };
+
+  const moveLayer = (direction) => {
+    const canvas = canvasRef.current;
+    const activeObject = canvas?.getActiveObject();
+    if (!canvas || !activeObject) return;
+
+    if (direction === "front") canvas.bringObjectToFront(activeObject);
+    if (direction === "forward") canvas.bringObjectForward(activeObject);
+    if (direction === "backward") canvas.sendObjectBackwards(activeObject);
+    if (direction === "back") canvas.sendObjectToBack(activeObject);
+    canvas.renderAll();
+    refreshSelection();
+  };
+
+  const alignSelected = (align) => {
+    const canvas = canvasRef.current;
+    const activeObject = canvas?.getActiveObject();
+    if (!canvas || !activeObject) return;
+
+    if (align === "left") activeObject.set("left", 24);
+    if (align === "center") {
+      activeObject.set("left", (canvas.getWidth() - activeObject.getScaledWidth()) / 2);
+    }
+    if (align === "right") {
+      activeObject.set("left", canvas.getWidth() - activeObject.getScaledWidth() - 24);
+    }
+    canvas.renderAll();
+    refreshSelection();
+  };
+
+  const updateSelected = (field, value) => {
+    const activeObject = canvasRef.current?.getActiveObject();
+    if (!activeObject) return;
+    activeObject.set(field, value);
+    canvasRef.current.renderAll();
+    refreshSelection();
+  };
+
+  const toggleLock = () => {
+    const activeObject = canvasRef.current?.getActiveObject();
+    if (!activeObject) return;
+    const locked = !activeObject.lockMovementX;
+    activeObject.set({
+      lockMovementX: locked,
+      lockMovementY: locked,
+      lockScalingX: locked,
+      lockScalingY: locked,
+      lockRotation: locked,
+    });
+    canvasRef.current.renderAll();
+    refreshSelection();
+  };
+
   const handleSave = async () => {
-    if (!fabricRef.current || !template) return;
-    
+    if (!canvasRef.current || !template) return;
     setSaving(true);
-    
-    // Get canvas JSON (exclude grid lines)
-    const json = fabricRef.current.toJSON(['customType', 'bindingField', 'bindingLabel']);
-    json.objects = json.objects.filter(obj => !obj.excludeFromExport);
-    
+
+    const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
+    json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
+
     const response = await templatesService.update(template.id, {
       ...template,
       json_config: JSON.stringify(json),
     });
-    
+
     setSaving(false);
-    
     if (response.success) {
-      toast.success('Đã lưu mẫu thành công!');
+      toast.success("Đã lưu mẫu thành công.");
     } else {
-      toast.error('Không thể lưu mẫu. Vui lòng thử lại.');
+      toast.error(response.error?.message || "Không thể lưu mẫu.");
     }
   };
 
-  // Toggle bold
   const toggleBold = () => {
-    if (!selectedObject || selectedObject.type !== 'textbox') return;
-    const newWeight = selectedObject.fontWeight === 'bold' ? 'normal' : 'bold';
-    selectedObject.set('fontWeight', newWeight);
-    fabricRef.current?.renderAll();
-    setSelectedObject({ ...selectedObject });
+    if (!selectedObject || selectedObject.type !== "textbox") return;
+    updateSelected("fontWeight", selectedObject.fontWeight === "bold" ? "normal" : "bold");
   };
 
-  // Toggle italic
   const toggleItalic = () => {
-    if (!selectedObject || selectedObject.type !== 'textbox') return;
-    const newStyle = selectedObject.fontStyle === 'italic' ? 'normal' : 'italic';
-    selectedObject.set('fontStyle', newStyle);
-    fabricRef.current?.renderAll();
-    setSelectedObject({ ...selectedObject });
+    if (!selectedObject || selectedObject.type !== "textbox") return;
+    updateSelected("fontStyle", selectedObject.fontStyle === "italic" ? "normal" : "italic");
   };
-
-  // Set text alignment
-  const setTextAlign = (align) => {
-    if (!selectedObject || selectedObject.type !== 'textbox') return;
-    selectedObject.set('textAlign', align);
-    fabricRef.current?.renderAll();
-    setSelectedObject({ ...selectedObject });
-  };
-
-  // Binding fields available
-  const bindingFields = [
-    { field: 'receipt_id', label: 'Mã phiếu' },
-    { field: 'receipt_date', label: 'Ngày thu' },
-    { field: 'student_name', label: 'Tên học viên' },
-    { field: 'class_name', label: 'Tên lớp' },
-    { field: 'total_amount', label: 'Số tiền' },
-    { field: 'amount_in_words', label: 'Số tiền bằng chữ' },
-    { field: 'month', label: 'Tháng' },
-    { field: 'payment_method', label: 'Phương thức' },
-    { field: 'parent_name', label: 'Tên phụ huynh' },
-    { field: 'center_name', label: 'Tên trung tâm' },
-  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="spinner w-8 h-8"></div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="spinner h-8 w-8" />
       </div>
     );
   }
 
+  const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
+  const selectedIsText = selectedObject?.type === "textbox";
+  const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
+
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {/* Toolbar */}
-      <div className="bg-white border-b px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate('/templates')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            ← Quay lại
-          </button>
-          <h1 className="font-semibold text-gray-900">
-            {template?.template_name || 'Tạo mẫu mới'}
-          </h1>
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-            template?.type === 'receipt' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}>
-            {template?.type === 'receipt' ? 'Phiếu thu' : 'Phiếu chi'}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button onClick={handleSave} disabled={saving} className="btn-primary">
-            {saving ? 'Đang lưu...' : '💾 Lưu mẫu'}
-          </button>
-        </div>
-      </div>
+    <div className="flex h-screen flex-col bg-slate-100">
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImagePicked}
+      />
 
-      {/* Main Area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Toolbar */}
-        <div className="w-64 bg-white border-r p-4 overflow-y-auto">
-          <h3 className="font-semibold text-gray-900 mb-3">📝 Thêm phần tử</h3>
-          
-          <div className="space-y-2 mb-6">
-            <button onClick={addHeading} className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-              <span className="text-lg mr-2">📌</span> Tiêu đề
-            </button>
-            <button onClick={addText} className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-              <span className="text-lg mr-2">📝</span> Text thường
-            </button>
-            <button onClick={addRectangle} className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-              <span className="text-lg mr-2">⬜</span> Hình chữ nhật
-            </button>
-            <button onClick={addLine} className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-              <span className="text-lg mr-2">➖</span> Đường kẻ
-            </button>
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => navigate("/templates")} className="btn-secondary px-3 py-2">
+            Back
+          </button>
+          <div>
+            <h1 className="font-bold text-slate-950">{template?.template_name || "Template Designer"}</h1>
+            <p className="text-xs font-medium text-slate-500">
+              {template?.type === "payment" ? "Phiếu chi" : "Phiếu thu"} - {paperSize.label}
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={handleSave} disabled={saving || !template} className="btn-primary">
+          {saving ? "Đang lưu..." : "Lưu mẫu"}
+        </button>
+      </header>
+
+      <main className="grid min-h-0 flex-1 grid-cols-[280px_1fr_300px] overflow-hidden">
+        <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
+          <PanelTitle title="Thành phần" subtitle="Thêm nhanh các khối dùng trong phiếu." />
+          <div className="grid grid-cols-2 gap-2">
+            <ToolButton label="Tiêu đề" onClick={addHeading} />
+            <ToolButton label="Text" onClick={addText} />
+            <ToolButton label="Khung" onClick={addRectangle} />
+            <ToolButton label="Tròn" onClick={addCircle} />
+            <ToolButton label="Line" onClick={addLine} />
+            <ToolButton label="QR" onClick={addQrPlaceholder} />
           </div>
 
-          <h3 className="font-semibold text-gray-900 mb-3">🔗 Trường dữ liệu</h3>
-          <div className="space-y-1">
-            {bindingFields.map(bf => (
-              <button 
-                key={bf.field}
-                onClick={() => addBindingField(bf.field, bf.label)}
-                className="w-full p-2 text-left text-sm bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-blue-700"
+          <div className="mt-6">
+            <PanelTitle title="Hình ảnh" subtitle="Upload logo, watermark, nền mẫu in." />
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => openImagePicker("object")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
               >
-                {bf.label}
+                Upload ảnh
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => openImagePicker("background")}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+              >
+                Upload làm nền
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Canvas Area */}
-        <div className="flex-1 p-8 overflow-auto flex items-start justify-center bg-gray-200">
-          <div className="shadow-2xl">
-            <canvas ref={canvasRef} />
+          <div className="mt-6">
+            <PanelTitle title="Dữ liệu động" subtitle="Gắn trường để backend thay bằng dữ liệu thật." />
+            <div className="space-y-1">
+              {BINDING_FIELDS.map((field) => (
+                <button
+                  key={field.field}
+                  type="button"
+                  onClick={() => addBindingField(field.field, field.label)}
+                  className="w-full rounded-lg bg-blue-50 px-3 py-2 text-left text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                >
+                  {field.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Right Panel - Properties */}
-        <div className="w-64 bg-white border-l p-4 overflow-y-auto">
-          <h3 className="font-semibold text-gray-900 mb-3">⚙️ Thuộc tính</h3>
-          
+        <section className="overflow-auto bg-slate-200 p-8">
+          <div className="mx-auto w-max rounded-[1.5rem] bg-slate-900/10 p-5 shadow-inner">
+            <div className="shadow-2xl shadow-slate-900/20">
+              <canvas ref={canvasElRef} />
+            </div>
+          </div>
+        </section>
+
+        <aside className="overflow-y-auto border-l border-slate-200 bg-white p-4">
+          <PanelTitle title="Thuộc tính" subtitle="Chọn object trên canvas để chỉnh." />
           {selectedObject ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Layer</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <ToolButton label="Lên trên" onClick={() => moveLayer("forward")} />
+                  <ToolButton label="Xuống" onClick={() => moveLayer("backward")} />
+                  <ToolButton label="Top" onClick={() => moveLayer("front")} />
+                  <ToolButton label="Back" onClick={() => moveLayer("back")} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField label="X" value={selectedObject.left || 0} onChange={(value) => updateSelected("left", value)} />
+                <NumberField label="Y" value={selectedObject.top || 0} onChange={(value) => updateSelected("top", value)} />
+              </div>
+
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Vị trí X</label>
-                <input 
-                  type="number" 
-                  value={Math.round(selectedObject.left || 0)}
-                  onChange={(e) => {
-                    selectedObject.set('left', parseInt(e.target.value));
-                    fabricRef.current?.renderAll();
-                  }}
-                  className="input"
+                <label className="mb-2 block text-sm font-semibold text-slate-600">Opacity</label>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  value={selectedObject.opacity ?? 1}
+                  onChange={(event) => updateSelected("opacity", Number(event.target.value))}
+                  className="w-full"
                 />
               </div>
+
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Vị trí Y</label>
-                <input 
-                  type="number" 
-                  value={Math.round(selectedObject.top || 0)}
-                  onChange={(e) => {
-                    selectedObject.set('top', parseInt(e.target.value));
-                    fabricRef.current?.renderAll();
-                  }}
-                  className="input"
-                />
+                <label className="mb-2 block text-sm font-semibold text-slate-600">Canh lề</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <ToolButton label="Left" onClick={() => alignSelected("left")} />
+                  <ToolButton label="Center" onClick={() => alignSelected("center")} />
+                  <ToolButton label="Right" onClick={() => alignSelected("right")} />
+                </div>
               </div>
-              {selectedObject.type === 'textbox' && (
-                <>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Cỡ chữ</label>
-                    <input 
-                      type="number" 
-                      value={selectedObject.fontSize || 14}
-                      onChange={(e) => {
-                        selectedObject.set('fontSize', parseInt(e.target.value));
-                        fabricRef.current?.renderAll();
-                      }}
-                      className="input"
-                    />
+
+              {selectedIsText && (
+                <div className="space-y-4 rounded-2xl border border-slate-200 p-3">
+                  <NumberField
+                    label="Cỡ chữ"
+                    value={selectedObject.fontSize || 14}
+                    onChange={(value) => updateSelected("fontSize", value)}
+                  />
+                  <ColorField
+                    label="Màu chữ"
+                    value={selectedObject.fill || "#0f172a"}
+                    onChange={(value) => updateSelected("fill", value)}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={toggleBold}
+                      className={`rounded-lg px-3 py-2 font-black ${
+                        selectedObject.fontWeight === "bold" ? "bg-primary-100 text-primary-700" : "bg-slate-100"
+                      }`}
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleItalic}
+                      className={`rounded-lg px-3 py-2 font-bold italic ${
+                        selectedObject.fontStyle === "italic" ? "bg-primary-100 text-primary-700" : "bg-slate-100"
+                      }`}
+                    >
+                      I
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Màu chữ</label>
-                    <input 
-                      type="color" 
-                      value={selectedObject.fill || '#333333'}
-                      onChange={(e) => {
-                        selectedObject.set('fill', e.target.value);
-                        fabricRef.current?.renderAll();
-                      }}
-                      className="w-full h-10 rounded cursor-pointer"
-                    />
+                  <div className="grid grid-cols-3 gap-2">
+                    {["left", "center", "right"].map((align) => (
+                      <ToolButton key={align} label={align} onClick={() => updateSelected("textAlign", align)} />
+                    ))}
                   </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-2">Kiểu chữ</label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={toggleBold}
-                        className={`flex-1 p-2 rounded-lg font-bold ${
-                          selectedObject.fontWeight === 'bold' 
-                            ? 'bg-primary-100 text-primary-700 border border-primary-300' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        B
-                      </button>
-                      <button
-                        onClick={toggleItalic}
-                        className={`flex-1 p-2 rounded-lg italic ${
-                          selectedObject.fontStyle === 'italic' 
-                            ? 'bg-primary-100 text-primary-700 border border-primary-300' 
-                            : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      >
-                        I
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-2">Căn lề</label>
-                    <div className="flex gap-1">
-                      {['left', 'center', 'right'].map(align => (
-                        <button
-                          key={align}
-                          onClick={() => setTextAlign(align)}
-                          className={`flex-1 p-2 rounded-lg ${
-                            selectedObject.textAlign === align 
-                              ? 'bg-primary-100 text-primary-700 border border-primary-300' 
-                              : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        >
-                          {align === 'left' ? '←' : align === 'center' ? '↔' : '→'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
-              <button onClick={deleteSelected} className="w-full btn-secondary text-red-600">
-                🗑️ Xóa phần tử
+
+              {selectedIsShape && selectedObject.type !== "image" && (
+                <div className="space-y-4 rounded-2xl border border-slate-200 p-3">
+                  <ColorField
+                    label="Fill"
+                    value={typeof selectedObject.fill === "string" ? selectedObject.fill : "#ffffff"}
+                    onChange={(value) => updateSelected("fill", value)}
+                  />
+                  <ColorField
+                    label="Stroke"
+                    value={selectedObject.stroke || "#334155"}
+                    onChange={(value) => updateSelected("stroke", value)}
+                  />
+                  <NumberField
+                    label="Độ dày viền"
+                    value={selectedObject.strokeWidth || 0}
+                    onChange={(value) => updateSelected("strokeWidth", value)}
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={duplicateSelected} className="btn-secondary px-3">
+                  Duplicate
+                </button>
+                <button type="button" onClick={toggleLock} className="btn-secondary px-3">
+                  {selectedObject.lockMovementX ? "Unlock" : "Lock"}
+                </button>
+              </div>
+              <button type="button" onClick={deleteSelected} className="btn-danger w-full">
+                Xóa phần tử
               </button>
             </div>
           ) : (
-            <p className="text-sm text-gray-400 text-center py-8">
-              Chọn một phần tử để chỉnh sửa thuộc tính
-            </p>
+            <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+              Chọn một phần tử để hiện bảng thuộc tính.
+            </div>
           )}
 
-          <hr className="my-4" />
-
-          <h3 className="font-semibold text-gray-900 mb-3">📐 Canvas</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Khổ giấy</span>
-              <span className="text-sm font-medium">
-                {paperSizes[template?.paper_size || 'a4']?.label}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Hướng</span>
-              <span className="text-sm font-medium">
-                {template?.orientation === 'landscape' ? 'Ngang' : 'Dọc'}
-              </span>
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <p className="font-bold text-slate-900">Canvas</p>
+            <div className="mt-3 space-y-2 text-slate-600">
+              <p>Khổ giấy: {paperSize.label}</p>
+              <p>Hướng: {template?.orientation === "landscape" ? "Ngang" : "Dọc"}</p>
+              <p>Grid: 20px</p>
             </div>
           </div>
-        </div>
-      </div>
+        </aside>
+      </main>
     </div>
+  );
+}
+
+function PanelTitle({ title, subtitle }) {
+  return (
+    <div className="mb-3">
+      <h2 className="font-bold text-slate-950">{title}</h2>
+      <p className="text-xs leading-5 text-slate-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function ToolButton({ label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+    >
+      {label}
+    </button>
+  );
+}
+
+function NumberField({ label, value, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-semibold text-slate-600">{label}</span>
+      <input
+        type="number"
+        value={Math.round(value || 0)}
+        onChange={(event) => onChange(Number(event.target.value) || 0)}
+        className="input"
+      />
+    </label>
+  );
+}
+
+function ColorField({ label, value, onChange }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-semibold text-slate-600">{label}</span>
+      <input
+        type="color"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-10 w-full cursor-pointer rounded-lg border border-slate-200 bg-white"
+      />
+    </label>
   );
 }

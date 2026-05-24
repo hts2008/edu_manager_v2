@@ -12,6 +12,10 @@ import {
   parseMonthRange,
   sendApiError,
 } from "../../../lib/api-utils.js";
+import {
+  calculateTuitionForClass,
+  CHARGEABLE_ATTENDANCE_STATUSES,
+} from "../../../lib/tuition.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -29,10 +33,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       where: {
         studentId,
         attendanceDate: { gte: startDate, lte: endDate },
-        status: { in: ["present", "absent_with_fee"] },
+        status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
       },
       include: {
-        class: { select: { id: true, className: true, feePerDay: true } },
+        class: {
+          select: {
+            id: true,
+            className: true,
+            feePerDay: true,
+            scheduleDays: true,
+            sessionsPerWeek: true,
+          },
+        },
       },
       orderBy: [{ class: { className: "asc" } }, { attendanceDate: "asc" }],
     });
@@ -43,6 +55,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         classId: string;
         className: string;
         feePerDay: number;
+        scheduleDays: unknown;
+        sessionsPerWeek: number | null;
         presentDays: number;
         absentFeeDays: number;
       }
@@ -55,6 +69,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           classId: record.classId,
           className: record.class.className,
           feePerDay: record.class.feePerDay,
+          scheduleDays: record.class.scheduleDays,
+          sessionsPerWeek: record.class.sessionsPerWeek,
           presentDays: 0,
           absentFeeDays: 0,
         };
@@ -66,6 +82,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const items = Array.from(classMap.values()).map((item) => {
       const chargedDays = item.presentDays + item.absentFeeDays;
+      const tuition = calculateTuitionForClass(
+        {
+          feePerDay: item.feePerDay,
+          scheduleDays: item.scheduleDays,
+          sessionsPerWeek: item.sessionsPerWeek,
+        },
+        month,
+        chargedDays
+      );
       return {
         class_id: item.classId,
         classId: item.classId,
@@ -77,10 +102,16 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         absentFeeDays: item.absentFeeDays,
         charged_days: chargedDays,
         chargedDays,
-        fee_per_day: item.feePerDay,
-        feePerDay: item.feePerDay,
-        fee_amount: chargedDays * item.feePerDay,
-        feeAmount: chargedDays * item.feePerDay,
+        expected_sessions: tuition.expectedSessions,
+        expectedSessions: tuition.expectedSessions,
+        billing_mode: tuition.billingMode,
+        billingMode: tuition.billingMode,
+        monthly_tuition: tuition.monthlyTuition,
+        monthlyTuition: tuition.monthlyTuition,
+        fee_per_day: tuition.feePerSession,
+        feePerDay: tuition.feePerSession,
+        fee_amount: tuition.totalAmount,
+        feeAmount: tuition.totalAmount,
       };
     });
 

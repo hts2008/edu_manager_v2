@@ -1,20 +1,15 @@
-import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
-  handleCors,
-  verifyAuth,
+  AuthedRequest,
+  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
+import { sendApiError } from "../../../lib/api-utils.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (handleCors(req, res)) return;
-
-  const authUser = verifyAuth(req);
-  if (!authUser) {
-    return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
-  }
-
+async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
@@ -43,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Allow empty records (user cleared all attendance for the week)
     const recordsArray = records || [];
-    const validStatuses = ["present", "absent_with_fee", "absent_no_fee"];
+    const validStatuses = ["present", "absent_with_fee", "absent_no_fee", "holiday"];
 
     // Filter and transform valid records
     const validRecords = recordsArray
@@ -61,11 +56,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         attendanceDate: new Date(r.attendance_date),
         status: r.status as "present" | "absent_with_fee" | "absent_no_fee",
         reason: r.reason || null,
-        createdById: authUser.userId,
+        createdById: req.user.id,
       }));
 
     // Convert ALL dates to Date objects for deletion (not just from records)
     const dateObjects = dates.map((d: string) => new Date(d));
+    await assertAttendanceDatesEditable(class_id, dateObjects);
 
     // Use transaction for atomic delete + insert
     await prisma.$transaction(async (tx) => {
@@ -94,7 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       count: validRecords.length,
     });
   } catch (error) {
-    console.error("Bulk attendance error:", error);
-    return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    return sendApiError(res, error, "ATTENDANCE_BULK_ERROR");
   }
 }
+
+export default requireAuth(handler);

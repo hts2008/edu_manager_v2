@@ -5,14 +5,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx vercel dev",
+    "dev": "npm --prefix frontend run dev -- --host 0.0.0.0",
+    "dev:vercel": "npx vercel dev --listen 3000 --local",
+    "dev:smoke": "tsx scripts/local-smoke-server.ts",
     "build": "prisma generate && cd frontend && npm run build",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts",
+    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts tests/production-contracts.test.ts tests/tuition.test.ts",
     "test:parity": "node scripts/parity-test.mjs"
   },
   "dependencies": {

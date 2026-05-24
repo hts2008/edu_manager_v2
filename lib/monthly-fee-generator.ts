@@ -1,4 +1,8 @@
 import { parseMonthRange } from "./api-utils.js";
+import {
+  calculateTuitionForClass,
+  CHARGEABLE_ATTENDANCE_STATUSES,
+} from "./tuition.js";
 
 type GenerateItem = {
   student_id: string;
@@ -19,25 +23,31 @@ function countKey(studentId: string, classId: string) {
   return `${studentId}:${classId}`;
 }
 
-function calculateStudentFee(student: any, attendanceCounts: Map<string, number>) {
+function calculateStudentFee(
+  student: any,
+  attendanceCounts: Map<string, number>,
+  month: string
+) {
   const breakdown = [];
   let totalDays = 0;
   let totalAmount = 0;
 
   for (const enrollment of student.studentClasses || []) {
     const daysCount = attendanceCounts.get(countKey(student.id, enrollment.classId)) || 0;
-    const feePerDay = enrollment.class.feePerDay;
-    const amount = daysCount * feePerDay;
+    const tuition = calculateTuitionForClass(enrollment.class, month, daysCount);
 
     breakdown.push({
       class_id: enrollment.classId,
       class_name: enrollment.class.className,
-      fee_per_day: feePerDay,
+      fee_per_day: tuition.feePerSession,
       days_count: daysCount,
-      amount,
+      expected_sessions: tuition.expectedSessions,
+      billing_mode: tuition.billingMode,
+      monthly_tuition: tuition.monthlyTuition,
+      amount: tuition.totalAmount,
     });
     totalDays += daysCount;
-    totalAmount += amount;
+    totalAmount += tuition.totalAmount;
   }
 
   return { breakdown, totalDays, totalAmount };
@@ -81,7 +91,7 @@ export async function generateMonthlyFees(
           where: {
             studentId: { in: studentIds },
             attendanceDate: { gte: startDate, lte: endDate },
-            status: { in: ["present", "absent_with_fee"] },
+            status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
           },
           _count: { id: true },
         })
@@ -96,7 +106,11 @@ export async function generateMonthlyFees(
   const items: GenerateItem[] = [];
   for (const student of students) {
     const existing = student.monthlyFees?.[0] || null;
-    const { totalDays, totalAmount } = calculateStudentFee(student, attendanceCounts);
+    const { totalDays, totalAmount } = calculateStudentFee(
+      student,
+      attendanceCounts,
+      month
+    );
 
     if (!student.studentClasses?.length) {
       items.push({

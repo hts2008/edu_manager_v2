@@ -392,6 +392,10 @@ export const reportsService = {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/financial${query ? `?${query}` : ""}`);
   },
+  getStudentFees: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/student-fees${query ? `?${query}` : ""}`);
+  },
   getUnpaidStudents: (month) =>
     request(`/reports/unpaid-students${month ? `?month=${month}` : ""}`),
 };

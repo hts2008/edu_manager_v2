@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion as Motion } from "framer-motion";
 import { teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
@@ -191,100 +192,124 @@ export default function TeachersPage() {
     0
   );
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="space-y-6">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">
-            Giáo viên
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Quản lý thông tin đội ngũ giáo viên
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingTeacher(null);
-            setShowForm(true);
-          }}
-          className="btn-primary shadow-lg shadow-primary-500/30"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
+        <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-4">
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100 backdrop-blur">
+              Human Resources
+            </span>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight md:text-5xl">
+                Giáo viên
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">
+                Quản lý thông tin đội ngũ giáo viên, phân bổ chuyên môn và giám sát các hình thức tính lương.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditingTeacher(null);
+              setShowForm(true);
+            }}
+            className="group inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 shadow-xl shadow-cyan-500/20 transition-all hover:-translate-y-0.5 hover:bg-cyan-50"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm giáo viên
-        </button>
-      </div>
+            <svg className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm giáo viên
+          </button>
+        </div>
+      </Motion.section>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
-              👨‍🏫
+      <Motion.section variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Tổng số GV",
+            value: teachers.length,
+            helper: "Toàn bộ nhân sự",
+            icon: "👨‍🏫",
+            tone: "from-sky-500 to-blue-600",
+            bg: "from-sky-50 to-blue-50",
+          },
+          {
+            label: "Đang dạy",
+            value: activeTeachers,
+            helper: "Trạng thái active",
+            icon: "✅",
+            tone: "from-emerald-500 to-teal-600",
+            bg: "from-emerald-50 to-teal-50",
+          },
+          {
+            label: "Theo giờ",
+            value: hourlyTeachers,
+            helper: "Tính lương theo tiết",
+            icon: "⏱️",
+            tone: "from-violet-500 to-indigo-600",
+            bg: "from-violet-50 to-indigo-50",
+          },
+          {
+            label: "Chi phí cố định/tháng",
+            value: formatMoney(totalSalary),
+            helper: "Chưa gồm lương theo giờ",
+            icon: "💰",
+            tone: "from-amber-500 to-orange-600",
+            bg: "from-amber-50 to-orange-50",
+          }
+        ].map((card, idx) => (
+          <Motion.div
+            variants={itemVariants}
+            key={idx}
+            className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
+          >
+            <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${card.tone} opacity-20 blur-2xl transition-opacity group-hover:opacity-40`} />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                  {card.value}
+                </p>
+                <p className="mt-2 text-xs font-medium text-slate-500">{card.helper}</p>
+              </div>
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tone} text-xl shadow-lg shadow-slate-300/60`}>
+                {card.icon}
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {teachers.length}
-              </p>
-              <p className="text-sm text-gray-500">Tổng số GV</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white shadow-lg">
-              ✓
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {activeTeachers}
-              </p>
-              <p className="text-sm text-gray-500">Đang dạy</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-              ⏱️
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {hourlyTeachers}
-              </p>
-              <p className="text-sm text-gray-500">Theo giờ</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg">
-              💰
-            </div>
-            <div>
-              <p className="text-lg font-bold text-gray-900">
-                {formatMoney(totalSalary)}
-              </p>
-              <p className="text-xs text-gray-500">Chi phí cố định/tháng</p>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Motion.div>
+        ))}
+      </Motion.section>
 
       {/* Data Table */}
-      <DataTable
+      <Motion.section variants={itemVariants} className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Danh sách nhân sự</h2>
+            <p className="text-sm text-slate-500">Nhấn vào dòng để xem hoặc sửa thông tin.</p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            {teachers.length} hồ sơ
+          </span>
+        </div>
+        <DataTable
         columns={columns}
         data={teachers}
         loading={loading}
@@ -293,7 +318,8 @@ export default function TeachersPage() {
           setShowForm(true);
         }}
         emptyMessage="Chưa có giáo viên nào"
-      />
+        />
+      </Motion.section>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -318,7 +344,7 @@ export default function TeachersPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </div>
+    </Motion.div>
   );
 }
 

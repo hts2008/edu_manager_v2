@@ -1,23 +1,33 @@
 @import "tailwindcss";
 
 /* ========================================
-   EDU MANAGER - PREMIUM DESIGN SYSTEM
+   EDU MANAGER - EDUFLOW DESIGN SYSTEM
    Tailwind CSS v4 Theme Configuration
-   Version: 2.0 - Enhanced UX/UI
+   Version: 2.1 - Indigo/Violet/Cyan guideline alignment
    ======================================== */
 
 @theme {
-  /* Primary - Modern Blue Gradient */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  /* Primary - EduFlow Indigo */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
+
+  /* Accent - EduFlow Violet/Cyan */
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-cyan-50: #ecfeff;
+  --color-cyan-400: #22d3ee;
+  --color-cyan-500: #06b6d4;
+  --color-cyan-600: #0891b2;
 
   /* Success - Emerald (Complete Palette) */
   --color-success-50: #ecfdf5;
@@ -54,6 +64,54 @@
   --color-error-700: #be123c;
   --color-error-800: #9f1239;
   --color-error-900: #881337;
+
+  /* Stitch Premium Design Tokens */
+  --color-surface-dim: #13131b;
+  --color-surface: #13131b;
+  --color-surface-bright: #393841;
+  --color-surface-variant: #34343d;
+  --color-surface-container-lowest: #0d0d15;
+  --color-surface-container-low: #1b1b23;
+  --color-surface-container: #1f1f27;
+  --color-surface-container-high: #292932;
+  --color-surface-container-highest: #34343d;
+  --color-on-surface: #e4e1ed;
+  --color-on-surface-variant: #c7c4d7;
+  --color-outline: #908fa0;
+  --color-outline-variant: #464554;
+  --color-primary: #c0c1ff;
+  --color-on-primary: #1000a9;
+  --color-primary-container: #8083ff;
+  --color-on-primary-container: #0d0096;
+  --color-primary-fixed: #e1e0ff;
+  --color-primary-fixed-dim: #c0c1ff;
+  --color-on-primary-fixed: #07006c;
+  --color-secondary: #ddb7ff;
+  --color-on-secondary: #490080;
+  --color-secondary-container: #6f00be;
+  --color-on-secondary-container: #d6a9ff;
+  --color-secondary-fixed: #f0dbff;
+  --color-secondary-fixed-dim: #ddb7ff;
+  --color-on-secondary-fixed: #2c0051;
+  --color-tertiary: #ffb783;
+  --color-on-tertiary: #4f2500;
+  --color-tertiary-container: #d97721;
+  --color-on-tertiary-container: #452000;
+  --color-tertiary-fixed: #ffdcc5;
+  --color-tertiary-fixed-dim: #ffb783;
+  --color-on-tertiary-fixed: #301400;
+  --color-midnight-indigo: #1E1B4B;
+  --color-deep-void: #0F172A;
+  --color-glass-surface: rgba(255, 255, 255, 0.08);
+  --color-glass-border: rgba(255, 255, 255, 0.12);
+  --color-success-emerald: #10B981;
+
+  --font-hero-display: "Outfit", sans-serif;
+  --font-headline-lg: "Outfit", sans-serif;
+  --font-headline-lg-mobile: "Outfit", sans-serif;
+  --font-title-md: "Inter", sans-serif;
+  --font-body-base: "Inter", sans-serif;
+  --font-label-mono: "Geist", monospace;
 }
 
 /* ========================================
@@ -93,10 +151,10 @@
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 5px rgba(99, 102, 241, 0.5);
   }
   50% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.8);
   }
 }
 
@@ -126,10 +184,13 @@
    BASE STYLES
    ======================================== */
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Oxygen, Ubuntu, sans-serif;
-  @apply text-gray-900 antialiased;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  @apply text-slate-900 antialiased;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(99, 102, 241, 0.12), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(6, 182, 212, 0.1), transparent 28%),
+    linear-gradient(135deg, #f8fafc 0%, #f1f5f9 54%, #eef2ff 100%);
   min-height: 100vh;
 }
 
@@ -163,7 +224,7 @@ body {
          bg-white/80 backdrop-blur-sm
          focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500
          focus:bg-white
-         placeholder-gray-400 
+         placeholder-gray-400
          transition-all duration-200 ease-out;
 }
 
@@ -179,7 +240,7 @@ body {
    BUTTONS - Premium Design
    ======================================== */
 .btn {
-  @apply inline-flex items-center justify-center px-5 py-2.5 
+  @apply inline-flex items-center justify-center px-5 py-2.5
          font-semibold rounded-lg transition-all duration-200
          focus:outline-none focus:ring-2 focus:ring-offset-2
          disabled:opacity-50 disabled:cursor-not-allowed
@@ -187,33 +248,33 @@ body {
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center px-5 py-2.5 
+  @apply inline-flex items-center justify-center px-5 py-2.5
          font-semibold rounded-lg transition-all duration-200
          focus:outline-none focus:ring-2 focus:ring-offset-2
          disabled:opacity-50 disabled:cursor-not-allowed
          transform active:scale-[0.98]
-         bg-gradient-to-r from-primary-600 to-primary-700
+         bg-gradient-to-r from-primary-500 to-violet-500
          text-white shadow-lg shadow-primary-500/30
-         hover:from-primary-700 hover:to-primary-800
+         hover:from-primary-600 hover:to-violet-600
          hover:shadow-xl hover:shadow-primary-500/40
          hover:-translate-y-0.5
          focus:ring-primary-500;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center px-5 py-2.5 
+  @apply inline-flex items-center justify-center px-5 py-2.5
          font-semibold rounded-lg transition-all duration-200
          focus:outline-none focus:ring-2 focus:ring-offset-2
          disabled:opacity-50 disabled:cursor-not-allowed
          transform active:scale-[0.98]
-         bg-white text-gray-700 border border-gray-200 
+         bg-white text-gray-700 border border-gray-200
          shadow-sm
          hover:bg-gray-50 hover:border-gray-300 hover:shadow
          focus:ring-gray-400;
 }
 
 .btn-danger {
-  @apply inline-flex items-center justify-center px-5 py-2.5 
+  @apply inline-flex items-center justify-center px-5 py-2.5
          font-semibold rounded-lg transition-all duration-200
          focus:outline-none focus:ring-2 focus:ring-offset-2
          disabled:opacity-50 disabled:cursor-not-allowed
@@ -226,7 +287,7 @@ body {
 }
 
 .btn-success {
-  @apply inline-flex items-center justify-center px-5 py-2.5 
+  @apply inline-flex items-center justify-center px-5 py-2.5
          font-semibold rounded-lg transition-all duration-200
          focus:outline-none focus:ring-2 focus:ring-offset-2
          disabled:opacity-50 disabled:cursor-not-allowed
@@ -284,31 +345,31 @@ body {
 }
 
 .badge-success {
-  @apply inline-flex items-center px-3 py-1 rounded-full 
+  @apply inline-flex items-center px-3 py-1 rounded-full
          text-xs font-semibold tracking-wide
-         bg-gradient-to-r from-emerald-50 to-green-50 
+         bg-gradient-to-r from-emerald-50 to-green-50
          text-emerald-700 border border-emerald-200/50;
 }
 
 .badge-warning {
-  @apply inline-flex items-center px-3 py-1 rounded-full 
+  @apply inline-flex items-center px-3 py-1 rounded-full
          text-xs font-semibold tracking-wide
-         bg-gradient-to-r from-amber-50 to-yellow-50 
+         bg-gradient-to-r from-amber-50 to-yellow-50
          text-amber-700 border border-amber-200/50;
 }
 
 .badge-error {
-  @apply inline-flex items-center px-3 py-1 rounded-full 
+  @apply inline-flex items-center px-3 py-1 rounded-full
          text-xs font-semibold tracking-wide
-         bg-gradient-to-r from-rose-50 to-red-50 
+         bg-gradient-to-r from-rose-50 to-red-50
          text-rose-700 border border-rose-200/50;
 }
 
 .badge-info {
-  @apply inline-flex items-center px-3 py-1 rounded-full 
+  @apply inline-flex items-center px-3 py-1 rounded-full
          text-xs font-semibold tracking-wide
-         bg-gradient-to-r from-blue-50 to-indigo-50 
-         text-blue-700 border border-blue-200/50;
+         bg-gradient-to-r from-cyan-50 to-primary-50
+         text-primary-700 border border-primary-200/50;
 }
 
 /* ========================================
@@ -319,7 +380,7 @@ body {
 }
 
 .table th {
-  @apply px-6 py-4 text-left text-xs font-bold text-gray-500 
+  @apply px-6 py-4 text-left text-xs font-bold text-gray-500
          uppercase tracking-wider
          bg-gradient-to-b from-gray-50 to-gray-100/80;
 }
@@ -330,7 +391,7 @@ body {
 
 .table tbody tr {
   @apply bg-white
-         hover:bg-blue-50/60
+         hover:bg-primary-50/60
          transition-all duration-200
          border-b border-gray-100/50;
 }
@@ -350,7 +411,7 @@ body {
 
 .sidebar-link {
   @apply flex items-center gap-3 px-4 py-3 mx-2 rounded-xl
-         text-gray-300 
+         text-gray-300
          transition-all duration-200
          hover:bg-white/10 hover:text-white hover:translate-x-1;
 }
@@ -386,7 +447,7 @@ body {
    LOADING STATES
    ======================================== */
 .spinner {
-  @apply animate-spin h-5 w-5 border-2 border-primary-200 
+  @apply animate-spin h-5 w-5 border-2 border-primary-200
          border-t-primary-600 rounded-full;
 }
 
@@ -407,8 +468,8 @@ body {
 }
 
 .modal-content {
-  @apply bg-white/95 backdrop-blur-xl rounded-2xl 
-         shadow-2xl max-w-lg w-full mx-4 
+  @apply bg-white/95 backdrop-blur-xl rounded-2xl
+         shadow-2xl max-w-lg w-full mx-4
          max-h-[90vh] overflow-auto
          border border-white/50;
   animation: fadeIn 0.3s ease-out;
@@ -418,23 +479,23 @@ body {
    TOAST NOTIFICATIONS
    ======================================== */
 .toast {
-  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl 
+  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl
          flex items-center gap-3 z-50
          backdrop-blur-xl border border-white/20;
 }
 
 .toast-success {
-  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl 
+  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl
          flex items-center gap-3 z-50
-         bg-gradient-to-r from-success-600 to-success-700 
+         bg-gradient-to-r from-success-600 to-success-700
          text-white border border-success-400/30;
   animation: slideIn 0.3s ease-out;
 }
 
 .toast-error {
-  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl 
+  @apply fixed bottom-4 right-4 px-5 py-4 rounded-2xl shadow-2xl
          flex items-center gap-3 z-50
-         bg-gradient-to-r from-error-600 to-error-700 
+         bg-gradient-to-r from-error-600 to-error-700
          text-white border border-error-400/30;
   animation: slideIn 0.3s ease-out;
 }
@@ -443,7 +504,7 @@ body {
    QUICK ACTION CARDS
    ======================================== */
 .quick-action {
-  @apply flex flex-col items-center justify-center p-6 
+  @apply flex flex-col items-center justify-center p-6
          bg-white/80 backdrop-blur-xl rounded-2xl
          border border-gray-100/80
          shadow-lg shadow-gray-200/30
@@ -723,6 +784,74 @@ body {
   }
 }
 
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-scan {
+  0% {
+    transform: translateX(-35%);
+  }
+  100% {
+    transform: translateX(35%);
+  }
+}
+
+.motion-rise {
+  animation: motion-rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.motion-hero {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(99, 102, 241, 0.68), transparent 34%),
+    radial-gradient(circle at 76% 64%, rgba(6, 182, 212, 0.52), transparent 32%),
+    linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+}
+
+.motion-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  opacity: 0.32;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 38px 38px;
+}
+
+.motion-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 42%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.08) 58%,
+    transparent 100%
+  );
+  animation: motion-scan 9s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-rise,
+  .motion-hero::after {
+    animation: none;
+  }
+}
+
 .hover-lift {
   @apply transition-transform duration-200 hover:-translate-y-1;
 }
@@ -732,7 +861,7 @@ body {
 }
 
 .hover-glow:hover {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.36);
 }
 
 .hover-scale {
@@ -773,11 +902,11 @@ body {
    UTILITY CLASSES
    ======================================== */
 .text-gradient {
-  @apply bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent;
+  @apply bg-gradient-to-r from-primary-600 via-violet-500 to-cyan-500 bg-clip-text text-transparent;
 }
 
 .bg-gradient-primary {
-  @apply bg-gradient-to-r from-primary-600 to-primary-700;
+  @apply bg-gradient-to-r from-primary-500 to-violet-500;
 }
 
 .bg-gradient-subtle {
@@ -785,7 +914,7 @@ body {
 }
 
 .shadow-glow {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.28);
 }
 
 .shadow-glow-success {

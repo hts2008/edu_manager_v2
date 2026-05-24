@@ -46,14 +46,59 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         include: { student: true },
       });
       if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+
       if (fee.status === "paid") {
-        throw new ApiError("FEE_ALREADY_PAID", "Monthly fee is already paid", 400);
+        if (fee.receiptId) {
+          const receipt = await tx.receipt.findUnique({
+            where: { id: fee.receiptId },
+          });
+          if (receipt) return { fee, receipt, alreadyPaid: true };
+        }
+
+        throw new ApiError(
+          "FEE_ALREADY_PAID",
+          "Monthly fee is already paid but receipt linkage is missing",
+          409
+        );
       }
+
       if (!["ready", "pending", "confirmed"].includes(fee.status)) {
         throw new ApiError(
           "INVALID_STATUS",
           `Cannot pay: current status is ${fee.status}`,
           400
+        );
+      }
+
+      const paidAt = new Date();
+      const claimed = await tx.monthlyFee.updateMany({
+        where: {
+          id,
+          status: { in: ["ready", "pending", "confirmed"] },
+          receiptId: null,
+        },
+        data: {
+          status: "paid",
+          paidAt,
+          notes,
+        },
+      });
+
+      if (claimed.count !== 1) {
+        const current = await tx.monthlyFee.findUnique({
+          where: { id },
+        });
+        if (current?.status === "paid" && current.receiptId) {
+          const receipt = await tx.receipt.findUnique({
+            where: { id: current.receiptId },
+          });
+          if (receipt) return { fee: current, receipt, alreadyPaid: true };
+        }
+
+        throw new ApiError(
+          "FEE_PAYMENT_CONFLICT",
+          "Monthly fee payment is already being processed or linked",
+          409
         );
       }
 
@@ -75,10 +120,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const updatedFee = await tx.monthlyFee.update({
         where: { id },
         data: {
-          status: "paid",
           receiptId: receipt.id,
-          paidAt: new Date(),
-          notes,
         },
       });
 
@@ -90,6 +132,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     return successResponse(res, {
       receiptId: result.receipt.id,
       receipt_id: result.receipt.id,
+      already_paid: Boolean(result.alreadyPaid),
       fee: {
         id: result.fee.id,
         student_id: result.fee.studentId,

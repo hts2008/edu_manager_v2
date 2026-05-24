@@ -1,25 +1,23 @@
-import { useRef, useEffect } from "react";
+import { motion as Motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 
-// VI: Simple page transition wrapper với CSS animation
+// PREMIUM UI: Framer Motion page transition wrapper
 export default function PageTransition({ children }) {
   const location = useLocation();
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    // Trigger re-animation on route change
-    const el = containerRef.current;
-    if (el) {
-      el.classList.remove("page-visible");
-      // Force reflow
-      void el.offsetWidth;
-      el.classList.add("page-visible");
-    }
-  }, [location.pathname]);
 
   return (
-    <div ref={containerRef} className="page-transition page-visible">
+    <Motion.div
+      key={location.pathname}
+      initial={{ opacity: 0, y: 15, filter: "blur(4px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -15, filter: "blur(4px)" }}
+      transition={{
+        duration: 0.4,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="w-full h-full"
+    >
       {children}
-    </div>
+    </Motion.div>
   );
 }

@@ -13,6 +13,10 @@ import {
   parseMonthRange,
   sendApiError,
 } from "../../../lib/api-utils.js";
+import {
+  calculateTuitionForClass,
+  CHARGEABLE_ATTENDANCE_STATUSES,
+} from "../../../lib/tuition.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -61,26 +65,28 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           studentId,
           classId: enrollment.classId,
           attendanceDate: { gte: startDate, lte: endDate },
-          status: { in: ["present", "absent_with_fee"] },
+          status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
         },
         _count: { status: true },
       });
 
       const daysCount = counts.reduce((sum, item) => sum + item._count.status, 0);
-      const feePerDay = enrollment.class.feePerDay;
-      const amount = daysCount * feePerDay;
+      const tuition = calculateTuitionForClass(enrollment.class, month, daysCount);
 
       breakdown.push({
         class_id: enrollment.classId,
         class_name: enrollment.class.className,
-        fee_per_day: feePerDay,
+        fee_per_day: tuition.feePerSession,
         days_count: daysCount,
-        amount,
+        expected_sessions: tuition.expectedSessions,
+        billing_mode: tuition.billingMode,
+        monthly_tuition: tuition.monthlyTuition,
+        amount: tuition.totalAmount,
         period_status: period?.status || null,
       });
 
       totalDays += daysCount;
-      totalAmount += amount;
+      totalAmount += tuition.totalAmount;
     }
 
     if (breakdown.length === 0) {

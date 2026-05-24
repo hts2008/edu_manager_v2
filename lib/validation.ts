@@ -48,6 +48,7 @@ export const loginSchema = z.object({
 
 export const receiptCreateSchema = z.object({
   student_id: z.string().trim().min(1, "student_id is required"),
+  monthly_fee_id: optionalText,
   month: z.string().regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM"),
   days_count: z.coerce.number().int().min(0).default(0),
   fee_per_day: z.coerce.number().min(0).default(0),
@@ -90,6 +91,7 @@ export const classCreateSchema = z.object({
   max_students: z.coerce.number().int().positive().optional().default(50),
   teacher_id: optionalNullableText,
   notes: optionalNullableText,
+  student_ids: z.array(z.string().trim().min(1)).optional().default([]),
 });
 
 export const classUpdateSchema = classCreateSchema

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
+import { motion as Motion } from "framer-motion";
 import { bulkActionsService, studentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import BulkActionBar from "../components/ui/BulkActionBar";
@@ -206,8 +207,21 @@ export default function StudentsPage() {
     ? Math.round((activeStudents / students.length) * 100)
     : 0;
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-2xl shadow-indigo-950/20">
         <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl"></div>
         <div className="absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl"></div>
@@ -246,14 +260,15 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <Motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StudentStatCard icon="👨‍🎓" label="Tổng số" value={students.length} tone="from-blue-500 to-indigo-600" />
         <StudentStatCard icon="✓" label="Đang học" value={activeStudents} tone="from-emerald-500 to-green-600" />
         <StudentStatCard icon="👦" label="Nam" value={maleStudents} tone="from-sky-500 to-blue-600" />
         <StudentStatCard icon="👧" label="Nữ" value={femaleStudents} tone="from-pink-500 to-rose-600" />
-      </div>
+      </Motion.div>
 
       {/* Data Table */}
+      <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 p-2 overflow-hidden">
       <BulkActionBar
         count={selectedStudentIds.length}
         onClear={() => setSelectedStudentIds([])}
@@ -280,6 +295,7 @@ export default function StudentsPage() {
         onSelectionChange={setSelectedStudentIds}
         emptyMessage="Chưa có học viên nào"
       />
+      </Motion.div>
 
       {/* Delete Confirm Modal */}
       <ConfirmModal
@@ -307,7 +323,7 @@ export default function StudentsPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </div>
+    </Motion.div>
   );
 }
 
@@ -335,17 +351,17 @@ function StudentHeroMetric({ label, value, tone, wide }) {
 
 function StudentStatCard({ icon, label, value, tone }) {
   return (
-    <div className="stat-card stagger-item transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="flex items-center gap-3">
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tone} flex items-center justify-center text-white shadow-lg`}>
+    <Motion.div whileHover={{ scale: 1.02, y: -4 }} className="rounded-2xl border border-white/60 bg-white/50 backdrop-blur-xl shadow-lg shadow-slate-200/40 p-5 transition-all">
+      <div className="flex items-center gap-4">
+        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tone} flex items-center justify-center text-white shadow-lg text-2xl`}>
           {icon}
         </div>
         <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-sm text-gray-500">{label}</p>
+          <p className="text-3xl font-black text-slate-900 drop-shadow-sm">{value}</p>
+          <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
         </div>
       </div>
-    </div>
+    </Motion.div>
   );
 }
 

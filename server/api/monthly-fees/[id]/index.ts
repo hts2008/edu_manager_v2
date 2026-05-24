@@ -13,6 +13,10 @@ import {
   parseMonthRange,
   sendApiError,
 } from "../../../../lib/api-utils.js";
+import {
+  calculateTuitionForClass,
+  CHARGEABLE_ATTENDANCE_STATUSES,
+} from "../../../../lib/tuition.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -49,15 +53,23 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             studentId: fee.studentId,
             classId: enrollment.classId,
             attendanceDate: { gte: startDate, lte: endDate },
-            status: { in: ["present", "absent_with_fee"] },
+            status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
           },
         });
+        const tuition = calculateTuitionForClass(
+          enrollment.class,
+          fee.month,
+          daysCount
+        );
         return {
           class_id: enrollment.classId,
           class_name: enrollment.class.className,
-          fee_per_day: enrollment.class.feePerDay,
+          fee_per_day: tuition.feePerSession,
           days_count: daysCount,
-          amount: daysCount * enrollment.class.feePerDay,
+          expected_sessions: tuition.expectedSessions,
+          billing_mode: tuition.billingMode,
+          monthly_tuition: tuition.monthlyTuition,
+          amount: tuition.totalAmount,
         };
       })
     );

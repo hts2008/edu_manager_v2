@@ -1,245 +1,429 @@
-import { useState } from 'react';
-import { reportsService } from '../services/api';
-import { useAsyncData } from '../hooks/useAsyncData';
+import { useMemo, useState } from "react";
+import { reportsService } from "../services/api";
+import { useAsyncData } from "../hooks/useAsyncData";
+import { toDateKey } from "../utils/dateKeys";
 
-// VI: Trang báo cáo tài chính
+const REPORT_TYPES = [
+  { value: "daily", label: "Ngày" },
+  { value: "weekly", label: "Tuần" },
+  { value: "monthly", label: "Tháng" },
+  { value: "yearly", label: "Năm" },
+];
+
+const CATEGORY_LABELS = {
+  salary: "Lương giáo viên",
+  utility: "Điện/Nước",
+  office: "Văn phòng phẩm",
+  other: "Khác",
+};
+
+const CATEGORY_COLORS = {
+  salary: "bg-violet-500",
+  utility: "bg-sky-500",
+  office: "bg-emerald-500",
+  other: "bg-slate-500",
+};
+
+const STATUS_STYLES = {
+  paid: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  confirmed: "border-sky-200 bg-sky-50 text-sky-700",
+  ready: "border-amber-200 bg-amber-50 text-amber-700",
+  pending: "border-slate-200 bg-slate-50 text-slate-600",
+  none: "border-slate-200 bg-white text-slate-400",
+};
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function monthLabel(month) {
+  const [year, number] = String(month).split("-");
+  return `${number}/${year}`;
+}
+
+function getInitialDateRange() {
+  const now = new Date();
+  return {
+    from: toDateKey(new Date(now.getFullYear(), now.getMonth(), 1)),
+    to: toDateKey(now),
+  };
+}
+
 export default function ReportsPage() {
-  const [dateRange, setDateRange] = useState({
-    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
-  });
-  const [reportType, setReportType] = useState('monthly');
-  const { data, loading } = useAsyncData(async () => {
-    const response = await reportsService.getFinancial({
-      from: dateRange.from,
-      to: dateRange.to,
-      type: reportType,
-    });
+  const [dateRange, setDateRange] = useState(getInitialDateRange);
+  const [reportType, setReportType] = useState("monthly");
+  const [studentQuery, setStudentQuery] = useState("");
 
-    return response.success ? response.data : null;
+  const fromMonth = dateRange.from.slice(0, 7);
+  const toMonth = dateRange.to.slice(0, 7);
+
+  const { data, loading } = useAsyncData(async () => {
+    const [financialResponse, studentFeesResponse] = await Promise.all([
+      reportsService.getFinancial({
+        from: dateRange.from,
+        to: dateRange.to,
+        type: reportType,
+      }),
+      reportsService.getStudentFees({
+        from: fromMonth,
+        to: toMonth,
+      }),
+    ]);
+
+    return {
+      financial: financialResponse.success ? financialResponse.data : null,
+      studentFees: studentFeesResponse.success ? studentFeesResponse.data : null,
+      errors: [
+        financialResponse.success ? null : financialResponse.error,
+        studentFeesResponse.success ? null : studentFeesResponse.error,
+      ].filter(Boolean),
+    };
   }, `${dateRange.from}:${dateRange.to}:${reportType}`);
 
-  const formatCurrency = (value) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
+  const financial = data?.financial;
+  const studentFees = data?.studentFees;
+  const studentRows = studentFees?.students || [];
 
-  // Calculate totals from data
-  const totalReceipts = data?.receipts?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
-  const totalPayments = data?.payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+  const totalReceipts =
+    financial?.receipts?.reduce((sum, receipt) => sum + (receipt.amount || 0), 0) || 0;
+  const totalPayments =
+    financial?.payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
   const balance = totalReceipts - totalPayments;
 
-  // Group payments by category
-  const paymentsByCategory = data?.payments?.reduce((acc, p) => {
-    acc[p.category] = (acc[p.category] || 0) + (p.amount || 0);
-    return acc;
-  }, {}) || {};
+  const paymentsByCategory = useMemo(
+    () =>
+      financial?.payments?.reduce((acc, payment) => {
+        acc[payment.category] = (acc[payment.category] || 0) + (payment.amount || 0);
+        return acc;
+      }, {}) || {},
+    [financial?.payments]
+  );
 
-  const categoryLabels = {
-    salary: 'Lương giáo viên',
-    utility: 'Điện/Nước',
-    office: 'Văn phòng phẩm',
-    other: 'Khác',
-  };
+  const filteredStudentRows = useMemo(() => {
+    const keyword = studentQuery.trim().toLowerCase();
+    if (!keyword) return studentRows;
+    return studentRows.filter((student) =>
+      [
+        student.student_name,
+        student.parent_name,
+        student.parent_phone,
+        student.class_names,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(keyword)
+    );
+  }, [studentQuery, studentRows]);
 
-  const categoryColors = {
-    salary: 'bg-purple-500',
-    utility: 'bg-blue-500',
-    office: 'bg-green-500',
-    other: 'bg-gray-500',
+  const exportCsv = () => {
+    const financialRows = [
+      ["type", "id", "name", "category_or_month", "amount", "created_at"],
+      ...(financial?.receipts || []).map((receipt) => [
+        "receipt",
+        receipt.id,
+        receipt.student_name || "",
+        receipt.month || "",
+        receipt.amount || 0,
+        receipt.created_at || "",
+      ]),
+      ...(financial?.payments || []).map((payment) => [
+        "payment",
+        payment.id,
+        payment.recipient_name || "",
+        payment.category || "",
+        payment.amount || 0,
+        payment.created_at || "",
+      ]),
+    ];
+
+    const studentFeeRows = [
+      [],
+      ["student_fee_report", fromMonth, toMonth],
+      [
+        "student_id",
+        "student_name",
+        "classes",
+        "months_paid",
+        "total_paid",
+        "total_expected",
+        "outstanding",
+        "anomalies",
+      ],
+      ...studentRows.map((student) => [
+        student.student_id,
+        student.student_name,
+        student.class_names || "",
+        student.months_paid || 0,
+        student.total_paid || 0,
+        student.total_expected || 0,
+        student.outstanding_amount || 0,
+        (student.anomalies || []).join("|"),
+      ]),
+    ];
+
+    const csv = [...financialRows, ...studentFeeRows]
+      .map((row) =>
+        row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(",")
+      )
+      .join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bao-cao-tai-chinh-${dateRange.from}-${dateRange.to}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Báo cáo tài chính</h1>
-          <p className="text-gray-500">Theo dõi thu chi theo thời gian</p>
+      <section className="motion-hero motion-rise overflow-hidden rounded-[1.75rem] border border-white/70 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-300/60 md:p-8">
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-200">
+              Tài chính & học phí
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
+              Báo cáo vận hành trung tâm
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Theo dõi thu chi, đối soát học phí theo từng học viên và phát hiện
+              bất thường như đã thu tiền nhưng số buổi bằng 0.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={exportCsv} className="btn-secondary bg-white/95">
+              Export CSV
+            </button>
+            <button type="button" onClick={() => window.print()} className="btn-primary">
+              In bao cao
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button className="btn-secondary">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Export Excel
-          </button>
-          <button className="btn-primary">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            In báo cáo
-          </button>
-        </div>
-      </div>
+      </section>
 
-      {/* Filters */}
-      <div className="card">
+      <div className="card motion-rise">
         <div className="card-body">
-          <div className="flex flex-wrap gap-4 items-center">
-            {/* Report Type */}
-            <div className="flex gap-2">
-              {[
-                { value: 'daily', label: 'Ngày' },
-                { value: 'weekly', label: 'Tuần' },
-                { value: 'monthly', label: 'Tháng' },
-                { value: 'yearly', label: 'Năm' },
-              ].map(opt => (
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap gap-2">
+              {REPORT_TYPES.map((option) => (
                 <button
-                  key={opt.value}
-                  onClick={() => setReportType(opt.value)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    reportType === opt.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  key={option.value}
+                  type="button"
+                  onClick={() => setReportType(option.value)}
+                  className={`rounded-lg px-4 py-2 font-semibold transition-all ${
+                    reportType === option.value
+                      ? "bg-primary-600 text-white shadow-lg shadow-primary-500/30"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
-                  {opt.label}
+                  {option.label}
                 </button>
               ))}
             </div>
 
-            {/* Date Range */}
-            <div className="flex gap-2 items-center ml-auto">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
               <input
                 type="date"
                 value={dateRange.from}
-                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                onChange={(event) =>
+                  setDateRange((current) => ({ ...current, from: event.target.value }))
+                }
                 className="input w-auto"
               />
-              <span className="text-gray-500">→</span>
+              <span className="text-slate-400">to</span>
               <input
                 type="date"
                 value={dateRange.to}
-                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                onChange={(event) =>
+                  setDateRange((current) => ({ ...current, to: event.target.value }))
+                }
                 className="input w-auto"
               />
             </div>
           </div>
+          {data?.errors?.length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Một phần báo cáo chưa tải được. Vui lòng kiểm tra quyền truy cập hoặc API.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <div className="card-body">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-700 mb-1">Tổng thu</p>
-                <p className="text-3xl font-bold text-green-600">{formatCurrency(totalReceipts)}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-200 rounded-xl flex items-center justify-center text-2xl">
-                💰
-              </div>
-            </div>
-            <p className="mt-2 text-sm text-green-600">
-              {data?.receipts?.length || 0} phiếu thu
-            </p>
-          </div>
-        </div>
-
-        <div className="card bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <div className="card-body">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-700 mb-1">Tổng chi</p>
-                <p className="text-3xl font-bold text-red-600">{formatCurrency(totalPayments)}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-200 rounded-xl flex items-center justify-center text-2xl">
-                📤
-              </div>
-            </div>
-            <p className="mt-2 text-sm text-red-600">
-              {data?.payments?.length || 0} phiếu chi
-            </p>
-          </div>
-        </div>
-
-        <div className={`card ${balance >= 0 ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200'}`}>
-          <div className="card-body">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-sm mb-1 ${balance >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>Cân đối</p>
-                <p className={`text-3xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                  {formatCurrency(balance)}
-                </p>
-              </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${balance >= 0 ? 'bg-blue-200' : 'bg-orange-200'}`}>
-                {balance >= 0 ? '📈' : '📉'}
-              </div>
-            </div>
-            <p className={`mt-2 text-sm ${balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              {balance >= 0 ? 'Lãi' : 'Lỗ'}
-            </p>
-          </div>
-        </div>
+      <div className="grid gap-4 lg:grid-cols-4">
+        <MetricCard
+          label="Tổng thu"
+          value={formatCurrency(totalReceipts)}
+          helper={`${financial?.receipts?.length || 0} phiếu thu`}
+          tone="emerald"
+        />
+        <MetricCard
+          label="Tổng chi"
+          value={formatCurrency(totalPayments)}
+          helper={`${financial?.payments?.length || 0} phiếu chi`}
+          tone="rose"
+        />
+        <MetricCard
+          label="Cân đối"
+          value={formatCurrency(balance)}
+          helper={balance >= 0 ? "Dương tiền" : "Âm tiền"}
+          tone={balance >= 0 ? "sky" : "amber"}
+        />
+        <MetricCard
+          label="Còn phải thu"
+          value={formatCurrency(studentFees?.summary?.outstanding_amount || 0)}
+          helper={`${studentFees?.summary?.anomaly_count || 0} cảnh báo`}
+          tone="violet"
+        />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Payment by Category */}
-        <div className="card p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Chi tiêu theo danh mục</h3>
+      <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+        <div className="card motion-rise p-6">
+          <h3 className="mb-4 font-bold text-slate-900">Chi tiêu theo danh mục</h3>
           {Object.keys(paymentsByCategory).length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Object.entries(paymentsByCategory).map(([category, amount]) => {
                 const percent = totalPayments > 0 ? Math.round((amount / totalPayments) * 100) : 0;
                 return (
                   <div key={category}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-gray-700">{categoryLabels[category] || category}</span>
-                      <span className="text-sm font-medium text-gray-900">{formatCurrency(amount)}</span>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">
+                        {CATEGORY_LABELS[category] || category}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {formatCurrency(amount)}
+                      </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className={`h-3 rounded-full ${categoryColors[category] || 'bg-gray-500'}`}
+                        className={`h-full rounded-full ${CATEGORY_COLORS[category] || "bg-slate-500"}`}
                         style={{ width: `${percent}%` }}
-                      ></div>
+                      />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">{percent}%</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">{percent}%</p>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-400">
-              Chưa có dữ liệu chi tiêu
+            <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+              Chưa có dữ liệu chi tiêu trong khoảng đã chọn.
             </div>
           )}
         </div>
 
-        {/* Summary Stats */}
-        <div className="card p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Thống kê tổng quan</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span className="text-gray-600">Số phiếu thu</span>
-              <span className="font-semibold text-gray-900">{data?.receipts?.length || 0}</span>
+        <div className="card motion-rise p-6">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900">Theo dõi học phí theo học viên</h3>
+              <p className="text-sm text-slate-500">
+                {monthLabel(fromMonth)} - {monthLabel(toMonth)} - {filteredStudentRows.length} học viên
+              </p>
             </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span className="text-gray-600">Số phiếu chi</span>
-              <span className="font-semibold text-gray-900">{data?.payments?.length || 0}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span className="text-gray-600">Thu trung bình/phiếu</span>
-              <span className="font-semibold text-green-600">
-                {formatCurrency(data?.receipts?.length ? totalReceipts / data.receipts.length : 0)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span className="text-gray-600">Chi trung bình/phiếu</span>
-              <span className="font-semibold text-red-600">
-                {formatCurrency(data?.payments?.length ? totalPayments / data.payments.length : 0)}
-              </span>
-            </div>
+            <input
+              type="search"
+              value={studentQuery}
+              onChange={(event) => setStudentQuery(event.target.value)}
+              placeholder="Tìm học viên, phụ huynh, lớp..."
+              className="input md:max-w-xs"
+            />
           </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100 text-sm">
+              <thead>
+                <tr className="text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-3">Học viên</th>
+                  <th className="px-3 py-3">Đã thu</th>
+                  <th className="px-3 py-3">Còn phải thu</th>
+                  <th className="min-w-[260px] px-3 py-3">Tháng</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStudentRows.map((student) => (
+                  <tr key={student.student_id} className="align-top hover:bg-slate-50/70">
+                    <td className="px-3 py-4">
+                      <p className="font-bold text-slate-900">{student.student_name}</p>
+                      <p className="mt-1 text-xs text-slate-500">{student.class_names || "Chưa có lớp"}</p>
+                      {student.anomalies?.length > 0 && (
+                        <p className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
+                          Cần đối soát
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-3 py-4">
+                      <p className="font-bold text-emerald-600">{formatCurrency(student.total_paid)}</p>
+                      <p className="text-xs text-slate-500">{student.months_paid || 0} tháng</p>
+                    </td>
+                    <td className="px-3 py-4">
+                      <p
+                        className={`font-bold ${
+                          student.outstanding_amount > 0 ? "text-rose-600" : "text-slate-400"
+                        }`}
+                      >
+                        {formatCurrency(student.outstanding_amount)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Dự kiến {formatCurrency(student.total_expected)}
+                      </p>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="flex min-w-[250px] flex-wrap gap-1.5">
+                        {(student.months || []).map((item) => (
+                          <span
+                            key={item.month}
+                            title={`${monthLabel(item.month)} - ${item.total_days || 0} buổi - ${formatCurrency(item.paid_amount)}`}
+                            className={`inline-flex min-w-14 items-center justify-center rounded-full border px-2 py-1 text-xs font-bold ${
+                              STATUS_STYLES[item.status] || STATUS_STYLES.none
+                            } ${item.anomaly ? "ring-2 ring-amber-300" : ""}`}
+                          >
+                            {monthLabel(item.month)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!filteredStudentRows.length && (
+            <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+              Không có học viên phù hợp bộ lọc hiện tại.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-white/50 flex items-center justify-center z-50">
-          <div className="spinner w-8 h-8"></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <div className="spinner h-8 w-8" />
         </div>
       )}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, helper, tone }) {
+  const toneClass = {
+    emerald: "from-emerald-50 to-teal-50 text-emerald-700 border-emerald-100",
+    rose: "from-rose-50 to-red-50 text-rose-700 border-rose-100",
+    sky: "from-sky-50 to-blue-50 text-sky-700 border-sky-100",
+    amber: "from-amber-50 to-orange-50 text-amber-700 border-amber-100",
+    violet: "from-violet-50 to-indigo-50 text-violet-700 border-violet-100",
+  }[tone];
+
+  return (
+    <div className={`motion-rise rounded-3xl border bg-gradient-to-br p-5 shadow-lg shadow-slate-200/70 ${toneClass}`}>
+      <p className="text-sm font-bold opacity-80">{label}</p>
+      <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
+      <p className="mt-2 text-xs font-semibold opacity-75">{helper}</p>
     </div>
   );
 }

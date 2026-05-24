@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { motion as Motion } from "framer-motion";
 import {
   classesService,
   attendanceService,
@@ -6,6 +7,13 @@ import {
 } from "../services/api";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
+import {
+  countCalendarRowsInMonth,
+  countScheduleDaysInMonth,
+  normalizeScheduleDays,
+  toDateKey,
+  toMonthKey,
+} from "../utils/dateKeys";
 
 // VI: Điểm danh kiểu SAP Timesheet - Hiển thị 3 tháng, chọn tuần để điểm danh
 
@@ -106,7 +114,7 @@ export default function AttendancePage() {
       currentWeek.push({
         day,
         date,
-        dateStr: date.toISOString().split("T")[0],
+        dateStr: toDateKey(date),
         isScheduleDay,
         isToday: date.toDateString() === today.toDateString(),
         weekday: date.getDay(),
@@ -130,45 +138,33 @@ export default function AttendancePage() {
   };
 
   // Get schedule days as numbers
-  const scheduleDayNumbers = useMemo(() => {
-    if (!classSchedule?.schedule_days) return [];
-    let days = classSchedule.schedule_days;
-    if (typeof days === "string") {
-      try {
-        days = JSON.parse(days);
-      } catch {
-        days = [];
-      }
-    }
-    if (!Array.isArray(days)) return [];
-    return days
-      .map((d) =>
-        typeof d === "number"
-          ? d
-          : ({
-              sunday: 0,
-              monday: 1,
-              tuesday: 2,
-              wednesday: 3,
-              thursday: 4,
-              friday: 5,
-              saturday: 6,
-            }[String(d).toLowerCase()] ?? -1),
-      )
-      .filter((d) => d >= 0);
-  }, [classSchedule]);
+  const scheduleDayNumbers = useMemo(
+    () => normalizeScheduleDays(classSchedule?.schedule_days),
+    [classSchedule],
+  );
 
-  // Calculate fee per session (monthly fee / sessions per month)
+  const activeFeeMonth = selectedWeek
+    ? selectedWeek.start
+    : new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+
+  const plannedSessionsInMonth = useMemo(() => {
+    if (!classSchedule) return 0;
+    const year = activeFeeMonth.getFullYear();
+    const month = activeFeeMonth.getMonth();
+    if (scheduleDayNumbers.length) {
+      return countScheduleDaysInMonth(year, month, scheduleDayNumbers);
+    }
+    const sessions = Number(classSchedule.sessions_per_week || 0);
+    if (sessions > 0) return countCalendarRowsInMonth(year, month) * sessions;
+    return 0;
+  }, [activeFeeMonth, classSchedule, scheduleDayNumbers]);
+
+  // Calculate fee per session from monthly tuition and the real month calendar.
   const feePerSession = useMemo(() => {
     if (!classSchedule?.fee_per_day) return 0;
-
-    // Use sessions_per_week if defined, otherwise use scheduleDayNumbers.length
-    const sessionsPerWeek =
-      classSchedule.sessions_per_week || scheduleDayNumbers.length || 1;
-    // Average: 4.33 weeks per month
-    const sessionsPerMonth = sessionsPerWeek * 4.33;
-    return Math.round(classSchedule.fee_per_day / sessionsPerMonth);
-  }, [classSchedule, scheduleDayNumbers]);
+    if (!plannedSessionsInMonth) return classSchedule.fee_per_day;
+    return Math.round(classSchedule.fee_per_day / plannedSessionsInMonth);
+  }, [classSchedule, plannedSessionsInMonth]);
 
   // Get sessions_per_week limit for the class (default to 7 if not set)
   const sessionsPerWeek = useMemo(() => {
@@ -201,7 +197,7 @@ export default function AttendancePage() {
       if (shouldInclude) {
         dates.push({
           date: new Date(current),
-          dateStr: current.toISOString().split("T")[0],
+          dateStr: toDateKey(current),
           dayOfWeek: current.toLocaleDateString("vi-VN", { weekday: "short" }),
           dayNum: current.getDate(),
         });
@@ -355,8 +351,8 @@ export default function AttendancePage() {
     });
 
     // Get months for the week (could span 2 months)
-    const startMonth = selectedWeek.start.toISOString().slice(0, 7);
-    const endMonth = selectedWeek.end.toISOString().slice(0, 7);
+    const startMonth = toMonthKey(selectedWeek.start);
+    const endMonth = toMonthKey(selectedWeek.end);
     const months = [startMonth];
     if (endMonth !== startMonth) {
       months.push(endMonth);
@@ -427,7 +423,7 @@ export default function AttendancePage() {
       return;
     }
 
-    const monthKey = selectedWeek.start.toISOString().slice(0, 7);
+    const monthKey = toMonthKey(selectedWeek.start);
     const period = periods[monthKey];
     if (period?.status === "locked") {
       toast.error("Không thể sửa điểm danh đã chốt");
@@ -567,20 +563,41 @@ export default function AttendancePage() {
     });
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="space-y-6">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">📋 Điểm danh</h1>
-          <p className="text-gray-500">
-            Điểm danh theo tuần - Giống SAP Timesheet
+      <Motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-2xl shadow-indigo-950/20">
+        <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl"></div>
+        <div className="absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl"></div>
+        <div className="relative">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-lg shadow-cyan-300/50"></span>
+            SAP Timesheet Style
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+            Điểm danh
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100/85 sm:text-base">
+            Quản lý điểm danh học viên theo tuần, tính toán học phí theo lịch học thực tế.
           </p>
         </div>
-      </div>
+      </Motion.div>
 
       {/* Class Selector */}
-      <div className="card">
+      <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
         <div className="card-body">
           <div className="flex items-center gap-4">
             <div className="flex-1 max-w-sm">
@@ -615,30 +632,36 @@ export default function AttendancePage() {
                 <p>
                   <strong>Học phí/buổi:</strong>{" "}
                   {new Intl.NumberFormat("vi-VN").format(feePerSession)}đ
+                  {plannedSessionsInMonth ? (
+                    <span className="text-gray-400">
+                      {" "}
+                      / {plannedSessionsInMonth} buổi trong tháng
+                    </span>
+                  ) : null}
                 </p>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </Motion.div>
 
       {loading ? (
-        <div className="card">
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
           <div className="card-body text-center py-12">
             <div className="spinner w-8 h-8 mx-auto mb-4"></div>
             <p className="text-gray-500">Đang tải...</p>
           </div>
-        </div>
+        </Motion.div>
       ) : !selectedClass ? (
-        <div className="card">
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
           <div className="card-body text-center py-12 text-gray-500">
             Vui lòng chọn lớp học để xem lịch điểm danh
           </div>
-        </div>
+        </Motion.div>
       ) : (
         <>
           {/* 3-Month Calendar Grid - SAP Style */}
-          <div className="card">
+          <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
             <div className="card-body">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-900">
@@ -839,11 +862,11 @@ export default function AttendancePage() {
                 })}
               </div>
             </div>
-          </div>
+          </Motion.div>
 
           {/* Week Timesheet - SAP Style */}
           {selectedWeek && (
-            <div className="card">
+            <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
               <div className="card-body">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -1082,10 +1105,10 @@ export default function AttendancePage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Motion.div>
           )}
         </>
       )}
-    </div>
+    </Motion.div>
   );
 }

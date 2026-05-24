@@ -65,6 +65,81 @@ test("mobile navigation remains usable without layout overflow", async ({ page }
   await page.screenshot({ path: "output/playwright/ux-redesign-mobile.png", fullPage: true });
 });
 
+test("dashboard uses the production operations contract without overflow", async ({ page, request }) => {
+  const response = await request.get("/api/reports/dashboard", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.data).toEqual(
+    expect.objectContaining({
+      stats: expect.any(Object),
+      recent_transactions: expect.any(Array),
+      unpaid_students: expect.any(Array),
+      today_attendance: expect.any(Object),
+      attention_items: expect.any(Array),
+      quick_metrics: expect.any(Object),
+    })
+  );
+
+  await seedAuth(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("main")).toContainText("Production online");
+  await expectNoHorizontalOverflow(page);
+});
+
+test("reports page exposes student tuition matrix without overflow", async ({ page, request }) => {
+  const response = await request.get("/api/reports/student-fees?from=2026-05&to=2026-06", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.data).toEqual(
+    expect.objectContaining({
+      months: expect.any(Array),
+      students: expect.any(Array),
+      summary: expect.objectContaining({
+        student_count: expect.any(Number),
+        total_paid: expect.any(Number),
+        total_expected: expect.any(Number),
+        outstanding_amount: expect.any(Number),
+        anomaly_count: expect.any(Number),
+      }),
+    })
+  );
+
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto("/reports");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("Báo cáo vận hành trung tâm")).toBeVisible();
+  await expect(page.getByText("Theo dõi học phí theo học viên")).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.screenshot({ path: "output/playwright/reports-student-fees.png", fullPage: true });
+});
+
+test("template designer renders canvas and upgraded tools", async ({ page, request }) => {
+  const response = await request.get("/api/templates", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  const templates = Array.isArray(body.data) ? body.data : body.data?.templates || [];
+  test.skip(!templates[0], "No template data is available for designer smoke.");
+
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto(`/templates/${templates[0].id}/design`);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("Thành phần")).toBeVisible();
+  await expect(page.getByText("Hình ảnh")).toBeVisible();
+  await expect(page.getByText("Dữ liệu động")).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible();
+  await page.screenshot({ path: "output/playwright/template-designer.png", fullPage: true });
+});
+
 test("receipt PDF endpoint returns a real PDF payload", async ({ request }, testInfo) => {
   const listResponse = await request.get("/api/receipts", {
     headers: { Authorization: `Bearer ${authToken}` },

@@ -1,8 +1,8 @@
-import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
-  handleCors,
-  verifyAuth,
+  AuthedRequest,
+  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
@@ -12,14 +12,71 @@ import {
   validateBody,
 } from "../../../lib/validation.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (handleCors(req, res)) return;
-
-  const authUser = verifyAuth(req);
-  if (!authUser) {
-    return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
+async function enrollStudentsInClass(tx: any, classId: string, studentIds: string[] = []) {
+  const uniqueIds = [...new Set(studentIds.filter(Boolean))];
+  if (!uniqueIds.length) {
+    return { requested: 0, enrolled: 0, reactivated: 0, skipped: 0 };
   }
 
+  const classData = await tx.class.findUnique({
+    where: { id: classId },
+    select: { id: true, maxStudents: true },
+  });
+  if (!classData) {
+    throw new Error("CLASS_NOT_FOUND");
+  }
+
+  const validStudents = await tx.student.findMany({
+    where: { id: { in: uniqueIds }, status: "active", deletedAt: null },
+    select: { id: true },
+  });
+  const validIds = new Set(validStudents.map((student: any) => student.id));
+  const existingLinks = await tx.studentClass.findMany({
+    where: { classId, studentId: { in: uniqueIds } },
+    select: { studentId: true, status: true },
+  });
+  const activeIds = new Set(
+    existingLinks
+      .filter((link: any) => link.status === "active")
+      .map((link: any) => link.studentId)
+  );
+  const idsToActivate = uniqueIds.filter((studentId) => validIds.has(studentId));
+  const idsNewToActive = idsToActivate.filter((studentId) => !activeIds.has(studentId));
+
+  const activeCount = await tx.studentClass.count({
+    where: { classId, status: "active" },
+  });
+  if (activeCount + idsNewToActive.length > classData.maxStudents) {
+    throw new Error("CLASS_CAPACITY_EXCEEDED");
+  }
+
+  let enrolled = 0;
+  let reactivated = 0;
+  for (const studentId of idsToActivate) {
+    const existing = existingLinks.find((link: any) => link.studentId === studentId);
+    await tx.studentClass.upsert({
+      where: { studentId_classId: { studentId, classId } },
+      create: {
+        studentId,
+        classId,
+        enrollmentDate: new Date(),
+        status: "active",
+      },
+      update: { status: "active" },
+    });
+    if (!existing) enrolled += 1;
+    else if (existing.status !== "active") reactivated += 1;
+  }
+
+  return {
+    requested: uniqueIds.length,
+    enrolled,
+    reactivated,
+    skipped: uniqueIds.length - idsToActivate.length + activeIds.size,
+  };
+}
+
+async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - List all classes OR single class by ID
   if (req.method === "GET") {
     try {
@@ -143,6 +200,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST - Create new class
   if (req.method === "POST") {
     try {
+      const id = typeof req.query.id === "string" ? req.query.id : null;
+      const action = req.body?.action;
+      if (id && ["enroll", "bulk_enroll"].includes(action)) {
+        const studentIds = Array.isArray(req.body?.student_ids)
+          ? req.body.student_ids
+          : [req.body?.student_id].filter(Boolean);
+        const result = await prisma.$transaction((tx) =>
+          enrollStudentsInClass(tx, id, studentIds)
+        );
+        return successResponse(res, result);
+      }
+
       const body = validateBody(classCreateSchema, req.body);
 
       const data: any = {
@@ -159,14 +228,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           notes: body.notes,
       };
 
-      const newClass = await prisma.class.create({
-        data,
-        include: { teacher: true },
+      const result = await prisma.$transaction(async (tx) => {
+        const newClass = await tx.class.create({
+          data,
+          include: { teacher: true },
+        });
+        const enrollment = await enrollStudentsInClass(
+          tx,
+          newClass.id,
+          body.student_ids
+        );
+        return { newClass, enrollment };
       });
 
-      return res.status(201).json({ success: true, data: newClass });
+      return res.status(201).json({
+        success: true,
+        data: { class: result.newClass, enrollment: result.enrollment },
+      });
     } catch (error) {
       console.error("Create class error:", error);
+      if ((error as Error).message === "CLASS_CAPACITY_EXCEEDED") {
+        return errorResponse(
+          res,
+          "CLASS_CAPACITY_EXCEEDED",
+          "Class does not have enough capacity for selected students",
+          400
+        );
+      }
+      if ((error as Error).message === "CLASS_NOT_FOUND") {
+        return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
+      }
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
     }
   }
@@ -203,15 +294,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...(body.notes !== undefined && { notes: body.notes }),
       };
 
-      const updatedClass = await prisma.class.update({
-        where: { id },
-        data,
-        include: { teacher: true },
+      const result = await prisma.$transaction(async (tx) => {
+        const updatedClass = await tx.class.update({
+          where: { id },
+          data,
+          include: { teacher: true },
+        });
+        const enrollment = await enrollStudentsInClass(
+          tx,
+          id,
+          body.student_ids || []
+        );
+        return { updatedClass, enrollment };
       });
 
-      return successResponse(res, { class: updatedClass });
+      return successResponse(res, {
+        class: result.updatedClass,
+        enrollment: result.enrollment,
+      });
     } catch (error) {
       console.error("Update class error:", error);
+      if ((error as Error).message === "CLASS_CAPACITY_EXCEEDED") {
+        return errorResponse(
+          res,
+          "CLASS_CAPACITY_EXCEEDED",
+          "Class does not have enough capacity for selected students",
+          400
+        );
+      }
+      if ((error as Error).message === "CLASS_NOT_FOUND") {
+        return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
+      }
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
     }
   }
@@ -259,3 +372,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);
 }
+
+export default requireAuth(handler);

@@ -1,20 +1,15 @@
-import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
-  handleCors,
-  verifyAuth,
+  AuthedRequest,
+  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
+import { sendApiError } from "../../../lib/api-utils.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (handleCors(req, res)) return;
-
-  const authUser = verifyAuth(req);
-  if (!authUser) {
-    return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
-  }
-
+async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - Get attendance records
   if (req.method === "GET") {
     try {
@@ -42,8 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return successResponse(res, records);
     } catch (error) {
-      console.error("Attendance list error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "ATTENDANCE_LIST_ERROR");
     }
   }
 
@@ -62,6 +56,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
+      await assertAttendanceDatesEditable(class_id, [attendance_date]);
+
       const record = await prisma.attendance.upsert({
         where: {
           studentId_classId_attendanceDate: {
@@ -76,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           attendanceDate: new Date(attendance_date),
           status,
           reason,
-          createdById: authUser.userId,
+          createdById: req.user.id,
         },
         update: {
           status,
@@ -86,10 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(201).json({ success: true, data: record });
     } catch (error) {
-      console.error("Create attendance error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "ATTENDANCE_CREATE_ERROR");
     }
   }
 
   return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);
 }
+
+export default requireAuth(handler);

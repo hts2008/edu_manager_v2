@@ -1,20 +1,13 @@
-import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
+import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import {
-  handleCors,
-  verifyAuth,
+  AuthedRequest,
+  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (handleCors(req, res)) return;
-
-  const authUser = verifyAuth(req);
-  if (!authUser) {
-    return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
-  }
-
+async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - List attendance periods
   if (req.method === "GET") {
     try {
@@ -130,3 +123,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);
 }
+
+export default requireAuth(handler);

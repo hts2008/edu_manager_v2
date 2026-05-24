@@ -41,12 +41,17 @@ coverage/
 # Test artifacts
 test-results/
 playwright-report/
+frontend/output/
 
 # Temp
 .tmp/
 tmp/
+frontend/update*.cjs
+frontend/update*.js
+frontend/update*.ps1
 
 # Local backup artifacts
 *.backup
+.codex/*.bak
 
 .vercel

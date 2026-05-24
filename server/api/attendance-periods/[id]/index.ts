@@ -1,20 +1,17 @@
-import type { VercelRequest, VercelResponse } from "../../../../lib/vercel-types.js";
+import type { VercelResponse } from "../../../../lib/vercel-types.js";
 import prisma from "../../../../lib/prisma.js";
 import {
-  handleCors,
-  verifyAuth,
+  AuthedRequest,
+  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../../lib/auth.js";
+import {
+  calculateTuitionForClass,
+  CHARGEABLE_ATTENDANCE_STATUSES,
+} from "../../../../lib/tuition.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (handleCors(req, res)) return;
-
-  const authUser = verifyAuth(req);
-  if (!authUser) {
-    return errorResponse(res, "UNAUTHORIZED", "Authentication required", 401);
-  }
-
+async function handler(req: AuthedRequest, res: VercelResponse) {
   // Get id from query param (Vercel dynamic route)
   const { id, action } = req.query;
 
@@ -164,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           where: { id },
           data: {
             status: "submitted",
-            submittedById: authUser.userId,
+            submittedById: req.user.id,
             submittedAt: new Date(),
             totalSessions,
             totalPresent,
@@ -187,7 +184,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       case "approve": {
-        if (authUser.role !== "admin") {
+        if (req.user.role !== "admin") {
           return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
         }
 
@@ -204,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           where: { id },
           data: {
             status: "approved",
-            approvedById: authUser.userId,
+            approvedById: req.user.id,
             approvedAt: new Date(),
           },
         });
@@ -213,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       case "lock": {
-        if (authUser.role !== "admin") {
+        if (req.user.role !== "admin") {
           return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
         }
 
@@ -230,54 +227,81 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           where: { id },
           data: {
             status: "locked",
-            lockedById: authUser.userId,
+            lockedById: req.user.id,
             lockedAt: new Date(),
           },
         });
 
-        // Create monthly fees for students
+        // Create or refresh monthly fees for students that are still collectible.
         const studentClasses = await prisma.studentClass.findMany({
           where: { classId: period.classId, status: "active" },
         });
+
+        let feesCreated = 0;
+        let feesUpdated = 0;
+        let feesSkipped = 0;
 
         for (const sc of studentClasses) {
           const existing = await prisma.monthlyFee.findFirst({
             where: { studentId: sc.studentId, month: period.periodMonth },
           });
 
-          if (!existing) {
-            const [year, month] = period.periodMonth.split("-");
-            const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const endDate = new Date(parseInt(year), parseInt(month), 0);
+          if (existing && !["pending", "ready"].includes(existing.status)) {
+            feesSkipped += 1;
+            continue;
+          }
 
-            const count = await prisma.attendance.count({
-              where: {
-                studentId: sc.studentId,
-                classId: period.classId,
-                attendanceDate: { gte: startDate, lte: endDate },
-                status: { in: ["present", "absent_with_fee"] },
+          const [year, month] = period.periodMonth.split("-");
+          const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+          const endDate = new Date(parseInt(year), parseInt(month), 0);
+
+          const count = await prisma.attendance.count({
+            where: {
+              studentId: sc.studentId,
+              classId: period.classId,
+              attendanceDate: { gte: startDate, lte: endDate },
+              status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
+            },
+          });
+          const tuition = calculateTuitionForClass(period.class, period.periodMonth, count);
+
+          if (existing) {
+            await prisma.monthlyFee.update({
+              where: { id: existing.id },
+              data: {
+                totalDays: tuition.chargedSessions,
+                totalAmount: tuition.totalAmount,
+                status: "ready",
+                receiptId: null,
+                paidAt: null,
               },
             });
-
+            feesUpdated += 1;
+          } else {
             await prisma.monthlyFee.create({
               data: {
                 studentId: sc.studentId,
                 month: period.periodMonth,
-                totalAmount: count * (period.class.feePerDay || 0),
+                totalDays: tuition.chargedSessions,
+                totalAmount: tuition.totalAmount,
                 status: "ready",
               },
             });
+            feesCreated += 1;
           }
         }
 
         return successResponse(res, {
           message: "Period locked and fee records created",
           studentsProcessed: studentClasses.length,
+          fees_created: feesCreated,
+          fees_updated: feesUpdated,
+          fees_skipped: feesSkipped,
         });
       }
 
       case "unlock": {
-        if (authUser.role !== "admin") {
+        if (req.user.role !== "admin") {
           return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
         }
 
@@ -304,7 +328,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       case "reject": {
         // VI: Trả lại điểm danh cho giáo viên
-        if (authUser.role !== "admin") {
+        if (req.user.role !== "admin") {
           return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
         }
 
@@ -353,3 +377,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
   }
 }
+
+export default requireAuth(handler);

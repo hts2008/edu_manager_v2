@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useId } from 'react';
 
 // VI: DataTable component với sorting, filtering, và pagination
 export default function DataTable({
@@ -16,6 +16,7 @@ export default function DataTable({
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const searchId = useId();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   // Handle sorting
@@ -98,10 +99,13 @@ export default function DataTable({
   }, [searchTerm]);
 
   return (
-    <div className="card overflow-hidden">
+    <div className="w-full overflow-hidden rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm">
       {/* Search */}
-      <div className="flex flex-col gap-3 border-b border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-transparent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
+          <label htmlFor={searchId} className="sr-only">
+            Tìm kiếm trong bảng
+          </label>
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
             fill="none"
@@ -116,11 +120,12 @@ export default function DataTable({
             />
           </svg>
           <input
+            id={searchId}
             type="text"
             placeholder="Tìm kiếm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="input pl-10"
+            className="w-full rounded-xl border border-slate-200/60 bg-white/80 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
           />
         </div>
         <span className="text-sm text-gray-500">
@@ -146,19 +151,30 @@ export default function DataTable({
                 </th>
               )}
               {columns.map((col) => (
-                <th
-                  key={col.key}
-                  onClick={() => col.sortable !== false && handleSort(col.key)}
-                  className={col.sortable !== false ? 'cursor-pointer select-none' : ''}
-                >
-                  <div className="flex items-center gap-2">
-                    {col.title}
-                    {sortConfig.key === col.key && (
-                      <span className="text-primary-500">
-                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
+                <th key={col.key}>
+                  {col.sortable !== false ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.key)}
+                      className="flex items-center gap-2 text-left font-bold"
+                      aria-sort={
+                        sortConfig.key === col.key
+                          ? sortConfig.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      {col.title}
+                      {sortConfig.key === col.key && (
+                        <span className="text-primary-500" aria-hidden="true">
+                          {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">{col.title}</div>
+                  )}
                 </th>
               ))}
             </tr>
@@ -209,7 +225,7 @@ export default function DataTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="flex items-center justify-between border-t border-slate-200/60 bg-slate-50/50 px-4 py-3 backdrop-blur-sm">
           <span className="text-sm text-gray-500">
             Trang {currentPage} / {totalPages}
           </span>
@@ -217,14 +233,14 @@ export default function DataTable({
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="btn-secondary px-3 py-1.5"
+              className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               ←
             </button>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="btn-secondary px-3 py-1.5"
+              className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               →
             </button>
