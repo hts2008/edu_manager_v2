@@ -160,10 +160,9 @@ NEVER cross-CLI fallback:
    - Brain is verified on first call — reported brain MUST match expected
 2. **Direct MCP**: `nmem_*` tools directly — ONLY available in `default` brain workspaces (UAIC, UAIC_PROD)
 
-**Known MCPProxy upstream instances:**
-- `neural-memory-default` → brain: `default` (UAIC, UAIC_PROD)
-- `neural-memory-elementa` → brain: `elementa` (ELEMENTA_DEV)
-- `neural-memory-dtndd` → brain: `dtndd` (DTNDD, TTNDD_Ops)
+**EDU_MANAGER_V2 MCPProxy route:**
+- `neural-memory-default` → select the `edu_manager` brain for this workspace.
+- Do not route EDU_MANAGER_V2 to any other MCPProxy upstream or Neural Memory brain.
 
 **Config enforcement (`.mcp.json`):**
 - Non-default workspaces: `"neural-memory": { "disabled": true }` → no direct `nmem_*` tools

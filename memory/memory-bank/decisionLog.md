@@ -18,17 +18,17 @@
 **Rationale**: Enables quick layout work and consistent visual tokens without a heavy component framework.
 **Status**: IMPLEMENTED
 
-### ADR-03: Prisma ORM + Supabase PostgreSQL
+### ADR-03: Prisma ORM + Managed PostgreSQL
 **Date**: 2026-01-09
 **Context**: Production deployment needed a managed relational database and a typed ORM.
-**Decision**: Use Prisma ORM with Supabase PostgreSQL.
-**Rationale**: Prisma provides schema typing and migrations; Supabase provides managed PostgreSQL suitable for production.
-**Status**: IMPLEMENTED
+**Decision**: Use Prisma ORM with a managed PostgreSQL database. The current production target is Neon, superseding the original Supabase target via ADR-18.
+**Rationale**: Prisma provides schema typing and migrations; managed PostgreSQL keeps production operations low-friction.
+**Status**: IMPLEMENTED; database provider superseded by ADR-18.
 
 ### ADR-04: Vercel Serverless Deployment
 **Date**: 2026-01-09
 **Context**: Project needed simple cloud deployment for frontend and API routes.
-**Decision**: Deploy to Vercel with serverless API functions and Supabase database connectivity.
+**Decision**: Deploy to Vercel with serverless API functions and managed PostgreSQL connectivity.
 **Rationale**: Low operational burden, automatic deployments, and a good fit for the existing JavaScript stack.
 **Status**: IMPLEMENTED
 
@@ -51,7 +51,7 @@
 **Date**: 2026-04-25
 **Context**: Serverless functions can create excessive database connections if PrismaClient is instantiated per request.
 **Decision**: Use a singleton Prisma client pattern in `lib/prisma.ts`.
-**Rationale**: Improves connection stability with Supabase pooler in serverless environments.
+**Rationale**: Improves connection stability with pooled managed PostgreSQL in serverless environments.
 **Status**: ACTIVE
 
 ### ADR-08: Tri-State Soft-Delete Synchronization
@@ -165,3 +165,24 @@
 **Decision**: Store encrypted JSON backups in Vercel Blob using AES-256-GCM, with verification that decrypts and validates payload shape/table counts. Do not run destructive restore operations automatically.
 **Rationale**: Vercel Blob is already part of the production stack and avoids a second external dependency. Verification proves the backup can be read without risking production data overwrite.
 **Status**: IMPLEMENTED
+
+### ADR-24: Production Readiness Contract-First Hardening
+**Date**: 2026-05-18
+**Context**: The route-by-route audit found that visible UI polish was not enough: dashboard fields were missing, some handlers trusted old JWT payloads without checking active users, locked attendance periods did not protect later writes, and fee/receipt workflows could diverge.
+**Decision**: Fix critical workflows backend-outward before continuing page-level visual redesign. New dashboard fields are additive; core handlers must use `requireAuth()`; attendance writes must reject locked periods; monthly-fee payment must claim the fee row conditionally before receipt creation; direct receipt creation may link an eligible monthly fee row.
+**Rationale**: This preserves the existing frontend boundary while making production behavior enforceable from persisted data and transactions instead of UI assumptions.
+**Status**: IMPLEMENTED locally with unit/type/lint/build/audit and Chrome-channel Playwright smoke evidence on 2026-05-18.
+
+### ADR-25: Monthly Tuition Engine and Anomaly-First Financial Correction
+**Date**: 2026-05-19
+**Context**: A paid receipt could show `days_count=0` with a non-zero amount because attendance-period fee generation did not persist total days and because `sessions_per_week` class tuition was treated as per-session tuition. Existing production-like financial records may already contain anomalies.
+**Decision**: Centralize tuition calculation in `lib/tuition.ts`. For `sessions_per_week` classes, treat `fee_per_day` as monthly tuition and divide by the actual expected sessions for that month (`calendar rows * sessions_per_week`). For `schedule_days`, count actual matching weekdays in the month. Keep unscheduled classes on legacy per-session billing. Do not silently mutate already-paid anomalous receipts; expose them through the student-fees report for explicit adjustment/void/reissue handling.
+**Rationale**: A shared engine prevents endpoint drift, matches the operator model for monthly tuition, avoids future zero-session/non-zero-amount records, and protects financial auditability by not rewriting paid history without a policy.
+**Status**: IMPLEMENTED locally with unit/type/lint/build/Playwright evidence on 2026-05-19.
+
+### ADR-26: Canonical Production Alias and Vercel Env/Blob Ownership
+**Date**: 2026-05-23
+**Context**: The previous `edu-manager-delta` URL was stale/outside the active `hts2008s-projects/edu-manager` project, while the current project had no Production env vars and template image upload failed with `STORAGE_NOT_CONFIGURED`.
+**Decision**: Treat `https://edu-manager-gules.vercel.app` as the canonical production alias for the active Vercel project. Required Production env keys are `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and `CRON_SECRET`. Use Vercel Blob store `edu-manager-live-blob` for template images and backup storage. Keep `.vercelignore` patterns root-anchored so operational evidence folders do not exclude `server/api/*` modules.
+**Rationale**: This aligns the URL users open with the Vercel project being deployed, restores Prisma/JWT/storage/cron runtime behavior, and prevents serverless bundle omissions from broad ignore patterns.
+**Status**: IMPLEMENTED with production deploy `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`, upload-image 201, cron guard 403, Playwright 6/6, and audit 0 vulnerabilities on 2026-05-23.

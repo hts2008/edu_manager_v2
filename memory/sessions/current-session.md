@@ -3,9 +3,9 @@
 ## Session Info
 - **Started**: 2026-05-14
 - **Workspace**: EDU_MANAGER_V2
-- **Mode**: PHASE C CLOSEOUT
-- **Primary Objective**: Complete remaining Phase C product/operations slices after explicit approval and record production evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, and Phase C C1-C12 product slices are implemented and production-smoked.
+- **Mode**: PRODUCTION READINESS HARDENING
+- **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, and the 2026-05-23 production deploy/env closeout are implemented with production evidence.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -40,7 +40,13 @@
   - [x] Leave local reference servers available for immediate inspection: frontend PID 67132 on port 3000, backend PID 70216 on port 5000.
   - [x] Attempt local Vercel dev; blocked by missing Vercel credentials/token.
   - [x] Record evidence in `receipts/2026-05-14-phase-a-closeout-attempt.md`.
-- [ ] Decide whether to isolate/commit remaining operational hygiene changes before Phase B work.
+- [x] Close post-deploy operational hygiene drift after production deploy.
+  - [x] Spawn sidecar explorer agents to classify app/product, temp/generated, local-config, and docs/memory drift.
+  - [x] Delete untracked one-off `frontend/update*` rewrite scripts after reference scan and workspace path verification.
+  - [x] Restore `.codex/config.toml` to safe tracked policy; no `danger-full-access`/`approval_policy=never` drift remains.
+  - [x] Add `.gitignore` policy for generated Playwright output, one-off update scripts, and local Codex backups.
+  - [x] Keep `.vercelignore`, audit plan, receipts, and memory scaffolding as intentional evidence/source-of-truth artifacts.
+  - [x] Record closeout evidence in `receipts/2026-05-24-operational-hygiene-closeout.md`.
 - [x] Implement Phase B foundation hardening baseline.
   - [x] Remove tracked `.backup` files and ignore future backups.
   - [x] Add frontend API client `VITE_API_BASE`, controlled retry, parse guard, and 401 event.
@@ -121,7 +127,7 @@
   - [x] Extend Playwright smoke to 15 tests.
   - [x] Verify local commit/cleanup smoke.
   - [x] Smoke production preview only after Vercel deploy.
-  - [ ] Native `.xlsx` parsing remains deferred until dependency/security plan approval.
+  - [x] Native `.xlsx` parsing remains intentionally deferred until a separate dependency/security plan is approved; CSV import is the production path.
 - [x] Implement Phase C C4/C5/C6/C9/C10 operations closeout.
   - [x] Enable `CRON_SECRET`-protected monthly fee cron and production generation.
   - [x] Add parent portal read-only login/data flow.
@@ -146,14 +152,50 @@
   - [x] Sync Figma source-of-truth UX frames and inspect Figma context.
   - [x] Verify unit/type/lint/build and local Chrome-channel E2E.
   - [x] Push scoped patch and smoke production after Vercel deploy.
+- [x] Implement 2026-05-18 production readiness hardening from `PLAN.md`.
+  - [x] Inspect git diff/status before new edits.
+  - [x] Inspect capability matrix and active plan.
+  - [x] Reuse Stitch/Figma design context for operations-console direction.
+  - [x] Add dashboard API contract fields and redesign dashboard as data-linked operations console.
+  - [x] Convert core handlers from token-only auth to DB-backed `requireAuth()`.
+  - [x] Enforce locked attendance periods on single/bulk attendance writes.
+  - [x] Make monthly fee pay conditional/idempotent and link direct receipts to monthly fees.
+  - [x] Add shared UX primitives and wire change-password modal.
+  - [x] Add local smoke server for current `api/router.ts` + `frontend/dist`.
+  - [x] Verify unit 24/24, typecheck, lint, build, audits, diff check, and Chrome-channel Playwright UX smoke 4/4.
+- [x] Implement 2026-05-19 attendance/tuition/report/template UX hardening.
+  - [x] Run RCA on Phuc, Starter A1, attendance dates, monthly fees, receipts, and period lock data.
+  - [x] Add shared tuition engine and regression tests.
+  - [x] Wire tuition engine through attendance fee, monthly fee, attendance-period lock, generator, and receipt flows.
+  - [x] Fix Attendance UI local date keys and Vietnamese weekday normalization.
+  - [x] Add bulk student enrollment for class create/update.
+  - [x] Add `/api/reports/student-fees` and Reports matrix with anomaly surfacing.
+  - [x] Upgrade Template Designer with image/background upload, Fabric layer controls, duplicate, lock, align, opacity, shapes, and data fields.
+  - [x] Generate Stitch `GEMINI_3_1_PRO` reports concept; Figma Desktop unavailable.
+  - [x] Verify tsc, lint, unit 28/28, build, Playwright smoke 6/6, and diff-check.
+- [x] Deploy and smoke 2026-05-18/2026-05-19 hardening to production.
+  - [x] Inspect git status/diff before continuing.
+  - [x] Use ck:team-style sidecar explorer via Codex `multi_agent_v1` to audit env/storage requirements.
+  - [x] Add missing Vercel Production env vars without logging values.
+  - [x] Create/link Vercel Blob store `edu-manager-live-blob`.
+  - [x] Add `.vercelignore` and fix root-only patterns after identifying accidental API bundle exclusions.
+  - [x] Redeploy final production deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`.
+  - [x] Verify login, protected auth boundary, cron guard, template image upload, dashboard/report/receipt PDF, and production Playwright 6/6.
+  - [x] Close frontend audit vulnerability and redeploy with Vercel install 0 vulnerabilities.
+- [x] Operational hygiene closeout after deploy.
+  - [x] Branch confirmed: `codex/edu-production-readiness` at `54902e5`.
+  - [x] Temp update scripts removed; no `frontend/update*` files remain.
+  - [x] `.codex/config.toml` local-risk drift removed from working tree.
+  - [x] Remaining dirty tree classified into app/product batch and docs/memory/evidence batch; no broad staging performed.
+  - [x] Verify diff-check, typecheck, unit 28/28, lint, build, audits, and production Playwright 6/6.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A API parity passed for existing UI flows.
-- **Production URL**: https://edu-manager-delta.vercel.app
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening and EduFlow UI pass are deployed and production-smoked.
+- **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest scoped product code commit observed in Codex session**: `f544464` after PDF + UX production hardening; production smoke evidence is recorded in `receipts/2026-05-17-pdf-ux-production-hardening.md`.
+- **Latest production deployment observed in Codex session**: `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`; current 2026-05-18/2026-05-19 hardening is deployed from the local dirty tree and production-smoked.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -162,10 +204,11 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Rotate default credentials and JWT secret before real production operation.
-2. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-3. Continue page-specific UI polish only after the core shell/PDF fix is stable.
-4. Preserve commit hygiene: remaining dirty framework/memory/UI-polish changes are outside this scoped work.
+1. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
+2. Rotate default credentials and JWT secret before real production operation.
+3. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+4. Optionally clean the two 1x1 Blob smoke files from Vercel Storage UI.
+5. Commit hygiene decision: use two explicit batches only (`app/product` then `docs-memory-evidence`); never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
@@ -177,6 +220,8 @@
 - Chrome UI smoke passed across `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` with no failed fetch requests.
 - `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 - `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.
+- 2026-05-19 local gates passed: `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check`.
+- 2026-05-24 hygiene closeout gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, `npm --prefix frontend run lint`, `npm run build`, root/frontend audit, and production Playwright `ux-redesign-smoke.spec.js` 6/6.
 - `npm run test:unit` passed 13/13 after observability tests were added.
 - Production B7c smoke passed after commit `20949c2`: API headers, auth login/me, and `/payments` browser page verified.
 - C8 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 8/8 after adding audit log UI/API coverage.

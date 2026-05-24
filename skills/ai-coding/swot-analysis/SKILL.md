@@ -75,7 +75,7 @@ description: Strengths, Weaknesses, Opportunities, Threats framework for technol
 ## Technology Evaluation Example
 
 ```markdown
-## SWOT: Adopting Prisma ORM for TTNDD_Ops
+## SWOT: Adopting Prisma ORM for EDU_MANAGER_V2
 
 ### Strengths
 - [S1] Type-safe queries with auto-generated client — Evidence: zero runtime type errors in tests

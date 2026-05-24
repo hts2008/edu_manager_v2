@@ -15,13 +15,24 @@ This workflow is the operational engine behind the `/start-session` command. It 
 - Workspace root contains `GEMINI.md`
 - Agent executing this has read access to `memory/` and project root
 
+## 🚨 ZERO-FREEZE EXECUTION GUARD (BẮT BUỘC)
+
+Trong Antigravity 2.x, mọi cuộc gọi MCP tool (`nmem_*`, `contextplus_*`) có thể bị block do Ollama/server đang khởi động. **AI Agent thực thi workflow này PHẢI tuân thủ nghiêm ngặt:**
+1. **Timeout tối đa 5 giây**: Mọi cuộc gọi đến `nmem_recall`, `nmem_session`, `nmem_health`, `get_context_tree` hay `semantic_code_search` PHẢI tự động hết hiệu lực (abort/timeout) nếu sau 5 giây không phản hồi.
+2. **Graceful Degradation Override**: Nếu bất kỳ tool nào bị timeout hoặc báo lỗi kết nối:
+   * **BỎ QUA ngay lập tức**, không retry vô hạn.
+   * Ghi log cảnh báo cụ thể: `[WARN] Neural Memory/Context+ tool failed: [error details]. Falling back to manual degraded mode.`
+   * Tiếp tục các bước tiếp theo của boot sequence (đọc memory-bank thủ công), **tuyệt đối không được treo IDE**.
+3. **Phát hiện đúng Brain**: Neural Memory server chạy cục bộ phải kết nối đúng brain `edu_manager`. Nếu tool trả về brain `default` hoặc project khác, log warning và tiếp tục chạy thủ công với memory cục bộ của project hiện tại.
+
 ## Step 0: Infrastructure Auto-Start + Health Check (V4.4)
 
 Before any session logic, **auto-start** brain infrastructure then verify:
 
 ```
 STEP 0a — AUTO-START:
-  Run: powershell -ExecutionPolicy Bypass -File "D:\0.APP\UAIC\scripts\start-infrastructure.ps1"
+  Run if present: powershell -ExecutionPolicy Bypass -File ".\scripts\start-infrastructure.ps1"
+  If scripts/start-infrastructure.ps1 is missing, skip auto-start and continue with degraded mode.
   This script:
     ├─ Checks ports 9100 (NM), 11434 (Ollama), 3333 (Dashboard)
     ├─ Starts any service that is not running (as hidden background process)
@@ -37,7 +48,7 @@ STEP 0b — VERIFY (after script completes):
   RESULTS:
     IF NM_SERVER.TcpTestSucceeded == False:
       WARN "⚠️ Neural Memory server failed to start on :9100"
-      SUGGEST "Manual: nmem serve -p 9100 --brain uaic"
+      SUGGEST "Manual: nmem serve -p 9100 --brain edu_manager"
       Continue with degraded mode (NM tools will fail gracefully)
 
     IF OLLAMA.TcpTestSucceeded == False:

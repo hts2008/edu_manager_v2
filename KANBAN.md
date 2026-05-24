@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-delta.vercel.app | Live, Phase A API parity passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest hardening deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -25,13 +25,13 @@
 ### Infrastructure ✅
 
 - [x] Tailwind CSS v4 + Vite
-- [x] SQLite + PostgreSQL (Supabase)
+- [x] SQLite reference + Neon PostgreSQL production
 - [x] 70+ API endpoints
 - [x] JWT Auth + Role-based access
 - [x] Docker configuration
 - [x] **Vercel Deployment** ⭐ NEW
 - [x] **Prisma ORM** ⭐ NEW
-- [x] **Supabase PostgreSQL** ⭐ NEW
+- [x] **Neon PostgreSQL + Vercel Blob** ⭐ NEW
 
 ### Frontend (14 Pages) ✅
 
@@ -52,7 +52,7 @@
 ### Deployment ✅ NEW
 
 - [x] Vercel Production Deployment
-- [x] Supabase PostgreSQL Database
+- [x] Neon PostgreSQL Database
 - [x] Prisma Schema Migration
 - [x] ES Module Configuration
 - [x] Environment Variables Setup
@@ -222,6 +222,62 @@
 
 ---
 
+## PRODUCTION READINESS HARDENING - 2026-05-18
+
+**Objective:** close audit findings found while executing `PLAN.md`: dashboard must be data-linked, core APIs must use DB-backed auth, attendance locks must be enforceable, fee payment must be idempotent, and UX shell primitives must be safer for production operation.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| PRUX-001 | Dashboard operations contract | `server/api/reports/dashboard.ts`, `DashboardPage.jsx` | IMPLEMENTED | `receipts/2026-05-18-production-readiness-hardening.md`; dashboard contract smoke passed |
+| PRUX-002 | DB-backed auth for core handlers | auth/me, students, parents, classes, teachers, attendance, attendance periods, dashboard | IMPLEMENTED | `tests/production-contracts.test.ts`; no remaining `verifyAuth(` in `server/api` |
+| PRUX-003 | Attendance lock enforcement | `lib/attendance-lock.ts`, attendance single/bulk write APIs | IMPLEMENTED | `receipts/2026-05-18-production-readiness-hardening.md`; locked periods return `ATTENDANCE_PERIOD_LOCKED` |
+| PRUX-004 | Fee ledger idempotency | monthly fee pay, receipt create, receipt validation | IMPLEMENTED | `receipts/2026-05-18-production-readiness-hardening.md`; conditional fee claim + monthly fee link |
+| PRUX-005 | UX primitives and shell fixes | PageHeader, MetricCard, PageState, Header, Modal, DataTable, EmptyState, Reports | IMPLEMENTED | Unit 24/24, typecheck, lint, build, audit, Chrome Playwright UX smoke 4/4 |
+| PRUX-006 | Local smoke server for Vercel router | `scripts/local-smoke-server.ts`, `package.json` | IMPLEMENTED | `npm run dev:smoke` served `api/router.ts` + built frontend for current-code smoke |
+
+---
+
+## ATTENDANCE / TUITION RCA + REPORT / TEMPLATE UX - 2026-05-19
+
+**Objective:** fix the real attendance-fee defect behind the Phuc example, make monthly tuition calculation deterministic, and add operational screens/tools needed to catch and manage the issue.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| FEE-RCA-001 | RCA incorrect session count and tuition amount | Neon data, Phuc monthly fees/receipts/attendance, class config | IMPLEMENTED | `receipts/2026-05-19-attendance-tuition-report-template-ux.md`; root causes documented |
+| FEE-ENG-001 | Shared tuition engine | `lib/tuition.ts`, fee endpoints, monthly fee generator, receipt linkage | IMPLEMENTED | `tests/tuition.test.ts`; unit 28/28; typecheck pass |
+| ATT-UI-001 | Local-safe date keys and weekday convention | `frontend/src/utils/dateKeys.js`, `AttendancePage.jsx` | IMPLEMENTED | `toISOString()` removed from attendance date keys; Vietnamese weekday mapping tested |
+| CLS-BULK-001 | Bulk add students while creating/updating class | `server/api/classes/index.ts`, `ClassesPage.jsx`, validation schema | IMPLEMENTED | Class create/update accepts `student_ids`; capacity checks included |
+| REP-FEE-001 | Student tuition collection report | `server/api/reports/student-fees.ts`, `api/router.ts`, `ReportsPage.jsx`, API service | IMPLEMENTED | Playwright reports smoke pass; screenshot `frontend/output/playwright/reports-student-fees.png` |
+| TPL-UX-001 | Canva-like Template Designer upgrade | `TemplateDesignerPage.jsx`, template image upload service | IMPLEMENTED | Playwright template designer smoke pass; screenshot `frontend/output/playwright/template-designer.png` |
+| MOT-UX-001 | Motion-oriented operations UI direction | `index.css`, Reports UI, Stitch project `12785236930566023458` | IMPLEMENTED | Stitch `GEMINI_3_1_PRO` screen `bcc2bae4057745d4969b2b3b114ce526`; Figma Desktop unavailable in this session |
+| MOT-UX-002 | Premium Dashboard Glassmorphism UI | `DashboardPage.jsx`, `index.css`, Recharts integration | IMPLEMENTED | Integrated `recharts` for LineChart, used `glass-surface` and `midnight-indigo` themes, verified with `npm run build` pass |
+
+**Verification:** `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check` all passed.
+
+**Operational note:** existing paid anomalous receipts were not auto-mutated. The new report flags them for explicit financial adjustment/void/reissue policy.
+
+---
+
+## PRODUCTION DEPLOY / ENV CLOSEOUT - 2026-05-23
+
+**Objective:** make the locally verified 2026-05-18/2026-05-19 hardening visible on production and close the env/storage/runtime gaps that kept fixes from appearing.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| DEPLOY-001 | Point active production target to current Vercel project | Vercel `hts2008s-projects/edu-manager` | IMPLEMENTED | `vercel inspect edu-manager-gules.vercel.app` -> deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`, status Ready |
+| DEPLOY-002 | Restore production runtime env | `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` | IMPLEMENTED | `vercel env ls` shows encrypted Production entries for all required keys |
+| DEPLOY-003 | Fix Vercel deployment packaging | `.vercelignore` | IMPLEMENTED | Root-only ignore patterns prevent excluding `server/api/receipts` and `server/api/reports` |
+| DEPLOY-004 | Verify production app/API/storage | Auth, dashboard, student-fees, receipts/PDF, template upload, cron guard | IMPLEMENTED | Production Playwright `ux-redesign-smoke.spec.js` 6/6; upload-image 201; cron no-token 403 |
+| DEPLOY-005 | Close dependency audit drift | `frontend/package-lock.json` | IMPLEMENTED | Root `npm audit --audit-level=high` pass; frontend `npm audit` found 0 vulnerabilities; Vercel install found 0 vulnerabilities |
+
+**Canonical production URL:** `https://edu-manager-gules.vercel.app`.
+
+**Delta URL note:** `https://edu-manager-delta.vercel.app` is not the current project alias for `hts2008s-projects/edu-manager`; do not use it as production truth unless it is explicitly reattached in Vercel.
+
+**Receipt:** `receipts/2026-05-23-production-deploy-env-closeout.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -254,6 +310,7 @@
 | Git dirty state classification | ✅ IMPLEMENTED | App-code paths clean; dirty state is framework sync + restored memory/board files; no app feature code mixed in |
 | Context+ runtime remediation and verification | ✅ IMPLEMENTED | `.mcp.json` patched to Windows-safe `cmd /c npx -y contextplus .`; after MCP host reload, both `get_context_tree` and `semantic_code_search` succeeded |
 | EDU_MANAGER_V2 scope/path cleanup | ✅ IMPLEMENTED | No remaining known external workspace markers or hard-coded out-of-scope paths in workspace text scan |
+| Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
 
 ---
 
@@ -276,10 +333,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; unit 18/18, Playwright smoke 17/17, audit/tsc/build/lint pass |
-| Production usability | Usable for existing Phase A UI flows; Phase B hardening and Phase C C1-C12 value slices deployed and smoked |
+| Tests/CI | Phase B/C baseline implemented; latest local gates pass with unit 28/28, targeted Playwright smoke 6/6, tsc/build/lint/diff-check pass |
+| Production usability | Live on `edu-manager-gules`; latest tuition/report/template/design hardening deployed and production-smoked |
 
-**Overall:** Production live and usable for existing Phase A UI flows; Phase B reliability/security baseline and Phase C C1-C12 product slices are implemented and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening and EduFlow UI pass are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 
@@ -330,12 +387,12 @@ stop.bat
 
 | Service   | URL                                                         |
 | --------- | ----------------------------------------------------------- |
-| **Live**  | https://edu-manager-delta.vercel.app                        |
+| **Live**  | https://edu-manager-gules.vercel.app                        |
 | Frontend  | http://localhost:3000                                       |
 | Backend   | http://localhost:5000                                       |
 | Dashboard | dashboard.html                                              |
-| Supabase  | https://supabase.com/dashboard/project/rdtqbivfnrdcureoazbh |
+| Neon DB   | https://console.neon.tech/app/projects/dry-dew-91484915     |
 
 ---
 
-**Last Updated:** 2026-05-17 09:40
+**Last Updated:** 2026-05-24 00:00

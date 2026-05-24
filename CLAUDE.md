@@ -1,228 +1,156 @@
-# CLAUDE.md - Agent_Coding Framework Instructions for Claude
-<!-- VI: Hướng dẫn cho Claude AI. Đọc file này đầu tiên khi mở dự án -->
+# CLAUDE.md — Claude Code Runtime Briefing
 
-> **CRITICAL**: Read this file FIRST when starting any session.
-> This file defines how Claude should operate within the Agent_Coding framework.
+> **Version**: 4.5 · Universal AI Coding · Workspace-scoped
 
----
+## Identity
+You are operating in a workspace with **Universal AI Coding V4.5** installed. This is an AI Engineering Operating System that provides structured agents, workflows, skills, rules, memory, and verification gates.
 
-## 🎯 YOUR IDENTITY
+## Workspace Project
+- **Name**: EDU_MANAGER_V2
+- **Domain**: Production education management system for classes, students, parents, teachers, attendance, receipts, payments, reports, and templates.
+- **Stack**: Vite + React 19, Tailwind CSS v4, TypeScript/JavaScript, Prisma 5, Vercel Serverless Functions, Playwright.
+- **Database/storage**: Neon Postgres production with Vercel Blob; SQLite/Express is reference-only local parity.
+- **Neural Memory brain**: `edu_manager` only. Use MCPProxy upstream `neural-memory-default` at `http://127.0.0.1:8080/ui/servers/neural-memory-default`; inside that upstream, select only `edu_manager` and never use direct non-default NM tools.
 
-You are part of a **multi-agent software development team**. You collaborate with other AI agents
-(potentially running on different models like Gemini, GPT, Grok) to build software as a
-cohesive Product Development team at a Big Tech company.
+## Three Sources of Truth
+1. **Operational** → `KANBAN.md` (what's being done)
+2. **Cognitive** → `memory/` + `GEMINI.md` (what's known)
+3. **Evidence** → `receipts/` + `docs/artifacts/` (what's proven)
 
-**Your capabilities depend on the role assigned to you:**
-- Solution Architect → System design, tech decisions
-- Tech Lead → Code standards, reviews, mentoring
-- Fullstack/Backend/Frontend/API/Database/Web Developer → Implementation
-- UI/UX Designer → Design systems, user experience
-- QA Engineer → Testing, quality assurance
-- DevOps Engineer → CI/CD, infrastructure
-- Project Manager → Planning, tracking
-- Security → Security audits, penetration testing
-- Performance → Performance optimization, caching
-- **NEW v3.0**: Researcher → Technical research, best practices
-- **NEW v3.0**: Brainstormer → Creative ideation, YAGNI/KISS/DRY
-- **NEW v3.0**: Scout → Codebase navigation
-- **NEW v3.0**: Git Manager → Git operations, commits
-- **NEW v3.0**: Docs Manager → Documentation maintenance
+## Reading Order (Session Start)
+1. `KANBAN.md` — current sprint, active tasks, blockers
+2. `memory/memory-bank/activeContext.md` — current technical state
+3. `memory/memory-bank/progress.md` — last 5 entries
+4. `memory/memory-bank/decisionLog.md` — architecture decisions
+5. `memory/sessions/current-session.md` — session continuity
 
----
+## Canonical Folders
+| Folder | Contents | Count |
+|--------|----------|-------|
+| `agents/` | Specialist agents with contracts | 23 |
+| `commands/` | Entrypoint slash commands | 22 |
+| `workflows/` | Procedure workflows | 17 |
+| `skills/` | Skills across 20 categories | 108 |
+| `rules/` | Coding rules | 12 |
+| `policies/` | Governance policies | 11 |
+| `memory/` | Memory fabric (bank + brain + events + graph) | — |
+| `manifests/` | YAML configuration files | 11 |
+| `receipts/` | Evidence ledger | — |
+| `tools/` | Infrastructure tooling (dashboard) | — |
 
-## 🚀 SESSION START PROTOCOL
+## Dual-Brain Memory System (V4.5)
 
-<!-- VI: Quy trình bắt đầu phiên làm việc -->
+### Neural Memory (NM)
+- **MCP server**: `neural-memory` (stdio, port 52836 web UI)
+- **Purpose**: Persistent cross-session memory with semantic recall
+- **Key tools**: `nmem_recall`, `nmem_remember`, `nmem_consolidate`, `nmem_health`
+- **Usage**: Recall at session start, store decisions/insights after tasks
+- **MANDATORY**: Agent MUST call NM tools every session. Zero calls = Rule 11 violation.
 
-**ALWAYS execute this sequence when starting a new session:**
+### Proactive MCP Usage (V4.5 — KAIROS-Inspired)
+All agents MUST follow these trigger rules:
+- **Session start**: `nmem_recall` + `nmem_session` + `get_context_tree` (parallel)
+- **Each chat turn**: `nmem_recall` if request references past decisions/errors
+- **Task complete**: `nmem_remember(type=decision|error|insight)` + POST-TASK CONSOLIDATION (two-tier)
+- **Before code edit (risk≥MEDIUM)**: `get_blast_radius(symbol)`
+- **Before code search**: `semantic_code_search` BEFORE grep
+- **Session end**: `nmem_consolidate` + `nmem_health` + `nmem_tool_stats`
+- **Every 3 tasks**: `nmem_health(compact=true)` — consolidate if grade drops
+- **Three-Gate**: Any 2 of [≥2h since last, ≥3 tasks done, grade<B] → auto-consolidate
+- **Post-Task Consolidation**: Tier 1 (enrich, <1s) when risk≥MED or tasks≥2; Tier 2 (all) when session ending, tasks≥3, or grade<B. Skip if <2min since last. Timeout 30s. Never block delivery.
+- **Session handoff MUST include**: NM call count, C+ call count, brain health grade
 
+### Context+ (C+)
+- **MCP server**: `context-plus` using local Ollama embeddings
+- **Purpose**: Semantic code search, blast radius analysis, project structure
+- **Key tools**: `get_context_tree`, `semantic_code_search`, `get_blast_radius`, `get_file_skeleton`
+- **Usage priority**: `get_context_tree` → `semantic_code_search` → `get_blast_radius`
+
+### Brain Dashboard
+- **URL**: `http://localhost:3333`
+- **Purpose**: Unified observability — NM health, stats, tool usage, C+ activity
+- **API**: `/nm-api/health`, `/nm-api/stats`, `/cp-api/snapshot` (POST/GET)
+
+## MCP Configuration
+- **Config file**: `.mcp.json` at workspace root (source of truth)
+- **MCP Proxy**: Port 8080 (aggregates all MCP servers)
+- **Infrastructure auto-start**: `scripts/start-infrastructure.ps1`
+
+## Rules (Must Follow)
+1. Test before code (TDD) — Red → Green → Refactor
+2. No mock data in production
+3. No "done" without evidence (test output, screenshots, diffs)
+4. Atomic tasks only (≤1 feature per task)
+5. Update memory + KANBAN after every task
+6. 3 strikes = stop and escalate
+7. No reversing decisions without evidence + log update
+8. Protect working code — no pointless refactoring
+9. No unauthorized dependency installs
+10. All changes have evidence
+
+## Verification Gates
+11 quality gates must pass before claiming "done". See `manifests/quality-gates.yaml`.
+- LOW risk: lint, type-check, unit tests
+- MEDIUM risk: + integration tests, memory update check
+- HIGH risk: + security scan, judge-agent review
+
+## Memory Write-Back (After Task)
+1. activeContext.md → update current state
+2. progress.md → append entry (NEVER overwrite)
+3. decisionLog.md → if architecture decision made
+4. brain/* → if pattern/error/insight learned
+5. session files → update current-session.md
+6. KANBAN.md → task status + evidence links
+7. receipts/ → emit receipt
+8. artifact summary
+
+## Anti-Patterns (Forbidden)
+- Foundation-only code (looks good but doesn't work end-to-end)
+- Silent failure (empty catch blocks)
+- Optimistic coding (no timeout/retry/fallback)
+- God component (>300 LOC file, >50 LOC function)
+- Copy-paste (same logic >2 times → extract)
+- Console.log debugging (use structured logging)
+- TODO LATER without task tracking
+
+## Agent Routing (Quick Reference)
+| Need | Agent |
+|------|-------|
+| Free-form dev request | `orchestrator` via `/pm` |
+| UI/Web | `frontend-specialist` |
+| API/Services | `backend-specialist` |
+| Schema/DB | `database-architect` |
+| CI/CD/Deploy | `devops-engineer` |
+| Security audit | `security-auditor` |
+| Debug/RCA | `debugger` |
+| Docs/Handoff | `documentation-writer` |
+| Test strategy | `test-engineer` |
+| Independent review | `judge-agent` |
+| Planning | `project-planner` |
+| Performance | `performance-optimizer` |
+
+## Slash Commands
 ```
-STEP 1: Read PROJECT_CONTEXT.md
-        → Understand current project state, architecture, progress
-
-STEP 2: Read KANBAN.md  
-        → Check what's in progress, what's blocked, what's next
-
-STEP 3: Check .shared/knowledge_base/bugs/active/
-        → Know about any ongoing bugs
-
-STEP 4: Check .shared/knowledge_base/lessons_learned/
-        → Learn from past experiences
-
-STEP 5: Acknowledge context loaded to user
-        → Report: "Context loaded. Current sprint: X. In progress: Y tasks."
-```
-
----
-
-## 📋 AVAILABLE COMMANDS
-
-<!-- VI: Các lệnh có sẵn -->
-
-### Orchestration Commands
-```
-/start-session          → Initialize session, load context
-/handover              → Generate handover document for new session
-/status                → Show current project status
-/kanban                → Display Kanban board
-```
-
-### Agent Assignment Commands
-```
-/assign [agent] [task]  → Assign task to specific agent
-/switch [agent]         → Switch to different agent role
-
-Example:
-/assign backend "Create REST API for user authentication"
-/assign frontend "Build login page with Glassmorphism style"
-/assign database "Design schema for user management"
-```
-
-### Development Commands
-```
-/plan [feature]         → Create implementation plan
-/code [task]           → Implement code
-/test [component]      → Generate tests
-/debug [issue]         → Debug and fix issue
-/review                → Request code review
-```
-
-### Quality Commands
-```
-/qa [feature]          → Run QA testing workflow
-/rca [bug-id]          → Root Cause Analysis for bug
-/fix-bug [bug-id]      → Fix specific bug
-/security-audit        → Run security audit
-/perf-check            → Performance analysis
-```
-
-### Documentation Commands
-```
-/docs [component]      → Generate documentation
-/update-context        → Update PROJECT_CONTEXT.md
-/add-lesson [type]     → Add to lessons learned
-```
-
-### v3.0 NEW Commands
-```
-/cook [feature]        → Full feature development workflow
-/cook:auto [feature]   → Auto implement without review
-/ultrathink [problem]  → Deep reasoning mode
-/search:github [query] → Search GitHub for solutions
-/search:npm [package]  → Search NPM packages
-/brainstorm [topic]    → Creative ideation with YAGNI/KISS
-/chain feature [desc]  → Automated workflow chain
-/meta:skill [name]     → Create new skill
-/meta:agent [name]     → Create new agent
-```
-
----
-
-## 🔄 HANDOVER PROTOCOL
-
-<!-- VI: Quy trình bàn giao khi sắp hết token -->
-
-**When you detect token limit approaching OR user requests handover:**
-
-```
-STEP 1: Update PROJECT_CONTEXT.md
-        → Current progress, decisions made, blockers
-
-STEP 2: Update KANBAN.md
-        → Move tasks to correct columns
-
-STEP 3: Log any bugs discovered
-        → Create entries in .shared/knowledge_base/bugs/
-
-STEP 4: Document lessons learned
-        → Add to appropriate file in lessons_learned/
-
-STEP 5: Generate handover summary
-        → Write to PROJECT_CONTEXT.md → Handover Notes section
-
-STEP 6: Notify user
-        → "Handover complete. New session can continue from PROJECT_CONTEXT.md"
+/pm /brainstorm /plan /create /enhance /debug /test /review /deploy
+/preview /status /orchestrate /ui-ux-pro-max /security-audit
+/refactor /document /spec /build-feature /fix-issue /handoff
+/start-session /session-close /paperclip
 ```
 
----
+## Paperclip Orchestration (V4.6 — Optional)
+When Paperclip AI is active (`localhost:3100`), it serves as company-level control plane:
+- **Session start**: Check `GET /api/health` (3s timeout) → active or offline
+- **Active**: Fetch assigned tasks, execute with UAIC doctrine, report cost/evidence
+- **Offline**: Fall back to KANBAN.md — no errors, no retries
+- **Commands**: `/paperclip status|tasks|checkout|complete|report-cost|setup|health`
+- **Reference**: `skills/paperclip-orchestration/SKILL.md`, `GEMINI.md §XXIII`
 
-## 📁 KEY FILES TO KNOW
+## Cross-IDE Awareness
+This workspace supports multiple AI IDEs simultaneously:
+- **Antigravity**: `GEMINI.md` (full brain)
+- **Claude Code**: `CLAUDE.md` (this file)
+- **Codex CLI**: `AGENTS.md` + `CODEX.md`
+- **VS Code Copilot**: `.github/copilot-instructions.md`
+- **Cursor**: `.cursorrules` + `.cursor/rules/*.mdc`
 
-<!-- VI: Các file quan trọng cần biết -->
-
-| File | Purpose | When to Read | When to Update |
-|------|---------|--------------|----------------|
-| `PROJECT_CONTEXT.md` | Project state | Session start | Session end, major changes |
-| `KANBAN.md` | Task board | Check tasks | Task status changes |
-| `.agent/ORCHESTRATOR.instructions.md` | Orchestration rules | Complex workflows | Never |
-| `.agent/agents/*.md` | Agent definitions | When switching roles | Never |
-| `.agent/workflows/*.md` | Workflow guides | Specific workflows | Never |
-| `.shared/tech_stacks/` | Tech references | Architecture decisions | After new selections |
-| `.shared/knowledge_base/` | Persistent knowledge | Debugging, planning | After incidents/learnings |
-
----
-
-## 🎨 AGENT ROLES REFERENCE
-
-<!-- VI: Tham chiếu vai trò các Agent -->
-
-When acting as specific agents, follow instructions in `.agent/agents/[role].agent.md`
-
-| Role | File | Key Responsibilities |
-|------|------|---------------------|
-| Orchestrator | `ORCHESTRATOR.instructions.md` | Coordinate agents, manage context |
-| Solution Architect | `solution_architect.agent.md` | System design, tech decisions |
-| Tech Lead | `tech_lead.agent.md` | Code standards, reviews |
-| Fullstack Engineer | `fullstack_engineer.agent.md` | End-to-end features |
-| Backend Engineer | `backend_engineer.agent.md` | APIs, business logic |
-| Frontend Engineer | `frontend_engineer.agent.md` | UI components, state |
-| API Developer | `api_developer.agent.md` | API design, documentation |
-| Database Engineer | `database_engineer.agent.md` | Schema, optimization |
-| Web Developer | `web_developer.agent.md` | HTML/CSS/JS, responsive |
-| UI/UX Designer | `ui_ux_designer.agent.md` | Design systems, UX |
-| QA Engineer | `qa_engineer.agent.md` | Testing, quality |
-| DevOps Engineer | `devops_engineer.agent.md` | CI/CD, infrastructure |
-| Project Manager | `project_manager.agent.md` | Planning, tracking |
-| Security | `security.agent.md` | Security audits |
-| Performance | `performance.agent.md` | Optimization, caching |
-| **Researcher** | `researcher.agent.md` | Technical research |
-| **Brainstormer** | `brainstormer.agent.md` | Creative ideation |
-| **Scout** | `scout.agent.md` | Codebase navigation |
-| **Git Manager** | `git_manager.agent.md` | Git operations |
-| **Docs Manager** | `docs_manager.agent.md` | Documentation |
-
----
-
-## ⚠️ CRITICAL RULES
-
-<!-- VI: Các quy tắc bắt buộc -->
-
-1. **ALWAYS read PROJECT_CONTEXT.md at session start**
-2. **ALWAYS update PROJECT_CONTEXT.md before session end**
-3. **NEVER make architecture decisions without consulting TECH_STACK_CATALOG.md**
-4. **ALWAYS log bugs in `.shared/knowledge_base/bugs/`**
-5. **ALWAYS document lessons learned**
-6. **FOLLOW workflow definitions in `.agent/workflows/`**
-7. **USE Kanban board for task management**
-8. **MAINTAIN English for code, Vietnamese comments where helpful**
-
----
-
-## 🔗 Quick Reference
-
-```
-Context:     PROJECT_CONTEXT.md
-Tasks:       KANBAN.md
-Bugs:        .shared/knowledge_base/bugs/
-Lessons:     .shared/knowledge_base/lessons_learned/
-Tech Stack:  .shared/tech_stacks/TECH_STACK_CATALOG.md
-Workflows:   .agent/workflows/
-Agents:      .agent/agents/
-```
-
----
-
-**Framework Version**: 3.0
-**Last Updated**: 2026-01-04
-**Compatibility**: Claude Opus 4.5, Claude Sonnet 4.5, Claude 3.5
-**Total Agents**: 19
+All share the same `.mcp.json`, `memory/`, `KANBAN.md`, and `receipts/`.

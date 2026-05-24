@@ -1,5 +1,41 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Post-Deploy Operational Hygiene Closeout - 2026-05-24
+- **Current Outcome**: The stale unchecked hygiene item in `current-session.md` is closed as a post-deploy dirty-tree hygiene task.
+- **Agent Coordination**: Used Codex `multi_agent_v1` sidecar agents as the available fallback for `ck:team`: one explorer classified all dirty/untracked files, one explorer audited temp/generated artifacts, and one worker identified the real next unchecked item.
+- **Cleanup Done**: Removed 9 untracked `frontend/update*` rewrite scripts after no-reference and workspace-path checks. Added `.gitignore` coverage for generated Playwright output, one-off update scripts, and local Codex backup files.
+- **Config Safety**: `.codex/config.toml` was restored to tracked safe policy; do not stage local permission changes such as `approval_policy=never` or `sandbox_mode=danger-full-access`.
+- **Decision**: Remaining dirty state is intentional but must be split into explicit batches: app/product source/tests/deploy config first, docs/memory/evidence second. Do not use broad `git add .`.
+- **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audit, and production Playwright 6/6 passed.
+- **Evidence**: `receipts/2026-05-24-operational-hygiene-closeout.md`.
+
+## Production Deploy + Env/Storage Closeout - 2026-05-23
+- **Current Outcome**: Latest hardening and EduFlow UI are deployed to production on `https://edu-manager-gules.vercel.app`.
+- **Deployment**: Vercel production deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`, status Ready, aliases include `edu-manager-gules.vercel.app`.
+- **Env/Storage**: Production has encrypted `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and `CRON_SECRET`. Vercel Blob store `edu-manager-live-blob` (`store_UOmPDaMiPE4RpzcX`) is linked for Production.
+- **Fixes During Deploy**: Added `.vercelignore`; corrected root-only ignore patterns after unanchored `receipts/` and `reports/` excluded API handlers from Vercel bundle; frontend `ws` audit advisory closed through lockfile update.
+- **Verification**: `npx tsc --noEmit`, `npm run test:unit` 28/28, `npm --prefix frontend run lint`, `npm run build`, `git diff --check`, root high audit, frontend full audit, final Vercel build/install, production upload-image 201, auth no-token 401, cron no-token 403, and production Playwright 6/6 all passed.
+- **Important URL Note**: `edu-manager-delta.vercel.app` is stale/not the active project alias. Use `https://edu-manager-gules.vercel.app` unless Vercel aliases are intentionally changed.
+- **Remaining Follow-up**: Rotate default credentials/JWT secret, define financial correction policy for old anomalous paid receipts, keep SMS/Zalo live send disabled until provider + opt-in policy are approved.
+
+## Attendance Tuition RCA + Reports/Template UX - 2026-05-19
+- **Mode**: Production-readiness hardening after user-reported attendance/tuition defects and UI/tooling requests.
+- **Current Outcome**: Local-verified patch fixes shared tuition logic, Attendance UI date/weekday handling, student-level tuition reports, class bulk enrollment, Template Designer tools, and report motion UX.
+- **RCA**: Phuc has 12 May attendance records and 2 June records in current Neon data. Existing paid May receipt has `days_count=0` and `amount=6000000`. Root causes: period lock did not persist total days, monthly tuition was multiplied as per-session tuition, Attendance UI used UTC date keys, and Vietnamese weekday values were not normalized.
+- **Verification**: `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check` passed.
+- **Evidence**: `receipts/2026-05-19-attendance-tuition-report-template-ux.md`; screenshots in `frontend/output/playwright/`.
+- **Design**: Stitch project `12785236930566023458` generated `GEMINI_3_1_PRO` reports concept `bcc2bae4057745d4969b2b3b114ce526`. Figma Desktop was unavailable with `No Figma window open`.
+- **Not Deployed**: No production deploy/migration/seed was run. Existing paid anomalous receipts were not auto-mutated.
+- **Next**: deploy/prod-smoke if approved; define financial correction policy for historical anomalies; rotate default credentials/JWT secret.
+
+## Production Readiness Hardening - 2026-05-18
+- **Mode**: Continue `PLAN.md` execution after explicit approval.
+- **Current Outcome**: Dashboard/dataflow hardening and targeted UX primitives are implemented and locally verified. This pass is not deployed.
+- **Implemented**: Dashboard additive contract (`unpaid_students`, `today_attendance`, `attention_items`, `quick_metrics`), operations-console dashboard UI, DB-backed `requireAuth()` on core handlers, locked attendance period write guard, idempotent monthly-fee pay, direct receipt-to-monthly-fee linking, change-password menu action, shared PageHeader/MetricCard/PageState, Modal/DataTable/EmptyState accessibility improvements, Reports CSV/print actions, and local smoke server for `api/router.ts`.
+- **Validation**: `npm run test:unit` 24/24, `npx tsc --noEmit`, `cd frontend && npm run lint -- --max-warnings=0`, `npm run build`, root/frontend audit 0 vulnerabilities, `git diff --check`, and Chrome-channel Playwright `ux-redesign-smoke.spec.js` 4/4 passed.
+- **Tooling note**: Local `vercel dev` was still unreliable in unlinked/local mode; `npm run dev:smoke` is the current-code local smoke target.
+- **Remaining follow-up**: deploy + production smoke if releasing this patch; rotate default credentials/JWT secret; keep SMS/Zalo live sending disabled until provider and opt-in policy are approved.
+
 ## Final Verification + Write-Back - 2026-05-17
 - **Mode**: Operational closeout.
 - **Current Outcome**: Phase A/B/C and B2B-005/B2B-008 closeout are implemented with evidence.
@@ -44,9 +80,9 @@
 ## Architecture Summary
 - **Frontend**: Vite + React + Tailwind CSS v4.
 - **Backend**: Node.js / Express-style serverless API on Vercel.
-- **Database**: Supabase PostgreSQL.
+- **Database**: Neon PostgreSQL.
 - **ORM**: Prisma.
-- **Deployment**: Vercel production app with Supabase connection pooling.
+- **Deployment**: Vercel production app with Neon connection pooling and Vercel Blob.
 - **Build Rule**: `npx prisma generate` must run before frontend build.
 
 ## Core Patterns to Preserve

@@ -77,7 +77,7 @@ Full raw output including:
   "quota_exhausted": false,
   "fallback_used": null,
   "log_file": "20260405-231930_claude_coding_T001.log",
-  "workdir": "D:\\0.APP\\project"
+  "workdir": "C:\\Users\\haitr\\OneDrive\\0. GAU DATA\\0.APP\\EDU_MANAGER_V2"
 }
 ```
 

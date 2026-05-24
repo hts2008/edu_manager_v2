@@ -5,10 +5,10 @@
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
 - **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B reliability/security baseline is implemented; Phase C C1-C12 product slices are implemented and production-smoked.
-- **Production URL**: https://edu-manager-delta.vercel.app
+- **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest scoped product code commit observed in Codex session**: `f544464` after PDF + UX production hardening; evidence is recorded in `receipts/2026-05-17-pdf-ux-production-hardening.md`.
+- **Latest production deployment observed in Codex session**: `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9` on `https://edu-manager-gules.vercel.app` after the 2026-05-18/2026-05-19 hardening and EduFlow UI pass were deployed.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -20,15 +20,33 @@
 - **Chrome UI smoke**: `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` have no failed fetch requests.
 - **Parity/contract**: `scripts/parity-test.mjs` passed 7/7 against local Express reference and production Vercel target.
 
+## Production Deploy / Env Closeout (2026-05-23)
+- **Canonical production target**: `https://edu-manager-gules.vercel.app` in Vercel project `hts2008s-projects/edu-manager`.
+- **Drift finding**: `https://edu-manager-delta.vercel.app` is not the current project alias and was stale/outside the active deploy target; do not use it as production truth unless reattached in Vercel.
+- **Runtime env restored**: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and `CRON_SECRET` exist as encrypted Production env vars in Vercel.
+- **Storage**: Vercel Blob store `edu-manager-live-blob` (`store_UOmPDaMiPE4RpzcX`) is linked to the project for Production; template upload-image smoke returned 201 with a public Blob URL.
+- **Packaging fix**: added `.vercelignore` with root-only operational ignores. The first unanchored `receipts/` and `reports/` patterns excluded `server/api/receipts` and `server/api/reports`; fixed before final deploy.
+- **Production evidence**: latest deploy `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9` is Ready; login 200, no-token auth 401, cron no-token 403, upload-image 201, production Playwright UX smoke 6/6.
+- **Dependency audit**: frontend `ws` advisory closed via transitive lock update; root audit high gate and frontend full audit pass.
+
+## Operational Hygiene Closeout (2026-05-24)
+- **Next unchecked item closed**: post-deploy dirty-tree hygiene replaced the stale "before Phase B" wording in `current-session.md`.
+- **Agent review**: Codex sidecar explorer agents classified the tree into app/product changes, temp/generated artifacts, local config risk, and docs/memory/evidence drift.
+- **Cleanup applied**: removed 9 untracked one-off `frontend/update*` rewrite scripts after no-reference scan and workspace path verification.
+- **Local config risk removed**: `.codex/config.toml` was restored to tracked safe policy; the earlier `approval_policy=never` and `sandbox_mode=danger-full-access` drift is not part of the working tree.
+- **Ignore policy**: `.gitignore` now ignores generated Playwright output, one-off update scripts, and local Codex backup files. `.vercelignore` remains intentional because it protects Vercel packaging.
+- **Commit hygiene decision**: keep product/app changes and docs/memory/evidence in separate explicit batches; do not broad-stage or mix framework/doctrine drift with app code.
+- **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
+
 ## Current Sprint Focus
-1. **Production UX/PDF Hardening** - receipt/payment PDF Unicode fix, print-flow hardening, grouped navigation shell, and Figma UX source-of-truth are implemented and production-smoked.
+1. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
 2. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
 3. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-4. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable.
+4. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
 5. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
-- **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention React 18.
+- **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.
 - **Backend Production**: Vercel Serverless TypeScript router `api/router.ts` dispatching to handlers under `server/api/*`.
 - **Backend Local/Reference**: Express + SQLite under `backend/`; use as reference logic only, not production truth.
 - **ORM**: Prisma ORM.
@@ -71,14 +89,13 @@
 - **Neural Memory Routing**: Always access Neural Memory for EDU_MANAGER_V2 through MCPProxy server `neural-memory-default`, visible at `http://127.0.0.1:8080/ui/servers/neural-memory-default`; within that server, use the existing `edu_manager` brain that contains the correct prior brain and memory history.
 - **Neural Memory Status**: `edu_manager` is the authoritative brain for this workspace. Do not route EDU_MANAGER_V2 work to any other brain.
 - **Operational Drift**: `KANBAN.md`, `current-session.md`, and git status still need cleanup/alignment so future commits do not mix framework drift with product work.
-- **Git Hygiene**: Dirty state classification found no dirty app-code paths; current dirty scope is framework sync plus board/memory restoration files. Commit only explicit, reviewed files.
-- **Actual Git State Changed**: Current `git status --short` shows app-code modifications in `frontend/src/pages/ClassesPage.jsx`, `DashboardPage.jsx`, `ReportsPage.jsx`, `StudentsPage.jsx`, plus untracked `frontend/src/hooks/`. Review before editing or committing those areas.
+- **Git Hygiene**: Current dirty state contains intentional app/product hardening plus docs/memory/evidence changes. Commit only explicit, reviewed batches; do not mix `.codex` local config or temp scripts into product commits.
 - **Windows Shell**: If PowerShell execution policy blocks scripts, run build commands via `cmd /c`.
 - **Serverless Routing**: Dynamic folders like `[id]` can shadow each other; prefer query-param actions for ambiguous operations.
 - **Dual-Brain Tooling Degradation (Codex session 2026-05-16)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
 - **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, dependency audit, React Hook Form, and observability/security baselines.
 - **Default Credentials Risk**: `admin / admin123` is useful for dev/smoke, but production operation must rotate credentials and JWT secret.
-- **Docs Drift**: README and old memory may mention React 18, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
+- **Docs Drift**: README and old memory may mention stale React versions, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
 
 ## Files Touched This Session
 - `lib/auth.ts`, `lib/api-utils.ts`, `lib/pdf.ts`, `lib/storage.ts`
@@ -115,11 +132,24 @@ Final verification + write-back closeout: commit `4fb8297` was pushed and matche
 
 Production UX/PDF hardening pass: commit `f544464` fixed pdfmake Unicode embedding for Vercel and Express PDF generation, exported/reference-fixed Express `numberToWords`, hardened frontend PDF opening, grouped sidebar navigation into main/secondary sections, synced a Figma UX frame, and added `frontend/e2e/ux-redesign-smoke.spec.js`. Local verification passed: unit 20/20, typecheck, lint max-warnings=0, build, targeted UX smoke 3/3, and full local E2E 20/20. Production smoke passed: receipt PDF is a 16871-byte Unicode PDF with `/ToUnicode` and Roboto, and `/receipts` grouped menu has no API failure or horizontal overflow. Evidence: `receipts/2026-05-17-pdf-ux-production-hardening.md`.
 
+Production readiness pass after `PLAN.md`: fixed the dashboard contract and redesigned the dashboard into a data-linked operations console; converted core Vercel handlers from token-only `verifyAuth()` to DB-backed `requireAuth()`; added attendance locked-period write guards; made monthly-fee payment conditional/idempotent; linked direct receipt creation back to monthly-fee rows when possible; wired the change-password modal; added PageHeader/MetricCard/PageState and accessibility improvements for Modal/DataTable/EmptyState; added a local smoke server that runs the real `api/router.ts` plus `frontend/dist`.
+
+Attendance/tuition RCA + report/template UX pass: investigated Phuc and Starter A1 Neon records, confirmed the current DB has Phuc with 12 May attendance records and 2 June records, while the existing paid May receipt shows `days_count=0` and `amount=6000000`. Root causes were attendance-period fee generation not setting `MonthlyFee.totalDays`, `sessions_per_week` classes treating monthly tuition as per-session tuition, unsafe UTC `toISOString()` date keys in Attendance UI, and Vietnamese weekday values not being normalized to JavaScript weekday numbers.
+
+Implemented shared tuition calculation in `lib/tuition.ts` and wired it into attendance calculate-fee, monthly-fee calculate/detail/generator, attendance-period lock fee refresh, and receipt creation. Added `tests/tuition.test.ts`; local-safe date helpers in `frontend/src/utils/dateKeys.js`; class create/update bulk `student_ids`; `/api/reports/student-fees` plus Reports matrix; and a rebuilt Template Designer with image/background upload, Fabric layer controls, opacity, lock, duplicate, align, text/shape styling, QR placeholder, and richer data fields.
+
+Validation for the 2026-05-19 patch passed: `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check`. Evidence: `receipts/2026-05-19-attendance-tuition-report-template-ux.md`, screenshots in `frontend/output/playwright/`. Stitch generated a `GEMINI_3_1_PRO` reports concept in project `12785236930566023458`; Figma Desktop was unavailable (`No Figma window open`), so no Figma write/inspect succeeded this pass.
+
+MOT-UX-002 Dashboard Glassmorphic Redesign: refactored `DashboardPage.jsx` using the premium MotionSites.ai design system. Added deep-dark surface colors, glass panels (`glass-surface`), backdrop-blur, and framer-motion animations. Replaced static metric sections with responsive `recharts` Line Charts for live revenue and expense data. Verified production build locally.
+
+Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and EduFlow UI pass to `https://edu-manager-gules.vercel.app`. Fixed Vercel env drift (`DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`), linked Vercel Blob store `edu-manager-live-blob`, added `.vercelignore`, corrected an unanchored ignore bug that excluded `server/api/receipts` and `server/api/reports`, closed the frontend `ws` audit advisory, and verified production with login 200, upload-image 201, auth no-token 401, cron no-token 403, and Playwright 6/6.
+
 ## Now Doing
-Production UX/PDF hardening is implemented and production-smoked. The system is ready for operational credential rotation/provider setup outside the code closeout.
+Production is live on `https://edu-manager-gules.vercel.app` with the latest hardening deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
 
 ## Next Recommended Action
-1. Rotate production default credentials and JWT secret before real operation.
-2. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-3. Continue UI production polish by page-specific workflows only after the core shell/PDF fix is stable.
-4. Preserve commit hygiene: stage only explicit app/docs files and leave framework drift out of product commits.
+1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
+2. Rotate production default credentials and JWT secret before real operation.
+3. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
+4. Optionally delete the two 1x1 smoke blobs from Vercel Storage UI (`edu-manager-live-blob`) if a zero-junk storage ledger is required; total size is 136B.
+5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.

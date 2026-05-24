@@ -1,0 +1,40 @@
+# Receipt Event Schema
+# All receipts MUST follow this JSON schema
+
+receipt_schema:
+  version: "1.0"
+  required_fields:
+    - ts        # ISO-8601 timestamp
+    - type      # event type (e.g., verify.gate, task.complete, session.close)
+    - task_id   # KANBAN task ID (e.g., T-0001)
+    - agent     # agent that performed the action
+    - status    # pass | fail | partial | skipped
+  optional_fields:
+    - evidence_paths  # array of relative paths to evidence files
+    - gate            # gate name if verification event
+    - summary         # human-readable description
+    - duration_ms     # time taken
+    - error_message   # if status is fail
+
+event_types:
+  - verify.gate       # quality gate verification
+  - task.start        # task started
+  - task.complete     # task completed
+  - task.fail         # task failed
+  - session.start     # session opened
+  - session.close     # session closed
+  - decision.made     # architectural decision recorded
+  - memory.update     # memory file updated
+  - kanban.update     # KANBAN board updated
+  - receipt.emit      # evidence documented
+  - artifact.created  # review/release artifact created
+
+example:
+  ts: "2026-03-26T19:32:00+07:00"
+  type: "verify.gate"
+  task_id: "T-0001"
+  agent: "orchestrator"
+  gate: "lint"
+  status: "pass"
+  evidence_paths: ["receipts/sessions/2026-03-26/lint-output.txt"]
+  summary: "Lint check passed with 0 errors, 0 warnings"
