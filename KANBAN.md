@@ -264,7 +264,7 @@
 
 | Task ID | Description | Scope | Status | Evidence |
 | ------- | ----------- | ----- | ------ | -------- |
-| DEPLOY-001 | Point active production target to current Vercel project | Vercel `hts2008s-projects/edu-manager` | IMPLEMENTED | `vercel inspect edu-manager-gules.vercel.app` -> deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`, status Ready |
+| DEPLOY-001 | Point active production target to current Vercel project | Vercel `hts2008s-projects/edu-manager` | IMPLEMENTED | `vercel inspect edu-manager-gules.vercel.app` -> deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, status Ready |
 | DEPLOY-002 | Restore production runtime env | `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET` | IMPLEMENTED | `vercel env ls` shows encrypted Production entries for all required keys |
 | DEPLOY-003 | Fix Vercel deployment packaging | `.vercelignore` | IMPLEMENTED | Root-only ignore patterns prevent excluding `server/api/receipts` and `server/api/reports` |
 | DEPLOY-004 | Verify production app/API/storage | Auth, dashboard, student-fees, receipts/PDF, template upload, cron guard | IMPLEMENTED | Production Playwright `ux-redesign-smoke.spec.js` 6/6; upload-image 201; cron no-token 403 |
@@ -311,6 +311,7 @@
 | Context+ runtime remediation and verification | ✅ IMPLEMENTED | `.mcp.json` patched to Windows-safe `cmd /c npx -y contextplus .`; after MCP host reload, both `get_context_tree` and `semantic_code_search` succeeded |
 | EDU_MANAGER_V2 scope/path cleanup | ✅ IMPLEMENTED | No remaining known external workspace markers or hard-coded out-of-scope paths in workspace text scan |
 | Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
+| Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
 
 ---
 
@@ -395,4 +396,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-24 00:00
+**Last Updated:** 2026-05-24 19:20

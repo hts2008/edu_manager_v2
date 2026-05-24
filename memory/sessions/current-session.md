@@ -179,15 +179,20 @@
   - [x] Add missing Vercel Production env vars without logging values.
   - [x] Create/link Vercel Blob store `edu-manager-live-blob`.
   - [x] Add `.vercelignore` and fix root-only patterns after identifying accidental API bundle exclusions.
-  - [x] Redeploy final production deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`.
+  - [x] Redeploy production deployment `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9` before the later `main` fast-forward deploy.
   - [x] Verify login, protected auth boundary, cron guard, template image upload, dashboard/report/receipt PDF, and production Playwright 6/6.
   - [x] Close frontend audit vulnerability and redeploy with Vercel install 0 vulnerabilities.
 - [x] Operational hygiene closeout after deploy.
-  - [x] Branch confirmed: `codex/edu-production-readiness` at `54902e5`.
+  - [x] Branch confirmed: `codex/edu-production-readiness` at `e4bab40`.
   - [x] Temp update scripts removed; no `frontend/update*` files remain.
   - [x] `.codex/config.toml` local-risk drift removed from working tree.
   - [x] Remaining dirty tree classified into app/product batch and docs/memory/evidence batch; no broad staging performed.
   - [x] Verify diff-check, typecheck, unit 28/28, lint, build, audits, and production Playwright 6/6.
+- [x] Fast-forward `main` and redeploy production.
+  - [x] Verify `origin/main` is ancestor of `codex/edu-production-readiness`.
+  - [x] Fast-forward `main` to `e4bab40` and push `origin/main`.
+  - [x] Run Vercel production deploy `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`.
+  - [x] Verify root 200, auth no-token 401, cron no-token 403, login/dashboard/student-fees/receipt PDF/template upload, and production Playwright 6/6.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -195,7 +200,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`; current 2026-05-18/2026-05-19 hardening is deployed from the local dirty tree and production-smoked.
+- **Latest production deployment observed in Codex session**: `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`; `main` is pushed to `origin/main` at `e4bab40` and production is smoked.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -222,6 +227,7 @@
 - `cd frontend && npm run test:e2e -- --reporter=list` passed 7/7 against local serverless target.
 - 2026-05-19 local gates passed: `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check`.
 - 2026-05-24 hygiene closeout gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, `npm --prefix frontend run lint`, `npm run build`, root/frontend audit, and production Playwright `ux-redesign-smoke.spec.js` 6/6.
+- 2026-05-24 main deploy smoke passed: `npx vercel inspect edu-manager-gules.vercel.app` shows `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o` Ready; root 200; no-token auth 401; cron 403; login 200; dashboard/student-fees/receipt PDF/template upload pass; production Playwright 6/6.
 - `npm run test:unit` passed 13/13 after observability tests were added.
 - Production B7c smoke passed after commit `20949c2`: API headers, auth login/me, and `/payments` browser page verified.
 - C8 local smoke passed: `cd frontend && npm run test:e2e -- --reporter=list` is 8/8 after adding audit log UI/API coverage.

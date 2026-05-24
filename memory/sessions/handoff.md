@@ -1,5 +1,12 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Main Fast-Forward + Production Deploy - 2026-05-24
+- **Current Outcome**: `main` is synced with `codex/edu-production-readiness` and pushed to `origin/main` at `e4bab40`.
+- **Deployment**: Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, status Ready, aliases include `edu-manager-gules.vercel.app`.
+- **Verification**: Local gates on `main` passed (`git diff --check`, `npx tsc --noEmit`, unit 28/28, frontend lint, build, root/frontend audit). Production smoke passed: root 200, auth no-token 401, cron no-token 403, login 200, dashboard contract, student-fees, receipt PDF, template upload-image 201, and Playwright 6/6.
+- **Note**: Git push to `main` did not visibly create a Vercel deployment, so production was deployed via `npx vercel deploy --prod --yes`.
+- **Evidence**: `receipts/2026-05-24-main-merge-production-deploy.md`.
+
 ## Post-Deploy Operational Hygiene Closeout - 2026-05-24
 - **Current Outcome**: The stale unchecked hygiene item in `current-session.md` is closed as a post-deploy dirty-tree hygiene task.
 - **Agent Coordination**: Used Codex `multi_agent_v1` sidecar agents as the available fallback for `ck:team`: one explorer classified all dirty/untracked files, one explorer audited temp/generated artifacts, and one worker identified the real next unchecked item.

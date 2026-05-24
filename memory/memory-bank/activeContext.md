@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9` on `https://edu-manager-gules.vercel.app` after the 2026-05-18/2026-05-19 hardening and EduFlow UI pass were deployed.
+- **Latest production deployment observed in Codex session**: `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o` on `https://edu-manager-gules.vercel.app` after `main` was fast-forwarded to `e4bab40` and deployed.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -26,8 +26,14 @@
 - **Runtime env restored**: `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and `CRON_SECRET` exist as encrypted Production env vars in Vercel.
 - **Storage**: Vercel Blob store `edu-manager-live-blob` (`store_UOmPDaMiPE4RpzcX`) is linked to the project for Production; template upload-image smoke returned 201 with a public Blob URL.
 - **Packaging fix**: added `.vercelignore` with root-only operational ignores. The first unanchored `receipts/` and `reports/` patterns excluded `server/api/receipts` and `server/api/reports`; fixed before final deploy.
-- **Production evidence**: latest deploy `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9` is Ready; login 200, no-token auth 401, cron no-token 403, upload-image 201, production Playwright UX smoke 6/6.
+- **Production evidence**: latest deploy `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o` is Ready; login 200, no-token auth 401, cron no-token 403, upload-image 201, dashboard/student-fees/receipt PDF smoke pass, production Playwright UX smoke 6/6.
 - **Dependency audit**: frontend `ws` advisory closed via transitive lock update; root audit high gate and frontend full audit pass.
+
+## Main Merge + Production Deploy (2026-05-24)
+- **Source-of-truth sync**: branch `codex/edu-production-readiness` was fast-forwarded into `main`; `origin/main` now points to `e4bab40`.
+- **Deployment**: Vercel CLI production deploy created `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`; `https://edu-manager-gules.vercel.app` aliases to this Ready deployment.
+- **Verification**: root 200, no-token `/api/auth/me` 401, no-token cron 403, login 200, dashboard contract fields present, student-fees report 200, receipt PDF 200 `application/pdf` with `%PDF`, template upload-image 201 with Blob URL, and production Playwright 6/6 passed.
+- **Build note**: Vercel build passed with existing chunk/dynamic import warnings and Node engine warning for `"node": ">=20"`; pin Node major separately if runtime drift needs tighter control.
 
 ## Operational Hygiene Closeout (2026-05-24)
 - **Next unchecked item closed**: post-deploy dirty-tree hygiene replaced the stale "before Phase B" wording in `current-session.md`.

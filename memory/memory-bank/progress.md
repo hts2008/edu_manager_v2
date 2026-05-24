@@ -389,3 +389,14 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audit, and production Playwright 6/6 all passed.
 - **Evidence**: `receipts/2026-05-24-operational-hygiene-closeout.md`.
 - **STATUS**: IMPLEMENTED
+
+---
+
+### 2026-05-24 - Main Fast-Forward + Production Deploy
+- **Scope**: Make `main` the source-of-truth for the production hardening branch and verify production after deployment.
+- **Git**: Fast-forwarded `main` from `54902e5` to `e4bab40` and pushed `origin/main`.
+- **Deployment**: Vercel Git deploy did not appear automatically, so `npx vercel deploy --prod --yes` was run from `main`. Deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o` reached Ready and was aliased to `https://edu-manager-gules.vercel.app`.
+- **Local Verification Before Push**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root audit, and frontend audit passed.
+- **Production Smoke**: root 200; no-token `/api/auth/me` 401; no-token cron 403; login 200; dashboard contract includes `stats`, `recent_transactions`, `unpaid_students`, `today_attendance`, `attention_items`, and `quick_metrics`; student-fees report 200; receipt PDF 200 `application/pdf` and `%PDF`; template upload-image 201 with Blob URL; production Playwright 6/6.
+- **Evidence**: `receipts/2026-05-24-main-merge-production-deploy.md`.
+- **STATUS**: IMPLEMENTED
