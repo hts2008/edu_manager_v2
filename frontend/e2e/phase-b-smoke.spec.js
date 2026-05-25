@@ -107,7 +107,7 @@ test("attendance and fee collection workspaces load", async ({ page }) => {
   await expect(page.locator("select").first()).toBeVisible();
 
   await expectHealthyPage(page, "/attendance-periods", 'main h1:has-text("Quản lý chốt điểm danh")');
-  await expectHealthyPage(page, "/fee-collection", 'main h1:has-text("Thu học phí")');
+  await expectHealthyPage(page, "/fee-collection", 'main h1:has-text("Thu tiền học phí")');
   await expect(page.getByRole("button", { name: "Tất cả (0)" }).or(page.getByRole("button", { name: /Tất cả/ }))).toBeVisible();
 });
 
@@ -129,7 +129,7 @@ test("payment creation surface validates before mutation", async ({ page }) => {
 
 test("receipts and templates surfaces load", async ({ page }) => {
   await seedAuth(page);
-  await expectHealthyPage(page, "/receipts", 'main h1:has-text("Thu tiền")');
+  await expectHealthyPage(page, "/receipts", 'main h1:has-text("Phiếu thu")');
   await page.getByRole("button", { name: "Tạo phiếu thu" }).click();
   await expect(page.getByRole("heading", { name: "Tạo phiếu thu mới" })).toBeVisible();
   await page.locator("form").getByRole("button", { name: "Tạo phiếu thu" }).click();

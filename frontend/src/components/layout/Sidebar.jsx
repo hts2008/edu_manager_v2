@@ -53,8 +53,7 @@ const menuGroups = [
       {
         title: "Tài chính",
         items: [
-          { title: "Thu tiền", icon: "receipt", path: "/receipts" },
-          { title: "Thu học phí", icon: "fee", path: "/fee-collection" },
+          { title: "Thu tiền", icon: "fee", path: "/fee-collection" },
           { title: "Chi tiền", icon: "wallet", path: "/payments", adminOnly: true },
           { title: "Lịch sử giao dịch", icon: "history", path: "/history" },
         ],

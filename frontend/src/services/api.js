@@ -497,5 +497,10 @@ export const monthlyFeesService = {
       body: JSON.stringify(payload),
     });
   },
+  bulkPay: (data = {}) =>
+    request("/monthly-fees/bulk-pay", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   cancel: (id) => request(`/monthly-fees/${id}/cancel`, { method: "POST" }),
 };

@@ -143,8 +143,8 @@ export default function ReceiptsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Thu tiền</h1>
-          <p className="text-gray-500">Quản lý phiếu thu học phí</p>
+          <h1 className="text-2xl font-bold text-gray-900">Phiếu thu</h1>
+          <p className="text-gray-500">Lịch sử và in lại phiếu thu học phí</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary">
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

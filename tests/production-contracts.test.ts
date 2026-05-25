@@ -32,6 +32,7 @@ test("attendance write APIs reject edits against locked periods", () => {
 
 test("money APIs protect fee ledger linkage", () => {
   const pay = source("server/api/monthly-fees/[id]/pay.ts");
+  const bulkPay = source("server/api/monthly-fees/bulk-pay.ts");
   const confirm = source("server/api/monthly-fees/[id]/confirm.ts");
   const cancel = source("server/api/monthly-fees/[id]/cancel.ts");
   const calculate = source("server/api/monthly-fees/calculate.ts");
@@ -41,6 +42,10 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(pay, /ZERO_DAY_POSITIVE_RECEIPT/);
   assert.match(pay, /updateMany/);
   assert.match(pay, /receiptId: null/);
+  assert.match(bulkPay, /ZERO_DAY_POSITIVE_RECEIPT/);
+  assert.match(bulkPay, /NO_CHARGEABLE_AMOUNT/);
+  assert.match(bulkPay, /receipt_ids/);
+  assert.match(bulkPay, /student_ids/);
   assert.match(confirm, /updateMany/);
   assert.match(confirm, /MONTHLY_FEE_STATE_CONFLICT/);
   assert.match(cancel, /updateMany/);
@@ -50,6 +55,17 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(receipts, /monthly_fee_id/);
   assert.match(receipts, /MONTHLY_FEE_LINK_CONFLICT/);
   assert.match(receipts, /ZERO_DAY_POSITIVE_RECEIPT/);
+});
+
+test("monthly-fees bulk-pay route is resolved before dynamic id route", () => {
+  const router = source("api/router.ts");
+
+  assert.match(router, /monthlyFeesBulkPay/);
+  assert.ok(
+    router.indexOf('exact(parts, ["monthly-fees", "bulk-pay"]') <
+      router.indexOf('resource === "monthly-fees" && parts.length === 2'),
+    "bulk-pay must be declared before /monthly-fees/:id"
+  );
 });
 
 test("attendance lock refreshes student-month tuition atomically across active classes", () => {

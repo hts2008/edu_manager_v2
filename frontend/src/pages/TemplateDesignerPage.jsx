@@ -49,11 +49,15 @@ export default function TemplateDesignerPage() {
   const imageInputRef = useRef(null);
   const imageUploadModeRef = useRef("object");
   const keyboardCleanupRef = useRef(null);
+  const historyRef = useRef([]);
+  const redoRef = useRef([]);
+  const restoringRef = useRef(false);
 
   const [template, setTemplate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedObject, setSelectedObject] = useState(null);
+  const [zoom, setZoom] = useState(1);
   const [, setSelectionVersion] = useState(0);
 
   useEffect(() => {
@@ -65,9 +69,15 @@ export default function TemplateDesignerPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!loading && !canvasRef.current) {
-      initCanvas();
-    }
+    if (loading) return undefined;
+
+    keyboardCleanupRef.current?.();
+    keyboardCleanupRef.current = null;
+    canvasRef.current?.dispose();
+    canvasRef.current = null;
+    historyRef.current = [];
+    redoRef.current = [];
+    initCanvas();
 
     return () => {
       keyboardCleanupRef.current?.();
@@ -75,7 +85,7 @@ export default function TemplateDesignerPage() {
       canvasRef.current?.dispose();
       canvasRef.current = null;
     };
-  }, [loading]);
+  }, [loading, template?.id]);
 
   const getFabric = async () => {
     if (!fabricModuleRef.current) {
@@ -90,6 +100,7 @@ export default function TemplateDesignerPage() {
   };
 
   const loadTemplate = async () => {
+    setLoading(true);
     const response = await templatesService.getById(id);
     if (response.success) {
       setTemplate(response.data.template);
@@ -97,6 +108,14 @@ export default function TemplateDesignerPage() {
       toast.error("Không tải được mẫu in.");
     }
     setLoading(false);
+  };
+
+  const captureHistory = () => {
+    if (restoringRef.current || !canvasRef.current) return;
+    const snapshot = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
+    snapshot.objects = (snapshot.objects || []).filter((object) => !object.excludeFromExport);
+    historyRef.current = [...historyRef.current.slice(-30), snapshot];
+    redoRef.current = [];
   };
 
   const initCanvas = async () => {
@@ -125,6 +144,9 @@ export default function TemplateDesignerPage() {
     canvas.on("selection:updated", refreshSelection);
     canvas.on("selection:cleared", refreshSelection);
     canvas.on("object:modified", refreshSelection);
+    canvas.on("object:added", captureHistory);
+    canvas.on("object:modified", captureHistory);
+    canvas.on("object:removed", captureHistory);
 
     if (template?.json_config) {
       try {
@@ -135,8 +157,14 @@ export default function TemplateDesignerPage() {
       }
     }
 
+    const hasObjects = canvas.getObjects().some((object) => !object.excludeFromExport);
+    if (!hasObjects) {
+      await createDefaultTemplate(fabric, canvas, width, height);
+    }
+
     drawGrid(canvas, width, height, fabric);
     canvas.renderAll();
+    captureHistory();
 
     const handleKeyDown = (event) => {
       const activeObject = canvas.getActiveObject();
@@ -151,10 +179,79 @@ export default function TemplateDesignerPage() {
         event.preventDefault();
         duplicateSelected();
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        undo();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     keyboardCleanupRef.current = () => document.removeEventListener("keydown", handleKeyDown);
+  };
+
+  const createDefaultTemplate = async (fabric, canvas, width, height) => {
+    const Textbox = fabric.Textbox || fabric.default?.Textbox;
+    const Line = fabric.Line || fabric.default?.Line;
+    const Rect = fabric.Rect || fabric.default?.Rect;
+    if (!Textbox || !Line || !Rect) return;
+
+    const centerX = width / 2;
+    const addText = (text, options = {}) => {
+      const item = new Textbox(text, {
+        left: 56,
+        top: 56,
+        width: width - 112,
+        fontSize: 16,
+        fontFamily: "Arial",
+        fill: "#0f172a",
+        ...options,
+      });
+      canvas.add(item);
+      return item;
+    };
+
+    canvas.add(new Rect({
+      left: 28,
+      top: 28,
+      width: width - 56,
+      height: Math.min(height - 56, 520),
+      fill: "rgba(255,255,255,0)",
+      stroke: "#e2e8f0",
+      strokeWidth: 1,
+      rx: 14,
+      ry: 14,
+      customType: "shape",
+    }));
+    addText(template?.type === "payment" ? "PHIẾU CHI" : "PHIẾU THU", {
+      top: 56,
+      fontSize: 28,
+      fontWeight: "bold",
+      textAlign: "center",
+      customType: "heading",
+    });
+    addText("Mã phiếu: {{receipt_id}}", { top: 120, bindingField: "receipt_id", bindingLabel: "Mã phiếu", customType: "binding" });
+    addText("Ngày: {{receipt_date}}", { top: 150, bindingField: "receipt_date", bindingLabel: "Ngày thu", customType: "binding" });
+    addText("Học viên: {{student_name}}", { top: 190, fontSize: 18, bindingField: "student_name", bindingLabel: "Tên học viên", customType: "binding" });
+    addText("Lớp: {{class_name}}", { top: 225, bindingField: "class_name", bindingLabel: "Tên lớp", customType: "binding" });
+    addText("Số tiền: {{total_amount}}", { top: 260, fontSize: 18, fontWeight: "bold", bindingField: "total_amount", bindingLabel: "Số tiền", customType: "binding" });
+    addText("Bằng chữ: {{amount_in_words}}", { top: 295, bindingField: "amount_in_words", bindingLabel: "Số tiền bằng chữ", customType: "binding" });
+    addText("Nội dung: Học phí tháng {{month}}", { top: 330, bindingField: "month", bindingLabel: "Tháng", customType: "binding" });
+    canvas.add(new Line([56, 390, width - 56, 390], { stroke: "#cbd5e1", strokeWidth: 1, customType: "line" }));
+    addText("Người lập phiếu", { left: 80, top: 420, width: 180, textAlign: "center", fontWeight: "bold", customType: "text" });
+    addText("Người nộp tiền", { left: width - 260, top: 420, width: 180, textAlign: "center", fontWeight: "bold", customType: "text" });
+    canvas.setActiveObject(addText("EduManager V2", {
+      left: centerX - 80,
+      top: 500,
+      width: 160,
+      fontSize: 12,
+      fill: "#64748b",
+      textAlign: "center",
+      customType: "text",
+    }));
   };
 
   const drawGrid = (canvas, width, height, fabric) => {
@@ -438,6 +535,43 @@ export default function TemplateDesignerPage() {
     refreshSelection();
   };
 
+  const restoreCanvasSnapshot = async (snapshot) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !snapshot) return;
+    restoringRef.current = true;
+    await canvas.loadFromJSON(snapshot);
+    const fabric = await getFabric();
+    const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
+    const isLandscape = template?.orientation === "landscape";
+    const width = mmToPx(isLandscape ? paperSize.height : paperSize.width);
+    const height = mmToPx(isLandscape ? paperSize.width : paperSize.height);
+    drawGrid(canvas, width, height, fabric);
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    restoringRef.current = false;
+    refreshSelection();
+  };
+
+  const undo = async () => {
+    if (historyRef.current.length <= 1) return;
+    const current = historyRef.current.pop();
+    redoRef.current.push(current);
+    await restoreCanvasSnapshot(historyRef.current[historyRef.current.length - 1]);
+  };
+
+  const redo = async () => {
+    const snapshot = redoRef.current.pop();
+    if (!snapshot) return;
+    historyRef.current.push(snapshot);
+    await restoreCanvasSnapshot(snapshot);
+  };
+
+  const resetView = () => setZoom(1);
+
+  const changeZoom = (delta) => {
+    setZoom((current) => Math.min(1.4, Math.max(0.55, Number((current + delta).toFixed(2)))));
+  };
+
   const handleSave = async () => {
     if (!canvasRef.current || !template) return;
     setSaving(true);
@@ -481,7 +615,7 @@ export default function TemplateDesignerPage() {
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
 
   return (
-    <div className="flex h-screen flex-col bg-slate-100">
+    <div className="flex min-h-[100dvh] flex-col bg-slate-100">
       <input
         ref={imageInputRef}
         type="file"
@@ -502,12 +636,29 @@ export default function TemplateDesignerPage() {
             </p>
           </div>
         </div>
-        <button type="button" onClick={handleSave} disabled={saving || !template} className="btn-primary">
-          {saving ? "Đang lưu..." : "Lưu mẫu"}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button type="button" onClick={undo} className="btn-secondary px-3 py-2">
+            Undo
+          </button>
+          <button type="button" onClick={redo} className="btn-secondary px-3 py-2">
+            Redo
+          </button>
+          <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary px-3 py-2">
+            -
+          </button>
+          <button type="button" onClick={resetView} className="btn-secondary px-3 py-2">
+            {Math.round(zoom * 100)}%
+          </button>
+          <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary px-3 py-2">
+            +
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving || !template} className="btn-primary">
+            {saving ? "Đang lưu..." : "Lưu mẫu"}
+          </button>
+        </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-[280px_1fr_300px] overflow-hidden">
+      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_300px]">
         <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
           <PanelTitle title="Thành phần" subtitle="Thêm nhanh các khối dùng trong phiếu." />
           <div className="grid grid-cols-2 gap-2">
@@ -556,8 +707,11 @@ export default function TemplateDesignerPage() {
           </div>
         </aside>
 
-        <section className="overflow-auto bg-slate-200 p-8">
-          <div className="mx-auto w-max rounded-[1.5rem] bg-slate-900/10 p-5 shadow-inner">
+        <section className="min-w-0 overflow-auto bg-slate-200 p-4 lg:p-8">
+          <div
+            className="mx-auto w-max rounded-[1.5rem] bg-slate-900/10 p-5 shadow-inner transition-transform"
+            style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+          >
             <div className="shadow-2xl shadow-slate-900/20">
               <canvas ref={canvasElRef} />
             </div>

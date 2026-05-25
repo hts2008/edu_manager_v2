@@ -10,6 +10,10 @@ import {
 import { getString, sendApiError } from "../../../lib/api-utils.js";
 
 function feeToDto(fee: any) {
+  const classIds =
+    fee.student?.studentClasses
+      ?.map((studentClass: any) => studentClass.class?.id)
+      .filter(Boolean) || [];
   const classNames =
     fee.student?.studentClasses
       ?.map((studentClass: any) => studentClass.class?.className)
@@ -22,6 +26,7 @@ function feeToDto(fee: any) {
     student_name: fee.student?.fullName || null,
     parent_name: fee.student?.parent?.fullName || null,
     parent_phone: fee.student?.parent?.phone || null,
+    class_ids: classIds,
     class_names: classNames,
     month: fee.month,
     total_days: fee.totalDays,
@@ -47,10 +52,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const month = getString(req.query.month);
     const status = getString(req.query.status);
     const studentId = getString(req.query.student_id || req.query.studentId);
+    const classId = getString(req.query.class_id || req.query.classId);
 
     if (month) where.month = month;
     if (status && status !== "all") where.status = status;
     if (studentId) where.studentId = studentId;
+    if (classId && classId !== "all") {
+      where.student.studentClasses = {
+        some: {
+          classId,
+          status: "active",
+        },
+      };
+    }
 
     const fees = await prisma.monthlyFee.findMany({
       where,
@@ -60,7 +74,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             parent: { select: { fullName: true, phone: true } },
             studentClasses: {
               where: { status: "active" },
-              include: { class: { select: { className: true } } },
+              include: { class: { select: { id: true, className: true } } },
             },
           },
         },

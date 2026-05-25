@@ -17,6 +17,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method === "GET") {
     try {
       const { id, search, status, limit = "100", offset = "0" } = req.query;
+      const classId =
+        typeof req.query.class_id === "string"
+          ? req.query.class_id
+          : typeof req.query.classId === "string"
+            ? req.query.classId
+            : undefined;
       const includeDeleted = req.query.include_deleted === "true";
 
       // Single student retrieval
@@ -79,6 +85,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if (status && status !== "all") {
         where.status = status as string;
       }
+      if (classId && classId !== "all") {
+        where.studentClasses = {
+          some: {
+            classId,
+            status: "active",
+          },
+        };
+      }
       if (search) {
         where.OR = [
           { fullName: { contains: search as string, mode: "insensitive" } },
@@ -125,6 +139,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             ?.map((sc: any) => sc.class?.className)
             .filter(Boolean)
             .join(", ") || null,
+        class_ids:
+          s.studentClasses
+            ?.map((sc: any) => sc.class?.id)
+            .filter(Boolean) || [],
         created_at: s.createdAt,
         deleted_at: s.deletedAt,
       }));

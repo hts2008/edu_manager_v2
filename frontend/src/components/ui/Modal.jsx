@@ -8,7 +8,8 @@ export default function Modal({
   title,
   children,
   size = 'md',
-  showClose = true
+  showClose = true,
+  bodyClassName = ''
 }) {
   const modalRef = useRef(null);
   const titleId = useId();
@@ -47,7 +48,7 @@ export default function Modal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
           <Motion.div
             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
@@ -57,13 +58,14 @@ export default function Modal({
             onClick={onClose}
             aria-hidden="true"
           />
+          <div className="relative z-10 flex min-h-full items-start justify-center py-4 sm:items-center">
           <Motion.div
             ref={modalRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-            className={`relative w-full ${sizes[size]} max-h-[90vh] overflow-y-auto rounded-[2rem] border border-white/60 bg-white/95 p-6 shadow-2xl shadow-slate-900/20 backdrop-blur-xl md:p-8`}
+            className={`flex max-h-[calc(100dvh-2rem)] w-full ${sizes[size]} flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -72,7 +74,7 @@ export default function Modal({
           >
             {/* Header */}
             {(title || showClose) && (
-              <div className="mb-6 flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-5 md:px-8">
                 {title && (
                   <h2 id={titleId} className="text-xl font-bold tracking-tight text-slate-900">
                     {title}
@@ -94,10 +96,11 @@ export default function Modal({
             )}
 
             {/* Body */}
-            <div className="relative">
+            <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-5 md:px-8 md:py-6 ${bodyClassName}`}>
               {children}
             </div>
           </Motion.div>
+          </div>
         </div>
       )}
     </AnimatePresence>

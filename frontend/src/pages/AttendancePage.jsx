@@ -71,9 +71,13 @@ export default function AttendancePage() {
   const toast = useToast();
   const { isAdmin } = useAuth();
 
-  // Get today and calculate 3 months to display
-  const today = new Date();
-  const baseMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  // Get today and calculate the visible 3-month window.
+  const today = useMemo(() => new Date(), []);
+  const [visibleMonthAnchor, setVisibleMonthAnchor] = useState(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+  );
+  const baseMonth = visibleMonthAnchor;
+  const visibleMonthKey = useMemo(() => toMonthKey(baseMonth), [baseMonth]);
 
   // Generate 3 months: previous, current, next
   const threeMonths = useMemo(() => {
@@ -272,9 +276,10 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (selectedClass) {
+      setSelectedWeek(null);
       loadClassData();
     }
-  }, [selectedClass]);
+  }, [selectedClass, visibleMonthKey]);
 
   useEffect(() => {
     if (selectedClass && selectedWeek) {
@@ -568,6 +573,18 @@ export default function AttendancePage() {
     }
   };
 
+  const shiftVisibleMonths = (delta) => {
+    setVisibleMonthAnchor((current) => {
+      const next = new Date(current);
+      next.setMonth(next.getMonth() + delta);
+      return new Date(next.getFullYear(), next.getMonth(), 1);
+    });
+  };
+
+  const resetVisibleMonths = () => {
+    setVisibleMonthAnchor(new Date(today.getFullYear(), today.getMonth(), 1));
+  };
+
   // Month header with Vietnamese name
   const formatMonthName = (year, month) => {
     return new Date(year, month).toLocaleDateString("vi-VN", {
@@ -676,11 +693,28 @@ export default function AttendancePage() {
           {/* 3-Month Calendar Grid - SAP Style */}
           <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
             <div className="card-body">
-              <div className="flex flex-col gap-3 mb-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-3 mb-4 xl:flex-row xl:items-start xl:justify-between">
                 <h3 className="font-semibold text-gray-900">
                   📅 Lịch điểm danh - Chọn tuần
                 </h3>
-                <div className="flex flex-wrap gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => shiftVisibleMonths(-3)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                    ← 3 tháng
+                  </button>
+                  <button type="button" onClick={() => shiftVisibleMonths(-1)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                    Tháng trước
+                  </button>
+                  <button type="button" onClick={resetVisibleMonths} className="rounded-xl bg-primary-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 hover:bg-primary-700">
+                    Hôm nay
+                  </button>
+                  <button type="button" onClick={() => shiftVisibleMonths(1)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                    Tháng sau
+                  </button>
+                  <button type="button" onClick={() => shiftVisibleMonths(3)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                    3 tháng →
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs xl:max-w-md xl:justify-end">
                   {LEGEND.map((l) => (
                     <div key={l.status} className="flex items-center gap-1">
                       <div className={`w-4 h-4 rounded ${l.color}`}></div>

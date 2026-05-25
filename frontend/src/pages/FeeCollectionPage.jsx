@@ -1,157 +1,232 @@
 import { useState, useEffect, useMemo } from 'react';
-import { studentsService, monthlyFeesService } from '../services/api';
+import { Wallet, Printer, Calculator, Banknote, CreditCard, CheckCircle2 } from 'lucide-react';
+import { studentsService, classesService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
 
-// VI: Thu học phí theo tháng với đầy đủ thông tin học viên
-
 const FEE_STATUS = {
-  pending: { label: 'Chờ chốt', color: 'bg-gray-100 text-gray-700', icon: '⚪' },
-  ready: { label: 'Sẵn sàng', color: 'bg-yellow-100 text-yellow-700', icon: '🟡' },
-  confirmed: { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-700', icon: '🔵' },
-  paid: { label: 'Đã thu', color: 'bg-green-100 text-green-700', icon: '🟢' },
+  pending: { label: 'Chờ chốt', color: 'bg-slate-100 text-slate-700', icon: '○' },
+  ready: { label: 'Sẵn sàng', color: 'bg-amber-100 text-amber-700', icon: '●' },
+  confirmed: { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-700', icon: '●' },
+  paid: { label: 'Đã thu', color: 'bg-emerald-100 text-emerald-700', icon: '●' },
 };
 
+const PAYMENT_LABEL = {
+  cash: 'Tiền mặt',
+  transfer: 'Chuyển khoản',
+};
+
+const formatMoney = (value = 0) => `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
+
 export default function FeeCollectionPage() {
+  const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [feeData, setFeeData] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
+  const [selectedClass, setSelectedClass] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [processing, setProcessing] = useState(false);
+  const [printQueue, setPrintQueue] = useState([]);
+  const [showPrintQueue, setShowPrintQueue] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
     loadData();
-  }, [selectedMonth]);
+    setSelectedIds([]);
+  }, [selectedMonth, selectedClass]);
+
+  const classFilterParams = useMemo(
+    () => (selectedClass === 'all' ? {} : { class_id: selectedClass }),
+    [selectedClass]
+  );
+
+  const loadInitialData = async () => {
+    const classesRes = await classesService.getAll();
+    if (classesRes.success) {
+      setClasses(classesRes.data.classes || []);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
-    
-    // Load all active students
-    const studentsRes = await studentsService.getAll({ status: 'active' });
+    const [studentsRes, feesRes] = await Promise.all([
+      studentsService.getAll({ status: 'active', limit: 500, ...classFilterParams }),
+      monthlyFeesService.getAll({ month: selectedMonth, ...classFilterParams }),
+    ]);
+
     if (studentsRes.success) {
       setStudents(studentsRes.data.students || []);
+    } else {
+      toast.error(studentsRes.error?.message || 'Không thể tải học viên');
     }
-    
-    // Load monthly fees for selected month
-    const feesRes = await monthlyFeesService.getAll({ month: selectedMonth });
+
     if (feesRes.success) {
       const feeMap = {};
-      (feesRes.data.fees || []).forEach(f => {
-        feeMap[f.student_id] = f;
+      (feesRes.data.fees || []).forEach((fee) => {
+        feeMap[fee.student_id] = fee;
       });
       setFeeData(feeMap);
+    } else {
+      toast.error(feesRes.error?.message || 'Không thể tải học phí');
     }
-    
+
     setLoading(false);
   };
 
-  // Calculate attendance and fee for each student
   const studentFees = useMemo(() => {
-    return students.map(student => {
+    return students.map((student) => {
       const fee = feeData[student.id];
       return {
         ...student,
         fee,
-        attendanceSummary: fee ? `${fee.total_days || 0} buổi` : 'Chưa chốt',
+        attendanceSummary: fee ? `${fee.total_days || 0} buổi` : 'Chưa tính',
         feeAmount: fee?.total_amount || 0,
         feeStatus: fee?.status || 'pending',
       };
     });
   }, [students, feeData]);
 
-  // Filter students
   const filteredStudents = useMemo(() => {
     if (statusFilter === 'all') return studentFees;
-    return studentFees.filter(s => s.feeStatus === statusFilter);
+    return studentFees.filter((student) => student.feeStatus === statusFilter);
   }, [studentFees, statusFilter]);
 
-  // Summary statistics
+  const selectedRows = useMemo(
+    () => filteredStudents.filter((student) => selectedIds.includes(student.id)),
+    [filteredStudents, selectedIds]
+  );
+
+  const payableRows = useMemo(
+    () => selectedRows.filter((student) => student.feeStatus !== 'paid'),
+    [selectedRows]
+  );
+
   const summary = useMemo(() => {
     const total = studentFees.length;
-    const pending = studentFees.filter(s => s.feeStatus === 'pending').length;
-    const ready = studentFees.filter(s => s.feeStatus === 'ready').length;
-    const confirmed = studentFees.filter(s => s.feeStatus === 'confirmed').length;
-    const paid = studentFees.filter(s => s.feeStatus === 'paid').length;
-    const totalAmount = studentFees.reduce((sum, s) => sum + (s.feeAmount || 0), 0);
-    const paidAmount = studentFees.filter(s => s.feeStatus === 'paid').reduce((sum, s) => sum + (s.feeAmount || 0), 0);
-    
-    return { total, pending, ready, confirmed, paid, totalAmount, paidAmount };
-  }, [studentFees]);
+    const pending = studentFees.filter((student) => student.feeStatus === 'pending').length;
+    const ready = studentFees.filter((student) => student.feeStatus === 'ready').length;
+    const confirmed = studentFees.filter((student) => student.feeStatus === 'confirmed').length;
+    const paid = studentFees.filter((student) => student.feeStatus === 'paid').length;
+    const totalAmount = studentFees.reduce((sum, student) => sum + (student.feeAmount || 0), 0);
+    const paidAmount = studentFees
+      .filter((student) => student.feeStatus === 'paid')
+      .reduce((sum, student) => sum + (student.feeAmount || 0), 0);
+    const selectedAmount = payableRows.reduce((sum, student) => sum + (student.feeAmount || 0), 0);
 
-  const handlePay = (student) => {
-    setSelectedStudent(student);
-    setShowPayModal(true);
-  };
+    return { total, pending, ready, confirmed, paid, totalAmount, paidAmount, selectedAmount };
+  }, [studentFees, payableRows]);
 
-  const confirmPayment = async () => {
-    if (!selectedStudent) return;
-    
-    setProcessing(true);
-    
-    // If no fee record exists, calculate first
-    let fee = selectedStudent.fee;
-    if (!fee) {
-      const calcRes = await monthlyFeesService.calculate(selectedStudent.id, selectedMonth);
-      if (calcRes.success) {
-        fee = calcRes.data;
-      } else {
-        toast.error('Không thể tính học phí');
-        setProcessing(false);
-        return;
-      }
-    }
-    
-    // Mark as paid
-    const payRes = await monthlyFeesService.pay(fee.id, paymentMethod);
-    if (payRes.success) {
-      toast.success(`Đã thu ${new Intl.NumberFormat('vi-VN').format(fee.total_amount)}đ`);
-      setShowPayModal(false);
-      setSelectedStudent(null);
-      loadData();
-    } else {
-      toast.error(payRes.error?.message || 'Lỗi khi thu tiền');
-    }
-    
-    setProcessing(false);
+  const navigateMonth = (delta) => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const date = new Date(year, month - 1 + delta, 1);
+    setSelectedMonth(toMonthKey(date));
   };
 
   const handleCalculateFee = async (studentId) => {
     const res = await monthlyFeesService.calculate(studentId, selectedMonth);
     if (res.success) {
       toast.success('Đã tính học phí');
-      loadData();
+      await loadData();
     } else {
       toast.error(res.error?.message || 'Không thể tính học phí');
     }
   };
 
-  const handlePrint = async (student) => {
-    const fee = student.fee;
-    if (!fee?.receipt_id) {
-      toast.error('Chưa có phiếu thu');
+  const handleCalculateSelected = async () => {
+    const rows = selectedRows.filter((student) => student.feeStatus !== 'paid');
+    if (!rows.length) {
+      toast.error('Chọn ít nhất một học viên chưa thu');
       return;
     }
 
+    setProcessing(true);
+    const results = await Promise.all(
+      rows.map((student) => monthlyFeesService.calculate(student.id, selectedMonth))
+    );
+    const failed = results.filter((result) => !result.success).length;
+    toast.success(`Đã tính ${rows.length - failed}/${rows.length} học viên`);
+    if (failed) toast.error(`${failed} học viên không thể tính phí`);
+    await loadData();
+    setProcessing(false);
+  };
+
+  const collectRows = async (rows, method) => {
+    const targetRows = rows.filter((student) => student.feeStatus !== 'paid');
+    if (!targetRows.length) {
+      toast.error('Không có học viên cần thu trong lựa chọn hiện tại');
+      return;
+    }
+
+    setProcessing(true);
+    const res = await monthlyFeesService.bulkPay({
+      month: selectedMonth,
+      student_ids: targetRows.map((student) => student.id),
+      payment_method: method,
+    });
+
+    if (res.success) {
+      const receipts = (res.data.results || []).filter((item) => item.receipt_id);
+      setPrintQueue(receipts);
+      setShowPrintQueue(receipts.length > 0);
+      toast.success(
+        `Đã thu ${res.data.paid || 0} học viên bằng ${PAYMENT_LABEL[method]}`
+      );
+      if (res.data.failed) {
+        toast.error(`${res.data.failed} dòng không thu được, xem lại dữ liệu điểm danh/học phí`);
+      }
+      await loadData();
+      setSelectedIds([]);
+      setShowPayModal(false);
+      setSelectedStudent(null);
+    } else {
+      toast.error(res.error?.message || 'Không thể thu tiền');
+    }
+    setProcessing(false);
+  };
+
+  const handlePay = (student) => {
+    setSelectedStudent(student);
+    setPaymentMethod('cash');
+    setShowPayModal(true);
+  };
+
+  const confirmPayment = async () => {
+    if (!selectedStudent) return;
+    await collectRows([selectedStudent], paymentMethod);
+  };
+
+  const handlePrintReceipt = async (receiptId) => {
     try {
-      await openAuthenticatedPdf(`/api/receipts/${fee.receipt_id}/pdf`);
+      await openAuthenticatedPdf(`/api/receipts/${receiptId}/pdf`);
     } catch (error) {
       toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
     }
   };
 
-  // Navigate months
-  const navigateMonth = (delta) => {
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month - 1 + delta, 1);
-    setSelectedMonth(toMonthKey(date));
+  const handlePrintStudent = async (student) => {
+    if (!student.fee?.receipt_id) {
+      toast.error('Chưa có phiếu thu');
+      return;
+    }
+    await handlePrintReceipt(student.fee.receipt_id);
+  };
+
+  const handlePrintAll = async () => {
+    for (const item of printQueue) {
+      await handlePrintReceipt(item.receipt_id);
+    }
   };
 
   const columns = [
@@ -160,12 +235,12 @@ export default function FeeCollectionPage() {
       title: 'Học viên',
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-            <span className="font-medium text-primary-700">{value?.charAt(0)}</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-100 text-sm font-bold text-primary-700">
+            {value?.charAt(0)}
           </div>
           <div>
-            <p className="font-medium text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500">{row.id}</p>
+            <p className="font-semibold text-slate-900">{value}</p>
+            <p className="text-xs text-slate-500">{row.parent_name || row.parent_phone || row.id}</p>
           </div>
         </div>
       ),
@@ -173,67 +248,87 @@ export default function FeeCollectionPage() {
     {
       key: 'class_names',
       title: 'Lớp học',
-      render: (value) => value ? (
-        <div className="flex flex-wrap gap-1">
-          {value.split(', ').map((c, i) => (
-            <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-              {c}
-            </span>
-          ))}
-        </div>
-      ) : <span className="text-gray-400">-</span>,
+      render: (value) =>
+        value ? (
+          <div className="flex flex-wrap gap-1">
+            {value.split(', ').map((className) => (
+              <span key={className} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                {className}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-slate-400">-</span>
+        ),
     },
     {
       key: 'attendanceSummary',
-      title: 'Điểm danh',
-      render: (value) => <span className="font-mono">{value}</span>,
+      title: 'Số buổi',
+      render: (value) => <span className="font-mono text-slate-700">{value}</span>,
     },
     {
       key: 'feeAmount',
       title: 'Số tiền',
-      render: (value) => (
-        <span className="font-medium text-green-700">
-          {value > 0 ? `${new Intl.NumberFormat('vi-VN').format(value)}đ` : '-'}
-        </span>
+      render: (value, row) => (
+        <div>
+          <span className="font-bold text-emerald-700">
+            {value > 0 ? formatMoney(value) : row.fee ? '0đ' : 'Chưa tính'}
+          </span>
+          {row.fee?.receipt_id ? (
+            <p className="text-[11px] text-slate-400">Phiếu: {row.fee.receipt_id}</p>
+          ) : null}
+        </div>
       ),
     },
     {
       key: 'feeStatus',
       title: 'Trạng thái',
       render: (value) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${FEE_STATUS[value]?.color}`}>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${FEE_STATUS[value]?.color}`}>
           {FEE_STATUS[value]?.icon} {FEE_STATUS[value]?.label}
         </span>
       ),
     },
     {
       key: 'actions',
-      title: 'Hành động',
+      title: 'Thao tác',
       sortable: false,
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {row.feeStatus === 'pending' && (
             <button
-              onClick={(e) => { e.stopPropagation(); handleCalculateFee(row.id); }}
-              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCalculateFee(row.id);
+              }}
+              className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
             >
               Tính phí
             </button>
           )}
-          {(row.feeStatus === 'ready' || row.feeStatus === 'confirmed') && (
+          {row.feeStatus !== 'paid' && (
             <button
-              onClick={(e) => { e.stopPropagation(); handlePay(row); }}
-              className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePay(row);
+              }}
+              className="rounded-xl bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 transition hover:bg-emerald-200"
             >
-              💰 Thu tiền
+              Thu tiền
             </button>
           )}
           {row.feeStatus === 'paid' && row.fee?.receipt_id && (
             <button
-              onClick={(e) => { e.stopPropagation(); handlePrint(row); }}
-              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrintStudent(row);
+              }}
+              className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-200"
             >
-              🖨️ In lại
+              In lại
             </button>
           )}
         </div>
@@ -243,80 +338,129 @@ export default function FeeCollectionPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">💰 Thu học phí</h1>
-          <p className="text-gray-500">Quản lý thu học phí theo tháng</p>
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-500">
+            Tài chính · Fee Workbench
+          </p>
+          <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900">
+            Thu tiền học phí
+          </h1>
+          <p className="text-slate-500">
+            Lọc theo lớp/tháng, tick nhiều học viên và thu một lần như bảng vận hành.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={processing || !payableRows.length}
+            onClick={handleCalculateSelected}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 disabled:opacity-50"
+          >
+            <Calculator size={16} /> Tính dòng chọn
+          </button>
+          <button
+            type="button"
+            disabled={processing || !payableRows.length}
+            onClick={() => collectRows(payableRows, 'cash')}
+            className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:-translate-y-0.5 disabled:opacity-50"
+          >
+            <Banknote size={16} /> Thu tiền mặt
+          </button>
+          <button
+            type="button"
+            disabled={processing || !payableRows.length}
+            onClick={() => collectRows(payableRows, 'transfer')}
+            className="inline-flex items-center gap-2 rounded-2xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 disabled:opacity-50"
+          >
+            <CreditCard size={16} /> Thu chuyển khoản
+          </button>
         </div>
       </div>
 
-      {/* Month Navigation & Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Month Picker */}
-        <div className="card col-span-1">
-          <div className="card-body">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tháng</label>
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-gray-100 rounded-lg">◀</button>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="input flex-1"
-              />
-              <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-gray-100 rounded-lg">▶</button>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_repeat(4,1fr)]">
+        <div className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-xl shadow-slate-200/50 backdrop-blur-2xl">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Tháng
+              </label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => navigateMonth(-1)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-600">←</button>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="input flex-1"
+                />
+                <button type="button" onClick={() => navigateMonth(1)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-600">→</button>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                Lớp
+              </label>
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="input"
+              >
+                <option value="all">Tất cả lớp</option>
+                {classes.map((classItem) => (
+                  <option key={classItem.id} value={classItem.id}>
+                    {classItem.class_name || classItem.className}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        </div>
-        
-        {/* Summary Cards */}
-        <div className="card bg-gray-50 border-gray-200">
-          <div className="card-body text-center">
-            <p className="text-2xl font-bold text-gray-600">{summary.total}</p>
-            <p className="text-xs text-gray-500">Tổng HV</p>
+          <div className="mt-4 rounded-2xl bg-primary-50 p-3 text-sm text-primary-700">
+            Đã chọn <b>{selectedRows.length}</b> học viên · Chờ thu <b>{payableRows.length}</b> · Ước tính{' '}
+            <b>{formatMoney(summary.selectedAmount)}</b>
           </div>
         </div>
-        <div className="card bg-yellow-50 border-yellow-200">
-          <div className="card-body text-center">
-            <p className="text-2xl font-bold text-yellow-600">{summary.pending + summary.ready + summary.confirmed}</p>
-            <p className="text-xs text-yellow-700">Chờ thu</p>
-          </div>
-        </div>
-        <div className="card bg-green-50 border-green-200">
-          <div className="card-body text-center">
-            <p className="text-2xl font-bold text-green-600">{summary.paid}</p>
-            <p className="text-xs text-green-700">Đã thu</p>
-          </div>
-        </div>
-        <div className="card bg-primary-50 border-primary-200">
-          <div className="card-body text-center">
-            <p className="text-lg font-bold text-primary-600">
-              {new Intl.NumberFormat('vi-VN').format(summary.paidAmount)}đ
-            </p>
-            <p className="text-xs text-primary-700">
-              / {new Intl.NumberFormat('vi-VN').format(summary.totalAmount)}đ
-            </p>
-          </div>
-        </div>
+
+        {[
+          { label: 'Tổng học viên', value: summary.total, tone: 'slate', icon: Wallet },
+          { label: 'Chờ thu', value: summary.pending + summary.ready + summary.confirmed, tone: 'amber', icon: Calculator },
+          { label: 'Đã thu', value: summary.paid, tone: 'emerald', icon: CheckCircle2 },
+          { label: 'Dòng tiền', value: formatMoney(summary.paidAmount), sub: `/ ${formatMoney(summary.totalAmount)}`, tone: 'primary', icon: Banknote },
+        ].map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <div key={metric.label} className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-xl shadow-slate-200/50 backdrop-blur-2xl">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
+                <div className="rounded-2xl bg-slate-100 p-2 text-slate-500">
+                  <Icon size={18} />
+                </div>
+              </div>
+              <p className="mt-3 text-2xl font-black text-slate-900">{metric.value}</p>
+              {metric.sub ? <p className="text-xs font-semibold text-slate-500">{metric.sub}</p> : null}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Status Filters */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {[
           { key: 'all', label: 'Tất cả', count: summary.total },
           { key: 'pending', label: 'Chờ chốt', count: summary.pending },
           { key: 'ready', label: 'Sẵn sàng', count: summary.ready },
           { key: 'confirmed', label: 'Đã xác nhận', count: summary.confirmed },
           { key: 'paid', label: 'Đã thu', count: summary.paid },
-        ].map(filter => (
+        ].map((filter) => (
           <button
             key={filter.key}
-            onClick={() => setStatusFilter(filter.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            type="button"
+            onClick={() => {
+              setStatusFilter(filter.key);
+              setSelectedIds([]);
+            }}
+            className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${
               statusFilter === filter.key
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
+                : 'border border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700'
             }`}
           >
             {filter.label} ({filter.count})
@@ -324,90 +468,125 @@ export default function FeeCollectionPage() {
         ))}
       </div>
 
-      {/* Students Table */}
       <DataTable
         columns={columns}
         data={filteredStudents}
         loading={loading}
         emptyMessage="Không có học viên nào"
+        selectable
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        getRowId={(row) => row.id}
       />
 
-      {/* Payment Modal */}
       <Modal
         isOpen={showPayModal}
         onClose={() => setShowPayModal(false)}
-        title="Xác nhận thu học phí"
+        title="Xác nhận thu tiền"
+        size="md"
       >
         {selectedStudent && (
           <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Học viên:</span>
-                <span className="font-medium">{selectedStudent.full_name}</span>
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-slate-600">Học viên:</span>
+                <span className="font-bold">{selectedStudent.full_name}</span>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Tháng:</span>
-                <span className="font-medium">{selectedMonth}</span>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-slate-600">Tháng:</span>
+                <span className="font-bold">{selectedMonth}</span>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Số buổi:</span>
-                <span className="font-medium">{selectedStudent.fee?.total_days || 0}</span>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-slate-600">Số buổi:</span>
+                <span className="font-bold">{selectedStudent.fee?.total_days || 0}</span>
               </div>
               <div className="flex items-center justify-between text-lg">
-                <span className="font-medium">Số tiền:</span>
-                <span className="font-bold text-green-600">
-                  {new Intl.NumberFormat('vi-VN').format(selectedStudent.feeAmount)}đ
+                <span className="font-bold">Số tiền:</span>
+                <span className="font-black text-emerald-600">
+                  {formatMoney(selectedStudent.feeAmount)}
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-bold text-slate-700">
                 Hình thức thanh toán
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cash')}
-                  className={`p-3 rounded-lg border-2 transition-colors ${
-                    paymentMethod === 'cash'
-                      ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  💵 Tiền mặt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('transfer')}
-                  className={`p-3 rounded-lg border-2 transition-colors ${
-                    paymentMethod === 'transfer'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  🏦 Chuyển khoản
-                </button>
+                {[
+                  { key: 'cash', label: 'Tiền mặt', icon: Banknote },
+                  { key: 'transfer', label: 'Chuyển khoản', icon: CreditCard },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setPaymentMethod(item.key)}
+                      className={`rounded-2xl border-2 p-4 font-bold transition ${
+                        paymentMethod === item.key
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <Icon className="mx-auto mb-2" size={22} />
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <button
-                onClick={() => setShowPayModal(false)}
-                className="btn-secondary"
-              >
+            <div className="sticky bottom-0 -mx-6 flex justify-end gap-3 border-t border-slate-100 bg-white/95 px-6 pt-4 backdrop-blur md:-mx-8 md:px-8">
+              <button type="button" onClick={() => setShowPayModal(false)} className="btn-secondary">
                 Hủy
               </button>
-              <button
-                onClick={confirmPayment}
-                disabled={processing}
-                className="btn-primary"
-              >
-                {processing ? 'Đang xử lý...' : '✓ Xác nhận thu tiền'}
+              <button type="button" onClick={confirmPayment} disabled={processing} className="btn-primary">
+                {processing ? 'Đang xử lý...' : 'Xác nhận thu tiền'}
               </button>
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        isOpen={showPrintQueue}
+        onClose={() => setShowPrintQueue(false)}
+        title="In phiếu thu"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+            Đã tạo {printQueue.length} phiếu thu. Có thể in toàn bộ hoặc từng phiếu.
+          </div>
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {printQueue.map((item) => (
+              <div key={item.receipt_id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3">
+                <div>
+                  <p className="font-bold text-slate-900">{item.student_id}</p>
+                  <p className="text-xs text-slate-500">
+                    {item.total_days} buổi · {formatMoney(item.total_amount)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePrintReceipt(item.receipt_id)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700"
+                >
+                  <Printer size={16} /> In
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="sticky bottom-0 -mx-6 flex justify-end gap-3 border-t border-slate-100 bg-white/95 px-6 pt-4 backdrop-blur md:-mx-8 md:px-8">
+            <button type="button" onClick={() => setShowPrintQueue(false)} className="btn-secondary">
+              Đóng
+            </button>
+            <button type="button" onClick={handlePrintAll} className="btn-primary">
+              In tất cả
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

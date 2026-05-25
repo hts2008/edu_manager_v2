@@ -39,7 +39,6 @@ const protectedMenuPaths = [
   "/attendance",
   "/attendance-insights",
   "/attendance-periods",
-  "/receipts",
   "/fee-collection",
   "/payments",
   "/history",
@@ -58,7 +57,7 @@ const protectedMenuPaths = [
 test("redesigned navigation groups primary and secondary menus", async ({ page }) => {
   await seedAuth(page);
   await page.setViewportSize({ width: 1440, height: 960 });
-  await page.goto("/receipts");
+  await page.goto("/fee-collection");
   await page.waitForLoadState("networkidle");
 
   const sidebar = page.locator("aside");
@@ -66,6 +65,8 @@ test("redesigned navigation groups primary and secondary menus", async ({ page }
   await expect(sidebar.getByText("Menu phụ")).toBeVisible();
   await expect(sidebar.getByRole("button", { name: "Vận hành" })).toBeVisible();
   await expect(sidebar.getByRole("button", { name: "Tài chính" })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Thu tiền", exact: true })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Thu học phí", exact: true })).toHaveCount(0);
   await expect(sidebar.getByRole("button", { name: "Báo cáo" })).toBeVisible();
   await expect(sidebar.getByRole("button", { name: "Quản trị" })).toBeVisible();
   await expect(sidebar).toBeVisible();
@@ -78,7 +79,7 @@ test("redesigned navigation groups primary and secondary menus", async ({ page }
 test("mobile navigation remains usable without layout overflow", async ({ page }) => {
   await seedAuth(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/receipts");
+  await page.goto("/fee-collection");
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("button", { name: "Mở menu" }).click();
@@ -88,6 +89,60 @@ test("mobile navigation remains usable without layout overflow", async ({ page }
   await expectNoHorizontalOverflow(page);
 
   await page.screenshot({ path: "output/playwright/ux-redesign-mobile.png", fullPage: true });
+});
+
+test("fee workbench and receipt history are distinct surfaces", async ({ page }) => {
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+
+  await page.goto("/fee-collection");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("main h1")).toContainText("Thu tiền học phí");
+  await expect(page.getByRole("button", { name: /Thu tiền mặt/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Thu chuyển khoản/ })).toBeVisible();
+  await expect(page.getByLabel("Hiển thị")).toBeVisible();
+
+  await page.goto("/receipts");
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("main h1")).toContainText("Phiếu thu");
+});
+
+test("attendance calendar exposes previous and future month navigation", async ({ page }) => {
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto("/attendance");
+  await page.waitForLoadState("networkidle");
+  const classSelect = page.locator("select").first();
+  const optionCount = await classSelect.locator("option").count();
+  test.skip(optionCount < 2, "No class data is available for attendance month navigation smoke.");
+  await classSelect.selectOption({ index: 1 });
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("button", { name: "← 3 tháng" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tháng trước" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hôm nay" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tháng sau" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "3 tháng →" })).toBeVisible();
+});
+
+test("template designer loads an editable canvas surface", async ({ page, request }) => {
+  const response = await request.get("/api/templates", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  const templateId = body.data?.templates?.[0]?.id;
+  expect(templateId).toBeTruthy();
+
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto(`/templates/${templateId}/design`);
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Redo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Upload ảnh" })).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible();
 });
 
 test("all protected menu routes load on desktop and mobile", async ({ browser }) => {

@@ -1,5 +1,19 @@
 import { useState, useMemo, useEffect, useId } from 'react';
 
+const PAGE_SIZE_ALL = 'all';
+const DEFAULT_PAGE_SIZE_OPTIONS = [PAGE_SIZE_ALL, 500, 100, 50];
+
+const normalizePageSize = (value) => {
+  if (value === PAGE_SIZE_ALL || value == null) {
+    return PAGE_SIZE_ALL;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) && numericValue > 0
+    ? numericValue
+    : PAGE_SIZE_ALL;
+};
+
 // VI: DataTable component với sorting, filtering, và pagination
 export default function DataTable({
   columns,
@@ -7,7 +21,7 @@ export default function DataTable({
   loading = false,
   onRowClick,
   emptyMessage = 'Không có dữ liệu',
-  pageSize = 10,
+  pageSize,
   selectable = false,
   selectedIds = [],
   onSelectionChange,
@@ -16,8 +30,20 @@ export default function DataTable({
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [rowsPerPage, setRowsPerPage] = useState(() => normalizePageSize(pageSize));
   const searchId = useId();
+  const pageSizeId = useId();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const pageSizeOptions = useMemo(() => {
+    if (
+      rowsPerPage !== PAGE_SIZE_ALL &&
+      !DEFAULT_PAGE_SIZE_OPTIONS.includes(rowsPerPage)
+    ) {
+      return [PAGE_SIZE_ALL, rowsPerPage, 500, 100, 50];
+    }
+
+    return DEFAULT_PAGE_SIZE_OPTIONS;
+  }, [rowsPerPage]);
 
   // Handle sorting
   const handleSort = (key) => {
@@ -58,11 +84,17 @@ export default function DataTable({
   }, [data, searchTerm, sortConfig]);
 
   // Pagination
-  const totalPages = Math.ceil(processedData.length / pageSize);
-  const paginatedData = processedData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const totalPages =
+    rowsPerPage === PAGE_SIZE_ALL
+      ? 1
+      : Math.ceil(processedData.length / rowsPerPage);
+  const paginatedData =
+    rowsPerPage === PAGE_SIZE_ALL
+      ? processedData
+      : processedData.slice(
+          (currentPage - 1) * rowsPerPage,
+          currentPage * rowsPerPage
+        );
   const selectableRows = paginatedData.filter((row) => getRowId(row));
   const allPageSelected =
     selectableRows.length > 0 &&
@@ -93,10 +125,19 @@ export default function DataTable({
     updateSelection([...selectedIds, ...pageIds]);
   };
 
-  // Reset page when search changes
+  const handlePageSizeChange = (event) => {
+    setRowsPerPage(normalizePageSize(event.target.value));
+    setCurrentPage(1);
+  };
+
+  useEffect(() => {
+    setRowsPerPage(normalizePageSize(pageSize));
+  }, [pageSize]);
+
+  // Reset page when search or page size changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, rowsPerPage]);
 
   useEffect(() => {
     const safeTotalPages = Math.max(totalPages, 1);
@@ -133,9 +174,28 @@ export default function DataTable({
             className="w-full rounded-xl border border-slate-200/60 bg-white/80 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
           />
         </div>
-        <span className="text-sm text-gray-500">
-          {processedData.length} kết quả
-        </span>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          <span className="text-sm text-gray-500 sm:whitespace-nowrap">
+            {processedData.length} kết quả
+          </span>
+          <div className="flex items-center gap-2">
+            <label htmlFor={pageSizeId} className="text-sm text-gray-500">
+              Hiển thị
+            </label>
+            <select
+              id={pageSizeId}
+              value={rowsPerPage}
+              onChange={handlePageSizeChange}
+              className="rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2 text-sm text-slate-700 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === PAGE_SIZE_ALL ? 'Tất cả' : option}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
