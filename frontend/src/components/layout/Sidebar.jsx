@@ -184,6 +184,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     <div key={section.title} className="rounded-2xl border border-slate-200/60 bg-white/40 shadow-sm overflow-hidden transition-all duration-300">
                       <button
                         type="button"
+                        aria-expanded={!isClosed}
                         className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-slate-50/50"
                         onClick={() => toggleSection(section.title)}
                       >

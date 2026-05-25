@@ -98,6 +98,11 @@ export default function DataTable({
     setCurrentPage(1);
   }, [searchTerm]);
 
+  useEffect(() => {
+    const safeTotalPages = Math.max(totalPages, 1);
+    setCurrentPage((page) => Math.min(page, safeTotalPages));
+  }, [totalPages]);
+
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm">
       {/* Search */}

@@ -80,6 +80,8 @@ export default function Modal({
                 )}
                 {showClose && (
                   <button
+                    type="button"
+                    aria-label="Đóng hộp thoại"
                     onClick={onClose}
                     className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition-colors hover:bg-rose-100 hover:text-rose-600"
                   >

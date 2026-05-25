@@ -23,7 +23,11 @@ export const paymentFormSchema = z.object({
 
 export const receiptFormSchema = z.object({
   student_id: z.string().trim().min(1, "Vui long chon hoc vien"),
-  month: z.string().regex(/^\d{4}-\d{2}$/, "Thang khong hop le"),
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Thang khong hop le").refine((value) => {
+    const month = Number(value.slice(5, 7));
+    return month >= 1 && month <= 12;
+  }, "Thang khong hop le"),
+  monthly_fee_id: optionalText,
   days_count: z.coerce.number().int().min(0).default(0),
   fee_per_day: z.coerce.number().min(0).default(0),
   amount: positiveNumber("So tien"),

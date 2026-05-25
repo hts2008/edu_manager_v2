@@ -7,7 +7,7 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
-import { getString, sendApiError } from "../../../lib/api-utils.js";
+import { getBusinessMonthKey, getString, sendApiError } from "../../../lib/api-utils.js";
 
 function monthRange(from: string, to: string) {
   const months: string[] = [];
@@ -34,7 +34,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentMonth = getBusinessMonthKey();
     const from = normalizeMonth(getString(req.query.from), `${currentMonth.slice(0, 4)}-01`);
     const to = normalizeMonth(getString(req.query.to), currentMonth);
     const months = monthRange(from, to);

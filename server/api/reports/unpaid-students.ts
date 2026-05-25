@@ -8,6 +8,7 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import {
+  getBusinessMonthKey,
   getRequiredString,
   getString,
   parseMonthRange,
@@ -22,8 +23,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const month =
-      getString(req.query.month) || new Date().toISOString().slice(0, 7);
+    const month = getString(req.query.month) || getBusinessMonthKey();
     const { startDate, endDate } = parseMonthRange(month);
     const today = new Date();
 

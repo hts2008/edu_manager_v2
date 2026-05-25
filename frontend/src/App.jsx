@@ -44,6 +44,10 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
+const AdminOnly = ({ children }) => (
+  <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>
+);
+
 export default function App() {
   return (
     <AuthProvider>
@@ -67,24 +71,24 @@ export default function App() {
               <Route path="students" element={<StudentsPage />} />
               <Route path="parents" element={<ParentsPage />} />
               <Route path="classes" element={<ClassesPage />} />
-              <Route path="teachers" element={<TeachersPage />} />
+              <Route path="teachers" element={<AdminOnly><TeachersPage /></AdminOnly>} />
               <Route path="attendance" element={<AttendancePage />} />
               <Route path="attendance-insights" element={<AttendanceInsightsPage />} />
               <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
               <Route path="receipts" element={<ReceiptsPage />} />
-              <Route path="payments" element={<PaymentsPage />} />
+              <Route path="payments" element={<AdminOnly><PaymentsPage /></AdminOnly>} />
               <Route path="fee-collection" element={<FeeCollectionPage />} />
               <Route path="history" element={<HistoryPage />} />
-              <Route path="templates" element={<TemplatesPage />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="advanced-reports" element={<AdvancedReportsPage />} />
-              <Route path="audit-logs" element={<AuditLogsPage />} />
-              <Route path="settings" element={<CenterSettingsPage />} />
-              <Route path="users" element={<UserManagementPage />} />
-              <Route path="imports" element={<ImportPage />} />
-              <Route path="fee-reminders" element={<FeeRemindersPage />} />
-              <Route path="backups" element={<BackupsPage />} />
-              <Route path="recycle-bin" element={<RecycleBinPage />} />
+              <Route path="templates" element={<AdminOnly><TemplatesPage /></AdminOnly>} />
+              <Route path="reports" element={<AdminOnly><ReportsPage /></AdminOnly>} />
+              <Route path="advanced-reports" element={<AdminOnly><AdvancedReportsPage /></AdminOnly>} />
+              <Route path="audit-logs" element={<AdminOnly><AuditLogsPage /></AdminOnly>} />
+              <Route path="settings" element={<AdminOnly><CenterSettingsPage /></AdminOnly>} />
+              <Route path="users" element={<AdminOnly><UserManagementPage /></AdminOnly>} />
+              <Route path="imports" element={<AdminOnly><ImportPage /></AdminOnly>} />
+              <Route path="fee-reminders" element={<AdminOnly><FeeRemindersPage /></AdminOnly>} />
+              <Route path="backups" element={<AdminOnly><BackupsPage /></AdminOnly>} />
+              <Route path="recycle-bin" element={<AdminOnly><RecycleBinPage /></AdminOnly>} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}
@@ -92,7 +96,7 @@ export default function App() {
               path="/templates/:id/design"
               element={
                 <ProtectedRoute>
-                  <TemplateDesignerPage />
+                  <AdminOnly><TemplateDesignerPage /></AdminOnly>
                 </ProtectedRoute>
               }
             />

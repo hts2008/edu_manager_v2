@@ -7,11 +7,11 @@ import {
   requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
-import { getString, sendApiError } from "../../../lib/api-utils.js";
+import { getBusinessMonthKey, getString, sendApiError } from "../../../lib/api-utils.js";
 import { runFeeReminders } from "../../../lib/fee-reminders.js";
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return getBusinessMonthKey();
 }
 
 function parseDryRun(value: unknown) {

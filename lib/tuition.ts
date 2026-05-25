@@ -13,6 +13,7 @@ export type TuitionResult = {
   monthlyTuition: number | null;
   scheduleStrategy: "schedule_days" | "sessions_per_week" | "legacy";
   scheduleDays: number[];
+  extraSessions: boolean;
 };
 
 export type TuitionClassChargeInput = TuitionClassInput & {
@@ -26,6 +27,7 @@ export type StudentMonthlyTuitionResult = {
 };
 
 export const CHARGEABLE_ATTENDANCE_STATUSES = ["present", "absent_with_fee"];
+export const DEFAULT_WEEKLY_SESSION_DAYS = [1, 2, 3, 4, 5, 6];
 
 export function parseMonthParts(month: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(month);
@@ -115,6 +117,40 @@ export function countCalendarRowsInMonth(month: string) {
   return Math.ceil((firstWeekday + daysInMonth) / 7);
 }
 
+function getMondayWeekKey(date: Date) {
+  const day = date.getUTCDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() + mondayOffset);
+  return monday.toISOString().slice(0, 10);
+}
+
+export function countMonthBoundedWeeklySessions(
+  month: string,
+  sessionsPerWeek: number,
+  allowedWeekdays = DEFAULT_WEEKLY_SESSION_DAYS
+) {
+  const safeSessionsPerWeek = Math.max(0, Math.trunc(Number(sessionsPerWeek) || 0));
+  if (safeSessionsPerWeek <= 0) return 0;
+
+  const { year, monthIndex } = parseMonthParts(month);
+  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  const allowed = new Set(allowedWeekdays);
+  const availableDaysByWeek = new Map<string, number>();
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(Date.UTC(year, monthIndex, day));
+    if (!allowed.has(date.getUTCDay())) continue;
+    const weekKey = getMondayWeekKey(date);
+    availableDaysByWeek.set(weekKey, (availableDaysByWeek.get(weekKey) || 0) + 1);
+  }
+
+  return Array.from(availableDaysByWeek.values()).reduce(
+    (sum, daysInWeek) => sum + Math.min(safeSessionsPerWeek, daysInWeek),
+    0
+  );
+}
+
 export function expectedSessionsForClass(classData: TuitionClassInput, month: string) {
   const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
   if (scheduleDays.length) {
@@ -128,7 +164,7 @@ export function expectedSessionsForClass(classData: TuitionClassInput, month: st
   const sessionsPerWeek = Number(classData.sessionsPerWeek || 0);
   if (sessionsPerWeek > 0) {
     return {
-      expectedSessions: countCalendarRowsInMonth(month) * sessionsPerWeek,
+      expectedSessions: countMonthBoundedWeeklySessions(month, sessionsPerWeek),
       scheduleStrategy: "sessions_per_week" as const,
       scheduleDays,
     };
@@ -163,6 +199,7 @@ export function calculateTuitionForClass(
       monthlyTuition: null,
       scheduleStrategy,
       scheduleDays,
+      extraSessions: false,
     };
   }
 
@@ -178,6 +215,7 @@ export function calculateTuitionForClass(
     monthlyTuition: unitOrMonthlyAmount,
     scheduleStrategy,
     scheduleDays,
+    extraSessions: safeChargedSessions > safeExpectedSessions,
   };
 }
 

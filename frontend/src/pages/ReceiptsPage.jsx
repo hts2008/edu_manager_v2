@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { bulkActionsService, studentsService, receiptsService, attendanceService } from '../services/api';
+import { bulkActionsService, studentsService, receiptsService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import BulkActionBar from '../components/ui/BulkActionBar';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { receiptFormSchema } from '../utils/formValidation';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
+import { toMonthKey } from '../utils/dateKeys';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
@@ -34,7 +35,7 @@ export default function ReceiptsPage() {
 
   const handleBulkDelete = async () => {
     if (!selectedReceiptIds.length) return;
-    if (!window.confirm(`delete ${selectedReceiptIds.length} receipts?`)) return;
+    if (!window.confirm(`Xóa ${selectedReceiptIds.length} phiếu thu đã chọn?`)) return;
 
     const response = await bulkActionsService.execute({
       resource: 'receipts',
@@ -42,15 +43,15 @@ export default function ReceiptsPage() {
       ids: selectedReceiptIds,
     });
     if (!response.success) {
-      toast.error(response.error?.message || 'Bulk delete failed');
+      toast.error(response.error?.message || 'Không thể xóa hàng loạt');
       return;
     }
 
     const { requested, succeeded, failed } = response.data;
     if (failed) {
-      toast.warning(`${succeeded}/${requested} processed; ${failed} failed`);
+      toast.warning(`Đã xử lý ${succeeded}/${requested}; ${failed} lỗi`);
     } else {
-      toast.success(`${succeeded}/${requested} processed`);
+      toast.success(`Đã xử lý ${succeeded}/${requested}`);
     }
     setSelectedReceiptIds([]);
     loadReceipts();
@@ -158,7 +159,7 @@ export default function ReceiptsPage() {
         onClear={() => setSelectedReceiptIds([])}
         actions={[
           {
-            label: 'Delete',
+            label: 'Xóa',
             className: 'btn-danger',
             onClick: handleBulkDelete,
           },
@@ -205,7 +206,8 @@ function ReceiptForm({ onSuccess, onCancel }) {
     resolver: zodResolver(receiptFormSchema),
     defaultValues: {
       student_id: '',
-      month: new Date().toISOString().slice(0, 7),
+      monthly_fee_id: '',
+      month: toMonthKey(new Date()),
       days_count: 0,
       fee_per_day: 0,
       amount: 0,
@@ -224,19 +226,38 @@ function ReceiptForm({ onSuccess, onCancel }) {
     if (studentsRes.success) setStudents(studentsRes.data.students || []);
   };
 
+  const applyFeeCalculation = (data) => {
+    const fee = data?.fee || data || {};
+    const totalDays = data?.total_days ?? data?.totalDays ?? fee.total_days ?? fee.totalDays ?? 0;
+    const totalAmount = data?.total_amount ?? data?.totalAmount ?? fee.total_amount ?? fee.totalAmount ?? 0;
+    setValue('monthly_fee_id', data?.id || fee.id || '', { shouldDirty: true, shouldValidate: true });
+    setValue('days_count', totalDays, { shouldDirty: true });
+    setValue('fee_per_day', data?.breakdown?.[0]?.fee_per_day || 0, { shouldDirty: true });
+    setValue('amount', totalAmount, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const calculateMonthlyFee = async (studentId, month) => {
+    if (!studentId || !month) return;
+    setCalculating(true);
+    setError('');
+    const response = await monthlyFeesService.calculate(studentId, month);
+    if (response.success && response.data) {
+      applyFeeCalculation(response.data);
+    } else {
+      setValue('monthly_fee_id', '', { shouldDirty: true });
+      setValue('days_count', 0, { shouldDirty: true });
+      setValue('fee_per_day', 0, { shouldDirty: true });
+      setValue('amount', 0, { shouldDirty: true, shouldValidate: true });
+      setError(response.error?.message || 'Không thể tính học phí tháng này');
+    }
+    setCalculating(false);
+  };
+
   const handleStudentChange = async (studentId) => {
     setValue('student_id', studentId, { shouldDirty: true, shouldValidate: true });
     
     if (studentId && formData.month) {
-      setCalculating(true);
-      const response = await attendanceService.calculateFee(studentId, formData.month);
-      if (response.success && response.data) {
-        const { days_count, fee_per_day, total_fee } = response.data;
-        setValue('days_count', days_count || 0, { shouldDirty: true });
-        setValue('fee_per_day', fee_per_day || 0, { shouldDirty: true });
-        setValue('amount', total_fee || 0, { shouldDirty: true, shouldValidate: true });
-      }
-      setCalculating(false);
+      await calculateMonthlyFee(studentId, formData.month);
     }
   };
 
@@ -244,15 +265,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
     setValue('month', month, { shouldDirty: true, shouldValidate: true });
     
     if (formData.student_id && month) {
-      setCalculating(true);
-      const response = await attendanceService.calculateFee(formData.student_id, month);
-      if (response.success && response.data) {
-        const { days_count, fee_per_day, total_fee } = response.data;
-        setValue('days_count', days_count || 0, { shouldDirty: true });
-        setValue('fee_per_day', fee_per_day || 0, { shouldDirty: true });
-        setValue('amount', total_fee || 0, { shouldDirty: true, shouldValidate: true });
-      }
-      setCalculating(false);
+      await calculateMonthlyFee(formData.student_id, month);
     }
   };
 
@@ -267,6 +280,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
 
     const response = await receiptsService.create({
       ...values,
+      monthly_fee_id: formData.monthly_fee_id,
       template_id: 'TPL_DEFAULT_RECEIPT',
     });
 
@@ -293,13 +307,14 @@ function ReceiptForm({ onSuccess, onCancel }) {
       )}
 
       <input type="hidden" {...register('student_id')} />
+      <input type="hidden" {...register('monthly_fee_id')} />
       <input type="hidden" {...register('month')} />
       <input type="hidden" {...register('payment_method')} />
       <input type="hidden" {...register('days_count', { valueAsNumber: true })} />
       <input type="hidden" {...register('fee_per_day', { valueAsNumber: true })} />
       <input type="hidden" {...register('amount', { valueAsNumber: true })} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Học viên *</label>
           <select
@@ -331,6 +346,12 @@ function ReceiptForm({ onSuccess, onCancel }) {
         </div>
       ) : formData.student_id && (
         <div className="p-4 bg-primary-50 rounded-xl space-y-2">
+          {formData.monthly_fee_id && (
+            <div className="flex justify-between text-xs text-primary-700">
+              <span>Mã học phí tháng:</span>
+              <span className="font-mono">{formData.monthly_fee_id}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-600">Số buổi học:</span>
             <span className="font-medium">{formData.days_count} buổi</span>
@@ -348,7 +369,7 @@ function ReceiptForm({ onSuccess, onCancel }) {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Hình thức thanh toán</label>
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             { value: 'cash', label: 'Tiền mặt', icon: '💵' },
             { value: 'transfer', label: 'Chuyển khoản', icon: '🏦' },

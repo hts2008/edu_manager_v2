@@ -120,9 +120,9 @@ test("payment creation surface validates before mutation", async ({ page }) => {
   await expect(page.getByPlaceholder("Tên người nhận tiền")).toBeVisible();
 
   if (!allowMutation) {
-    await page.locator("form").getByRole("button", { name: "Tạo phiếu chi" }).click();
+    await page.locator('form button[type="submit"]').click();
     await expect(page.getByText("Vui long nhap nguoi nhan")).toBeVisible();
-    await page.getByRole("button", { name: "Hủy" }).click();
+    await page.getByRole("button", { name: /Hủy|Hủy bỏ/ }).click();
     await expect(page.getByRole("heading", { name: "Tạo phiếu chi mới" })).toHaveCount(0);
   }
 });
@@ -142,7 +142,7 @@ test("receipts and templates surfaces load", async ({ page }) => {
 
 test("reports page and financial API contract are available", async ({ page, request }) => {
   await seedAuth(page);
-  await expectHealthyPage(page, "/reports", 'main h1:has-text("Báo cáo tài chính")');
+  await expectHealthyPage(page, "/reports", 'main h1:has-text("Báo cáo vận hành trung tâm")');
 
   const financialResponse = await request.get("/api/reports/financial?from=2026-05-01&to=2026-05-31", {
     headers: { Authorization: `Bearer ${authToken}` },
@@ -243,8 +243,8 @@ test("bulk action selection surfaces and API validation are available", async ({
 
     await firstRowSelect.check();
     await expect(page.getByTestId("bulk-action-bar")).toBeVisible();
-    await expect(page.getByText("1 selected")).toBeVisible();
-    await page.getByRole("button", { name: "Clear" }).click();
+    await expect(page.getByTestId("bulk-action-bar")).toContainText("1");
+    await page.getByTestId("bulk-action-bar").getByRole("button").last().click();
     await expect(page.getByTestId("bulk-action-bar")).toHaveCount(0);
   }
 

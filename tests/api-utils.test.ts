@@ -31,6 +31,11 @@ test("parseMonthRange rejects invalid month format", () => {
   assert.throws(() => parseMonthRange("05-2026"), /month must be YYYY-MM/);
 });
 
+test("parseMonthRange rejects out-of-range month numbers", () => {
+  assert.throws(() => parseMonthRange("2026-00"), /month must be YYYY-MM/);
+  assert.throws(() => parseMonthRange("2026-13"), /month must be YYYY-MM/);
+});
+
 test("query coercion helpers handle arrays and invalid numbers", () => {
   assert.equal(getRequiredString(["student-1"], "student_id"), "student-1");
   assert.equal(getNumber("42"), 42);

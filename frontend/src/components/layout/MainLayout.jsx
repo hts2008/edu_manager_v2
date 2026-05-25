@@ -22,7 +22,7 @@ export default function MainLayout() {
       <div className="flex flex-col flex-1 min-w-0 z-10 relative">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8 xl:px-12 w-full max-w-7xl mx-auto">
+        <main className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 w-full max-w-[1600px] mx-auto">
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
               <Outlet />

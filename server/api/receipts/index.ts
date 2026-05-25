@@ -134,6 +134,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             },
             orderBy: { createdAt: "desc" },
           });
+          if (
+            monthlyFee &&
+            (Number(body.days_count || 0) !== Number(monthlyFee.totalDays || 0) ||
+              Number(body.amount || 0) !== Number(monthlyFee.totalAmount || 0))
+          ) {
+            throw new ApiError(
+              "STALE_MONTHLY_FEE",
+              "Receipt amount differs from the current monthly fee. Recalculate before creating receipt.",
+              409
+            );
+          }
         }
 
         const receiptDays = monthlyFee ? monthlyFee.totalDays : body.days_count;

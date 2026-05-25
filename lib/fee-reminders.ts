@@ -1,7 +1,7 @@
-import { parseMonthRange } from "./api-utils.js";
+import { getBusinessMonthKey, parseMonthRange } from "./api-utils.js";
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return getBusinessMonthKey();
 }
 
 function formatCurrency(value: number) {

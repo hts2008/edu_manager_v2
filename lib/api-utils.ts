@@ -72,10 +72,25 @@ export function parseMonthRange(month: string) {
   }
 
   const [year, monthNumber] = month.split("-").map(Number);
+  if (monthNumber < 1 || monthNumber > 12) {
+    throw new ApiError("INVALID_MONTH", "month must be YYYY-MM", 400);
+  }
   return {
     startDate: new Date(year, monthNumber - 1, 1),
     endDate: new Date(year, monthNumber, 0, 23, 59, 59, 999),
   };
+}
+
+export function getBusinessMonthKey(date = new Date(), timeZone = "Asia/Ho_Chi_Minh") {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  if (!year || !month) return date.toISOString().slice(0, 7);
+  return `${year}-${month}`;
 }
 
 export function toIsoDate(date: Date | string | null | undefined) {

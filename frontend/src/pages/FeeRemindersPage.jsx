@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { feeRemindersService } from "../services/api";
+import { toMonthKey } from "../utils/dateKeys";
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return toMonthKey(new Date());
 }
 
 function formatCurrency(value) {

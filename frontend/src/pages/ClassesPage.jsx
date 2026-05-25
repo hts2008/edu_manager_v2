@@ -530,7 +530,7 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
       )}
 
       {/* Basic Info */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Tên lớp *
@@ -674,7 +674,7 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
       </div>
 
       {/* Time Settings */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Giờ bắt đầu
@@ -700,7 +700,7 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
       </div>
 
       {/* Fee and Capacity */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Học phí tháng (VND)

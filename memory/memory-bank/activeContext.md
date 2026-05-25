@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` on `https://edu-manager-gules.vercel.app` after `main` was pushed through docs commit `5b2b568` and redeployed.
+- **Latest production deployment observed in Codex session**: `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` on `https://edu-manager-gules.vercel.app` after the 2026-05-25 month-bounded tuition + EduFlow UI closeout.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -45,12 +45,13 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
-2. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-3. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-4. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-5. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
-6. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
+2. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
+3. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
+4. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+5. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+6. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
+7. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.
@@ -143,7 +144,7 @@ Production readiness pass after `PLAN.md`: fixed the dashboard contract and rede
 
 Attendance/tuition RCA + report/template UX pass: investigated Phuc and Starter A1 Neon records, confirmed the current DB has Phuc with 12 May attendance records and 2 June records, while the existing paid May receipt shows `days_count=0` and `amount=6000000`. Root causes were attendance-period fee generation not setting `MonthlyFee.totalDays`, `sessions_per_week` classes treating monthly tuition as per-session tuition, unsafe UTC `toISOString()` date keys in Attendance UI, and Vietnamese weekday values not being normalized to JavaScript weekday numbers.
 
-Implemented shared tuition calculation in `lib/tuition.ts` and wired it into attendance calculate-fee, monthly-fee calculate/detail/generator, attendance-period lock fee refresh, and receipt creation. Added `tests/tuition.test.ts`; local-safe date helpers in `frontend/src/utils/dateKeys.js`; class create/update bulk `student_ids`; `/api/reports/student-fees` plus Reports matrix; and a rebuilt Template Designer with image/background upload, Fabric layer controls, opacity, lock, duplicate, align, text/shape styling, QR placeholder, and richer data fields.
+Implemented shared tuition calculation in `lib/tuition.ts` and wired it into attendance calculate-fee, monthly-fee calculate/detail/generator, attendance-period lock fee refresh, and receipt creation. Added `tests/tuition.test.ts`; local-safe date helpers in `frontend/src/utils/dateKeys.js`; class create/update bulk `student_ids`; `/api/reports/student-fees` plus Reports matrix; and a rebuilt Template Designer with image/background upload, Fabric layer controls, opacity, lock, duplicate, align, text/shape styling, QR placeholder, and richer data fields. Follow-up on 2026-05-25 changed `sessions_per_week` expected sessions from calendar-row multiplication to month-bounded weekly slots, so May 2026 now computes `2/week=10` and `3/week=14`.
 
 Validation for the 2026-05-19 patch passed: `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run test:unit` 28/28, `npm run build`, `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js` 6/6, and `git diff --check`. Evidence: `receipts/2026-05-19-attendance-tuition-report-template-ux.md`, screenshots in `frontend/output/playwright/`. Stitch generated a `GEMINI_3_1_PRO` reports concept in project `12785236930566023458`; Figma Desktop was unavailable (`No Figma window open`), so no Figma write/inspect succeeded this pass.
 
@@ -152,13 +153,15 @@ MOT-UX-002 Dashboard Glassmorphic Redesign: refactored `DashboardPage.jsx` using
 Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and EduFlow UI pass to `https://edu-manager-gules.vercel.app`. Fixed Vercel env drift (`DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`), linked Vercel Blob store `edu-manager-live-blob`, added `.vercelignore`, corrected an unanchored ignore bug that excluded `server/api/receipts` and `server/api/reports`, closed the frontend `ws` audit advisory, and verified production with login 200, upload-image 201, auth no-token 401, cron no-token 403, and Playwright 6/6.
 
 ## Now Doing
-Production is live on `https://edu-manager-gules.vercel.app` with the latest hardening deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
+Production is live on `https://edu-manager-gules.vercel.app` with the latest month-bounded tuition and EduFlow UI closeout deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
 
 2026-05-25 P0/P1 hardening closeout: fixed `/classes` crash by importing Motion, added full protected-menu traversal across 22 routes desktop/mobile, made attendance-period lock transactional and multi-class aware, guarded monthly-fee calculate/confirm/cancel/pay transitions with conditional `updateMany`, blocked new positive tuition receipts with zero chargeable sessions, made student-fees report surface receipt-only anomalies, corrected dashboard unpaid aggregate math, and expanded PDF Fabric rendering for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported images. Local gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 35/35, frontend lint max-warnings=0, `npm run build`, root/frontend audits 0 vulnerabilities, and Playwright UX/menu/PDF 7/7 against `npm run dev:smoke`. Implementation commit `d2e19df` and docs commit `5b2b568` were pushed; final Vercel production deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` is Ready; production Playwright 7/7 and API probes passed.
+
+2026-05-25 month-bounded tuition + EduFlow UI closeout: fixed remaining session-count logic so expected sessions are bounded by actual days inside the target month, routed receipt creation through MonthlyFee calculation and `monthly_fee_id`, rejected stale direct receipt totals, guarded invalid month values, replaced UTC month defaults with local/business month helpers, route-guarded admin pages, restored a coherent light EduFlow dashboard, fixed the Payments modal `ArrowDownRight` crash, and updated Playwright smoke to current product copy. Stitch project `16406701261521949818` generated a `GEMINI_3_1_PRO` direction; Figma node `3:36` was inspected and screenshot-captured. Local verification passed: unit 38/38, typecheck, lint, build, UX smoke 7/7, Phase-B smoke 17/17. Production deploy `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` is Ready on `https://edu-manager-gules.vercel.app`; production UX smoke 7/7 and Phase-B smoke 17/17 passed. `prisma migrate status` remained read-only and reported no Prisma Migrate history; no schema migration/seed was run.
 
 ## Next Recommended Action
 1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
 2. Rotate production default credentials and JWT secret before real operation.
-3. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-4. Optionally delete the two 1x1 smoke blobs from Vercel Storage UI (`edu-manager-live-blob`) if a zero-junk storage ledger is required; total size is 136B.
+3. Plan code-splitting for the existing large Vite chunks if performance budgets become strict.
+4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
 5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.

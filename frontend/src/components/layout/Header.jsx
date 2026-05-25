@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Menu, User, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -39,8 +39,9 @@ function getRouteMeta(pathname) {
 }
 
 export default function Header({ onMenuClick }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const currentRoute = useMemo(() => getRouteMeta(pathname), [pathname]);
@@ -91,6 +92,8 @@ export default function Header({ onMenuClick }) {
           <button
             type="button"
             aria-label="Thông báo"
+            title={isAdmin() ? "Mở nhật ký hệ thống" : "Mở lịch sử giao dịch"}
+            onClick={() => navigate(isAdmin() ? "/audit-logs" : "/history")}
             className="relative rounded-xl p-2.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
           >
             <Bell size={20} />
@@ -138,9 +141,9 @@ export default function Header({ onMenuClick }) {
                       <p className="mt-0.5 text-xs font-semibold text-primary-600">{roleLabel}</p>
                     </div>
                     <div className="p-2 space-y-1">
-                      <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-primary-50 hover:text-primary-700">
-                        <User size={16} /> Thông tin cá nhân
-                      </button>
+                      <div className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600">
+                        <User size={16} /> {user?.full_name || user?.username || "Tài khoản"}
+                      </div>
                       <button
                         onClick={() => {
                           setShowUserMenu(false);

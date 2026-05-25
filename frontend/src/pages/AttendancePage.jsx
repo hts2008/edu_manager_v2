@@ -8,7 +8,7 @@ import {
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
 import {
-  countCalendarRowsInMonth,
+  countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
   normalizeScheduleDays,
   toDateKey,
@@ -155,7 +155,7 @@ export default function AttendancePage() {
       return countScheduleDaysInMonth(year, month, scheduleDayNumbers);
     }
     const sessions = Number(classSchedule.sessions_per_week || 0);
-    if (sessions > 0) return countCalendarRowsInMonth(year, month) * sessions;
+    if (sessions > 0) return countMonthBoundedWeeklySessions(year, month, sessions);
     return 0;
   }, [activeFeeMonth, classSchedule, scheduleDayNumbers]);
 
@@ -209,6 +209,19 @@ export default function AttendancePage() {
     return dates;
   }, [selectedWeek, scheduleDayNumbers]);
 
+  const weekSessionLimit = useMemo(() => {
+    if (!selectedWeek || !classSchedule) return sessionsPerWeek;
+    const sessions = Number(classSchedule.sessions_per_week || 0);
+    const eligibleDatesInMonth = weekDates.filter(
+      ({ date }) =>
+        date.getFullYear() === activeFeeMonth.getFullYear() &&
+        date.getMonth() === activeFeeMonth.getMonth()
+    ).length;
+    if (scheduleDayNumbers.length) return eligibleDatesInMonth;
+    if (sessions > 0) return Math.max(1, Math.min(sessions, eligibleDatesInMonth || sessions));
+    return sessionsPerWeek;
+  }, [activeFeeMonth, classSchedule, scheduleDayNumbers, selectedWeek, sessionsPerWeek, weekDates]);
+
   // Calculate fee summary per student for selected week
   const feeSummary = useMemo(() => {
     const summary = {};
@@ -231,8 +244,8 @@ export default function AttendancePage() {
       const totalDays = presentDays + absentWithFee;
       const fee = totalDays * feePerSession;
       // Check if exceeding the limit
-      const isExceeding = totalDays > sessionsPerWeek;
-      const extraSessions = isExceeding ? totalDays - sessionsPerWeek : 0;
+      const isExceeding = totalDays > weekSessionLimit;
+      const extraSessions = isExceeding ? totalDays - weekSessionLimit : 0;
 
       summary[student.id] = {
         presentDays,
@@ -240,14 +253,14 @@ export default function AttendancePage() {
         absentNoFee,
         holidayDays,
         totalDays,
-        sessionsLimit: sessionsPerWeek, // Use configured limit, not weekDates.length
+        sessionsLimit: weekSessionLimit,
         fee,
         isExceeding,
         extraSessions,
       };
     });
     return summary;
-  }, [students, attendance, weekDates, feePerSession, sessionsPerWeek]);
+  }, [students, attendance, weekDates, feePerSession, weekSessionLimit]);
 
   const totalFee = useMemo(() => {
     return Object.values(feeSummary).reduce((sum, s) => sum + s.fee, 0);
@@ -663,11 +676,11 @@ export default function AttendancePage() {
           {/* 3-Month Calendar Grid - SAP Style */}
           <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
             <div className="card-body">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col gap-3 mb-4 xl:flex-row xl:items-center xl:justify-between">
                 <h3 className="font-semibold text-gray-900">
                   📅 Lịch điểm danh - Chọn tuần
                 </h3>
-                <div className="flex gap-4 text-xs">
+                <div className="flex flex-wrap gap-3 text-xs">
                   {LEGEND.map((l) => (
                     <div key={l.status} className="flex items-center gap-1">
                       <div className={`w-4 h-4 rounded ${l.color}`}></div>
@@ -677,7 +690,7 @@ export default function AttendancePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
                 {threeMonths.map(({ year, month, key }) => {
                   const calendar = generateMonthCalendar(
                     year,
@@ -868,14 +881,14 @@ export default function AttendancePage() {
           {selectedWeek && (
             <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
               <div className="card-body">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-4 mb-4 xl:flex-row xl:items-center xl:justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-900">
                       📝 Điểm danh tuần:{" "}
                       {selectedWeek.start.toLocaleDateString("vi-VN")} -{" "}
                       {selectedWeek.end.toLocaleDateString("vi-VN")}
                     </h3>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-3">
                       {/* Show session requirement if configured */}
                       {classSchedule?.sessions_per_week && (
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
@@ -888,8 +901,8 @@ export default function AttendancePage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap gap-2 text-sm">
                       {STATUS_CYCLE.map((s) => (
                         <span key={s} className="flex items-center gap-1">
                           <span className="text-lg">{STATUS_ICONS[s]}</span>

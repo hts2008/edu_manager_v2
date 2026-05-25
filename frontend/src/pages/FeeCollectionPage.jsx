@@ -4,6 +4,7 @@ import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
+import { toMonthKey } from '../utils/dateKeys';
 
 // VI: Thu học phí theo tháng với đầy đủ thông tin học viên
 
@@ -18,7 +19,7 @@ export default function FeeCollectionPage() {
   const [students, setStudents] = useState([]);
   const [feeData, setFeeData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
   const [statusFilter, setStatusFilter] = useState('all');
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -150,7 +151,7 @@ export default function FeeCollectionPage() {
   const navigateMonth = (delta) => {
     const [year, month] = selectedMonth.split('-').map(Number);
     const date = new Date(year, month - 1 + delta, 1);
-    setSelectedMonth(date.toISOString().slice(0, 7));
+    setSelectedMonth(toMonthKey(date));
   };
 
   const columns = [

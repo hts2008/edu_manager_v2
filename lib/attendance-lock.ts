@@ -1,5 +1,5 @@
 import prisma from "./prisma.js";
-import { ApiError } from "./api-utils.js";
+import { ApiError, toDateOnly } from "./api-utils.js";
 
 type PrismaLike = typeof prisma;
 
@@ -8,7 +8,8 @@ function monthFromDate(value: Date | string) {
   if (Number.isNaN(date.getTime())) {
     throw new ApiError("INVALID_DATE", "attendance_date is invalid", 400);
   }
-  return date.toISOString().slice(0, 7);
+  const dateOnly = typeof value === "string" ? value.slice(0, 10) : toDateOnly(date);
+  return dateOnly?.slice(0, 7) || date.toISOString().slice(0, 7);
 }
 
 export async function assertAttendanceDatesEditable(

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import {
   Plus, Search, Trash2, Wallet,
-  Lightbulb, Briefcase, FileText, ChevronRight, AlertCircle, Sparkles
+  Lightbulb, Briefcase, FileText, ChevronRight, AlertCircle, Sparkles, ArrowDownRight
 } from 'lucide-react';
 import { bulkActionsService, paymentsService, teachersService } from '../services/api';
 import BulkActionBar from '../components/ui/BulkActionBar';
@@ -395,7 +395,7 @@ function PaymentForm({ onSuccess, onCancel }) {
             type="text"
             {...register('recipient_name')}
             className="w-full bg-white border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-            placeholder="Tên cá nhân/tổ chức..."
+            placeholder="Tên người nhận tiền"
           />
         </div>
         <div>

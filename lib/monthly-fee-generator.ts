@@ -1,4 +1,4 @@
-import { parseMonthRange } from "./api-utils.js";
+import { getBusinessMonthKey, parseMonthRange } from "./api-utils.js";
 import {
   calculateTuitionForClass,
   CHARGEABLE_ATTENDANCE_STATUSES,
@@ -16,7 +16,7 @@ type GenerateItem = {
 };
 
 export function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return getBusinessMonthKey();
 }
 
 function countKey(studentId: string, classId: string) {
@@ -154,16 +154,32 @@ export async function generateMonthlyFees(
     }
 
     if (existing) {
-      await prisma.monthlyFee.update({
-        where: { id: existing.id },
+      const updated = await prisma.monthlyFee.updateMany({
+        where: {
+          id: existing.id,
+          status: { in: ["pending", "ready"] },
+          receiptId: null,
+          paidAt: null,
+        },
         data: {
           totalDays,
           totalAmount,
           status: "ready",
-          receiptId: null,
-          paidAt: null,
         },
       });
+      if (updated.count !== 1) {
+        items.push({
+          student_id: student.id,
+          student_name: student.fullName,
+          month,
+          total_days: existing.totalDays,
+          total_amount: existing.totalAmount,
+          existing_status: existing.status,
+          action: "skipped",
+          reason: "STATE_CHANGED",
+        });
+        continue;
+      }
       items.push({
         student_id: student.id,
         student_name: student.fullName,

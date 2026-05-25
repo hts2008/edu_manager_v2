@@ -1,4 +1,5 @@
 const pad2 = (value) => String(value).padStart(2, "0");
+export const DEFAULT_WEEKLY_SESSION_DAYS = [1, 2, 3, 4, 5, 6];
 
 export function toDateKey(date) {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
@@ -65,6 +66,40 @@ export function countCalendarRowsInMonth(year, monthIndex) {
   const firstWeekday = new Date(year, monthIndex, 1).getDay();
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
   return Math.ceil((firstWeekday + daysInMonth) / 7);
+}
+
+function getMondayWeekKey(date) {
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setDate(date.getDate() + mondayOffset);
+  return toDateKey(monday);
+}
+
+export function countMonthBoundedWeeklySessions(
+  year,
+  monthIndex,
+  sessionsPerWeek,
+  allowedWeekdays = DEFAULT_WEEKLY_SESSION_DAYS
+) {
+  const safeSessionsPerWeek = Math.max(0, Math.trunc(Number(sessionsPerWeek) || 0));
+  if (safeSessionsPerWeek <= 0) return 0;
+
+  const allowed = new Set(allowedWeekdays);
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const availableDaysByWeek = new Map();
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = new Date(year, monthIndex, day);
+    if (!allowed.has(date.getDay())) continue;
+    const weekKey = getMondayWeekKey(date);
+    availableDaysByWeek.set(weekKey, (availableDaysByWeek.get(weekKey) || 0) + 1);
+  }
+
+  return Array.from(availableDaysByWeek.values()).reduce(
+    (sum, daysInWeek) => sum + Math.min(safeSessionsPerWeek, daysInWeek),
+    0
+  );
 }
 
 export function countScheduleDaysInMonth(year, monthIndex, scheduleDays) {

@@ -412,3 +412,17 @@
 - **Production Smoke**: Production Playwright `ux-redesign-smoke.spec.js` passed 7/7. API probes passed: root 200, no-token auth 401, no-secret cron 403, login 200, dashboard required fields with `quick_metrics.unpaid_count=14`, student-fees report 200 with 26 students and 2 anomalies, receipts list 200, receipt PDF 200 `application/pdf` with `%PDF` and 17070 bytes.
 - **Evidence**: `receipts/2026-05-25-p0-p1-production-readiness.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-05-25 - Month-Bounded Tuition + EduFlow UI Closeout
+- **Scope**: Continue the active production-live goal, address the remaining Phuc/May-June tuition/session defect, reconnect receipt creation to MonthlyFee truth, normalize EduFlow UI consistency, and deploy/smoke production.
+- **Implementation**: Added month-bounded weekly session counting so May 2026 computes `2/week=10` and `3/week=14`; hardened month parsing and business-month defaults; updated MonthlyFee generation and receipt creation to avoid stale/paid-row drift; updated Receipts UI to calculate through MonthlyFee and submit `monthly_fee_id`; route-guarded admin pages; restored Dashboard to a coherent light EduFlow operations console; fixed Payment modal `ArrowDownRight` runtime crash; improved responsive forms, DataTable pagination, Modal aria, and Sidebar aria state.
+- **Design Sync**: Created Stitch project `16406701261521949818` with `GEMINI_3_1_PRO`; generated screen `3da9badc59d341f5ad6d7916cb2471dc`; inspected Figma page `3:2` and node `3:36 Desktop / Receipts Shell`; captured Figma screenshot for evidence.
+- **Team Mode**: Spawned three bounded subagents for tuition/dataflow audit, UI/menu audit, and verification review; all were closed after use.
+- **Validation**: `git diff --check` passed with LF/CRLF warnings only; `npx tsc --noEmit` passed; `npm run test:unit` passed 38/38; frontend lint max-warnings=0 passed; `npm run build` passed with existing Vite chunk warnings; local Playwright UX smoke passed 7/7; local Phase-B smoke passed 17/17.
+- **Deployment**: `npx vercel deploy --prod --yes` created production deployment `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production Playwright UX smoke passed 7/7 and production Phase-B smoke passed 17/17.
+- **DB Note**: `npx prisma migrate status` was read-only and reported the Neon DB is not managed by Prisma Migrate because this repo has no `prisma/migrations`; no migration or seed was run.
+- **Evidence**: `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`.
+- **STATUS**: IMPLEMENTED.

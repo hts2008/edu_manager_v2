@@ -307,6 +307,38 @@
 
 ---
 
+## MONTH-BOUNDED TUITION + EDUFLOW UI CLOSEOUT - 2026-05-25
+
+**Objective:** fix the remaining month/session tuition defect, reconnect receipt creation to MonthlyFee truth, and normalize the EduFlow UI shell after the dark dashboard/menu drift.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| FEE-MONTH-001 | Count expected sessions inside the target month | `lib/tuition.ts`, `frontend/src/utils/dateKeys.js`, `tests/tuition.test.ts` | IMPLEMENTED | May 2026 regression tests: `2/week=10`, `3/week=14`, prorated monthly tuition, extra-session flag; unit 38/38. |
+| FEE-MONTH-002 | Prevent stale receipt/monthly-fee drift | `ReceiptsPage.jsx`, `server/api/receipts/index.ts`, `lib/monthly-fee-generator.ts` | IMPLEMENTED | Receipts UI now calculates via MonthlyFee and submits `monthly_fee_id`; backend rejects stale direct totals when an eligible MonthlyFee exists. |
+| FEE-MONTH-003 | Fix business-month defaults and invalid month parsing | `lib/api-utils.ts`, fee reminders, reports, fee collection | IMPLEMENTED | `parseMonthRange` rejects `YYYY-00`/`YYYY-13`; local/business month helpers replace UTC `toISOString()` defaults. |
+| UI-EDUFLOW-001 | Restore coherent light EduFlow operations UI | Dashboard, sidebar/header/layout, forms, payments modal | IMPLEMENTED | Stitch `GEMINI_3_1_PRO` concept created; Figma node `3:36` inspected and screenshot captured; local/prod UX smoke pass. |
+| UI-EDUFLOW-002 | Strengthen menu/admin route and UX regression coverage | `App.jsx`, `Header.jsx`, `Sidebar.jsx`, Playwright smoke | IMPLEMENTED | Admin routes are route-guarded; production Playwright UX smoke traverses 22 protected routes desktop/mobile. |
+| QA-LIVE-001 | Deploy and smoke production after fixes | Vercel + Playwright | IMPLEMENTED | Vercel deploy `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` Ready; production UX smoke 7/7 and Phase-B smoke 17/17. |
+
+**Local evidence - 2026-05-25 late pass**
+- `git diff --check` passed with LF/CRLF warnings only.
+- `npx tsc --noEmit` passed.
+- `npm run test:unit` passed 38/38.
+- `npm --prefix frontend run lint -- --max-warnings=0` passed.
+- `npm run build` passed with existing Vite chunk-size/dynamic-import warnings.
+- `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 locally.
+- `npm --prefix frontend run test:e2e -- phase-b-smoke.spec.js --reporter=list` passed 17/17 locally.
+
+**Production evidence - 2026-05-25 late pass**
+- `npx vercel deploy --prod --yes` created `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`, Ready, aliased to `https://edu-manager-gules.vercel.app`.
+- Production `ux-redesign-smoke.spec.js` passed 7/7.
+- Production `phase-b-smoke.spec.js` passed 17/17.
+- `npx prisma migrate status` was read-only and reported the Neon DB is not managed by Prisma Migrate because the repo has no `prisma/migrations`; no schema migration or seed was run.
+
+**Receipt:** `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -342,6 +374,7 @@
 | Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
 | Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
 | P0/P1 production hardening closeout | IMPLEMENTED | `receipts/2026-05-25-p0-p1-production-readiness.md`; implementation commit `d2e19df`, docs commit `5b2b568`, final Vercel `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL`, local + production Playwright 7/7, API probes pass |
+| Month-bounded tuition + EduFlow UI closeout | IMPLEMENTED | `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`; Stitch `GEMINI_3_1_PRO`, Figma node `3:36`, local unit 38/38, local/prod UX 7/7, local/prod Phase-B 17/17, Vercel `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` |
 
 ---
 
@@ -364,10 +397,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; latest local gates pass with unit 35/35, targeted Playwright smoke 7/7, tsc/build/lint/audit/diff-check pass |
-| Production usability | Live on `edu-manager-gules`; latest P0/P1 hardening is deployed and production-smoked |
+| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 38/38, local/prod UX smoke 7/7, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check pass |
+| Production usability | Live on `edu-manager-gules`; latest month-bounded tuition + EduFlow UI closeout is deployed and production-smoked |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening and EduFlow UI pass are deployed and smoked. The 2026-05-25 P0/P1 fixes are deployed and production-smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, and month-bounded tuition closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 
@@ -426,4 +459,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-25 09:02
+**Last Updated:** 2026-05-25 17:12

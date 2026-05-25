@@ -193,3 +193,10 @@
 **Decision**: Treat a positive tuition receipt with `days_count <= 0` as invalid unless it is handled by a future explicit adjustment/void/reissue workflow. Use conditional `updateMany` guards for MonthlyFee calculate/confirm/cancel/pay transitions and refresh attendance-period lock fees in a transaction that aggregates all active classes for the impacted students and leaves paid/linked rows untouched.
 **Rationale**: Financial records must be audit-safe. Preventing new zero-day positive receipts and avoiding paid-row rewrites is safer than silently patching history; historical anomalies remain visible through `student-fees` reporting until an approved correction policy exists.
 **Status**: IMPLEMENTED with unit 35/35, typecheck, lint, build, audit, local Playwright UX/menu/PDF 7/7, production Playwright 7/7, API probes, and final Vercel deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` on 2026-05-25.
+
+### ADR-28: Month-Bounded Weekly Tuition Sessions
+**Date**: 2026-05-25
+**Context**: The Phuc/May 2026 follow-up showed that `sessions_per_week` classes were still using calendar-row multiplication. For May 2026, that made a 2-session/week class expect 12 slots even though only 10 actual month-bounded class slots fit inside the month.
+**Decision**: For `sessions_per_week` classes, calculate expected sessions by walking Monday-start weeks inside the target month and summing `min(sessions_per_week, active days in that week inside the month)`. Use default class days Monday-Saturday when explicit weekdays are unavailable. Keep `schedule_days` classes on exact weekday matching and unscheduled classes on legacy per-session billing.
+**Rationale**: Tuition must be bounded by the exact month being billed, not by a generic calendar grid. This prevents inflated denominators, makes `2/week` and `3/week` deterministic for short edge weeks, and aligns Receipt, MonthlyFee, Attendance, reports, and frontend preview math.
+**Status**: IMPLEMENTED with unit 38/38, typecheck, lint, build, local UX 7/7, local Phase-B 17/17, production UX 7/7, production Phase-B 17/17, and Vercel deployment `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`.
