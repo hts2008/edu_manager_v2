@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` on `https://edu-manager-gules.vercel.app` after `main` was pushed to `d2e19df` and deployed.
+- **Latest production deployment observed in Codex session**: `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` on `https://edu-manager-gules.vercel.app` after `main` was pushed through docs commit `5b2b568` and redeployed.
 - **Working tree warning**: DIRTY due to framework import/cleanup state and uncommitted memory/board/evidence updates. Avoid broad commits; stage explicit paths only.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -154,7 +154,7 @@ Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and
 ## Now Doing
 Production is live on `https://edu-manager-gules.vercel.app` with the latest hardening deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
 
-2026-05-25 P0/P1 hardening closeout: fixed `/classes` crash by importing Motion, added full protected-menu traversal across 22 routes desktop/mobile, made attendance-period lock transactional and multi-class aware, guarded monthly-fee calculate/confirm/cancel/pay transitions with conditional `updateMany`, blocked new positive tuition receipts with zero chargeable sessions, made student-fees report surface receipt-only anomalies, corrected dashboard unpaid aggregate math, and expanded PDF Fabric rendering for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported images. Local gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 35/35, frontend lint max-warnings=0, `npm run build`, root/frontend audits 0 vulnerabilities, and Playwright UX/menu/PDF 7/7 against `npm run dev:smoke`. Commit `d2e19df` was pushed and Vercel production deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` is Ready; production Playwright 7/7 and API probes passed.
+2026-05-25 P0/P1 hardening closeout: fixed `/classes` crash by importing Motion, added full protected-menu traversal across 22 routes desktop/mobile, made attendance-period lock transactional and multi-class aware, guarded monthly-fee calculate/confirm/cancel/pay transitions with conditional `updateMany`, blocked new positive tuition receipts with zero chargeable sessions, made student-fees report surface receipt-only anomalies, corrected dashboard unpaid aggregate math, and expanded PDF Fabric rendering for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported images. Local gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 35/35, frontend lint max-warnings=0, `npm run build`, root/frontend audits 0 vulnerabilities, and Playwright UX/menu/PDF 7/7 against `npm run dev:smoke`. Implementation commit `d2e19df` and docs commit `5b2b568` were pushed; final Vercel production deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` is Ready; production Playwright 7/7 and API probes passed.
 
 ## Next Recommended Action
 1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.

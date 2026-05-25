@@ -104,7 +104,7 @@
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
 
 ## Production Verification Snapshot - 2026-05-25
-- Commit `d2e19df` pushed to `origin/main`.
-- Vercel production deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Implementation commit `d2e19df` and docs closeout commit `5b2b568` pushed to `origin/main`.
+- Final Vercel production deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against production.
 - Production probes passed: root 200, no-token `/api/auth/me` 401, no-secret cron 403, login 200, dashboard fields present with `quick_metrics.unpaid_count`, student-fees report 200 with anomaly count, receipts list 200, receipt PDF 200 `application/pdf` with `%PDF` and 17070 bytes.

@@ -211,7 +211,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq`; `main` is pushed to `origin/main` at `d2e19df` and production is smoked.
+- **Latest production deployment observed in Codex session**: `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL`; `main` is pushed to `origin/main` at docs closeout commit `5b2b568` and production is smoked.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -233,7 +233,7 @@
 - `npm run build` passed.
 - `npm audit --audit-level=high` and `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
-- Production deploy `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` Ready on `https://edu-manager-gules.vercel.app`.
+- Final production deploy `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` Ready on `https://edu-manager-gules.vercel.app`.
 - Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
 - Production API probes passed root/auth/cron/login/dashboard/student-fees/receipts/PDF.
 - `cd frontend && npm run lint -- --max-warnings=0` passed.

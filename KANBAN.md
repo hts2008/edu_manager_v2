@@ -301,7 +301,7 @@
 - `npm audit --audit-level=high` and `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
 
-**Production status:** production deploy `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` Ready; production Playwright 7/7 and API probes passed.
+**Production status:** final production deploy `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` Ready on `https://edu-manager-gules.vercel.app`; production Playwright 7/7 and API probes passed after docs closeout commit `5b2b568`.
 
 **Receipt:** `receipts/2026-05-25-p0-p1-production-readiness.md`.
 
@@ -341,7 +341,7 @@
 | EDU_MANAGER_V2 scope/path cleanup | ✅ IMPLEMENTED | No remaining known external workspace markers or hard-coded out-of-scope paths in workspace text scan |
 | Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
 | Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
-| P0/P1 production hardening closeout | IMPLEMENTED | `receipts/2026-05-25-p0-p1-production-readiness.md`; commit `d2e19df`, Vercel `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq`, local + production Playwright 7/7, API probes pass |
+| P0/P1 production hardening closeout | IMPLEMENTED | `receipts/2026-05-25-p0-p1-production-readiness.md`; implementation commit `d2e19df`, docs commit `5b2b568`, final Vercel `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL`, local + production Playwright 7/7, API probes pass |
 
 ---
 

@@ -32,8 +32,8 @@
 - Worker touched only `lib/pdf.ts` and `tests/pdf.test.ts`; lead integrated and reran all local gates.
 
 ## Production Status
-- Commit `d2e19df` pushed to `origin/main`.
-- Vercel production deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Implementation commit `d2e19df` and docs closeout commit `5b2b568` pushed to `origin/main`.
+- Final Vercel production deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
 - Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
 - Production API probes passed:
   - root `/` returned 200.
