@@ -403,10 +403,12 @@
 
 ---
 
-### 2026-05-25 - P0/P1 Production Readiness Local Closeout
+### 2026-05-25 - P0/P1 Production Readiness Closeout
 - **Scope**: Continue from the approved production-live goal and close the latest menu, fee, receipt, dashboard, and PDF defects before deploy.
 - **Implementation**: Fixed `/classes` production crash by importing Motion, added full protected-menu route traversal across 22 routes on desktop/mobile, made attendance-period lock transactional and multi-class aware, protected monthly-fee calculate/confirm/cancel/pay with conditional state guards, blocked new positive tuition receipts with zero chargeable sessions, surfaced receipt-only zero-day anomalies in student-fees report, fixed dashboard unpaid aggregate math, and expanded Fabric-to-PDF support for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported image sources.
 - **Team Mode**: Used Codex `ck:team` worker delegation for the bounded PDF slice and integrated/reverified the result locally.
 - **Validation**: `git diff --check` passed; `npx tsc --noEmit` passed; `npm run test:unit` passed 35/35; frontend lint max-warnings=0 passed; `npm run build` passed after stopping the local smoke server that held Prisma's Windows query-engine DLL; root/frontend audits passed with 0 vulnerabilities; Playwright `ux-redesign-smoke.spec.js` passed 7/7 against `npm run dev:smoke`.
+- **Deployment**: Commit `d2e19df` was pushed to `origin/main`; Vercel deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` reached Ready and was aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production Playwright `ux-redesign-smoke.spec.js` passed 7/7. API probes passed: root 200, no-token auth 401, no-secret cron 403, login 200, dashboard required fields with `quick_metrics.unpaid_count=14`, student-fees report 200 with 26 students and 2 anomalies, receipts list 200, receipt PDF 200 `application/pdf` with `%PDF` and 17070 bytes.
 - **Evidence**: `receipts/2026-05-25-p0-p1-production-readiness.md`.
-- **STATUS**: LOCAL VERIFIED; production deploy/smoke pending.
+- **STATUS**: IMPLEMENTED.

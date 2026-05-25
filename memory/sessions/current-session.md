@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, and the 2026-05-23 production deploy/env closeout are implemented with production evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, and the 2026-05-25 P0/P1 hardening pass are implemented with production evidence.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -203,7 +203,7 @@
   - [x] Correct dashboard unpaid aggregate math.
   - [x] Expand Fabric-to-PDF support for text, line, rect, circle, ellipse, group, and base64 PNG/JPEG images.
   - [x] Verify `git diff --check`, `npx tsc --noEmit`, unit 35/35, frontend lint, build, audits, and local Playwright UX/menu/PDF 7/7.
-  - [ ] Commit/deploy and smoke production.
+  - [x] Commit/deploy and smoke production.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -211,7 +211,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`; `main` is pushed to `origin/main` at `e4bab40` and production is smoked.
+- **Latest production deployment observed in Codex session**: `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq`; `main` is pushed to `origin/main` at `d2e19df` and production is smoked.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -220,12 +220,11 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Commit/deploy the 2026-05-25 P0/P1 production-readiness batch and run production smoke.
-2. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
-3. Rotate default credentials and JWT secret before real production operation.
-4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-5. Optionally clean the two 1x1 Blob smoke files from Vercel Storage UI.
-6. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
+1. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
+2. Rotate default credentials and JWT secret before real production operation.
+3. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+4. Optionally clean the two 1x1 Blob smoke files from Vercel Storage UI.
+5. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
@@ -234,6 +233,9 @@
 - `npm run build` passed.
 - `npm audit --audit-level=high` and `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
+- Production deploy `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` Ready on `https://edu-manager-gules.vercel.app`.
+- Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
+- Production API probes passed root/auth/cron/login/dashboard/student-fees/receipts/PDF.
 - `cd frontend && npm run lint -- --max-warnings=0` passed.
 - `node --check scripts\parity-test.mjs` passed.
 - `git diff --check` passed.

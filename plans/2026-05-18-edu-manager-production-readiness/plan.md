@@ -1,7 +1,7 @@
 # EDU_MANAGER_V2 /goal: Production Live Without Known P0/P1 Bugs + Best-in-Class EduFlow UX
 
 ## Status
-- Goal status: LOCAL VERIFIED; PRODUCTION DEPLOY/SMOKE PENDING.
+- Goal status: IMPLEMENTED and production-smoked.
 - Current source branch: `main`.
 - Production target: `https://edu-manager-gules.vercel.app`.
 - Execution mode: `ck:cook --auto --parallel` with `ck:team` sidecar agents.
@@ -32,8 +32,8 @@
 | T7 | Dashboard aggregate integrity | Backend/frontend worker | DONE | Dashboard contract test covers aggregate fields and `unpaid_count` |
 | T8 | Template/PDF fidelity | Backend/frontend worker | DONE | PDF test covers supported Fabric objects and unsupported image fallback |
 | T9 | EduFlow UX quality pass | UI worker + design reviewer | DONE | Desktop/mobile Playwright screenshots, no overflow, no console/page errors |
-| T10 | Verification gates | Tester/reviewer agents | LOCAL DONE | Unit, typecheck, lint, build, audit, Playwright pass locally; production smoke pending deploy |
-| T11 | KANBAN/memory/receipt writeback | Docs worker + lead review | IN PROGRESS | Updating board/memory/receipt |
+| T10 | Verification gates | Tester/reviewer agents | DONE | Unit, typecheck, lint, build, audit, local Playwright 7/7, production Playwright 7/7, API probes pass |
+| T11 | KANBAN/memory/receipt writeback | Docs worker + lead review | DONE | Board/memory/receipt updated with deployment evidence |
 
 ## Implementation Requirements
 
@@ -102,3 +102,9 @@
 - `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
 - `git diff --check` passed; only Git CRLF normalization warnings were reported.
 - `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
+
+## Production Verification Snapshot - 2026-05-25
+- Commit `d2e19df` pushed to `origin/main`.
+- Vercel production deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against production.
+- Production probes passed: root 200, no-token `/api/auth/me` 401, no-secret cron 403, login 200, dashboard fields present with `quick_metrics.unpaid_count`, student-fees report 200 with anomaly count, receipts list 200, receipt PDF 200 `application/pdf` with `%PDF` and 17070 bytes.

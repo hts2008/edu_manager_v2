@@ -32,7 +32,18 @@
 - Worker touched only `lib/pdf.ts` and `tests/pdf.test.ts`; lead integrated and reran all local gates.
 
 ## Production Status
-- Pending commit, production deploy, and production smoke.
+- Commit `d2e19df` pushed to `origin/main`.
+- Vercel production deployment `dpl_97AgsQPnecdsYY4mMz8EGUeQawyq` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
+- Production API probes passed:
+  - root `/` returned 200.
+  - no-token `/api/auth/me` returned 401 `UNAUTHORIZED`.
+  - no-secret `/api/cron/monthly-fees` returned 403 `FORBIDDEN`.
+  - login returned 200 with token.
+  - `/api/reports/dashboard` returned required fields and `quick_metrics.unpaid_count=14`.
+  - `/api/reports/student-fees?from=2026-05&to=2026-06` returned 26 students and `anomaly_count=2`.
+  - `/api/receipts` returned at least one receipt.
+  - receipt PDF returned 200 `application/pdf`, `%PDF`, 17070 bytes.
 
 ## Remaining Risks
 - Historical paid anomalous receipts are intentionally not auto-mutated. They must be handled by an explicit financial adjustment/void/reissue policy.
