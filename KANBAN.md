@@ -318,7 +318,7 @@
 | FEE-MONTH-003 | Fix business-month defaults and invalid month parsing | `lib/api-utils.ts`, fee reminders, reports, fee collection | IMPLEMENTED | `parseMonthRange` rejects `YYYY-00`/`YYYY-13`; local/business month helpers replace UTC `toISOString()` defaults. |
 | UI-EDUFLOW-001 | Restore coherent light EduFlow operations UI | Dashboard, sidebar/header/layout, forms, payments modal | IMPLEMENTED | Stitch `GEMINI_3_1_PRO` concept created; Figma node `3:36` inspected and screenshot captured; local/prod UX smoke pass. |
 | UI-EDUFLOW-002 | Strengthen menu/admin route and UX regression coverage | `App.jsx`, `Header.jsx`, `Sidebar.jsx`, Playwright smoke | IMPLEMENTED | Admin routes are route-guarded; production Playwright UX smoke traverses 22 protected routes desktop/mobile. |
-| QA-LIVE-001 | Deploy and smoke production after fixes | Vercel + Playwright | IMPLEMENTED | Vercel deploy `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` Ready; production UX smoke 7/7 and Phase-B smoke 17/17. |
+| QA-LIVE-001 | Deploy and smoke production after fixes | Vercel + Playwright | IMPLEMENTED | Vercel deploy `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` Ready; production UX smoke 7/7 and Phase-B smoke 17/17. |
 
 **Local evidence - 2026-05-25 late pass**
 - `git diff --check` passed with LF/CRLF warnings only.
@@ -330,9 +330,10 @@
 - `npm --prefix frontend run test:e2e -- phase-b-smoke.spec.js --reporter=list` passed 17/17 locally.
 
 **Production evidence - 2026-05-25 late pass**
-- `npx vercel deploy --prod --yes` created `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`, Ready, aliased to `https://edu-manager-gules.vercel.app`.
+- `npx vercel deploy --prod --yes` created `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`, Ready, aliased to `https://edu-manager-gules.vercel.app`.
 - Production `ux-redesign-smoke.spec.js` passed 7/7.
 - Production `phase-b-smoke.spec.js` passed 17/17.
+- Final source-synced deployment probe passed: root/login/dashboard/receipts/PDF all 200; PDF content-type `application/pdf`, 17070 bytes.
 - `npx prisma migrate status` was read-only and reported the Neon DB is not managed by Prisma Migrate because the repo has no `prisma/migrations`; no schema migration or seed was run.
 
 **Receipt:** `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`.
@@ -374,7 +375,7 @@
 | Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
 | Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
 | P0/P1 production hardening closeout | IMPLEMENTED | `receipts/2026-05-25-p0-p1-production-readiness.md`; implementation commit `d2e19df`, docs commit `5b2b568`, final Vercel `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL`, local + production Playwright 7/7, API probes pass |
-| Month-bounded tuition + EduFlow UI closeout | IMPLEMENTED | `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`; Stitch `GEMINI_3_1_PRO`, Figma node `3:36`, local unit 38/38, local/prod UX 7/7, local/prod Phase-B 17/17, Vercel `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` |
+| Month-bounded tuition + EduFlow UI closeout | IMPLEMENTED | `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`; Stitch `GEMINI_3_1_PRO`, Figma node `3:36`, local unit 38/38, local/prod UX 7/7, local/prod Phase-B 17/17, Vercel `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` |
 
 ---
 

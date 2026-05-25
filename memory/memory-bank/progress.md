@@ -421,7 +421,7 @@
 - **Design Sync**: Created Stitch project `16406701261521949818` with `GEMINI_3_1_PRO`; generated screen `3da9badc59d341f5ad6d7916cb2471dc`; inspected Figma page `3:2` and node `3:36 Desktop / Receipts Shell`; captured Figma screenshot for evidence.
 - **Team Mode**: Spawned three bounded subagents for tuition/dataflow audit, UI/menu audit, and verification review; all were closed after use.
 - **Validation**: `git diff --check` passed with LF/CRLF warnings only; `npx tsc --noEmit` passed; `npm run test:unit` passed 38/38; frontend lint max-warnings=0 passed; `npm run build` passed with existing Vite chunk warnings; local Playwright UX smoke passed 7/7; local Phase-B smoke passed 17/17.
-- **Deployment**: `npx vercel deploy --prod --yes` created production deployment `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Deployment**: `npx vercel deploy --prod --yes` created production deployment `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
 - **Production Smoke**: Production Playwright UX smoke passed 7/7 and production Phase-B smoke passed 17/17.
 - **DB Note**: `npx prisma migrate status` was read-only and reported the Neon DB is not managed by Prisma Migrate because this repo has no `prisma/migrations`; no migration or seed was run.
 - **Evidence**: `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`.

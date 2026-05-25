@@ -43,10 +43,11 @@
 - `npm run build` passed. Vite still reports existing chunk-size/dynamic-import warnings.
 - Local Playwright `ux-redesign-smoke.spec.js` passed 7/7 against `npm run dev:smoke`.
 - Local Playwright `phase-b-smoke.spec.js` passed 17/17 against `npm run dev:smoke`.
-- Vercel production deploy `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` reached `READY`.
+- Vercel production deploy `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` reached `READY`.
 - Production alias: `https://edu-manager-gules.vercel.app`.
 - Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
 - Production Playwright `phase-b-smoke.spec.js` passed 17/17.
+- Final source-synced deployment probe passed after implementation commit/push: root 200, login 200, dashboard 200, receipts 200, receipt PDF 200 `application/pdf`, PDF 17070 bytes.
 
 ## DB / Migration Note
 - `npx prisma migrate status` was run read-only and returned that the current Neon database is not managed by Prisma Migrate because the repo has no `prisma/migrations` directory.

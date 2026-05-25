@@ -215,7 +215,7 @@
   - [x] Fix Payments modal runtime crash and smoke-test copy drift.
   - [x] Use Stitch `GEMINI_3_1_PRO`; inspect Figma node `3:36` and capture screenshot.
   - [x] Verify local unit 38/38, typecheck, lint, build, UX 7/7, Phase-B 17/17.
-  - [x] Deploy Vercel production `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`.
+  - [x] Deploy Vercel production `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`.
   - [x] Verify production UX 7/7 and Phase-B 17/17.
   - [x] Record KANBAN, memory, decision, progress, and receipt evidence.
 
@@ -225,7 +225,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS`; production alias `https://edu-manager-gules.vercel.app` passed UX 7/7 and Phase-B 17/17 after the month-bounded tuition + EduFlow UI closeout.
+- **Latest production deployment observed in Codex session**: `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`; production alias `https://edu-manager-gules.vercel.app` passed UX 7/7 and Phase-B 17/17 after the month-bounded tuition + EduFlow UI closeout.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -248,7 +248,7 @@
 - `git diff --check` passed with LF/CRLF warnings only.
 - Local Playwright `ux-redesign-smoke.spec.js` passed 7/7.
 - Local Playwright `phase-b-smoke.spec.js` passed 17/17.
-- Production deploy `dpl_GaxsSSHSDaqVPKPHNMzZvbpjhrbS` Ready on `https://edu-manager-gules.vercel.app`.
+- Production deploy `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` Ready on `https://edu-manager-gules.vercel.app`.
 - Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
 - Production Playwright `phase-b-smoke.spec.js` passed 17/17.
 - `npx prisma migrate status` was read-only and reported no Prisma Migrate history; no migration or seed was run.
