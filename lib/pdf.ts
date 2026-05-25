@@ -85,6 +85,100 @@ function formatCurrency(amount: unknown) {
   }).format(value);
 }
 
+function numberValue(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function colorValue(value: unknown) {
+  if (typeof value !== "string" || !value.trim() || value === "transparent") {
+    return undefined;
+  }
+
+  const color = value.trim();
+  const rgba = color.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*([0-9.]+))?\s*\)$/i
+  );
+  if (!rgba) return color;
+
+  const alpha = rgba[4] === undefined ? 1 : Number(rgba[4]);
+  if (!Number.isFinite(alpha) || alpha <= 0) return undefined;
+  const hex = [rgba[1], rgba[2], rgba[3]]
+    .map((part) =>
+      Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0")
+    )
+    .join("");
+  return `#${hex}`;
+}
+
+function isSupportedBase64ImageDataUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = value
+    .trim()
+    .match(/^data:image\/(png|jpe?g);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) return false;
+
+  const bytes = Buffer.from(match[2].replace(/\s/g, ""), "base64");
+  if (match[1].toLowerCase() === "png") {
+    return (
+      bytes.length > 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    );
+  }
+
+  return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8;
+}
+
+function objectMargin(object: any) {
+  return [
+    numberValue(object.left),
+    Math.max(0, numberValue(object.top)) / 8,
+    0,
+    4,
+  ];
+}
+
+function scaled(value: unknown, scale: unknown, fallback = 0) {
+  return numberValue(value, fallback) * numberValue(scale, 1);
+}
+
+function flattenFabricObjects(
+  objects: any[],
+  offsetLeft = 0,
+  offsetTop = 0
+): any[] {
+  return objects.flatMap((object) => {
+    if (!object || typeof object !== "object" || object.visible === false) {
+      return [];
+    }
+
+    const left = offsetLeft + numberValue(object.left);
+    const top = offsetTop + numberValue(object.top);
+    const children = Array.isArray(object.objects)
+      ? object.objects
+      : Array.isArray(object._objects)
+        ? object._objects
+        : null;
+
+    if (object.type === "group" && children) {
+      const hasCenteredChildren = children.some(
+        (child: any) =>
+          numberValue(child?.left) < 0 || numberValue(child?.top) < 0
+      );
+      const childLeft =
+        left + (hasCenteredChildren ? scaled(object.width, object.scaleX) / 2 : 0);
+      const childTop =
+        top + (hasCenteredChildren ? scaled(object.height, object.scaleY) / 2 : 0);
+      return flattenFabricObjects(children, childLeft, childTop);
+    }
+
+    return [{ ...object, left, top }];
+  });
+}
+
 export function numberToWords(value: unknown) {
   let num = Math.floor(Number(value || 0));
   if (num === 0) return "không đồng";
@@ -151,55 +245,93 @@ function fabricContent(template: any, data: PdfData) {
     ? (config as any).objects
     : [];
 
-  return objects
-    .filter((object: any) =>
-      ["textbox", "text", "i-text", "line", "rect"].includes(object.type)
+  return flattenFabricObjects(objects)
+    .sort(
+      (a: any, b: any) =>
+        numberValue(a.top) - numberValue(b.top) ||
+        numberValue(a.left) - numberValue(b.left)
     )
-    .sort((a: any, b: any) => (a.top || 0) - (b.top || 0))
-    .map((object: any) => {
+    .flatMap<any>((object: any) => {
       if (["textbox", "text", "i-text"].includes(object.type)) {
-        return {
+        return [{
           text: replaceBindings(String(object.text || ""), data),
           fontSize: object.fontSize || 12,
           bold: object.fontWeight === "bold",
           italics: object.fontStyle === "italic",
-          color: object.fill || "#111827",
+          color: colorValue(object.fill) || "#111827",
           alignment: object.textAlign || "left",
-          margin: [object.left || 0, Math.max(0, object.top || 0) / 8, 0, 4],
-        };
+          margin: objectMargin(object),
+        }];
+      }
+
+      if (object.type === "image") {
+        const image =
+          object.src || object.imageUrl || object.crossOriginUrl || object.url;
+        if (!isSupportedBase64ImageDataUrl(image)) return [];
+        return [{
+          image: image.trim(),
+          width: scaled(object.width, object.scaleX, 40),
+          height: scaled(object.height, object.scaleY, 40),
+          margin: objectMargin(object),
+        }];
       }
 
       if (object.type === "line") {
-        return {
+        return [{
           canvas: [
             {
               type: "line",
               x1: object.x1 || 0,
-              y1: 0,
+              y1: object.y1 || 0,
               x2: object.x2 || object.width || 200,
-              y2: 0,
+              y2: object.y2 || 0,
               lineWidth: object.strokeWidth || 1,
-              lineColor: object.stroke || "#111827",
+              lineColor: colorValue(object.stroke) || "#111827",
             },
           ],
-          margin: [object.left || 0, Math.max(0, object.top || 0) / 8, 0, 4],
-        };
+          margin: objectMargin(object),
+        }];
       }
 
-      return {
-        canvas: [
-          {
-            type: "rect",
-            x: 0,
-            y: 0,
-            w: object.width || 100,
-            h: object.height || 40,
-            lineWidth: object.strokeWidth || 1,
-            lineColor: object.stroke || "#111827",
-          },
-        ],
-        margin: [object.left || 0, Math.max(0, object.top || 0) / 8, 0, 4],
-      };
+      if (object.type === "rect") {
+        return [{
+          canvas: [
+            {
+              type: "rect",
+              x: 0,
+              y: 0,
+              w: scaled(object.width, object.scaleX, 100),
+              h: scaled(object.height, object.scaleY, 40),
+              r: object.rx || object.ry || object.radius || 0,
+              lineWidth: object.strokeWidth || 1,
+              lineColor: colorValue(object.stroke) || "#111827",
+              color: colorValue(object.fill),
+            },
+          ],
+          margin: objectMargin(object),
+        }];
+      }
+
+      if (["circle", "ellipse"].includes(object.type)) {
+        const radius = numberValue(object.radius);
+        return [{
+          canvas: [
+            {
+              type: "ellipse",
+              x: scaled(object.rx || radius, object.scaleX, radius || 20),
+              y: scaled(object.ry || radius, object.scaleY, radius || 20),
+              r1: scaled(object.rx || radius, object.scaleX, radius || 20),
+              r2: scaled(object.ry || radius, object.scaleY, radius || 20),
+              lineWidth: object.strokeWidth || 1,
+              lineColor: colorValue(object.stroke) || "#111827",
+              color: colorValue(object.fill),
+            },
+          ],
+          margin: objectMargin(object),
+        }];
+      }
+
+      return [];
     });
 }
 
@@ -254,7 +386,13 @@ export async function generatePdf(template: any, data: PdfData = {}) {
   const isLandscape = (template.orientation || "portrait") === "landscape";
   const width = isLandscape ? paper.height : paper.width;
   const height = isLandscape ? paper.width : paper.height;
-  const content = fabricContent(template, data);
+  const content = (() => {
+    try {
+      return fabricContent(template, data);
+    } catch {
+      return [];
+    }
+  })();
 
   const definition: TDocumentDefinitions = {
     pageSize: { width: mmToPt(width), height: mmToPt(height) },
@@ -270,7 +408,14 @@ export async function generatePdf(template: any, data: PdfData = {}) {
     },
   };
 
-  const pdfDoc = await printer.createPdfKitDocument(definition);
+  let pdfDoc;
+  try {
+    pdfDoc = await printer.createPdfKitDocument(definition);
+  } catch (error) {
+    if (!content.length) throw error;
+    definition.content = defaultContent(template, data) as any;
+    pdfDoc = await printer.createPdfKitDocument(definition);
+  }
 
   return new Promise<Buffer>((resolve, reject) => {
     try {

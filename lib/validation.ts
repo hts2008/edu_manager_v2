@@ -46,17 +46,27 @@ export const loginSchema = z.object({
   password: z.string().min(1, "password is required"),
 });
 
-export const receiptCreateSchema = z.object({
-  student_id: z.string().trim().min(1, "student_id is required"),
-  monthly_fee_id: optionalText,
-  month: z.string().regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM"),
-  days_count: z.coerce.number().int().min(0).default(0),
-  fee_per_day: z.coerce.number().min(0).default(0),
-  amount: z.coerce.number().positive("amount must be greater than 0"),
-  payment_method: z.enum(["cash", "transfer"]),
-  template_id: optionalText,
-  notes: optionalNullableText,
-});
+export const receiptCreateSchema = z
+  .object({
+    student_id: z.string().trim().min(1, "student_id is required"),
+    monthly_fee_id: optionalText,
+    month: z.string().regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM"),
+    days_count: z.coerce.number().int().min(0).default(0),
+    fee_per_day: z.coerce.number().min(0).default(0),
+    amount: z.coerce.number().positive("amount must be greater than 0"),
+    payment_method: z.enum(["cash", "transfer"]),
+    template_id: optionalText,
+    notes: optionalNullableText,
+  })
+  .superRefine((data, ctx) => {
+    if (!data.monthly_fee_id && data.amount > 0 && data.days_count <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["days_count"],
+        message: "days_count must be greater than 0 for direct tuition receipts",
+      });
+    }
+  });
 
 export const studentCreateSchema = z.object({
   full_name: z.string().trim().min(1, "full_name is required"),

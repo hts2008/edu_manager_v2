@@ -15,6 +15,16 @@ export type TuitionResult = {
   scheduleDays: number[];
 };
 
+export type TuitionClassChargeInput = TuitionClassInput & {
+  chargedSessions?: number | null;
+};
+
+export type StudentMonthlyTuitionResult = {
+  totalDays: number;
+  totalAmount: number;
+  classes: Array<TuitionResult & { classId?: string | null }>;
+};
+
 export const CHARGEABLE_ATTENDANCE_STATUSES = ["present", "absent_with_fee"];
 
 export function parseMonthParts(month: string) {
@@ -168,5 +178,25 @@ export function calculateTuitionForClass(
     monthlyTuition: unitOrMonthlyAmount,
     scheduleStrategy,
     scheduleDays,
+  };
+}
+
+export function calculateStudentMonthlyTuition(
+  classCharges: TuitionClassChargeInput[],
+  month: string
+): StudentMonthlyTuitionResult {
+  const classes = classCharges.map((classData: any) => ({
+    classId: classData.classId || classData.id || null,
+    ...calculateTuitionForClass(
+      classData,
+      month,
+      Number(classData.chargedSessions || 0)
+    ),
+  }));
+
+  return {
+    totalDays: classes.reduce((sum, item) => sum + item.chargedSessions, 0),
+    totalAmount: classes.reduce((sum, item) => sum + item.totalAmount, 0),
+    classes,
   };
 }

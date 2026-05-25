@@ -30,9 +30,21 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(startOfToday);
     endOfToday.setDate(endOfToday.getDate() + 1);
+    const unpaidWhere = {
+      month: currentMonth,
+      status: { not: "paid" },
+      student: { status: "active", deletedAt: null },
+    } as const;
 
     // Get financial summary
-    const [receiptsSum, paymentsSum, unpaidFees, todayAttendance] = await Promise.all([
+    const [
+      receiptsSum,
+      paymentsSum,
+      unpaidFees,
+      unpaidFeesCount,
+      unpaidFeesAggregate,
+      todayAttendance,
+    ] = await Promise.all([
       prisma.receipt.aggregate({
         _sum: { amount: true },
         where: { createdAt: { gte: startOfMonth, lte: endOfMonth }, deletedAt: null },
@@ -42,11 +54,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         where: { createdAt: { gte: startOfMonth, lte: endOfMonth }, deletedAt: null },
       }),
       prisma.monthlyFee.findMany({
-        where: {
-          month: currentMonth,
-          status: { not: "paid" },
-          student: { status: "active", deletedAt: null },
-        },
+        where: unpaidWhere,
         take: 8,
         orderBy: [{ totalAmount: "desc" }, { createdAt: "desc" }],
         include: {
@@ -63,6 +71,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             },
           },
         },
+      }),
+      prisma.monthlyFee.count({ where: unpaidWhere }),
+      prisma.monthlyFee.aggregate({
+        _sum: { totalAmount: true },
+        where: unpaidWhere,
       }),
       prisma.attendance.groupBy({
         by: ["status"],
@@ -137,9 +150,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }));
     const monthRevenue = receiptsSum._sum.amount || 0;
     const monthExpenses = paymentsSum._sum.amount || 0;
-    const unpaidAmount = unpaidFees.reduce((sum, fee) => sum + fee.totalAmount, 0);
+    const unpaidAmount = unpaidFeesAggregate._sum.totalAmount || 0;
     const paymentCoverage = activeStudents
-      ? Math.max(0, Math.round(((activeStudents - unpaidStudents.length) / activeStudents) * 100))
+      ? Math.max(0, Math.round(((activeStudents - unpaidFeesCount) / activeStudents) * 100))
       : 100;
     const presentRate = todayAttendanceCounts.total
       ? Math.round((todayAttendanceCounts.present / todayAttendanceCounts.total) * 100)
@@ -157,9 +170,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         id: "unpaid-fees",
         type: "finance",
         title: "Học phí cần thu",
-        count: unpaidStudents.length,
+        count: unpaidFeesCount,
         amount: unpaidAmount,
-        severity: unpaidStudents.length > 0 ? "warning" : "success",
+        severity: unpaidFeesCount > 0 ? "warning" : "success",
         to: "/fee-collection",
       },
       {
@@ -195,6 +208,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       quick_metrics: {
         current_month: currentMonth,
         payment_coverage: paymentCoverage,
+        unpaid_count: unpaidFeesCount,
         unpaid_amount: unpaidAmount,
         net_revenue: monthRevenue - monthExpenses,
       },

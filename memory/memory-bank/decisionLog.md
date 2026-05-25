@@ -186,3 +186,10 @@
 **Decision**: Treat `https://edu-manager-gules.vercel.app` as the canonical production alias for the active Vercel project. Required Production env keys are `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and `CRON_SECRET`. Use Vercel Blob store `edu-manager-live-blob` for template images and backup storage. Keep `.vercelignore` patterns root-anchored so operational evidence folders do not exclude `server/api/*` modules.
 **Rationale**: This aligns the URL users open with the Vercel project being deployed, restores Prisma/JWT/storage/cron runtime behavior, and prevents serverless bundle omissions from broad ignore patterns.
 **Status**: IMPLEMENTED with production deploy `dpl_2HXPKo2UcdrRUBrAGBzrYyeHvHe9`, upload-image 201, cron guard 403, Playwright 6/6, and audit 0 vulnerabilities on 2026-05-23.
+
+### ADR-27: Atomic Fee State and Zero-Day Receipt Invariant
+**Date**: 2026-05-25
+**Context**: Follow-up P0/P1 review found that attendance-period lock could refresh a one-class-only monthly fee, monthly-fee confirm/cancel/calculate could race with payment or clear paid linkage, and direct receipt creation could still create a positive tuition receipt with zero chargeable sessions.
+**Decision**: Treat a positive tuition receipt with `days_count <= 0` as invalid unless it is handled by a future explicit adjustment/void/reissue workflow. Use conditional `updateMany` guards for MonthlyFee calculate/confirm/cancel/pay transitions and refresh attendance-period lock fees in a transaction that aggregates all active classes for the impacted students and leaves paid/linked rows untouched.
+**Rationale**: Financial records must be audit-safe. Preventing new zero-day positive receipts and avoiding paid-row rewrites is safer than silently patching history; historical anomalies remain visible through `student-fees` reporting until an approved correction policy exists.
+**Status**: LOCAL VERIFIED with unit 35/35, typecheck, lint, build, audit, and local Playwright UX/menu/PDF 7/7 on 2026-05-25.

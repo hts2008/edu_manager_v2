@@ -70,6 +70,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
       }
 
+      if (Number(fee.totalAmount || 0) > 0 && Number(fee.totalDays || 0) <= 0) {
+        throw new ApiError(
+          "ZERO_DAY_POSITIVE_RECEIPT",
+          "Cannot collect a positive tuition fee with zero chargeable sessions",
+          409
+        );
+      }
+
       const paidAt = new Date();
       const claimed = await tx.monthlyFee.updateMany({
         where: {

@@ -93,29 +93,54 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       throw new ApiError("NO_ACTIVE_CLASS", "Student has no active class", 400);
     }
 
-    const existing = await prisma.monthlyFee.findUnique({
-      where: { studentId_month: { studentId, month } },
-    });
+    const fee = await prisma.$transaction(async (tx) => {
+      const existing = await tx.monthlyFee.findUnique({
+        where: { studentId_month: { studentId, month } },
+      });
 
-    if (existing?.status === "paid") {
-      throw new ApiError("FEE_ALREADY_PAID", "Monthly fee is already paid", 400);
-    }
+      if (existing?.status === "paid" || existing?.receiptId || existing?.paidAt) {
+        throw new ApiError(
+          "FEE_ALREADY_PAID",
+          "Monthly fee is already paid or linked to a receipt",
+          409
+        );
+      }
 
-    const fee = await prisma.monthlyFee.upsert({
-      where: { studentId_month: { studentId, month } },
-      create: {
-        studentId,
-        month,
-        totalDays,
-        totalAmount,
-        status: "ready",
-      },
-      update: {
-        totalDays,
-        totalAmount,
-        status: "ready",
-        receiptId: null,
-      },
+      if (!existing) {
+        return tx.monthlyFee.create({
+          data: {
+            studentId,
+            month,
+            totalDays,
+            totalAmount,
+            status: "ready",
+          },
+        });
+      }
+
+      const updated = await tx.monthlyFee.updateMany({
+        where: {
+          id: existing.id,
+          status: { in: ["pending", "ready", "confirmed"] },
+          receiptId: null,
+          paidAt: null,
+        },
+        data: {
+          totalDays,
+          totalAmount,
+          status: "ready",
+        },
+      });
+
+      if (updated.count !== 1) {
+        throw new ApiError(
+          "MONTHLY_FEE_STATE_CONFLICT",
+          "Monthly fee changed while recalculating",
+          409
+        );
+      }
+
+      return tx.monthlyFee.findUniqueOrThrow({ where: { id: existing.id } });
     });
 
     return successResponse(res, {

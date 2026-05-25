@@ -30,6 +30,31 @@ async function expectNoHorizontalOverflow(page) {
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 2);
 }
 
+const protectedMenuPaths = [
+  "/",
+  "/students",
+  "/parents",
+  "/classes",
+  "/teachers",
+  "/attendance",
+  "/attendance-insights",
+  "/attendance-periods",
+  "/receipts",
+  "/fee-collection",
+  "/payments",
+  "/history",
+  "/reports",
+  "/advanced-reports",
+  "/audit-logs",
+  "/templates",
+  "/users",
+  "/imports",
+  "/fee-reminders",
+  "/backups",
+  "/recycle-bin",
+  "/settings",
+];
+
 test("redesigned navigation groups primary and secondary menus", async ({ page }) => {
   await seedAuth(page);
   await page.setViewportSize({ width: 1440, height: 960 });
@@ -63,6 +88,63 @@ test("mobile navigation remains usable without layout overflow", async ({ page }
   await expectNoHorizontalOverflow(page);
 
   await page.screenshot({ path: "output/playwright/ux-redesign-mobile.png", fullPage: true });
+});
+
+test("all protected menu routes load on desktop and mobile", async ({ browser }) => {
+  test.setTimeout(240_000);
+  const page = await browser.newPage();
+  const routeErrors = [];
+  const allowedFailedStatus = new Set([401, 403]);
+
+  await seedAuth(page);
+  page.on("pageerror", (error) => {
+    routeErrors.push({ type: "pageerror", text: error.message });
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      routeErrors.push({ type: "console", text: message.text() });
+    }
+  });
+  page.on("response", (response) => {
+    const status = response.status();
+    if (status >= 400 && !allowedFailedStatus.has(status)) {
+      const url = response.url();
+      const responseOrigin = new URL(url).origin;
+      const pageOrigin = new URL(page.url()).origin;
+      if (responseOrigin === pageOrigin) {
+        routeErrors.push({ type: "response", status, url });
+      }
+    }
+  });
+
+  for (const path of protectedMenuPaths) {
+    routeErrors.length = 0;
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.locator(`aside a[href="${path}"]`).first().click();
+    await page.waitForLoadState("networkidle");
+    expect(new URL(page.url()).pathname).toBe(path);
+    await expect(page.locator("main")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(routeErrors, `desktop route ${path}`).toEqual([]);
+  }
+
+  for (const path of protectedMenuPaths) {
+    routeErrors.length = 0;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.locator("header button").first().click();
+    await page.locator(`aside a[href="${path}"]`).first().click();
+    await page.waitForLoadState("networkidle");
+    expect(new URL(page.url()).pathname).toBe(path);
+    await expect(page.locator("main")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(routeErrors, `mobile route ${path}`).toEqual([]);
+  }
+
+  await page.close();
 });
 
 test("dashboard uses the production operations contract without overflow", async ({ page, request }) => {

@@ -278,6 +278,35 @@
 
 ---
 
+## PRODUCTION P0/P1 HARDENING - 2026-05-25
+
+**Objective:** close the latest observed UI/menu and finance dataflow defects before the next production-live deployment.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| P0MENU-001 | Fix `/classes` runtime crash | `frontend/src/pages/ClassesPage.jsx` | LOCAL VERIFIED | Imported `motion` alias and added full protected-menu traversal. Local Playwright UX smoke 7/7 passes. |
+| P0FEE-001 | Make attendance-period lock atomic and multi-class aware | `server/api/attendance-periods/[id]/index.ts`, `lib/tuition.ts` | LOCAL VERIFIED | Transactional lock, aggregate active classes per student/month, unit 35/35, production-contract tests. |
+| P0FEE-002 | Guard monthly-fee state transitions against race/corruption | `server/api/monthly-fees/*` | LOCAL VERIFIED | Conditional `updateMany` for calculate/confirm/cancel/pay; paid/linked rows no longer revert. Unit 35/35. |
+| P0RCPT-001 | Prevent new positive tuition receipts with zero chargeable sessions | `lib/validation.ts`, `server/api/receipts/index.ts`, `server/api/monthly-fees/[id]/pay.ts` | LOCAL VERIFIED | Validation and runtime invariant `ZERO_DAY_POSITIVE_RECEIPT`; student-fees report surfaces receipt-only anomalies. |
+| P1DASH-001 | Fix dashboard unpaid aggregate math | `server/api/reports/dashboard.ts` | LOCAL VERIFIED | Uses count/aggregate from DB instead of truncated preview list; contract tests updated. |
+| P1PDF-001 | Improve Template Designer to PDF fidelity | `lib/pdf.ts`, `tests/pdf.test.ts` | LOCAL VERIFIED | Fabric text/line/rect/circle/ellipse/group/base64 image support; unsupported images skipped/fallback. PDF tests pass. |
+| P1TEST-001 | Add route/menu regression coverage | `frontend/e2e/ux-redesign-smoke.spec.js` | LOCAL VERIFIED | Traverses 22 protected routes on desktop and mobile with no page/console/API errors or overflow. |
+
+**Local evidence - 2026-05-25**
+- `git diff --check` passed.
+- `npx tsc --noEmit` passed.
+- `npm run test:unit` passed 35/35.
+- `npm --prefix frontend run lint -- --max-warnings=0` passed.
+- `npm run build` passed after stopping the local smoke server that held Prisma's Windows query-engine DLL.
+- `npm audit --audit-level=high` and `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
+- `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
+
+**Production status:** pending deploy + production smoke.
+
+**Receipt:** `receipts/2026-05-25-p0-p1-production-readiness.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -312,6 +341,7 @@
 | EDU_MANAGER_V2 scope/path cleanup | ✅ IMPLEMENTED | No remaining known external workspace markers or hard-coded out-of-scope paths in workspace text scan |
 | Post-deploy dirty-tree hygiene closeout | IMPLEMENTED | `receipts/2026-05-24-operational-hygiene-closeout.md`; sidecar agents classified drift, temp `frontend/update*` scripts removed, `.codex/config.toml` restored safe, diff/type/unit/lint/build/audit/prod Playwright pass |
 | Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
+| P0/P1 production hardening local closeout | LOCAL VERIFIED | `receipts/2026-05-25-p0-p1-production-readiness.md`; unit 35/35, typecheck, lint, build, audits, and local Playwright UX/menu/PDF 7/7 pass |
 
 ---
 
@@ -334,10 +364,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; latest local gates pass with unit 28/28, targeted Playwright smoke 6/6, tsc/build/lint/diff-check pass |
-| Production usability | Live on `edu-manager-gules`; latest tuition/report/template/design hardening deployed and production-smoked |
+| Tests/CI | Phase B/C baseline implemented; latest local gates pass with unit 35/35, targeted Playwright smoke 7/7, tsc/build/lint/audit/diff-check pass |
+| Production usability | Live on `edu-manager-gules`; latest P0/P1 hardening is locally verified and pending production deploy/smoke |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening and EduFlow UI pass are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening and EduFlow UI pass are deployed and smoked. The 2026-05-25 P0/P1 fixes are locally verified and awaiting production deploy/smoke. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 

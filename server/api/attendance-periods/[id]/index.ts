@@ -7,9 +7,10 @@ import {
   successResponse,
 } from "../../../../lib/auth.js";
 import {
-  calculateTuitionForClass,
+  calculateStudentMonthlyTuition,
   CHARGEABLE_ATTENDANCE_STATUSES,
 } from "../../../../lib/tuition.js";
+import { ApiError, sendApiError } from "../../../../lib/api-utils.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // Get id from query param (Vercel dynamic route)
@@ -223,80 +224,152 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        await prisma.attendancePeriod.update({
-          where: { id },
-          data: {
-            status: "locked",
-            lockedById: req.user.id,
-            lockedAt: new Date(),
-          },
-        });
-
-        // Create or refresh monthly fees for students that are still collectible.
-        const studentClasses = await prisma.studentClass.findMany({
-          where: { classId: period.classId, status: "active" },
-        });
-
-        let feesCreated = 0;
-        let feesUpdated = 0;
-        let feesSkipped = 0;
-
-        for (const sc of studentClasses) {
-          const existing = await prisma.monthlyFee.findFirst({
-            where: { studentId: sc.studentId, month: period.periodMonth },
-          });
-
-          if (existing && !["pending", "ready"].includes(existing.status)) {
-            feesSkipped += 1;
-            continue;
-          }
-
+        const result = await prisma.$transaction(async (tx) => {
+          const lockedAt = new Date();
           const [year, month] = period.periodMonth.split("-");
           const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
           const endDate = new Date(parseInt(year), parseInt(month), 0);
 
-          const count = await prisma.attendance.count({
-            where: {
-              studentId: sc.studentId,
-              classId: period.classId,
-              attendanceDate: { gte: startDate, lte: endDate },
-              status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
+          const impactedStudentClasses = await tx.studentClass.findMany({
+            where: { classId: period.classId, status: "active" },
+            select: { studentId: true },
+          });
+          const studentIds = [
+            ...new Set(impactedStudentClasses.map((item) => item.studentId)),
+          ];
+
+          const activeStudentClasses = studentIds.length
+            ? await tx.studentClass.findMany({
+                where: {
+                  studentId: { in: studentIds },
+                  status: "active",
+                  student: { status: "active", deletedAt: null },
+                },
+                include: { class: true },
+              })
+            : [];
+
+          const classIds = [
+            ...new Set(activeStudentClasses.map((item) => item.classId)),
+          ];
+          const attendanceCounts = classIds.length
+            ? await tx.attendance.groupBy({
+                by: ["studentId", "classId"],
+                where: {
+                  studentId: { in: studentIds },
+                  classId: { in: classIds },
+                  attendanceDate: { gte: startDate, lte: endDate },
+                  status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
+                },
+                _count: { status: true },
+              })
+            : [];
+          const countByStudentClass = new Map(
+            attendanceCounts.map((item) => [
+              `${item.studentId}:${item.classId}`,
+              item._count.status,
+            ])
+          );
+
+          let feesCreated = 0;
+          let feesUpdated = 0;
+          let feesSkipped = 0;
+
+          for (const studentId of studentIds) {
+            const existing = await tx.monthlyFee.findFirst({
+              where: { studentId, month: period.periodMonth },
+            });
+
+            if (
+              existing &&
+              (!["pending", "ready"].includes(existing.status) ||
+                existing.receiptId ||
+                existing.paidAt)
+            ) {
+              feesSkipped += 1;
+              continue;
+            }
+
+            const tuition = calculateStudentMonthlyTuition(
+              activeStudentClasses
+                .filter((item) => item.studentId === studentId)
+                .map((item) => ({
+                  classId: item.classId,
+                  feePerDay: item.class.feePerDay,
+                  scheduleDays: item.class.scheduleDays,
+                  sessionsPerWeek: item.class.sessionsPerWeek,
+                  chargedSessions:
+                    countByStudentClass.get(`${studentId}:${item.classId}`) || 0,
+                })),
+              period.periodMonth
+            );
+
+            if (existing) {
+              const updated = await tx.monthlyFee.updateMany({
+                where: {
+                  id: existing.id,
+                  status: { in: ["pending", "ready"] },
+                  receiptId: null,
+                  paidAt: null,
+                },
+                data: {
+                  totalDays: tuition.totalDays,
+                  totalAmount: tuition.totalAmount,
+                  status: "ready",
+                  receiptId: null,
+                  paidAt: null,
+                },
+              });
+              if (updated.count !== 1) {
+                feesSkipped += 1;
+                continue;
+              }
+              feesUpdated += 1;
+            } else {
+              await tx.monthlyFee.create({
+                data: {
+                  studentId,
+                  month: period.periodMonth,
+                  totalDays: tuition.totalDays,
+                  totalAmount: tuition.totalAmount,
+                  status: "ready",
+                },
+              });
+              feesCreated += 1;
+            }
+          }
+
+          const locked = await tx.attendancePeriod.updateMany({
+            where: { id, status: "approved" },
+            data: {
+              status: "locked",
+              lockedById: req.user.id,
+              lockedAt,
             },
           });
-          const tuition = calculateTuitionForClass(period.class, period.periodMonth, count);
 
-          if (existing) {
-            await prisma.monthlyFee.update({
-              where: { id: existing.id },
-              data: {
-                totalDays: tuition.chargedSessions,
-                totalAmount: tuition.totalAmount,
-                status: "ready",
-                receiptId: null,
-                paidAt: null,
-              },
-            });
-            feesUpdated += 1;
-          } else {
-            await prisma.monthlyFee.create({
-              data: {
-                studentId: sc.studentId,
-                month: period.periodMonth,
-                totalDays: tuition.chargedSessions,
-                totalAmount: tuition.totalAmount,
-                status: "ready",
-              },
-            });
-            feesCreated += 1;
+          if (locked.count !== 1) {
+            throw new ApiError(
+              "ATTENDANCE_PERIOD_STATE_CONFLICT",
+              "Attendance period changed while locking",
+              409
+            );
           }
-        }
+
+          return {
+            studentsProcessed: studentIds.length,
+            feesCreated,
+            feesUpdated,
+            feesSkipped,
+          };
+        });
 
         return successResponse(res, {
           message: "Period locked and fee records created",
-          studentsProcessed: studentClasses.length,
-          fees_created: feesCreated,
-          fees_updated: feesUpdated,
-          fees_skipped: feesSkipped,
+          studentsProcessed: result.studentsProcessed,
+          fees_created: result.feesCreated,
+          fees_updated: result.feesUpdated,
+          fees_skipped: result.feesSkipped,
         });
       }
 
@@ -373,8 +446,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
     }
   } catch (error) {
-    console.error("Period action error:", error);
-    return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    return sendApiError(res, error, "ATTENDANCE_PERIOD_ACTION_ERROR");
   }
 }
 

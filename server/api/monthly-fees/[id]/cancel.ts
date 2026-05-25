@@ -23,16 +23,29 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const fee = await prisma.monthlyFee.findUnique({ where: { id } });
-    if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
-    if (fee.status !== "confirmed") {
-      throw new ApiError("INVALID_STATUS", "Can only cancel confirmed fees", 400);
-    }
-
-    const updated = await prisma.monthlyFee.update({
-      where: { id },
+    const released = await prisma.monthlyFee.updateMany({
+      where: {
+        id,
+        status: "confirmed",
+        receiptId: null,
+        paidAt: null,
+      },
       data: { status: "ready" },
     });
+
+    if (released.count !== 1) {
+      const current = await prisma.monthlyFee.findUnique({ where: { id } });
+      if (!current) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+      throw new ApiError(
+        current.status === "paid"
+          ? "MONTHLY_FEE_STATE_CONFLICT"
+          : "INVALID_STATUS",
+        `Cannot cancel: current status is ${current.status}`,
+        current.status === "paid" || current.receiptId || current.paidAt ? 409 : 400
+      );
+    }
+
+    const updated = await prisma.monthlyFee.findUniqueOrThrow({ where: { id } });
     await logActivity(req, req.user.id, "CANCEL_MONTHLY_FEE", "monthly_fee", id);
 
     return successResponse(res, { id: updated.id, status: updated.status });

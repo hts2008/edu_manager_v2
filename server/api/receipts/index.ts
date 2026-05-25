@@ -144,6 +144,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             : 0
           : body.fee_per_day;
 
+        if (Number(receiptAmount || 0) > 0 && Number(receiptDays || 0) <= 0) {
+          throw new ApiError(
+            "ZERO_DAY_POSITIVE_RECEIPT",
+            "Cannot create a positive tuition receipt with zero chargeable sessions",
+            409
+          );
+        }
+
         const createdReceipt = await tx.receipt.create({
           data: {
             studentId: body.student_id,

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion as Motion } from "framer-motion";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { classesService, studentsService, teachersService } from "../services/api";
@@ -228,8 +229,8 @@ export default function ClassesPage() {
   };
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-      <motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
         <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -259,11 +260,11 @@ export default function ClassesPage() {
             Thêm lớp học
           </button>
         </div>
-      </motion.section>
+      </Motion.section>
 
-      <motion.section variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Motion.section variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => (
-          <motion.div
+          <Motion.div
             variants={itemVariants}
             key={card.label}
             className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
@@ -281,11 +282,11 @@ export default function ClassesPage() {
                 {card.icon}
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         ))}
-      </motion.section>
+      </Motion.section>
 
-      <motion.section variants={itemVariants} className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
+      <Motion.section variants={itemVariants} className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-950">Danh sách lớp học</h2>
@@ -305,7 +306,7 @@ export default function ClassesPage() {
           }}
           emptyMessage="Chưa có lớp học nào"
         />
-      </motion.section>
+      </Motion.section>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -332,7 +333,7 @@ export default function ClassesPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </motion.div>
+    </Motion.div>
   );
 }
 

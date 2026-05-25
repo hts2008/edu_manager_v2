@@ -77,11 +77,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           (sum, receipt) => sum + Number(receipt.amount || 0),
           0
         );
+        const hasZeroDayPositiveReceipt = receipts.some(
+          (receipt) =>
+            Number(receipt.amount || 0) > 0 && Number(receipt.daysCount || 0) <= 0
+        );
         const paidAmount =
           receiptAmount || (fee?.status === "paid" ? Number(fee.totalAmount || 0) : 0);
         const expectedAmount = Number(fee?.totalAmount || 0);
         const anomaly =
-          fee && fee.status === "paid" && fee.totalDays === 0 && expectedAmount > 0
+          hasZeroDayPositiveReceipt
+            ? "RECEIPT_WITH_ZERO_DAYS"
+            : fee && fee.status === "paid" && fee.totalDays === 0 && expectedAmount > 0
             ? "PAID_WITH_ZERO_DAYS"
             : receiptAmount && fee && Math.round(receiptAmount) !== Math.round(expectedAmount)
               ? "RECEIPT_FEE_MISMATCH"

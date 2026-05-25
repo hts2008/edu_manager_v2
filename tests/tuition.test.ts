@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   calculateTuitionForClass,
+  calculateStudentMonthlyTuition,
   countCalendarRowsInMonth,
   countScheduleDaysInMonth,
   normalizeScheduleDays,
@@ -55,5 +56,29 @@ describe("tuition calculation", () => {
     assert.equal(result.expectedSessions, 12);
     assert.equal(result.chargedSessions, 0);
     assert.equal(result.totalAmount, 0);
+  });
+
+  it("aggregates multi-class tuition into one student-month total", () => {
+    const result = calculateStudentMonthlyTuition(
+      [
+        {
+          classId: "english",
+          feePerDay: 500000,
+          sessionsPerWeek: 2,
+          chargedSessions: 12,
+        },
+        {
+          classId: "math",
+          feePerDay: 800000,
+          sessionsPerWeek: 1,
+          chargedSessions: 6,
+        },
+      ],
+      "2026-05"
+    );
+
+    assert.equal(result.totalDays, 18);
+    assert.equal(result.totalAmount, 1300000);
+    assert.deepEqual(result.classes.map((item) => item.classId), ["english", "math"]);
   });
 });

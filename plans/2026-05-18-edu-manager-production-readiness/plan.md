@@ -1,151 +1,104 @@
-# EDU_MANAGER_V2 Production Readiness & UX Completion Master Plan
+# EDU_MANAGER_V2 /goal: Production Live Without Known P0/P1 Bugs + Best-in-Class EduFlow UX
+
+## Status
+- Goal status: LOCAL VERIFIED; PRODUCTION DEPLOY/SMOKE PENDING.
+- Current source branch: `main`.
+- Production target: `https://edu-manager-gules.vercel.app`.
+- Execution mode: `ck:cook --auto --parallel` with `ck:team` sidecar agents.
+- Team rule: use explorer agents for code/runtime/design discovery, worker agents for independent implementation slices, and reviewer/tester agents for validation. If subagent capacity is unavailable, the lead continues inline and records the fallback.
 
 ## Summary
-- **Artifact target:** create `plans/2026-05-18-edu-manager-production-readiness/plan.md` as the first execution step, then keep it as the agent handoff source of truth.
-- **Baseline found:** repo has real Vercel/Prisma API surface, 22 frontend routes, 50+ server handlers, E2E/unit tests, Stitch project `12785236930566023458`, and Figma file `ZYAaYcKXq9LAYFOgCPJLZq`.
-- **Key risk found:** working tree is heavily dirty: tracked `.agent/.shared` deletions, doctrine changes, runtime DB WAL/SHM files, and an uncommitted `DashboardPage.jsx` experiment. This must be closed before new product work.
-- **Product risk found:** current uncommitted dashboard UI expects `unpaid_students`, but `server/api/reports/dashboard.ts` does not return it. Treat all “implemented” board claims as hypotheses until route-by-route evidence confirms real dataflow.
-- **UX direction:** “Education Operations Console” for a Vietnamese education center: dense, calm, fast, premium, data-linked, with grouped operations, finance, reports, and admin workflows. Avoid marketing-style hero pages, decorative blobs, emoji icons, and shell-only polish.
+- Objective: make EDU_MANAGER_V2 production-live with no known P0/P1 defects after verification, and keep the EduFlow UI aligned with the design guide.
+- "Without bug" means no known P0/P1 defect remains after current verification. It does not mean a mathematical guarantee that no future bug exists.
+- Immediate P0/P1 findings from current evidence:
+  - `/classes` crashes on production with `ReferenceError: motion is not defined`.
+  - Attendance-period lock can write a one-student/month fee from one class only, which is unsafe for multi-class students and is not atomic.
+  - Monthly fee confirm/cancel can race with payment because transitions are read-then-update.
+  - Direct receipt creation still allows zero-day positive receipts when no monthly fee is linked.
+  - Dashboard unpaid aggregates must not be derived from a truncated display list.
+  - Template designer advertises Fabric objects that PDF rendering must either support or explicitly reject.
 
-## Phase 0 — Plan Artifact & Branch Discipline
-- Create `plans/2026-05-18-edu-manager-production-readiness/plan.md` with this plan verbatim.
-- Create one working branch for the whole effort, but split commits by concern:
-  - `chore(workspace): reconcile operational drift`
-  - `docs(audit): record capability matrix`
-  - `design(ux): sync production design source of truth`
-  - `feat(ux): implement production UI system`
-  - `fix(workflows): close dataflow gaps`
-- Before any edit, snapshot:
-  - `git status --short --branch`
-  - `git diff --stat`
-  - `npm run test:unit`
-  - `npx tsc --noEmit`
-  - `cd frontend && npm run lint -- --max-warnings=0`
-  - `npm run build`
-- Do not deploy, migrate, seed, or mutate production data unless explicitly approved for that step.
+## Task Matrix
 
-## Phase 1 — Dirty/Untracked Drift Closeout
-- Classify current drift into five buckets and resolve each separately:
-  - **Framework deletions:** `.agent/**`, `.shared/**`; default action is restore tracked deletions unless a specific replacement exists and is documented.
-  - **Doctrine edits:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.agent/workflows/start-session.md`, skill files; keep only EDU_MANAGER_V2-scoped updates after scan for out-of-scope paths and broken encoding.
-  - **Runtime artifacts:** `backend/data/*.db-shm`, `backend/data/*.db-wal`; stop local DB processes, preserve only if needed for local reference data, otherwise remove from product commits and add/confirm ignore policy.
-  - **Product experiment:** `frontend/src/pages/DashboardPage.jsx`; preserve diff as review evidence, then either integrate via the new design system or revert before implementing the approved dashboard.
-  - **Generated/untracked artifacts:** `.codex/config.toml.bak`, `frontend/output/`, `memory/*` scaffolding; keep only files referenced by workspace doctrine, archive evidence screenshots under `receipts/artifacts/`, ignore generated output.
-- Acceptance: `git status --short` must show either clean state or only the active, intentional files for the next phase. No app code and framework drift in the same commit.
+| ID | Task | Agent Strategy | Status | Evidence Required |
+| --- | --- | --- | --- | --- |
+| T0 | Baseline git, plan, KANBAN, memory | Lead + explorer | DONE | `git status`, plan read |
+| T1 | Replace stale plan with this goal-aligned plan | Lead/docs worker | DONE | This file updated |
+| T2 | Fix `/classes` production crash | Lead/frontend worker | DONE | Full menu traversal passes |
+| T3 | Add full-menu desktop/mobile regression test | Lead/test worker | DONE | Playwright route traversal passes 22 protected routes desktop/mobile |
+| T4 | Fee integrity: atomic attendance-period lock and multi-class monthly fee aggregation | Backend worker + reviewer | DONE | `tests/tuition.test.ts`, `tests/production-contracts.test.ts`, unit 35/35 |
+| T5 | Fee state machine: conditional confirm/cancel transitions | Backend worker + reviewer | DONE | Conditional `updateMany` guards in confirm/cancel/calculate/pay; unit 35/35 |
+| T6 | Receipt/report integrity: block or classify zero-day positive receipts | Backend worker + reviewer | DONE | Validation/report anomaly tests; unit 35/35 |
+| T7 | Dashboard aggregate integrity | Backend/frontend worker | DONE | Dashboard contract test covers aggregate fields and `unpaid_count` |
+| T8 | Template/PDF fidelity | Backend/frontend worker | DONE | PDF test covers supported Fabric objects and unsupported image fallback |
+| T9 | EduFlow UX quality pass | UI worker + design reviewer | DONE | Desktop/mobile Playwright screenshots, no overflow, no console/page errors |
+| T10 | Verification gates | Tester/reviewer agents | LOCAL DONE | Unit, typecheck, lint, build, audit, Playwright pass locally; production smoke pending deploy |
+| T11 | KANBAN/memory/receipt writeback | Docs worker + lead review | IN PROGRESS | Updating board/memory/receipt |
 
-## Phase 2 — Deep Product Reality Audit
-- Build `docs/audit/2026-05-18-capability-matrix.md` with one row per route:
-  - UI route, page component, service method, API endpoint, Prisma models, auth role, data mutations, downstream data linkage, tests, production smoke, verdict.
-- Verdict vocabulary:
-  - `REAL`: UI uses real API, data persists, downstream modules consume it, tests and smoke pass.
-  - `PARTIAL`: core path works but missing edge cases, linkage, validation, or evidence.
-  - `SHELL`: page renders but is static, seed-only, mock-like, or not connected end-to-end.
-  - `BROKEN`: 404/500/network/console/layout failure or bad contract.
-- Audit critical journeys first:
-  - Login/change password/logout/RBAC.
-  - Student + parent onboarding.
-  - Class enrollment and teacher assignment.
-  - Attendance creation, review, period close.
-  - Monthly fee calculate, confirm, pay.
-  - Receipt/payment PDF generation and history.
-  - Reports, advanced reports, unpaid students.
-  - Templates and image upload.
-  - Import CSV preview/commit.
-  - Parent portal read-only.
-  - Backups, recycle bin, users, settings.
-- Add immediate bug tickets for mismatches found during audit, starting with dashboard `unpaid_students` contract.
+## Implementation Requirements
 
-## Phase 3 — UX/UI Design System Source Of Truth
-- Use Stitch first with `modelId: GEMINI_3_1_PRO`.
-  - Start from project `12785236930566023458`.
-  - Reuse current design system asset visible in Stitch project.
-  - Generate/refresh variants for: Dashboard, Student 360, Attendance Desk, Fee Collection, Receipt/Payment, Reports, Admin Settings, Parent Portal.
-  - Variant criteria: operational density, mobile usability, no horizontal overflow, fast repeated actions, Vietnamese copy length, finance readability.
-- Use Figma second as source of truth.
-  - Update file `ZYAaYcKXq9LAYFOgCPJLZq`, page `EDU_MANAGER_V2 Production UX`.
-  - Keep existing nodes `3:3`, `3:36`, `3:142`; add production frames for the missing main workflows.
-  - Define tokens: primary blue, neutral surfaces, emerald success, amber warning, red danger, info cyan, 8px controls, 12px major panels only.
-  - Create component specs for: AppShell, SidebarGroup, PageHeader, MetricCard, StatusBadge, FilterBar, DataTable, EmptyState, ErrorState, ConfirmDialog, FormField, Drawer, Tabs, Timeline, PDFActionButton.
-- Design rules:
-  - No emoji icons in production UI.
-  - No gradient blobs/orbs as decoration.
-  - No nested cards.
-  - No `transition-all`.
-  - Use `Intl.NumberFormat` and `Intl.DateTimeFormat`.
-  - Apply Vercel Web Interface Guidelines checks for accessibility, focus, forms, motion, layout, and locale: [source](https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md).
+### UI / EduFlow
+- Keep Vite + React + Tailwind v4; no framework migration.
+- Follow the Design Guide: Calm Productivity meets Vibrant Energy, dense operations console, purposeful motion, WCAG-aware contrast, responsive at 390/768/1440.
+- Use Stitch first and Figma second for new large UX directions. For this execution slice, existing Stitch/Figma evidence can be reused unless a page is redesigned materially.
+- Remove production crashes, no horizontal overflow, no console errors on menu routes.
+- Prefer existing shared UI primitives: `PageHeader`, `MetricCard`, `PageState`, `DataTable`, `Modal`.
 
-## Phase 4 — Frontend Implementation
-- Implement shared UI primitives before page rewrites:
-  - `frontend/src/components/ui/PageHeader.jsx`
-  - `MetricCard.jsx`, `StatusBadge.jsx`, `FilterBar.jsx`, `ActionToolbar.jsx`, `PageState.jsx`, `FormField.jsx`
-  - Upgrade `DataTable.jsx`, `Modal.jsx`, `Toast.jsx`, `EmptyState.jsx`.
-- Implement shell upgrade:
-  - Sidebar has primary/secondary menu groups, collapsible sections, role-aware items, keyboard focus, mobile drawer safe areas.
-  - Header has page context, user actions, online state, and compact mobile behavior.
-  - Layout supports dense tables and forms without overflow at 390px, 768px, 1440px.
-- Page redesign order:
-  - P0: Dashboard, Students, Classes, Attendance, Fee Collection, Receipts, Payments, Reports.
-  - P1: Parents, Teachers, Attendance Insights, Attendance Periods, Templates, History.
-  - P2: Advanced Reports, Audit Logs, Settings, Users, Imports, Fee Reminders, Backups, Recycle Bin, Parent Portal.
-- Dashboard must be data-linked:
-  - Either stop reading `unpaid_students` or add it to `/api/reports/dashboard`.
-  - Preferred contract: add optional `unpaid_students`, `today_attendance`, `attention_items`, and `quick_metrics` while preserving existing `stats` and `recent_transactions`.
-- Replace decorative quick actions with workflow queues:
-  - “Cần điểm danh”, “Cần chốt phí”, “Cần thu”, “Phiếu lỗi/in lại”, “Nhắc phí chưa gửi”.
-- Keep existing React/Vite/Tailwind architecture. Do not migrate framework.
+### Money / Attendance / Reports
+- Attendance drives monthly fees.
+- Period lock must be atomic: if fee generation fails, period must not be left locked.
+- MonthlyFee is unique per student/month; any lock-time calculation must aggregate all active class attendance for that student/month.
+- Paid monthly fees must not be reverted by confirm/cancel.
+- Direct receipt creation must not create a paid positive amount with zero chargeable sessions unless it is explicitly treated as an adjustment with a tracked reason.
+- Reports must surface receipt-only anomalies, not only MonthlyFee anomalies.
+- Dashboard aggregate counts and amounts must be computed from aggregate queries, not from a truncated display list.
 
-## Phase 5 — Dataflow & Backend Completion
-- For every `PARTIAL/SHELL/BROKEN` audit row, fix from backend outward:
-  - Prisma query and transaction.
-  - Serverless handler validation and RBAC.
-  - API snake_case response boundary.
-  - Frontend service method.
-  - Page state and downstream linkage.
-  - Unit/integration/E2E tests.
-- Billing ledger rules:
-  - Attendance drives monthly fee.
-  - Monthly fee payment creates receipt in a transaction.
-  - Receipt/payment PDF uses real persisted record and Unicode-safe font.
-  - Reports aggregate from receipts/payments, not UI-side placeholders.
-- Operational features:
-  - Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo provider, opt-in policy, approved templates, and rate controls are ready.
-  - Keep backup/cron endpoints protected by secrets and unauthenticated 403 smoke.
-  - Rotate `admin/admin123` and `JWT_SECRET` before real production operation.
+### Template / PDF
+- PDF generation must match the designer capabilities used in production, or unsupported designer tools must be disabled/validated.
+- Minimum Phase for this goal: text, line, rect, circle/ellipse, image/background, and QR placeholder are either rendered or explicitly blocked before save/use.
+- Keep Unicode PDF support and `/ToUnicode` evidence.
 
-## Phase 6 — Verification Gates
-- Static gates:
-  - `npm run test:unit`
-  - `npx tsc --noEmit`
-  - `npm run build`
-  - `cd frontend && npm run lint -- --max-warnings=0`
-  - `npm audit --audit-level=high`
-  - `cd frontend && npm audit --audit-level=high`
-  - `git diff --check`
-- E2E gates:
-  - Existing Phase B smoke suite.
-  - UX smoke at desktop 1440, tablet 768, mobile 390.
-  - No horizontal overflow.
-  - No console errors.
-  - No failed API requests.
-  - PDF endpoint returns `application/pdf`, `%PDF`, `/ToUnicode`, Roboto.
+## Test Plan
+- `git diff --check`
+- `npm run test:unit`
+- `npx tsc --noEmit`
+- `npm --prefix frontend run lint -- --max-warnings=0`
+- `npm run build`
+- `npm audit --audit-level=high`
+- `npm --prefix frontend audit --audit-level=high`
+- Playwright:
+  - `ux-redesign-smoke.spec.js`
+  - full menu traversal desktop/mobile
+  - any new targeted regression for dataflow pages
 - Production smoke after deploy:
-  - `/` 200.
-  - Protected API without token 401.
-  - Cron routes without secret 403.
-  - Core UI pages load without network errors.
-  - Critical journey smoke: login → student/class → attendance → fee → receipt PDF → reports.
-- Evidence write-back:
-  - `receipts/2026-05-18-production-readiness.md`
-  - `KANBAN.md`
-  - `memory/memory-bank/activeContext.md`
-  - `memory/memory-bank/progress.md`
-  - `memory/sessions/current-session.md`
+  - root 200
+  - protected API no token 401
+  - cron no secret 403
+  - login
+  - full menu traversal
+  - dashboard contract
+  - receipt PDF
+  - template upload/PDF path where applicable
 
-## Assumptions
-- Canonical workspace remains `C:\Users\haitr\OneDrive\0. GAU DATA\0.APP\EDU_MANAGER_V2`.
-- Production stack remains Vercel Serverless + Prisma + Neon + Vercel Blob.
-- Express/SQLite remains reference/local only.
-- API envelope remains `{ success, data|error }`.
-- Frontend boundary remains snake_case.
-- No real SMS/Zalo sending in this production-live pass.
-- Plan artifact creation is deferred until execution mode because the current turn is planning-only.
+## Acceptance Criteria
+- No known P0/P1 defect remains in current audit scope.
+- `/classes` and all protected menu routes load without page errors, console errors, 404/500 API errors, or horizontal overflow on desktop/mobile.
+- Fee/receipt/report paths prevent or surface known anomaly classes.
+- Static/build/test/audit gates pass.
+- Production smoke passes after deploy.
+- This plan, `KANBAN.md`, memory files, and a receipt are updated with evidence.
+
+## Remaining Risks
+- Real SMS/Zalo sending remains intentionally disabled until provider, opt-in policy, templates, and rate controls are approved.
+- Production credential rotation remains an operational follow-up.
+- Broad "best-in-class" UX is an ongoing standard; completion for this goal is based on verified P0/P1 closure and Design Guide-aligned screens in the current product surface.
+
+## Local Verification Snapshot - 2026-05-25
+- `npx tsc --noEmit` passed.
+- `npm run test:unit` passed 35/35.
+- `npm --prefix frontend run lint -- --max-warnings=0` passed.
+- `npm run build` passed after stopping the local smoke server that held Prisma's Windows query-engine DLL.
+- `npm audit --audit-level=high` passed with 0 vulnerabilities.
+- `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
+- `git diff --check` passed; only Git CRLF normalization warnings were reported.
+- `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.

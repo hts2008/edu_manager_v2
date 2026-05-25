@@ -45,11 +45,12 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-2. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-3. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-4. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
-5. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are locally verified on 2026-05-25.
+2. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
+3. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+4. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+5. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
+6. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.
@@ -153,9 +154,12 @@ Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and
 ## Now Doing
 Production is live on `https://edu-manager-gules.vercel.app` with the latest hardening deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
 
+2026-05-25 P0/P1 hardening local closeout: fixed `/classes` crash by importing Motion, added full protected-menu traversal across 22 routes desktop/mobile, made attendance-period lock transactional and multi-class aware, guarded monthly-fee calculate/confirm/cancel/pay transitions with conditional `updateMany`, blocked new positive tuition receipts with zero chargeable sessions, made student-fees report surface receipt-only anomalies, corrected dashboard unpaid aggregate math, and expanded PDF Fabric rendering for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported images. Local gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 35/35, frontend lint max-warnings=0, `npm run build`, root/frontend audits 0 vulnerabilities, and Playwright UX/menu/PDF 7/7 against `npm run dev:smoke`.
+
 ## Next Recommended Action
-1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
-2. Rotate production default credentials and JWT secret before real operation.
-3. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
-4. Optionally delete the two 1x1 smoke blobs from Vercel Storage UI (`edu-manager-live-blob`) if a zero-junk storage ledger is required; total size is 136B.
-5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.
+1. Commit/deploy the 2026-05-25 P0/P1 hardening batch, then run production smoke on `https://edu-manager-gules.vercel.app`.
+2. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
+3. Rotate production default credentials and JWT secret before real operation.
+4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
+5. Optionally delete the two 1x1 smoke blobs from Vercel Storage UI (`edu-manager-live-blob`) if a zero-junk storage ledger is required; total size is 136B.
+6. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.

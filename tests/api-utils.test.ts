@@ -65,11 +65,12 @@ test("receipt validation requires month and positive amount", () => {
   const body = validateBody(receiptCreateSchema, {
     student_id: "student-1",
     month: "2026-05",
+    days_count: "3",
     amount: "150000",
     payment_method: "cash",
   });
 
-  assert.equal(body.days_count, 0);
+  assert.equal(body.days_count, 3);
   assert.equal(body.amount, 150000);
   assert.throws(
     () =>
@@ -81,4 +82,27 @@ test("receipt validation requires month and positive amount", () => {
       }),
     /month must be YYYY-MM/
   );
+});
+
+test("receipt validation rejects direct positive receipts with zero chargeable sessions", () => {
+  assert.throws(
+    () =>
+      validateBody(receiptCreateSchema, {
+        student_id: "student-1",
+        month: "2026-05",
+        amount: 150000,
+        payment_method: "cash",
+      }),
+    /days_count must be greater than 0/
+  );
+
+  const monthlyFeeBody = validateBody(receiptCreateSchema, {
+    student_id: "student-1",
+    monthly_fee_id: "fee-1",
+    month: "2026-05",
+    amount: 150000,
+    payment_method: "cash",
+  });
+  assert.equal(monthlyFeeBody.days_count, 0);
+  assert.equal(monthlyFeeBody.monthly_fee_id, "fee-1");
 });

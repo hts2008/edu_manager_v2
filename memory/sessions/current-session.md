@@ -193,6 +193,17 @@
   - [x] Fast-forward `main` to `e4bab40` and push `origin/main`.
   - [x] Run Vercel production deploy `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`.
   - [x] Verify root 200, auth no-token 401, cron no-token 403, login/dashboard/student-fees/receipt PDF/template upload, and production Playwright 6/6.
+- [x] Implement 2026-05-25 P0/P1 production readiness local closeout.
+  - [x] Summarize current progress and inspect git diff before continuing.
+  - [x] Use `ck:team` worker delegation for the bounded PDF/template fidelity slice.
+  - [x] Fix `/classes` runtime crash and add full protected-menu desktop/mobile route traversal.
+  - [x] Make attendance-period lock transactional and multi-class aware.
+  - [x] Guard monthly-fee calculate/confirm/cancel/pay transitions with conditional updates.
+  - [x] Block new positive tuition receipts with zero chargeable sessions and surface receipt-only anomalies.
+  - [x] Correct dashboard unpaid aggregate math.
+  - [x] Expand Fabric-to-PDF support for text, line, rect, circle, ellipse, group, and base64 PNG/JPEG images.
+  - [x] Verify `git diff --check`, `npx tsc --noEmit`, unit 35/35, frontend lint, build, audits, and local Playwright UX/menu/PDF 7/7.
+  - [ ] Commit/deploy and smoke production.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
@@ -209,15 +220,20 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
-2. Rotate default credentials and JWT secret before real production operation.
-3. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
-4. Optionally clean the two 1x1 Blob smoke files from Vercel Storage UI.
-5. Commit hygiene decision: use two explicit batches only (`app/product` then `docs-memory-evidence`); never stage `.codex/config.toml` or broad workspace paths.
+1. Commit/deploy the 2026-05-25 P0/P1 production-readiness batch and run production smoke.
+2. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
+3. Rotate default credentials and JWT secret before real production operation.
+4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
+5. Optionally clean the two 1x1 Blob smoke files from Vercel Storage UI.
+6. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
+- `npm run test:unit` passed 35/35.
+- `npm --prefix frontend run lint -- --max-warnings=0` passed.
 - `npm run build` passed.
+- `npm audit --audit-level=high` and `npm --prefix frontend audit --audit-level=high` passed with 0 vulnerabilities.
+- `npm --prefix frontend run test:e2e -- ux-redesign-smoke.spec.js --reporter=list` passed 7/7 against `npm run dev:smoke`.
 - `cd frontend && npm run lint -- --max-warnings=0` passed.
 - `node --check scripts\parity-test.mjs` passed.
 - `git diff --check` passed.

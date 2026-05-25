@@ -10,6 +10,8 @@ test("dashboard API exposes the frontend operations-console contract", () => {
   const code = source("server/api/reports/dashboard.ts");
 
   assert.match(code, /export default requireAuth\(handler\)/);
+  assert.match(code, /unpaidFeesCount/);
+  assert.match(code, /unpaidFeesAggregate/);
   assert.match(code, /unpaid_students/);
   assert.match(code, /today_attendance/);
   assert.match(code, /attention_items/);
@@ -30,13 +32,40 @@ test("attendance write APIs reject edits against locked periods", () => {
 
 test("money APIs protect fee ledger linkage", () => {
   const pay = source("server/api/monthly-fees/[id]/pay.ts");
+  const confirm = source("server/api/monthly-fees/[id]/confirm.ts");
+  const cancel = source("server/api/monthly-fees/[id]/cancel.ts");
+  const calculate = source("server/api/monthly-fees/calculate.ts");
   const receipts = source("server/api/receipts/index.ts");
 
   assert.match(pay, /FEE_PAYMENT_CONFLICT/);
+  assert.match(pay, /ZERO_DAY_POSITIVE_RECEIPT/);
   assert.match(pay, /updateMany/);
   assert.match(pay, /receiptId: null/);
+  assert.match(confirm, /updateMany/);
+  assert.match(confirm, /MONTHLY_FEE_STATE_CONFLICT/);
+  assert.match(cancel, /updateMany/);
+  assert.match(cancel, /MONTHLY_FEE_STATE_CONFLICT/);
+  assert.match(calculate, /FEE_ALREADY_PAID/);
+  assert.match(calculate, /updateMany/);
   assert.match(receipts, /monthly_fee_id/);
   assert.match(receipts, /MONTHLY_FEE_LINK_CONFLICT/);
+  assert.match(receipts, /ZERO_DAY_POSITIVE_RECEIPT/);
+});
+
+test("attendance lock refreshes student-month tuition atomically across active classes", () => {
+  const code = source("server/api/attendance-periods/[id]/index.ts");
+
+  assert.match(code, /prisma\.\$transaction/);
+  assert.match(code, /calculateStudentMonthlyTuition/);
+  assert.match(code, /classId: \{ in: classIds \}/);
+  assert.match(code, /ATTENDANCE_PERIOD_STATE_CONFLICT/);
+});
+
+test("student fee report flags paid receipt anomalies even without monthly fee rows", () => {
+  const code = source("server/api/reports/student-fees.ts");
+
+  assert.match(code, /RECEIPT_WITH_ZERO_DAYS/);
+  assert.match(code, /hasZeroDayPositiveReceipt/);
 });
 
 test("core serverless handlers use DB-backed requireAuth instead of token-only auth", () => {
