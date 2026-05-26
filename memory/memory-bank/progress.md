@@ -426,3 +426,16 @@
 - **DB Note**: `npx prisma migrate status` was read-only and reported the Neon DB is not managed by Prisma Migrate because this repo has no `prisma/migrations`; no migration or seed was run.
 - **Evidence**: `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-05-25 - Fee Workbench + UX Closeout
+- **Scope**: Finish the approved plan for the latest reported production UX defects: edit modals could not reach save controls, Attendance only showed a fixed 3-month window, Template Designer behaved like a shell, finance navigation duplicated `Thu tien` and `Thu hoc phi`, and tuition collection required repetitive manual receipt work.
+- **Implementation**: Updated the shared modal shell to use viewport-bounded scrollable bodies; changed DataTable to default to all filtered rows with `Tat ca`, `500`, `100`, and `50` display choices; added Attendance previous/next month-window controls; made Template Designer reload by template id and support default scaffolds, undo/redo, zoom, and responsive canvas layout; merged finance navigation into one Fee Workbench; added `POST /api/monthly-fees/bulk-pay`; exposed class filtering for students/monthly fees; and rebuilt `FeeCollectionPage` with filters, multi-select, calculate-selected, batch cash/transfer collection, and print queue.
+- **Team Mode**: Used Codex `ck:team` style delegation for bounded exploration/worker slices earlier in the implementation; the final closeout explorer hit quota and was closed, so final evidence reconciliation continued inline per fallback policy.
+- **Validation**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 39/39, frontend lint max-warnings=0, `npm run build`, root/frontend high audit gates, local bulk-pay API smoke, local UX smoke 10/10, and local Phase-B smoke 17/17 passed.
+- **Deployment**: Implementation commit `c793de3` was pushed to `origin/main`; Vercel production deployment `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production login succeeded; non-mutating bulk-pay probes returned `UNAUTHORIZED` without token and `NO_SELECTION` with an empty authenticated request; production Phase-B smoke passed 17/17; production UX smoke passed 10/10 after stabilizing the attendance expectation timeout.
+- **Safety**: No Prisma migration, seed, or destructive production mutation was run. The new production bulk-pay route was smoke-tested only through non-mutating error cases.
+- **Evidence**: `receipts/2026-05-25-fee-workbench-ux-closeout.md`.
+- **STATUS**: IMPLEMENTED.

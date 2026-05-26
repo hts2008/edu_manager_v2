@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, and the 2026-05-25 month-bounded tuition + EduFlow UI closeout are implemented with production evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, and the 2026-05-25 Fee Workbench + UX closeout are implemented with production evidence.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -218,19 +218,32 @@
   - [x] Deploy Vercel production `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`.
   - [x] Verify production UX 7/7 and Phase-B 17/17.
   - [x] Record KANBAN, memory, decision, progress, and receipt evidence.
+- [x] Implement 2026-05-25 Fee Workbench + UX closeout.
+  - [x] Summarize completed steps and inspect git diff before continuing.
+  - [x] Use `ck:team` style bounded delegation where useful; close quota-limited or completed subagents.
+  - [x] Make edit modals viewport-bounded with scrollable bodies so save actions are reachable.
+  - [x] Add DataTable all/500/100/50 display controls.
+  - [x] Add Attendance previous/next month-window navigation and today reset.
+  - [x] Make Template Designer usable with default scaffold, reload by template id, undo/redo, zoom, and responsive canvas.
+  - [x] Merge finance navigation into one `Thu tien` Fee Workbench while keeping `/receipts` as receipt history/print surface.
+  - [x] Add `POST /api/monthly-fees/bulk-pay`, class filtering, batch collection UI, and print queue.
+  - [x] Verify local static gates, audits, API smoke, UX smoke 10/10, and Phase-B smoke 17/17.
+  - [x] Deploy Vercel production `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12`.
+  - [x] Verify production API probes, UX smoke 10/10, and Phase-B smoke 17/17.
+  - [x] Record KANBAN, progress, active context, session state, and receipt evidence.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, and month-bounded tuition + EduFlow UI closeout are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, and Fee Workbench + UX closeout are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`; production alias `https://edu-manager-gules.vercel.app` passed UX 7/7 and Phase-B 17/17 after the month-bounded tuition + EduFlow UI closeout.
+- **Latest production deployment observed in Codex session**: `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12`; production alias `https://edu-manager-gules.vercel.app` passed UX 10/10 and Phase-B 17/17 after the Fee Workbench + UX closeout.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
 - Local workflow structure can remain, but memory truth must be Edu Manager-specific.
-- Working tree contains the current app/test/docs/memory closeout edits; avoid broad commits and stage explicit paths only.
+- Working tree contains only the current docs/test/evidence closeout edits after implementation commit `c793de3`; avoid broad commits and stage explicit paths only.
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
@@ -242,14 +255,15 @@
 
 ## Evidence Needed Before Done
 - `npx tsc --noEmit` passed.
-- `npm run test:unit` passed 38/38.
+- `npm run test:unit` passed 39/39.
 - `npm --prefix frontend run lint -- --max-warnings=0` passed.
 - `npm run build` passed.
 - `git diff --check` passed with LF/CRLF warnings only.
-- Local Playwright `ux-redesign-smoke.spec.js` passed 7/7.
+- Local Playwright `ux-redesign-smoke.spec.js` passed 10/10.
 - Local Playwright `phase-b-smoke.spec.js` passed 17/17.
-- Production deploy `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` Ready on `https://edu-manager-gules.vercel.app`.
-- Production Playwright `ux-redesign-smoke.spec.js` passed 7/7.
+- Production deploy `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12` Ready on `https://edu-manager-gules.vercel.app`.
+- Production Playwright `ux-redesign-smoke.spec.js` passed 10/10.
+- Production Playwright `ux-redesign-smoke.spec.js` was reconfirmed 10/10 on 2026-05-26 after docs/test closeout updates.
 - Production Playwright `phase-b-smoke.spec.js` passed 17/17.
 - `npx prisma migrate status` was read-only and reported no Prisma Migrate history; no migration or seed was run.
 - Chrome UI smoke passed across `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, `/history`, `/attendance`, `/attendance-periods` with no failed fetch requests.

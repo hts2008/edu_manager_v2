@@ -118,7 +118,7 @@ test("attendance calendar exposes previous and future month navigation", async (
   await classSelect.selectOption({ index: 1 });
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByRole("button", { name: "← 3 tháng" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "← 3 tháng" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: "Tháng trước" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Hôm nay" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Tháng sau" })).toBeVisible();

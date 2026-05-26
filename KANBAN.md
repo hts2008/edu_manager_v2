@@ -340,6 +340,35 @@
 
 ---
 
+## FEE WORKBENCH + UX CLOSEOUT - 2026-05-25
+
+**Objective:** close the reported production UX defects in edit modals, attendance month browsing, printable template design, and tuition collection workflow.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| UX-MODAL-001 | Make edit dialogs scrollable and save actions reachable | `Modal.jsx`, modal consumers | IMPLEMENTED | Modal shell uses viewport-bounded flex layout with scrollable body; Phase-B smoke 17/17 local/prod. |
+| UX-TABLE-001 | Add production row display controls | `DataTable.jsx` | IMPLEMENTED | Default shows all filtered rows; selector supports `Tất cả`, `500`, `100`, `50`; UX smoke local/prod pass. |
+| UX-ATT-001 | Add attendance month navigation | `AttendancePage.jsx` | IMPLEMENTED | Previous/next month, previous/next 3 months, today reset; UX smoke local/prod pass. |
+| UX-TPL-001 | Make Template Designer usable beyond a blank shell | `TemplateDesignerPage.jsx` | IMPLEMENTED | Default scaffold, reload by template id, undo/redo, zoom, responsive layout; Template Designer smoke local/prod pass. |
+| FEE-WB-001 | Merge tuition collection into one Fee Workbench | Sidebar/Header, `FeeCollectionPage.jsx`, `ReceiptsPage.jsx` | IMPLEMENTED | Finance menu has one `Thu tiền` entry to `/fee-collection`; `/receipts` remains receipt history. |
+| FEE-WB-002 | Add batch tuition collection API and UI | `server/api/monthly-fees/bulk-pay.ts`, router, API client | IMPLEMENTED | Unit contract route-shadow guard; production non-mutating bulk-pay smoke returns 401/NO_SELECTION correctly. |
+| QA-LIVE-002 | Deploy and smoke production after UX/Fee Workbench fixes | Vercel + Playwright | IMPLEMENTED | Vercel deploy `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12` Ready; production UX smoke 10/10 and Phase-B smoke 17/17. |
+
+**Local evidence**
+- `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 39/39, frontend lint max-warnings=0, `npm run build`, root/frontend audit high gates passed.
+- Local API smoke for `/api/monthly-fees/bulk-pay`: no token -> `UNAUTHORIZED`; auth no selection -> `NO_SELECTION`.
+- Local Playwright: `ux-redesign-smoke.spec.js` 10/10 and `phase-b-smoke.spec.js` 17/17.
+
+**Production evidence**
+- Commit `c793de3` pushed to `origin/main`.
+- Production deploy `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12` Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Production API smoke: login success; bulk-pay no token -> `UNAUTHORIZED`; auth no selection -> `NO_SELECTION`.
+- Production Playwright: UX smoke 10/10 and Phase-B smoke 17/17.
+
+**Receipt:** `receipts/2026-05-25-fee-workbench-ux-closeout.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -398,10 +427,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 38/38, local/prod UX smoke 7/7, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check pass |
-| Production usability | Live on `edu-manager-gules`; latest month-bounded tuition + EduFlow UI closeout is deployed and production-smoked |
+| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod UX smoke 10/10, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check/audit pass |
+| Production usability | Live on `edu-manager-gules`; latest Fee Workbench + UX closeout is deployed and production-smoked |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, and month-bounded tuition closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, and Fee Workbench + UX closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 
@@ -460,4 +489,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-25 17:12
+**Last Updated:** 2026-05-26 10:22
