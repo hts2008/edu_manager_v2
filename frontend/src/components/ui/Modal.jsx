@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 // VI: Modal component cho dialogs
@@ -12,6 +13,7 @@ export default function Modal({
   bodyClassName = ''
 }) {
   const modalRef = useRef(null);
+  const previousBodyOverflowRef = useRef('');
   const titleId = useId();
 
   // Handle ESC key
@@ -22,6 +24,7 @@ export default function Modal({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEsc);
+      previousBodyOverflowRef.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       window.setTimeout(() => {
         const focusTarget = modalRef.current?.querySelector(
@@ -33,7 +36,7 @@ export default function Modal({
 
     return () => {
       document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousBodyOverflowRef.current;
     };
   }, [isOpen, onClose]);
 
@@ -45,10 +48,10 @@ export default function Modal({
     full: 'max-w-[95%] mx-auto',
   };
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
+        <div className="fixed inset-0 z-50 box-border overflow-hidden p-3 sm:p-6">
           <Motion.div
             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
@@ -58,14 +61,14 @@ export default function Modal({
             onClick={onClose}
             aria-hidden="true"
           />
-          <div className="relative z-10 flex min-h-full items-start justify-center py-4 sm:items-center">
+          <div className="relative z-10 flex h-full items-start justify-center">
           <Motion.div
             ref={modalRef}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-            className={`flex max-h-[calc(100dvh-2rem)] w-full ${sizes[size]} flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-xl`}
+            className={`flex max-h-full w-full ${sizes[size]} flex-col overflow-hidden rounded-[2rem] border border-white/60 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur-xl`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -96,7 +99,7 @@ export default function Modal({
             )}
 
             {/* Body */}
-            <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-5 md:px-8 md:py-6 ${bodyClassName}`}>
+            <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 md:px-8 md:py-6 ${bodyClassName}`}>
               {children}
             </div>
           </Motion.div>
@@ -105,6 +108,12 @@ export default function Modal({
       )}
     </AnimatePresence>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 }
 
 // Confirm dialog helper

@@ -30,6 +30,106 @@ async function expectNoHorizontalOverflow(page) {
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 2);
 }
 
+async function expectFirstRowEditModalScrollsToActions(page, path, screenshotName) {
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(path);
+  await page.waitForLoadState("networkidle");
+
+  const firstRow = page.locator("table tbody tr").first();
+  const rowCount = await page.locator("table tbody tr").count();
+  test.skip(rowCount === 0, `No table rows available for modal scroll smoke on ${path}.`);
+
+  await firstRow.click({ position: { x: 220, y: 24 } });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  const submitButton = dialog.locator('button[type="submit"]').last();
+  await expect(submitButton).toBeVisible({ timeout: 15_000 });
+
+  const initialMetrics = await page.evaluate(() => {
+    const dialogEl = document.querySelector('[role="dialog"]');
+    const submit = dialogEl?.querySelector('button[type="submit"]');
+    const dialogRect = dialogEl?.getBoundingClientRect();
+    const submitRect = submit?.getBoundingClientRect();
+    return {
+      dialogTop: dialogRect?.top ?? null,
+      dialogBottom: dialogRect?.bottom ?? null,
+      submitTop: submitRect?.top ?? null,
+      submitBottom: submitRect?.bottom ?? null,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(initialMetrics.dialogTop).toBeGreaterThanOrEqual(0);
+  expect(initialMetrics.dialogBottom).toBeLessThanOrEqual(initialMetrics.viewportHeight + 2);
+
+  const box = await dialog.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height - 80, box.height / 2));
+  await page.mouse.wheel(0, 4000);
+  await expect(submitButton).toBeInViewport({ timeout: 10_000 });
+
+  const finalMetrics = await page.evaluate(() => {
+    const dialogEl = document.querySelector('[role="dialog"]');
+    const submit = dialogEl?.querySelector('button[type="submit"]');
+    const scrollables = [...(dialogEl?.querySelectorAll("*") || [])]
+      .filter((el) => el.scrollHeight > el.clientHeight + 2)
+      .map((el) => ({
+        scrollTop: el.scrollTop,
+        clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+        className: String(el.className),
+      }));
+    const submitRect = submit?.getBoundingClientRect();
+    return {
+      submitTop: submitRect?.top ?? null,
+      submitBottom: submitRect?.bottom ?? null,
+      viewportHeight: window.innerHeight,
+      scrollables,
+    };
+  });
+
+  expect(finalMetrics.submitTop).toBeGreaterThanOrEqual(0);
+  expect(finalMetrics.submitBottom).toBeLessThanOrEqual(finalMetrics.viewportHeight + 2);
+  expect(finalMetrics.scrollables.some((item) => item.scrollHeight > item.clientHeight)).toBeTruthy();
+  await page.screenshot({ path: `output/playwright/${screenshotName}`, fullPage: true });
+}
+
+async function expectButtonModalScrollsToActions(page, path, openButtonName, screenshotName) {
+  await seedAuth(page);
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.goto(path);
+  await page.waitForLoadState("networkidle");
+
+  await page.getByRole("button", { name: openButtonName }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+
+  const submitButton = dialog.locator('button[type="submit"]').last();
+  await expect(submitButton).toBeVisible({ timeout: 15_000 });
+
+  const initialMetrics = await page.evaluate(() => {
+    const dialogEl = document.querySelector('[role="dialog"]');
+    const dialogRect = dialogEl?.getBoundingClientRect();
+    return {
+      dialogTop: dialogRect?.top ?? null,
+      dialogBottom: dialogRect?.bottom ?? null,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(initialMetrics.dialogTop).toBeGreaterThanOrEqual(0);
+  expect(initialMetrics.dialogBottom).toBeLessThanOrEqual(initialMetrics.viewportHeight + 2);
+
+  const box = await dialog.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height - 80, box.height / 2));
+  await page.mouse.wheel(0, 4000);
+  await expect(submitButton).toBeInViewport({ timeout: 10_000 });
+  await page.screenshot({ path: `output/playwright/${screenshotName}`, fullPage: true });
+}
+
 const protectedMenuPaths = [
   "/",
   "/students",
@@ -143,6 +243,16 @@ test("template designer loads an editable canvas surface", async ({ page, reques
   await expect(page.getByRole("button", { name: "Redo" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload ảnh" })).toBeVisible();
   await expect(page.locator("canvas").first()).toBeVisible();
+});
+
+test("long edit modals stay viewport-bounded and scroll to action buttons", async ({ page }) => {
+  test.setTimeout(120_000);
+  await expectFirstRowEditModalScrollsToActions(page, "/classes", "modal-scroll-classes.png");
+  await expectFirstRowEditModalScrollsToActions(page, "/students", "modal-scroll-students.png");
+  await expectFirstRowEditModalScrollsToActions(page, "/parents", "modal-scroll-parents.png");
+  await expectFirstRowEditModalScrollsToActions(page, "/teachers", "modal-scroll-teachers.png");
+  await expectButtonModalScrollsToActions(page, "/payments", /Tạo phiếu chi/, "modal-scroll-payments.png");
+  await expectButtonModalScrollsToActions(page, "/receipts", /Tạo phiếu thu/, "modal-scroll-receipts.png");
 });
 
 test("all protected menu routes load on desktop and mobile", async ({ browser }) => {
