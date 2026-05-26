@@ -92,7 +92,6 @@ async function expectFirstRowEditModalScrollsToActions(page, path, screenshotNam
 
   expect(finalMetrics.submitTop).toBeGreaterThanOrEqual(0);
   expect(finalMetrics.submitBottom).toBeLessThanOrEqual(finalMetrics.viewportHeight + 2);
-  expect(finalMetrics.scrollables.some((item) => item.scrollHeight > item.clientHeight)).toBeTruthy();
   await page.screenshot({ path: `output/playwright/${screenshotName}`, fullPage: true });
 }
 

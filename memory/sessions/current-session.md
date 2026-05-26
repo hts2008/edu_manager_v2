@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, and the 2026-05-25 Fee Workbench + UX closeout are implemented with production evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, and the 2026-05-26 modal scroll production fix are implemented with production evidence.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -231,14 +231,23 @@
   - [x] Deploy Vercel production `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12`.
   - [x] Verify production API probes, UX smoke 10/10, and Phase-B smoke 17/17.
   - [x] Record KANBAN, progress, active context, session state, and receipt evidence.
+- [x] Implement 2026-05-26 modal scroll production fix.
+  - [x] Reproduce the reported class modal defect in Chrome/Playwright before code changes.
+  - [x] Use `ck:team` explorers for independent code and coverage review.
+  - [x] Portal shared `Modal` to `document.body`.
+  - [x] Make the modal shell viewport-bounded and the body the only scroll area.
+  - [x] Add Chrome regression coverage for classes, students, parents, teachers, payments, and receipts.
+  - [x] Verify local build, typecheck, lint, unit 39/39, UX 11/11, Phase-B 17/17.
+  - [x] Deploy Vercel production `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn`.
+  - [x] Verify production focused modal smoke 1/1, UX 11/11, and Phase-B 17/17.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, and Fee Workbench + UX closeout are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, and modal scroll production fix are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12`; production alias `https://edu-manager-gules.vercel.app` passed UX 10/10 and Phase-B 17/17 after the Fee Workbench + UX closeout.
+- **Latest production deployment observed in Codex session**: `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn`; production alias `https://edu-manager-gules.vercel.app` passed focused modal smoke 1/1, UX 11/11, and Phase-B 17/17 after the modal scroll production fix.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.

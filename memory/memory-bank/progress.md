@@ -439,3 +439,17 @@
 - **Safety**: No Prisma migration, seed, or destructive production mutation was run. The new production bulk-pay route was smoke-tested only through non-mutating error cases.
 - **Evidence**: `receipts/2026-05-25-fee-workbench-ux-closeout.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-05-26 - Modal Scroll Production Fix
+- **Scope**: Fix the remaining production defect where long edit/create modals could not scroll far enough to expose lower fields and save actions.
+- **RCA**: Chrome production probing showed shared modals were still rendered inline under Framer Motion page wrappers and app scroll containers, so `position: fixed` was not reliably viewport-fixed. A secondary double-padding issue could keep tall dialogs a few pixels below the viewport even after portaling.
+- **Implementation**: Portaled `Modal.jsx` to `document.body`, preserved/restored prior body overflow, changed the shell to `box-border overflow-hidden`, made the panel `max-h-full`, removed double vertical padding, and kept the modal body as the only scroll region with `overscroll-contain`.
+- **Coverage**: Added Chrome-channel Playwright coverage that opens and scrolls action buttons for `/classes`, `/students`, `/parents`, `/teachers`, `/payments`, and `/receipts`.
+- **Validation**: Local `npm run build`, `npx tsc --noEmit`, frontend lint max-warnings=0, unit 39/39, focused modal smoke 1/1, UX smoke 11/11, Phase-B smoke 17/17, and `git diff --check` passed.
+- **Deployment**: Commit `8819718` was pushed to `origin/main`; Vercel production deployment `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Focused modal smoke passed 1/1; full UX smoke passed 11/11; Phase-B smoke passed 17/17.
+- **Safety**: No Prisma migration, seed, or destructive production mutation was run.
+- **Evidence**: `receipts/2026-05-26-modal-scroll-production-fix.md`.
+- **STATUS**: IMPLEMENTED.

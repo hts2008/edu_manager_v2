@@ -369,6 +369,21 @@
 
 ---
 
+## MODAL SCROLL PRODUCTION FIX - 2026-05-26
+
+**Objective:** fix the remaining production defect where long edit/create modals could not scroll to bottom fields and save actions.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| UX-MODAL-002 | Portal shared modal to viewport root | `frontend/src/components/ui/Modal.jsx` | IMPLEMENTED | Modal now renders through `createPortal(..., document.body)` so Framer Motion page transforms cannot re-anchor `position: fixed`. |
+| UX-MODAL-003 | Make modal shell truly viewport bounded | `Modal.jsx` | IMPLEMENTED | Overlay uses `box-border overflow-hidden`, panel uses `max-h-full`, body is the only vertical scroll area with `overscroll-contain`. |
+| QA-MODAL-001 | Add Chrome modal-scroll regression coverage | `frontend/e2e/ux-redesign-smoke.spec.js` | IMPLEMENTED | Tests open/scroll action buttons for classes, students, parents, teachers, payments, and receipts. |
+| QA-LIVE-003 | Deploy and production-smoke modal fix | Vercel + Chrome Playwright | IMPLEMENTED | Production deploy `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn` Ready; focused modal smoke 1/1, full UX 11/11, Phase-B 17/17. |
+
+**Receipt:** `receipts/2026-05-26-modal-scroll-production-fix.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -427,10 +442,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod UX smoke 10/10, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check/audit pass |
-| Production usability | Live on `edu-manager-gules`; latest Fee Workbench + UX closeout is deployed and production-smoked |
+| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod UX smoke 11/11, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check/audit pass |
+| Production usability | Live on `edu-manager-gules`; latest modal scroll production fix is deployed and production-smoked |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, and Fee Workbench + UX closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, Fee Workbench + UX closeout, and the 2026-05-26 modal scroll production fix are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 
@@ -489,4 +504,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-26 10:22
+**Last Updated:** 2026-05-26 10:55
