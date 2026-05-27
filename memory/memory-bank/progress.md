@@ -453,3 +453,15 @@
 - **Safety**: No Prisma migration, seed, or destructive production mutation was run.
 - **Evidence**: `receipts/2026-05-26-modal-scroll-production-fix.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-05-27 - Performance Route-Loading Production Closeout
+- **Scope**: Continue the active production-live goal and address reported slowness by reducing initial bundle cost, removing known overfetch, adding safe API dedupe/cache, and creating repeatable Chrome performance evidence.
+- **Implementation**: Added route-level `React.lazy`/`Suspense`, Vite vendor manual chunks, lighter page transition, GET request cache/dedupe with mutation/401 invalidation, DB-backed `/auth/me` payload reuse, slim `/students?fields=options`, lazy student-option loading in `/classes`, read-only `/api/monthly-fees/workbench`, Fee Workbench wiring to the aggregate endpoint, unpaid-students `groupBy`, and Prisma composite indexes.
+- **Team Mode**: Spawned worker/explorer subagents per user authorization, but new subagents hit runtime usage-limit errors; completed the remaining scope inline under `ck:team` fallback and closed/verified locally.
+- **Validation**: `git diff --check`, `npx prisma validate`, `node --check scripts/perf-smoke.mjs`, `npx tsc --noEmit`, `npm run test:unit` 39/39, frontend lint max-warnings=0, and `npm run build` passed. Local Chrome perf smoke passed 10/10 routes and 25/25 API calls; local UX smoke passed 11/11; local Phase-B smoke passed 17/17.
+- **Database/Deploy**: `npx prisma db push` synced additive indexes to Neon. Commit `5c761ba` was pushed to `origin/main`; Vercel deployment `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production Chrome perf smoke passed 10/10 routes and 25/25 API calls with read-only guard enabled; production UX smoke passed 11/11; production Phase-B smoke passed 17/17.
+- **Evidence**: `receipts/2026-05-27-performance-production-closeout.md`, `receipts/perf/perf-smoke-2026-05-27T06-11-33-159Z.md`, `receipts/perf/perf-smoke-2026-05-27T06-17-57-458Z.md`.
+- **STATUS**: IMPLEMENTED.

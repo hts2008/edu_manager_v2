@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn` on `https://edu-manager-gules.vercel.app` after the 2026-05-26 modal scroll production fix.
+- **Latest production deployment observed in Codex session**: `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` on `https://edu-manager-gules.vercel.app` after the 2026-05-27 performance route-loading closeout.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -45,13 +45,14 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
-2. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
-3. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-4. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-5. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-6. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
-7. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
+2. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
+3. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
+4. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
+5. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+6. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+7. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
+8. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.
@@ -163,9 +164,11 @@ Production is live on `https://edu-manager-gules.vercel.app` with the latest mod
 
 2026-05-26 modal scroll production fix: RCA showed shared modals were rendered inline under Framer Motion page wrappers, so `position: fixed` could be re-anchored by transformed ancestors and long dialogs stayed below the viewport. `Modal.jsx` now portals content to `document.body`, preserves previous body overflow, uses a viewport-bounded `box-border` shell, removes double padding, and keeps only the modal body scrollable with `overscroll-contain`. Added Chrome regression coverage for classes, students, parents, teachers, payments, and receipts. Commit `8819718` was pushed and Vercel deploy `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn` is Ready. Local gates passed: build, typecheck, lint, unit 39/39, focused modal smoke 1/1, UX 11/11, Phase-B 17/17, diff-check. Production gates passed: focused modal smoke 1/1, UX 11/11, Phase-B 17/17. No Prisma migration, seed, or destructive production data mutation was run.
 
+2026-05-27 performance route-loading closeout: route pages now load through `React.lazy` + `Suspense`; Vite emits manual vendor chunks for React/router/motion/charts/Fabric/icons; page transitions no longer use blur; API GET calls have short-lived dedupe/cache with mutation and 401 invalidation; `/auth/me` reuses the DB-backed `requireAuth()` payload; `/students?fields=options` supports slim lookup payloads; `/classes` no longer loads all active students on page open; Fee Workbench uses read-only `/api/monthly-fees/workbench` for active students + fees in one request; unpaid-students attendance counts use `groupBy`; Prisma composite indexes were added and synced to Neon with `npx prisma db push`. Commit `5c761ba` was pushed and Vercel deploy `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` is Ready. Local gates passed: diff-check, Prisma validate, perf script syntax, typecheck, unit 39/39, lint, build, perf smoke 10/10, UX 11/11, Phase-B 17/17. Production gates passed: perf smoke 10/10 and 25/25 API calls, UX 11/11, Phase-B 17/17. Evidence: `receipts/2026-05-27-performance-production-closeout.md`.
+
 ## Next Recommended Action
 1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
 2. Rotate production default credentials and JWT secret before real operation.
-3. Plan code-splitting for the existing large Vite chunks if performance budgets become strict.
+3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
 5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.

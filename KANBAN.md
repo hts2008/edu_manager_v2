@@ -384,6 +384,38 @@
 
 ---
 
+## PERFORMANCE / ROUTE LOADING CLOSEOUT - 2026-05-27
+
+**Objective:** reduce the reported platform slowness by cutting first-load bundle weight, removing page-level overfetch, adding safe API dedupe/cache, and creating repeatable Chrome performance evidence.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| PERF-001 | Split route bundles and heavy vendors | `frontend/src/App.jsx`, `frontend/vite.config.js` | IMPLEMENTED | Vite build now emits page chunks plus `vendor-react`, `vendor-router`, `vendor-motion`, `vendor-charts`, `vendor-fabric`, `vendor-icons`. |
+| PERF-002 | Reduce transition and API duplicate-call overhead | `PageTransition.jsx`, `frontend/src/services/api.js` | IMPLEMENTED | Removed blur-heavy page transition; GET cache/dedupe with mutation/401 invalidation; local/prod perf smoke pass. |
+| PERF-003 | Remove `/classes` initial student overfetch | `ClassesPage.jsx`, `/api/students?fields=options` | IMPLEMENTED | `/classes` production perf smoke loads `auth/me`, `classes`, `teachers`; active student options load only when the class form opens. |
+| PERF-004 | Add Fee Workbench aggregate read endpoint | `server/api/monthly-fees/workbench.ts`, router, `FeeCollectionPage.jsx` | IMPLEMENTED | `/fee-collection` production perf smoke uses `/api/monthly-fees/workbench?month=2026-05&limit=500`. |
+| PERF-005 | Add DB/query performance hardening | `prisma/schema.prisma`, `reports/unpaid-students.ts`, `auth/me.ts` | IMPLEMENTED | Neon schema synced with additive indexes; unpaid-students uses grouped attendance count; `/auth/me` reuses DB-backed auth payload. |
+| PERF-006 | Add repeatable Chrome perf smoke tooling | `scripts/perf-smoke.mjs`, `receipts/perf/*` | IMPLEMENTED | Local and production read-only perf smoke passed 10/10 routes and 25/25 API calls. |
+| QA-LIVE-004 | Deploy and production-smoke performance closeout | Vercel + Chrome Playwright | IMPLEMENTED | Production deploy `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` Ready; production perf 10/10, UX 11/11, Phase-B 17/17. |
+
+**Local evidence**
+- `git diff --check`, `npx prisma validate`, `node --check scripts/perf-smoke.mjs`, `npx tsc --noEmit`, `npm run test:unit` 39/39, frontend lint max-warnings=0, and `npm run build` passed.
+- `npm run test:perf -- --base http://127.0.0.1:3000` passed 10/10 routes and 25/25 API calls with read-only guard enabled.
+- Local Playwright: `ux-redesign-smoke.spec.js` 11/11 and `phase-b-smoke.spec.js` 17/17.
+- Local perf report: `receipts/perf/perf-smoke-2026-05-27T06-11-33-159Z.md`.
+
+**Production evidence**
+- Commit `5c761ba` pushed to `origin/main`.
+- `npx prisma db push` synced additive indexes to Neon; no seed or destructive production data mutation was run.
+- Vercel production deploy `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Production perf smoke passed 10/10 routes and 25/25 API calls with route p95 `7278.1ms` and API p95 `4262.2ms`.
+- Production Playwright: UX smoke 11/11 and Phase-B smoke 17/17.
+- Production perf report: `receipts/perf/perf-smoke-2026-05-27T06-17-57-458Z.md`.
+
+**Receipt:** `receipts/2026-05-27-performance-production-closeout.md`.
+
+---
+
 ## 🧭 OPERATIONAL / MEMORY HYGIENE TRACK
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
@@ -420,6 +452,7 @@
 | Main fast-forward + production deploy | IMPLEMENTED | `receipts/2026-05-24-main-merge-production-deploy.md`; `main` fast-forwarded to `e4bab40`, pushed, Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, production API/UI smoke pass |
 | P0/P1 production hardening closeout | IMPLEMENTED | `receipts/2026-05-25-p0-p1-production-readiness.md`; implementation commit `d2e19df`, docs commit `5b2b568`, final Vercel `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL`, local + production Playwright 7/7, API probes pass |
 | Month-bounded tuition + EduFlow UI closeout | IMPLEMENTED | `receipts/2026-05-25-month-bounded-tuition-eduflow-ui.md`; Stitch `GEMINI_3_1_PRO`, Figma node `3:36`, local unit 38/38, local/prod UX 7/7, local/prod Phase-B 17/17, Vercel `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C` |
+| Performance route-loading closeout | IMPLEMENTED | `receipts/2026-05-27-performance-production-closeout.md`; commit `5c761ba`, Vercel `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`, local/prod perf 10/10, local/prod UX 11/11, local/prod Phase-B 17/17 |
 
 ---
 
@@ -442,10 +475,10 @@
 | Local/reference Express backend | Broadly implemented |
 | Vercel production API | Phase A parity implemented and production-smoked |
 | Prisma/Supabase schema | Strong baseline, verify migrations before mutation |
-| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod UX smoke 11/11, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check/audit pass |
-| Production usability | Live on `edu-manager-gules`; latest modal scroll production fix is deployed and production-smoked |
+| Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod perf smoke 10/10, local/prod UX smoke 11/11, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check pass |
+| Production usability | Live on `edu-manager-gules`; latest performance route-loading closeout is deployed and production-smoked |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, Fee Workbench + UX closeout, and the 2026-05-26 modal scroll production fix are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, and the 2026-05-27 performance route-loading closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
 
 ---
 
@@ -504,4 +537,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-26 10:55
+**Last Updated:** 2026-05-27 13:25

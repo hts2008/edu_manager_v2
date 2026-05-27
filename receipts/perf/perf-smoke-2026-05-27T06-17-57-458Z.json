@@ -1,0 +1,455 @@
+{
+  "ok": true,
+  "started_at": "2026-05-27T06:17:57.458Z",
+  "finished_at": "2026-05-27T06:18:50.529Z",
+  "base_url": "https://edu-manager-gules.vercel.app",
+  "browser": {
+    "engine": "chromium",
+    "channel": "chrome",
+    "headless": true
+  },
+  "read_only": true,
+  "thresholds": {
+    "routeSevereMs": 15000,
+    "apiSevereMs": 10000,
+    "routeTimeoutMs": 45000,
+    "networkIdleMs": 20000
+  },
+  "routes": [
+    {
+      "route": "/",
+      "ok": true,
+      "duration_ms": 7278.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 126,
+        "load_event_ms": 127,
+        "first_paint_ms": 220,
+        "first_contentful_paint_ms": 220,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/students",
+      "ok": true,
+      "duration_ms": 4083.3,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 128,
+        "load_event_ms": 129,
+        "first_paint_ms": 136,
+        "first_contentful_paint_ms": 136,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/classes",
+      "ok": true,
+      "duration_ms": 6501,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 134,
+        "load_event_ms": 134,
+        "first_paint_ms": 144,
+        "first_contentful_paint_ms": 144,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance",
+      "ok": true,
+      "duration_ms": 2983.7,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 138,
+        "load_event_ms": 138,
+        "first_paint_ms": 148,
+        "first_contentful_paint_ms": 148,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/fee-collection",
+      "ok": true,
+      "duration_ms": 5791.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 140,
+        "load_event_ms": 140,
+        "first_paint_ms": 152,
+        "first_contentful_paint_ms": 152,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/reports",
+      "ok": true,
+      "duration_ms": 4962.5,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 168,
+        "load_event_ms": 168,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/advanced-reports",
+      "ok": true,
+      "duration_ms": 4937.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 129,
+        "load_event_ms": 129,
+        "first_paint_ms": 140,
+        "first_contentful_paint_ms": 140,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/templates",
+      "ok": true,
+      "duration_ms": 2656.2,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 130,
+        "load_event_ms": 130,
+        "first_paint_ms": 140,
+        "first_contentful_paint_ms": 140,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/payments",
+      "ok": true,
+      "duration_ms": 3125.2,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 401,
+        "load_event_ms": 401,
+        "first_paint_ms": 416,
+        "first_contentful_paint_ms": 416,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/history",
+      "ok": true,
+      "duration_ms": 4702.7,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 128,
+        "load_event_ms": 129,
+        "first_paint_ms": 136,
+        "first_contentful_paint_ms": 136,
+        "transfer_size_bytes": 1089
+      },
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "api_requests": [
+    {
+      "route": "login",
+      "method": "POST",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/login",
+      "path": "/api/auth/login",
+      "started_ms": 2513.5,
+      "status": 200,
+      "duration_ms": 3214.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 5868.4,
+      "status": 200,
+      "duration_ms": 719.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/reports/dashboard",
+      "path": "/api/reports/dashboard",
+      "started_ms": 6896.9,
+      "status": 200,
+      "duration_ms": 5585.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/students",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 13144.9,
+      "status": 200,
+      "duration_ms": 741,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/students",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/students",
+      "path": "/api/students",
+      "started_ms": 14280.3,
+      "status": 200,
+      "duration_ms": 2293.4,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 17231.8,
+      "status": 200,
+      "duration_ms": 2239.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/classes",
+      "path": "/api/classes",
+      "started_ms": 19900,
+      "status": 200,
+      "duration_ms": 1507.2,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/teachers",
+      "path": "/api/teachers",
+      "started_ms": 19900.2,
+      "status": 200,
+      "duration_ms": 3172.2,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/attendance",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 23736.3,
+      "status": 200,
+      "duration_ms": 506.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/attendance",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/classes",
+      "path": "/api/classes",
+      "started_ms": 24550.8,
+      "status": 200,
+      "duration_ms": 1511.5,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 26722.2,
+      "status": 200,
+      "duration_ms": 521.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/classes",
+      "path": "/api/classes",
+      "started_ms": 27582.8,
+      "status": 200,
+      "duration_ms": 951.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/monthly-fees/workbench?month=2026-05&limit=500",
+      "path": "/api/monthly-fees/workbench?month=2026-05&limit=500",
+      "started_ms": 27583,
+      "status": 200,
+      "duration_ms": 4262.2,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 32542.3,
+      "status": 200,
+      "duration_ms": 503.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/reports/financial?from=2026-05-01&to=2026-05-27&type=monthly",
+      "path": "/api/reports/financial?from=2026-05-01&to=2026-05-27&type=monthly",
+      "started_ms": 33415.1,
+      "status": 200,
+      "duration_ms": 2385.5,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/reports/student-fees?from=2026-05&to=2026-05",
+      "path": "/api/reports/student-fees?from=2026-05&to=2026-05",
+      "started_ms": 33415.3,
+      "status": 200,
+      "duration_ms": 3394.6,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/advanced-reports",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 37466.9,
+      "status": 200,
+      "duration_ms": 737.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/advanced-reports",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/reports/advanced?from=2025-05-31&to=2026-05-27&group_by=month",
+      "path": "/api/reports/advanced?from=2025-05-31&to=2026-05-27&group_by=month",
+      "started_ms": 38583.5,
+      "status": 200,
+      "duration_ms": 3161,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/templates",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 42403.4,
+      "status": 200,
+      "duration_ms": 719,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/templates",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/templates",
+      "path": "/api/templates",
+      "started_ms": 43473.8,
+      "status": 200,
+      "duration_ms": 939.9,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/payments",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 45331.8,
+      "status": 200,
+      "duration_ms": 501.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/payments",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/payments",
+      "path": "/api/payments",
+      "started_ms": 46154.8,
+      "status": 200,
+      "duration_ms": 1384.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/auth/me",
+      "path": "/api/auth/me",
+      "started_ms": 48185.5,
+      "status": 200,
+      "duration_ms": 526.9,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/receipts",
+      "path": "/api/receipts",
+      "started_ms": 49023.4,
+      "status": 200,
+      "duration_ms": 2268.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "https://edu-manager-gules.vercel.app/api/payments",
+      "path": "/api/payments",
+      "started_ms": 51291.9,
+      "status": 200,
+      "duration_ms": 943.3,
+      "failure": null,
+      "severe": false
+    }
+  ],
+  "read_only_violations": [],
+  "trace_path": null,
+  "summary": {
+    "routes_total": 10,
+    "routes_failed": 0,
+    "apis_total": 25,
+    "apis_failed": 0,
+    "apis_severe": 0,
+    "read_only_violations": 0,
+    "route_duration_ms": {
+      "max": 7278.1,
+      "p95": 7278.1
+    },
+    "api_duration_ms": {
+      "max": 5585.7,
+      "p95": 4262.2
+    }
+  }
+}

@@ -5,7 +5,7 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, and the 2026-05-26 modal scroll production fix are implemented with production evidence.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, and the 2026-05-27 performance route-loading closeout are implemented with production evidence.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -240,25 +240,39 @@
   - [x] Verify local build, typecheck, lint, unit 39/39, UX 11/11, Phase-B 17/17.
   - [x] Deploy Vercel production `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn`.
   - [x] Verify production focused modal smoke 1/1, UX 11/11, and Phase-B 17/17.
+- [x] Implement 2026-05-27 performance route-loading closeout.
+  - [x] Summarize current progress and inspect git diff before continuing.
+  - [x] Attempt `ck:team` worker/explorer delegation; runtime usage limit blocked new subagents, so lead continued inline.
+  - [x] Add route-level lazy loading and Vite vendor chunk splitting.
+  - [x] Add safe GET cache/dedupe and lighter page transitions.
+  - [x] Remove duplicate `/auth/me` DB lookup by reusing DB-backed auth payload.
+  - [x] Add slim student options and lazy-load them only when the class form opens.
+  - [x] Add `/api/monthly-fees/workbench` and wire Fee Workbench to the aggregate read.
+  - [x] Add unpaid-students groupBy and Prisma composite indexes.
+  - [x] Add Chrome perf smoke script and local/prod perf receipts.
+  - [x] Verify static gates, local perf/UX/Phase-B, production perf/UX/Phase-B.
+  - [x] Sync Neon schema indexes with `npx prisma db push`.
+  - [x] Deploy Vercel production `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`.
+  - [x] Record KANBAN, active context, progress, decision, and receipt evidence.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, and modal scroll production fix are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, and performance route-loading closeout are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_3TTwAgFMPEzeM8zfa5Q3A8RWYGDn`; production alias `https://edu-manager-gules.vercel.app` passed focused modal smoke 1/1, UX 11/11, and Phase-B 17/17 after the modal scroll production fix.
+- **Latest production deployment observed in Codex session**: `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`; production alias `https://edu-manager-gules.vercel.app` passed perf smoke 10/10 routes, UX 11/11, and Phase-B 17/17 after the performance route-loading closeout.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
 - Local workflow structure can remain, but memory truth must be Edu Manager-specific.
-- Working tree contains only the current docs/test/evidence closeout edits after implementation commit `c793de3`; avoid broad commits and stage explicit paths only.
+- Working tree contains only the current docs/memory/evidence closeout edits after implementation commit `5c761ba`; avoid broad commits and stage explicit paths only.
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
 1. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
 2. Rotate default credentials and JWT secret before real production operation.
-3. Plan code-splitting if the existing Vite large chunk warnings become a performance budget issue.
+3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
 5. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
@@ -268,6 +282,15 @@
 - `npm --prefix frontend run lint -- --max-warnings=0` passed.
 - `npm run build` passed.
 - `git diff --check` passed with LF/CRLF warnings only.
+- `npx prisma validate` passed.
+- `node --check scripts/perf-smoke.mjs` passed.
+- `npx prisma db push` synced additive indexes to Neon.
+- Local `npm run test:perf -- --base http://127.0.0.1:3000` passed 10/10 routes and 25/25 API calls.
+- Production `npm run test:perf -- --base https://edu-manager-gules.vercel.app` passed 10/10 routes and 25/25 API calls.
+- Production deploy `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B` Ready on `https://edu-manager-gules.vercel.app`.
+- Production Playwright `ux-redesign-smoke.spec.js` passed 11/11.
+- Production Playwright `phase-b-smoke.spec.js` passed 17/17.
+- Evidence: `receipts/2026-05-27-performance-production-closeout.md` and `receipts/perf/perf-smoke-2026-05-27T06-17-57-458Z.md`.
 - Local Playwright `ux-redesign-smoke.spec.js` passed 10/10.
 - Local Playwright `phase-b-smoke.spec.js` passed 17/17.
 - Production deploy `dpl_7FBhsvzbfCLy85aQoirLyhwBRg12` Ready on `https://edu-manager-gules.vercel.app`.

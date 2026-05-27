@@ -200,3 +200,10 @@
 **Decision**: For `sessions_per_week` classes, calculate expected sessions by walking Monday-start weeks inside the target month and summing `min(sessions_per_week, active days in that week inside the month)`. Use default class days Monday-Saturday when explicit weekdays are unavailable. Keep `schedule_days` classes on exact weekday matching and unscheduled classes on legacy per-session billing.
 **Rationale**: Tuition must be bounded by the exact month being billed, not by a generic calendar grid. This prevents inflated denominators, makes `2/week` and `3/week` deterministic for short edge weeks, and aligns Receipt, MonthlyFee, Attendance, reports, and frontend preview math.
 **Status**: IMPLEMENTED with unit 38/38, typecheck, lint, build, local UX 7/7, local Phase-B 17/17, production UX 7/7, production Phase-B 17/17, source-synced production probe, and Vercel deployment `dpl_3AFgxEykCcXHhtC1A29jW37ZxJ9C`.
+
+### ADR-29: Performance Closeout Uses Split Bundles, Safe GET Cache, And Read Aggregates
+**Date**: 2026-05-27
+**Context**: Production UI felt slow, especially when opening feature routes. Browser/perf smoke showed avoidable client bundle weight and some page-level overfetch, while serverless cold starts still dominate the slowest API timings.
+**Decision**: Split page modules with `React.lazy`/`Suspense`, isolate heavy vendors with Vite manual chunks, keep page transitions lightweight, add short-lived GET-only dedupe/cache with mutation and 401 invalidation, and introduce read aggregate endpoints for high-fanout screens instead of relying on multiple independent page requests.
+**Rationale**: This improves first-load and navigation responsiveness without weakening mutation safety. GET caching is intentionally short, bypassable, and invalidated by mutations; aggregate reads preserve the existing snake_case API boundary while cutting duplicate fetches for operator workbenches.
+**Status**: IMPLEMENTED with local/prod perf smoke 10/10, local/prod UX 11/11, local/prod Phase-B 17/17, Neon additive index sync, and Vercel deployment `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`.
