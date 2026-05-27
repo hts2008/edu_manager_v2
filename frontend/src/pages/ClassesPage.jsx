@@ -14,27 +14,60 @@ export default function ClassesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
+  const [studentOptions, setStudentOptions] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsLoaded, setStudentsLoaded] = useState(false);
+  const [studentsError, setStudentsError] = useState("");
   const {
     data: pageData,
     loading,
     reload: reloadData,
   } = useAsyncData(async () => {
-    const [classesRes, teachersRes, studentsRes] = await Promise.all([
+    const [classesRes, teachersRes] = await Promise.all([
       classesService.getAll(),
       teachersService.getAll(),
-      studentsService.getAll({ status: "active" }),
     ]);
 
     return {
       classes: classesRes.success ? classesRes.data.classes || [] : [],
       teachers: teachersRes.success ? teachersRes.data.teachers || [] : [],
-      students: studentsRes.success ? studentsRes.data.students || [] : [],
     };
   }, "classes-index");
 
   const classes = pageData?.classes || [];
   const teachers = pageData?.teachers || [];
-  const students = pageData?.students || [];
+
+  useEffect(() => {
+    if (!showForm || studentsLoaded || studentsLoading) return undefined;
+
+    let ignore = false;
+    async function loadStudentOptions() {
+      setStudentsLoading(true);
+      setStudentsError("");
+      const response = await studentsService.getAll({
+        status: "active",
+        fields: "options",
+        limit: 500,
+      });
+
+      if (ignore) return;
+
+      if (response.success) {
+        setStudentOptions(response.data.students || []);
+        setStudentsLoaded(true);
+      } else {
+        setStudentsError(
+          response.error?.message || "Khong the tai danh sach hoc vien"
+        );
+      }
+      setStudentsLoading(false);
+    }
+
+    loadStudentOptions();
+    return () => {
+      ignore = true;
+    };
+  }, [showForm, studentsLoaded, studentsLoading]);
 
   const handleDelete = async () => {
     if (selectedClass) {
@@ -325,7 +358,9 @@ export default function ClassesPage() {
         <ClassForm
           classData={editingClass}
           teachers={teachers}
-          students={students}
+          students={studentOptions}
+          studentsLoading={studentsLoading}
+          studentsError={studentsError}
           onSuccess={async () => {
             setShowForm(false);
             await reloadData();
@@ -337,7 +372,15 @@ export default function ClassesPage() {
   );
 }
 
-function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
+function ClassForm({
+  classData,
+  teachers,
+  students,
+  studentsLoading,
+  studentsError,
+  onSuccess,
+  onCancel,
+}) {
   const [formData, setFormData] = useState({
     class_name: classData?.class_name || "",
     teacher_id: classData?.teacher_id || "",
@@ -415,7 +458,14 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
     const keyword = studentSearch.trim().toLowerCase();
     if (!keyword) return students;
     return students.filter((student) =>
-      [student.full_name, student.phone, student.parent_name]
+      [
+        student.full_name,
+        student.fullName,
+        student.label,
+        student.phone,
+        student.parent_name,
+        student.parent_phone,
+      ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(keyword)),
     );
@@ -745,8 +795,20 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
           placeholder="Tìm theo tên, SĐT học viên hoặc phụ huynh..."
         />
         <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+          {studentsLoading && (
+            <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">
+              Dang tai danh sach hoc vien...
+            </div>
+          )}
+          {studentsError && !studentsLoading && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-600">
+              {studentsError}
+            </div>
+          )}
           {filteredStudents.map((student) => {
             const checked = selectedStudentIds.includes(student.id);
+            const studentName =
+              student.full_name || student.fullName || student.label || "";
             return (
               <label
                 key={student.id}
@@ -758,11 +820,11 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
               >
                 <span>
                   <span className="block text-sm font-semibold text-slate-900">
-                    {student.full_name}
+                    {studentName}
                   </span>
                   <span className="text-xs text-slate-500">
                     {student.parent_name || "Chưa có phụ huynh"} ·{" "}
-                    {student.phone || "Chưa có SĐT"}
+                    {student.parent_phone || student.phone || "Chưa có SĐT"}
                   </span>
                 </span>
                 <input
@@ -774,7 +836,7 @@ function ClassForm({ classData, teachers, students, onSuccess, onCancel }) {
               </label>
             );
           })}
-          {!filteredStudents.length && (
+          {!studentsLoading && !studentsError && !filteredStudents.length && (
             <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">
               Không tìm thấy học viên phù hợp.
             </div>

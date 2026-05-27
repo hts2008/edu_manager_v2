@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
@@ -8,31 +9,32 @@ import ErrorBoundary from './components/ui/ErrorBoundary';
 
 // Pages
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import StudentsPage from './pages/StudentsPage';
-import ParentsPage from './pages/ParentsPage';
-import ClassesPage from './pages/ClassesPage';
-import TeachersPage from './pages/TeachersPage';
-import AttendancePage from './pages/AttendancePage';
-import AttendanceInsightsPage from './pages/AttendanceInsightsPage';
-import AttendancePeriodsPage from './pages/AttendancePeriodsPage';
-import ReceiptsPage from './pages/ReceiptsPage';
-import PaymentsPage from './pages/PaymentsPage';
-import FeeCollectionPage from './pages/FeeCollectionPage';
-import HistoryPage from './pages/HistoryPage';
-import ReportsPage from './pages/ReportsPage';
-import AdvancedReportsPage from './pages/AdvancedReportsPage';
-import TemplatesPage from './pages/TemplatesPage';
-import TemplateDesignerPage from './pages/TemplateDesignerPage';
-import AuditLogsPage from './pages/AuditLogsPage';
-import CenterSettingsPage from './pages/CenterSettingsPage';
-import UserManagementPage from './pages/UserManagementPage';
-import ImportPage from './pages/ImportPage';
-import FeeRemindersPage from './pages/FeeRemindersPage';
-import BackupsPage from './pages/BackupsPage';
-import RecycleBinPage from './pages/RecycleBinPage';
 import ParentPortalLoginPage from './pages/ParentPortalLoginPage';
-import ParentPortalPage from './pages/ParentPortalPage';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const StudentsPage = lazy(() => import('./pages/StudentsPage'));
+const ParentsPage = lazy(() => import('./pages/ParentsPage'));
+const ClassesPage = lazy(() => import('./pages/ClassesPage'));
+const TeachersPage = lazy(() => import('./pages/TeachersPage'));
+const AttendancePage = lazy(() => import('./pages/AttendancePage'));
+const AttendanceInsightsPage = lazy(() => import('./pages/AttendanceInsightsPage'));
+const AttendancePeriodsPage = lazy(() => import('./pages/AttendancePeriodsPage'));
+const ReceiptsPage = lazy(() => import('./pages/ReceiptsPage'));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
+const FeeCollectionPage = lazy(() => import('./pages/FeeCollectionPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const AdvancedReportsPage = lazy(() => import('./pages/AdvancedReportsPage'));
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
+const TemplateDesignerPage = lazy(() => import('./pages/TemplateDesignerPage'));
+const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
+const CenterSettingsPage = lazy(() => import('./pages/CenterSettingsPage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const ImportPage = lazy(() => import('./pages/ImportPage'));
+const FeeRemindersPage = lazy(() => import('./pages/FeeRemindersPage'));
+const BackupsPage = lazy(() => import('./pages/BackupsPage'));
+const RecycleBinPage = lazy(() => import('./pages/RecycleBinPage'));
+const ParentPortalPage = lazy(() => import('./pages/ParentPortalPage'));
 
 // Placeholder pages (will be implemented later)
 const PlaceholderPage = ({ title }) => (
@@ -48,6 +50,16 @@ const AdminOnly = ({ children }) => (
   <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>
 );
 
+const RouteLoading = () => (
+  <div className="flex min-h-[240px] items-center justify-center text-sm text-gray-500">
+    Dang tai...
+  </div>
+);
+
+const withSuspense = (element) => (
+  <Suspense fallback={<RouteLoading />}>{element}</Suspense>
+);
+
 export default function App() {
   return (
     <AuthProvider>
@@ -57,7 +69,7 @@ export default function App() {
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/parent-login" element={<ParentPortalLoginPage />} />
-            <Route path="/parent-portal" element={<ParentPortalPage />} />
+            <Route path="/parent-portal" element={withSuspense(<ParentPortalPage />)} />
 
             {/* Protected routes */}
             <Route
@@ -67,28 +79,28 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<DashboardPage />} />
-              <Route path="students" element={<StudentsPage />} />
-              <Route path="parents" element={<ParentsPage />} />
-              <Route path="classes" element={<ClassesPage />} />
-              <Route path="teachers" element={<AdminOnly><TeachersPage /></AdminOnly>} />
-              <Route path="attendance" element={<AttendancePage />} />
-              <Route path="attendance-insights" element={<AttendanceInsightsPage />} />
-              <Route path="attendance-periods" element={<AttendancePeriodsPage />} />
-              <Route path="receipts" element={<ReceiptsPage />} />
-              <Route path="payments" element={<AdminOnly><PaymentsPage /></AdminOnly>} />
-              <Route path="fee-collection" element={<FeeCollectionPage />} />
-              <Route path="history" element={<HistoryPage />} />
-              <Route path="templates" element={<AdminOnly><TemplatesPage /></AdminOnly>} />
-              <Route path="reports" element={<AdminOnly><ReportsPage /></AdminOnly>} />
-              <Route path="advanced-reports" element={<AdminOnly><AdvancedReportsPage /></AdminOnly>} />
-              <Route path="audit-logs" element={<AdminOnly><AuditLogsPage /></AdminOnly>} />
-              <Route path="settings" element={<AdminOnly><CenterSettingsPage /></AdminOnly>} />
-              <Route path="users" element={<AdminOnly><UserManagementPage /></AdminOnly>} />
-              <Route path="imports" element={<AdminOnly><ImportPage /></AdminOnly>} />
-              <Route path="fee-reminders" element={<AdminOnly><FeeRemindersPage /></AdminOnly>} />
-              <Route path="backups" element={<AdminOnly><BackupsPage /></AdminOnly>} />
-              <Route path="recycle-bin" element={<AdminOnly><RecycleBinPage /></AdminOnly>} />
+              <Route index element={withSuspense(<DashboardPage />)} />
+              <Route path="students" element={withSuspense(<StudentsPage />)} />
+              <Route path="parents" element={withSuspense(<ParentsPage />)} />
+              <Route path="classes" element={withSuspense(<ClassesPage />)} />
+              <Route path="teachers" element={withSuspense(<AdminOnly><TeachersPage /></AdminOnly>)} />
+              <Route path="attendance" element={withSuspense(<AttendancePage />)} />
+              <Route path="attendance-insights" element={withSuspense(<AttendanceInsightsPage />)} />
+              <Route path="attendance-periods" element={withSuspense(<AttendancePeriodsPage />)} />
+              <Route path="receipts" element={withSuspense(<ReceiptsPage />)} />
+              <Route path="payments" element={withSuspense(<AdminOnly><PaymentsPage /></AdminOnly>)} />
+              <Route path="fee-collection" element={withSuspense(<FeeCollectionPage />)} />
+              <Route path="history" element={withSuspense(<HistoryPage />)} />
+              <Route path="templates" element={withSuspense(<AdminOnly><TemplatesPage /></AdminOnly>)} />
+              <Route path="reports" element={withSuspense(<AdminOnly><ReportsPage /></AdminOnly>)} />
+              <Route path="advanced-reports" element={withSuspense(<AdminOnly><AdvancedReportsPage /></AdminOnly>)} />
+              <Route path="audit-logs" element={withSuspense(<AdminOnly><AuditLogsPage /></AdminOnly>)} />
+              <Route path="settings" element={withSuspense(<AdminOnly><CenterSettingsPage /></AdminOnly>)} />
+              <Route path="users" element={withSuspense(<AdminOnly><UserManagementPage /></AdminOnly>)} />
+              <Route path="imports" element={withSuspense(<AdminOnly><ImportPage /></AdminOnly>)} />
+              <Route path="fee-reminders" element={withSuspense(<AdminOnly><FeeRemindersPage /></AdminOnly>)} />
+              <Route path="backups" element={withSuspense(<AdminOnly><BackupsPage /></AdminOnly>)} />
+              <Route path="recycle-bin" element={withSuspense(<AdminOnly><RecycleBinPage /></AdminOnly>)} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}
@@ -96,7 +108,7 @@ export default function App() {
               path="/templates/:id/design"
               element={
                 <ProtectedRoute>
-                  <AdminOnly><TemplateDesignerPage /></AdminOnly>
+                  {withSuspense(<AdminOnly><TemplateDesignerPage /></AdminOnly>)}
                 </ProtectedRoute>
               }
             />

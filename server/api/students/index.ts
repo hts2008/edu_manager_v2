@@ -17,11 +17,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method === "GET") {
     try {
       const { id, search, status, limit = "100", offset = "0" } = req.query;
+      const fields =
+        typeof req.query.fields === "string" ? req.query.fields : undefined;
       const classId =
         typeof req.query.class_id === "string"
           ? req.query.class_id
           : typeof req.query.classId === "string"
             ? req.query.classId
+            : undefined;
+      const parentId =
+        typeof req.query.parent_id === "string"
+          ? req.query.parent_id
+          : typeof req.query.parentId === "string"
+            ? req.query.parentId
             : undefined;
       const includeDeleted = req.query.include_deleted === "true";
 
@@ -93,12 +101,51 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           },
         };
       }
+      if (parentId && parentId !== "all") {
+        where.parentId = parentId;
+      }
       if (search) {
         where.OR = [
           { fullName: { contains: search as string, mode: "insensitive" } },
           { phone: { contains: search as string } },
           { email: { contains: search as string, mode: "insensitive" } },
         ];
+      }
+
+      if (fields === "options") {
+        const [rawStudents, total] = await Promise.all([
+          prisma.student.findMany({
+            where,
+            select: {
+              id: true,
+              fullName: true,
+              parentId: true,
+              status: true,
+              parent: { select: { id: true, fullName: true, phone: true } },
+            },
+            orderBy: { fullName: "asc" },
+            take: parseInt(limit as string),
+            skip: parseInt(offset as string),
+          }),
+          prisma.student.count({ where }),
+        ]);
+
+        const students = rawStudents.map((s) => ({
+          id: s.id,
+          value: s.id,
+          label: s.fullName,
+          full_name: s.fullName,
+          fullName: s.fullName,
+          parent_id: s.parentId,
+          parentId: s.parentId,
+          parent_name: s.parent?.fullName || null,
+          parentName: s.parent?.fullName || null,
+          parent_phone: s.parent?.phone || null,
+          parentPhone: s.parent?.phone || null,
+          status: s.status,
+        }));
+
+        return successResponse(res, { students, total });
       }
 
       const [rawStudents, total] = await Promise.all([

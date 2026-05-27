@@ -2,6 +2,55 @@
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/$/, "");
 const RETRYABLE_METHODS = new Set(["GET", "HEAD"]);
+const GET_CACHE_TTL_MS = 15_000;
+const getResponseCache = new Map();
+const inFlightGetRequests = new Map();
+const NON_CACHEABLE_GET_PATTERNS = [
+  /\/pdf(?:$|[/?#])/i,
+  /upload/i,
+  /parent-portal/i,
+];
+
+let cacheVersion = 0;
+
+function invalidateGetCache() {
+  cacheVersion += 1;
+  getResponseCache.clear();
+  inFlightGetRequests.clear();
+}
+
+function shouldUseGetCache(method, endpoint, options) {
+  return (
+    method === "GET" &&
+    !options.signal &&
+    options.cache !== "no-store" &&
+    options.skipCache !== true &&
+    !NON_CACHEABLE_GET_PATTERNS.some((pattern) => pattern.test(endpoint))
+  );
+}
+
+function getCacheKey(endpoint, token, options) {
+  const headers = options.headers
+    ? JSON.stringify(Object.entries(options.headers).sort())
+    : "";
+  return `${token || "anonymous"}::${endpoint}::${headers}`;
+}
+
+function getCachedResponse(cacheKey) {
+  const cached = getResponseCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (cached.expiresAt <= Date.now()) {
+    getResponseCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.data;
+}
+
+function shouldCacheResponse(data) {
+  return data?.success !== false;
+}
 
 function isUnauthorized(response, data) {
   if (response.status !== 401) return false;
@@ -14,6 +63,7 @@ function isUnauthorized(response, data) {
 }
 
 function handleUnauthorized(data) {
+  invalidateGetCache();
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
   window.dispatchEvent(
@@ -46,11 +96,82 @@ async function parseResponse(response) {
   }
 }
 
+async function fetchWithRetry(endpoint, config, retries) {
+  let lastNetworkError = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, config);
+      const data = await parseResponse(response);
+
+      if (isUnauthorized(response, data)) {
+        handleUnauthorized(data);
+        return { success: false, error: data.error };
+      }
+
+      if (!response.ok && data.success !== false) {
+        return {
+          success: false,
+          error: {
+            code: `HTTP_${response.status}`,
+            message: response.statusText || "Request failed",
+          },
+        };
+      }
+
+      if (response.status >= 500 && attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+
+      return data;
+    } catch (error) {
+      lastNetworkError = error;
+      if (attempt < retries && error.name !== "AbortError") {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastNetworkError || new Error("Request failed");
+}
+
+function normalizeRequestError(error) {
+  if (import.meta.env.DEV) {
+    console.error("API Error:", error);
+  }
+
+  if (error.name === "TimeoutError" || error.name === "AbortError") {
+    return {
+      success: false,
+      error: {
+        code: "TIMEOUT",
+        message: "Yeu cau qua thoi gian, vui long thu lai",
+      },
+    };
+  }
+
+  return {
+    success: false,
+    error: {
+      code: "NETWORK_ERROR",
+      message: "Khong the ket noi server",
+    },
+  };
+}
+
 // Helper function to make API requests
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem("token");
   const method = String(options.method || "GET").toUpperCase();
   const retries = options.retries ?? (RETRYABLE_METHODS.has(method) ? 1 : 0);
+  const useGetCache = shouldUseGetCache(method, endpoint, options);
+
+  if (method !== "GET") {
+    invalidateGetCache();
+  }
 
   const config = {
     headers: {
@@ -62,6 +183,40 @@ async function request(endpoint, options = {}) {
     // Add 30-second timeout for all requests
     signal: options.signal || AbortSignal.timeout(30000),
   };
+
+  if (useGetCache) {
+    const cacheKey = getCacheKey(endpoint, token, options);
+    const cached = getCachedResponse(cacheKey);
+    if (cached) return cached;
+
+    const inFlight = inFlightGetRequests.get(cacheKey);
+    if (inFlight) return inFlight;
+
+    const requestCacheVersion = cacheVersion;
+    let requestPromise;
+    requestPromise = fetchWithRetry(endpoint, config, retries)
+      .then((data) => {
+        if (
+          cacheVersion === requestCacheVersion &&
+          shouldCacheResponse(data)
+        ) {
+          getResponseCache.set(cacheKey, {
+            data,
+            expiresAt: Date.now() + GET_CACHE_TTL_MS,
+          });
+        }
+        return data;
+      })
+      .catch(normalizeRequestError)
+      .finally(() => {
+        if (inFlightGetRequests.get(cacheKey) === requestPromise) {
+          inFlightGetRequests.delete(cacheKey);
+        }
+      });
+
+    inFlightGetRequests.set(cacheKey, requestPromise);
+    return requestPromise;
+  }
 
   try {
     let lastNetworkError = null;
@@ -469,6 +624,10 @@ export const monthlyFeesService = {
   getAll: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/monthly-fees${query ? `?${query}` : ""}`);
+  },
+  getWorkbench: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/monthly-fees/workbench${query ? `?${query}` : ""}`);
   },
   getById: (id) => request(`/monthly-fees/${id}`),
   calculate: (studentOrData, month) => {

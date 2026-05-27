@@ -96,41 +96,52 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       status: fee.status,
     }));
 
-    const attendanceRows = await Promise.all(
-      studentsWithAttendance.map(async (student: any) => {
-        const daysCount = await prisma.attendance.count({
-          where: {
-            studentId: student.id,
-            attendanceDate: { gte: startDate, lte: endDate },
-            status: { in: ["present", "absent_with_fee"] },
-          },
-        });
-
-        return {
-          student_id: student.id,
-          studentId: student.id,
-          full_name: student.fullName,
-          fullName: student.fullName,
-          parent_name: student.parent?.fullName || null,
-          parent_phone: student.parent?.phone || null,
-          classes: student.studentClasses
-            .map((studentClass: any) => studentClass.class.className)
-            .join(", "),
-          total_amount: 0,
-          totalAmount: 0,
-          days_count: daysCount,
-          days_overdue: Math.max(
-            0,
-            Math.floor((today.getTime() - endDate.getTime()) / 86400000)
-          ),
-          daysOverdue: Math.max(
-            0,
-            Math.floor((today.getTime() - endDate.getTime()) / 86400000)
-          ),
-          status: "pending",
-        };
-      })
+    const attendanceStudentIds = studentsWithAttendance.map(
+      (student) => student.id
     );
+    const attendanceCounts =
+      attendanceStudentIds.length > 0
+        ? await prisma.attendance.groupBy({
+            by: ["studentId"],
+            where: {
+              studentId: { in: attendanceStudentIds },
+              attendanceDate: { gte: startDate, lte: endDate },
+              status: { in: ["present", "absent_with_fee"] },
+            },
+            _count: { _all: true },
+          })
+        : [];
+    const attendanceCountByStudentId = new Map(
+      attendanceCounts.map((count) => [count.studentId, count._count._all])
+    );
+
+    const attendanceRows = studentsWithAttendance.map((student: any) => {
+      const daysCount = attendanceCountByStudentId.get(student.id) || 0;
+
+      return {
+        student_id: student.id,
+        studentId: student.id,
+        full_name: student.fullName,
+        fullName: student.fullName,
+        parent_name: student.parent?.fullName || null,
+        parent_phone: student.parent?.phone || null,
+        classes: student.studentClasses
+          .map((studentClass: any) => studentClass.class.className)
+          .join(", "),
+        total_amount: 0,
+        totalAmount: 0,
+        days_count: daysCount,
+        days_overdue: Math.max(
+          0,
+          Math.floor((today.getTime() - endDate.getTime()) / 86400000)
+        ),
+        daysOverdue: Math.max(
+          0,
+          Math.floor((today.getTime() - endDate.getTime()) / 86400000)
+        ),
+        status: "pending",
+      };
+    });
 
     return successResponse(res, {
       month: getRequiredString(month, "month"),

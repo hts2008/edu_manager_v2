@@ -9,7 +9,12 @@ export interface AuthUser {
   userId: string;
   id: string;
   username?: string;
+  fullName?: string;
+  email?: string | null;
+  phone?: string | null;
   role: "admin" | "receptionist";
+  status?: "active" | "inactive";
+  lastLogin?: Date | null;
 }
 
 export interface AuthedRequest extends VercelRequest {
@@ -88,7 +93,16 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, role: true, status: true },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        lastLogin: true,
+      },
     });
 
     if (!user || user.status !== "active") {
@@ -104,7 +118,12 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
         userId: user.id,
         id: user.id,
         username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
         role: user.role,
+        status: user.status,
+        lastLogin: user.lastLogin,
       },
     };
   } catch (error) {

@@ -61,6 +61,23 @@ export default function FeeCollectionPage() {
 
   const loadData = async () => {
     setLoading(true);
+    const workbenchRes = await monthlyFeesService.getWorkbench({
+      month: selectedMonth,
+      limit: 500,
+      ...classFilterParams,
+    });
+
+    if (workbenchRes.success) {
+      const feeMap = {};
+      (workbenchRes.data.fees || []).forEach((fee) => {
+        feeMap[fee.student_id] = fee;
+      });
+      setStudents(workbenchRes.data.students || []);
+      setFeeData(feeMap);
+      setLoading(false);
+      return;
+    }
+
     const [studentsRes, feesRes] = await Promise.all([
       studentsService.getAll({ status: 'active', limit: 500, ...classFilterParams }),
       monthlyFeesService.getAll({ month: selectedMonth, ...classFilterParams }),
