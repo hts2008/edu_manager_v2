@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE — Phase A API parity passed on Neon + Vercel Blob
+> **Status**: PRODUCTION LIVE - latest performance lag hardening deployed and production-smoked on 2026-05-28
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -15,6 +15,25 @@
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
 **Default/dev login:** `admin / admin123` — rotate before real production operation.
+
+---
+
+## IMPLEMENTED - PERFORMANCE LAG RCA CLOSEOUT (2026-05-28)
+
+**Objective:** close the latest reported lag/jank issues with measurable local and production browser evidence.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| PERF-2026-05-28-01 | Reduce client jank from large motion/blur surfaces | `MainLayout`, `PageTransition`, `ProtectedRoute`, `Header`, `Sidebar`, Attendance cards | frontend-specialist | 2026-05-27 perf closeout | IMPLEMENTED | Local/prod Playwright 28/28 |
+| PERF-2026-05-28-02 | Make heavy tables and loading states honest/lightweight | `DataTable`, `StudentsPage`, `FeeCollectionPage` | frontend-specialist | PERF-2026-05-28-01 | IMPLEMENTED | Lint/type/build + local/prod perf-lab |
+| PERF-2026-05-28-03 | Guard stale fee/attendance async requests and parallelize Attendance month fetches | `FeeCollectionPage`, `AttendancePage` | frontend-specialist | PERF-2026-05-28-02 | IMPLEMENTED | Local/prod Playwright 28/28 |
+| PERF-2026-05-28-04 | Reduce report API overfetch without changing response shape | `server/api/reports/*`, `monthly-fees/workbench`, `students?fields=table` | backend-specialist | PERF-2026-05-28-02 | IMPLEMENTED | `npx tsc --noEmit`, unit 39/39 |
+| PERF-2026-05-28-05 | Add read-only browser/API performance harness | `scripts/perf-lab.mjs`, `receipts/perf/*` | qa-automation-engineer | PERF-2026-05-28-01 | IMPLEMENTED | Local/prod perf-lab pass, read-only violations 0 |
+| PERF-2026-05-28-06 | Deploy and production smoke final build | Vercel alias `edu-manager-gules` | release-manager | PERF-2026-05-28-01..05 | IMPLEMENTED | Deploy `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`, production Playwright 28/28 |
+
+**Evidence:** `receipts/2026-05-28-performance-lag-rca-closeout.md`, `receipts/perf/perf-lab-2026-05-28T16-04-40-168Z.md`, `receipts/perf/perf-lab-2026-05-28T16-08-15-968Z.md`.
+
+**Residual risk:** production serverless cold starts and Neon network latency still produce multi-second first-touch samples; they are now measured and isolated from UI jank/overfetch defects.
 
 ---
 

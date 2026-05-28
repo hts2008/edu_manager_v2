@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion as Motion } from "framer-motion";
 import {
   Bar,
   BarChart,
@@ -47,7 +46,7 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function MetricCard({ title, value, note, icon, tone = "indigo" }) {
+function MetricCard({ title, value, note, icon, tone = "indigo", loading }) {
   const Icon = icon;
   const tones = {
     indigo: "from-indigo-50 to-white text-indigo-700 ring-indigo-100",
@@ -57,36 +56,66 @@ function MetricCard({ title, value, note, icon, tone = "indigo" }) {
   };
 
   return (
-    <Motion.div
-      whileHover={{ y: -3 }}
-      className={`rounded-2xl bg-gradient-to-br ${tones[tone]} p-5 shadow-sm ring-1 transition-shadow hover:shadow-md`}
-    >
+    <div className={`rounded-2xl bg-gradient-to-br ${tones[tone]} p-5 shadow-sm ring-1`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-500">{title}</p>
-          <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
-          <p className="mt-1 text-sm text-slate-500">{note}</p>
+          {loading ? (
+            <div className="mt-3 h-8 w-24 animate-pulse rounded-lg bg-slate-200/80" />
+          ) : (
+            <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
+          )}
+          <p className="mt-1 text-sm text-slate-500">{loading ? "Đang tải dữ liệu" : note}</p>
         </div>
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm">
           <Icon size={21} />
         </div>
       </div>
-    </Motion.div>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="h-44 animate-pulse rounded-3xl bg-white/85 ring-1 ring-slate-200" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div key={item} className="h-32 animate-pulse rounded-2xl bg-white/85 ring-1 ring-slate-200" />
+        ))}
+      </div>
+    </div>
   );
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const loadDashboard = async () => {
-    setLoading(true);
+    const initialLoad = !data;
+    setLoading(initialLoad);
+    setRefreshing(!initialLoad);
     setError(null);
-    const response = await reportsService.getDashboard();
-    if (response.success) setData(response.data);
-    else setError(response.error?.message || "Không thể tải tổng quan vận hành");
+
+    const summaryResponse = await reportsService.getDashboard({ mode: "summary" });
+    if (!summaryResponse.success) {
+      setError(summaryResponse.error?.message || "Không thể tải tổng quan vận hành");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setData((current) => ({ ...(current || {}), ...summaryResponse.data }));
     setLoading(false);
+
+    const detailResponse = await reportsService.getDashboard({ mode: "full" });
+    if (detailResponse.success) {
+      setData(detailResponse.data);
+    }
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -112,20 +141,9 @@ export default function DashboardPage() {
   );
   const hasFinancialData = chartData.some((item) => item.revenue > 0 || item.expenses > 0);
 
-  if (loading) {
-    return (
-      <div className="space-y-5">
-        <div className="h-44 animate-pulse rounded-3xl bg-white/70 ring-1 ring-slate-200" />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-32 animate-pulse rounded-2xl bg-white/70 ring-1 ring-slate-200" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading && !data) return <DashboardSkeleton />;
 
-  if (error) {
+  if (error && !data) {
     return (
       <PageState
         title="Tổng quan chưa sẵn sàng"
@@ -138,23 +156,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <Motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
-    >
-      <section className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm backdrop-blur-xl">
-        <div className="relative p-6 sm:p-8">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-indigo-200/45 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 left-1/3 h-56 w-56 rounded-full bg-cyan-200/35 blur-3xl" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-100">
                   {todayLabel}
                 </span>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                  Production online
+                  {refreshing ? "Đang cập nhật" : "Production online"}
                 </span>
               </div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
@@ -207,7 +219,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <section className="rounded-3xl border border-slate-200/70 bg-white/85 p-5 shadow-sm backdrop-blur-xl sm:p-6">
+        <section className="rounded-3xl border border-slate-200/70 bg-white/95 p-5 shadow-sm sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-950">Dòng tiền tháng hiện tại</h2>
@@ -245,7 +257,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm backdrop-blur-xl">
+        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Việc cần xử lý</h2>
@@ -274,7 +286,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <section className="rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm backdrop-blur-xl">
+        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Giao dịch gần đây</h2>
@@ -298,19 +310,21 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <div className="px-5 py-10 text-center text-sm text-slate-500">Chưa có giao dịch.</div>
+              <div className="px-5 py-10 text-center text-sm text-slate-500">
+                {refreshing ? "Đang tải giao dịch..." : "Chưa có giao dịch."}
+              </div>
             )}
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200/70 bg-white/85 shadow-sm backdrop-blur-xl">
+        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Học phí cần thu</h2>
               <p className="text-sm text-slate-500">Tháng {quickMetrics.current_month || "-"}</p>
             </div>
             <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700 ring-1 ring-amber-100">
-              {unpaidStudents.length} học viên
+              {quickMetrics.unpaid_count ?? unpaidStudents.length} học viên
             </span>
           </div>
           <div className="divide-y divide-slate-100">
@@ -333,12 +347,12 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="px-5 py-10 text-center text-sm text-slate-500">
-                Không có học phí quá hạn trong tháng hiện tại.
+                {refreshing ? "Đang tải danh sách cần thu..." : "Không có học phí quá hạn trong tháng hiện tại."}
               </div>
             )}
           </div>
         </section>
       </div>
-    </Motion.div>
+    </div>
   );
 }

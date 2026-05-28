@@ -6,6 +6,7 @@
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
 - **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, and the 2026-05-27 performance route-loading closeout are implemented with production evidence.
+- **Latest Outcome**: 2026-05-28 performance lag RCA closeout is implemented, deployed, and production-smoked with perf-lab + Playwright 28/28.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -143,6 +144,17 @@
   - [x] Confirm no local listeners on 3000/5000.
   - [x] Run out-of-scope marker scan.
   - [x] Update KANBAN, active context, progress, and receipt.
+- [x] Implement 2026-05-28 performance lag RCA closeout.
+  - [x] Summarize completed steps and inspect git diff/status before continuing.
+  - [x] Integrate `ck:team` subagent outputs for backend select narrowing, read-only perf-lab, and frontend perf review.
+  - [x] Close inactive subagents after integration.
+  - [x] Patch remaining stale-request and client-jank risks in Fee Workbench, Attendance, DataTable, route loading, Header, Sidebar, and large Attendance cards.
+  - [x] Add `scripts/perf-lab.mjs` and `npm run perf:lab`.
+  - [x] Verify static gates: typecheck, lint zero warnings, unit 39/39, build, diff-check.
+  - [x] Verify local browser behavior with perf-lab and Playwright 28/28.
+  - [x] Deploy production deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`.
+  - [x] Verify production browser behavior with perf-lab and Playwright 28/28.
+  - [x] Update KANBAN, activeContext, progress, decisionLog, current-session, and receipt evidence.
 - [x] Implement PDF + UX production hardening.
   - [x] Diagnose garbled Vietnamese receipt PDF with hypothesis testing.
   - [x] Embed Unicode Roboto fonts in Vercel and Express PDF generation.

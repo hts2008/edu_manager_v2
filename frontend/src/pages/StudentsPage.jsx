@@ -27,7 +27,7 @@ export default function StudentsPage() {
 
   const loadStudents = async () => {
     setLoading(true);
-    const response = await studentsService.getAll();
+    const response = await studentsService.getAll({ fields: "table", limit: 500 });
     if (response.success) {
       setStudents(response.data.students);
       const currentIds = new Set((response.data.students || []).map((student) => student.id));
@@ -206,6 +206,9 @@ export default function StudentsPage() {
   const activationRate = students.length
     ? Math.round((activeStudents / students.length) * 100)
     : 0;
+  const initialLoading = loading && students.length === 0;
+  const studentCountLabel = initialLoading ? "đang tải" : `${students.length} bản ghi`;
+  const metricValue = (value) => (initialLoading ? "..." : value);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -222,14 +225,12 @@ export default function StudentsPage() {
 
   return (
     <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-2xl shadow-indigo-950/20">
-        <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl"></div>
-        <div className="absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl"></div>
+      <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-xl shadow-indigo-950/15">
         <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-lg shadow-cyan-300/50"></span>
-              Hồ sơ học viên • {students.length} bản ghi
+              Hồ sơ học viên • {studentCountLabel}
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
               Quản lý học viên
@@ -253,22 +254,22 @@ export default function StudentsPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <StudentHeroMetric label="Đang học" value={activeStudents} tone="emerald" />
-            <StudentHeroMetric label="Tỷ lệ active" value={`${activationRate}%`} tone="cyan" />
-            <StudentHeroMetric label="Cần chăm sóc" value={inactiveStudents} tone="amber" wide />
+            <StudentHeroMetric label="Đang học" value={metricValue(activeStudents)} tone="emerald" />
+            <StudentHeroMetric label="Tỷ lệ active" value={metricValue(`${activationRate}%`)} tone="cyan" />
+            <StudentHeroMetric label="Cần chăm sóc" value={metricValue(inactiveStudents)} tone="amber" wide />
           </div>
         </div>
       </div>
 
       <Motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StudentStatCard icon="👨‍🎓" label="Tổng số" value={students.length} tone="from-blue-500 to-indigo-600" />
-        <StudentStatCard icon="✓" label="Đang học" value={activeStudents} tone="from-emerald-500 to-green-600" />
-        <StudentStatCard icon="👦" label="Nam" value={maleStudents} tone="from-sky-500 to-blue-600" />
-        <StudentStatCard icon="👧" label="Nữ" value={femaleStudents} tone="from-pink-500 to-rose-600" />
+        <StudentStatCard icon="👨‍🎓" label="Tổng số" value={metricValue(students.length)} tone="from-blue-500 to-indigo-600" />
+        <StudentStatCard icon="✓" label="Đang học" value={metricValue(activeStudents)} tone="from-emerald-500 to-green-600" />
+        <StudentStatCard icon="👦" label="Nam" value={metricValue(maleStudents)} tone="from-sky-500 to-blue-600" />
+        <StudentStatCard icon="👧" label="Nữ" value={metricValue(femaleStudents)} tone="from-pink-500 to-rose-600" />
       </Motion.div>
 
       {/* Data Table */}
-      <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 p-2 overflow-hidden">
+      <Motion.div variants={itemVariants} className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-2 shadow-sm">
       <BulkActionBar
         count={selectedStudentIds.length}
         onClear={() => setSelectedStudentIds([])}
@@ -288,11 +289,12 @@ export default function StudentsPage() {
       <DataTable
         columns={columns}
         data={students}
-        loading={loading}
+        loading={initialLoading}
         onRowClick={(row) => handleEdit(row)}
         selectable
         selectedIds={selectedStudentIds}
         onSelectionChange={setSelectedStudentIds}
+        searchKeys={["full_name", "student_code", "parent_name", "parent_phone", "class_names", "status"]}
         emptyMessage="Chưa có học viên nào"
       />
       </Motion.div>
@@ -337,7 +339,7 @@ function StudentHeroMetric({ label, value, tone, wide }) {
 
   return (
     <div
-      className={`rounded-3xl border bg-gradient-to-br p-4 shadow-xl backdrop-blur-xl ${toneClass} ${
+      className={`rounded-3xl border bg-gradient-to-br p-4 shadow-lg ${toneClass} ${
         wide ? "col-span-2" : ""
       }`}
     >
@@ -351,7 +353,7 @@ function StudentHeroMetric({ label, value, tone, wide }) {
 
 function StudentStatCard({ icon, label, value, tone }) {
   return (
-    <Motion.div whileHover={{ scale: 1.02, y: -4 }} className="rounded-2xl border border-white/60 bg-white/50 backdrop-blur-xl shadow-lg shadow-slate-200/40 p-5 transition-all">
+    <div className="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-sm">
       <div className="flex items-center gap-4">
         <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tone} flex items-center justify-center text-white shadow-lg text-2xl`}>
           {icon}
@@ -361,7 +363,7 @@ function StudentStatCard({ icon, label, value, tone }) {
           <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
         </div>
       </div>
-    </Motion.div>
+    </div>
   );
 }
 

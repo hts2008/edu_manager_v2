@@ -51,31 +51,35 @@ function studentToDto(student: any) {
   };
 }
 
-function feeToDto(fee: any) {
-  const classIds =
-    fee.student?.studentClasses
-      ?.map((studentClass: any) => studentClass.class?.id)
-      .filter(Boolean) || [];
-  const classNames =
-    fee.student?.studentClasses
-      ?.map((studentClass: any) => studentClass.class?.className)
-      .filter(Boolean)
-      .join(", ") || null;
-
+function feeToDto(fee: any, student: any | undefined) {
   return {
     id: fee.id,
     student_id: fee.studentId,
     studentId: fee.studentId,
-    student_name: fee.student?.fullName || null,
-    studentName: fee.student?.fullName || null,
-    parent_name: fee.student?.parent?.fullName || null,
-    parentName: fee.student?.parent?.fullName || null,
-    parent_phone: fee.student?.parent?.phone || null,
-    parentPhone: fee.student?.parent?.phone || null,
-    class_ids: classIds,
-    classIds,
-    class_names: classNames,
-    classNames,
+    student_name: student?.fullName || null,
+    studentName: student?.fullName || null,
+    parent_name: student?.parent?.fullName || null,
+    parentName: student?.parent?.fullName || null,
+    parent_phone: student?.parent?.phone || null,
+    parentPhone: student?.parent?.phone || null,
+    class_ids:
+      student?.studentClasses
+        ?.map((studentClass: any) => studentClass.class?.id)
+        .filter(Boolean) || [],
+    classIds:
+      student?.studentClasses
+        ?.map((studentClass: any) => studentClass.class?.id)
+        .filter(Boolean) || [],
+    class_names:
+      student?.studentClasses
+        ?.map((studentClass: any) => studentClass.class?.className)
+        .filter(Boolean)
+        .join(", ") || null,
+    classNames:
+      student?.studentClasses
+        ?.map((studentClass: any) => studentClass.class?.className)
+        .filter(Boolean)
+        .join(", ") || null,
     month: fee.month,
     total_days: fee.totalDays,
     totalDays: fee.totalDays,
@@ -147,23 +151,32 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       studentIds.length > 0
         ? await prisma.monthlyFee.findMany({
             where: feeWhere,
-            include: {
-              student: {
-                include: {
-                  parent: { select: { fullName: true, phone: true } },
-                  studentClasses: {
-                    where: { status: "active" },
-                    include: { class: { select: { id: true, className: true } } },
-                  },
-                },
-              },
+            select: {
+              id: true,
+              studentId: true,
+              month: true,
+              totalDays: true,
+              totalAmount: true,
+              status: true,
+              receiptId: true,
+              paidAt: true,
+              notes: true,
+              createdAt: true,
+              updatedAt: true,
             },
-            orderBy: [{ status: "asc" }, { student: { fullName: "asc" } }],
+            orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
           })
         : [];
 
     const students = rawStudents.map(studentToDto);
-    const fees = rawFees.map(feeToDto);
+    const studentById = new Map(rawStudents.map((student) => [student.id, student]));
+    const fees = rawFees
+      .map((fee) => feeToDto(fee, studentById.get(fee.studentId)))
+      .sort((a, b) => {
+        const statusCompare = String(a.status).localeCompare(String(b.status));
+        if (statusCompare !== 0) return statusCompare;
+        return String(a.student_name || "").localeCompare(String(b.student_name || ""));
+      });
     const feeByStudentId = new Map(fees.map((fee) => [fee.student_id, fee]));
     const rows = students.map((student) => feeByStudentId.get(student.id));
     const summary = {

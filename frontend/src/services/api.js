@@ -347,7 +347,10 @@ export const teachersService = {
 
 // Classes API
 export const classesService = {
-  getAll: () => request("/classes"),
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/classes${query ? `?${query}` : ""}`);
+  },
   getById: (id) => request(`/classes?id=${id}`),
   create: (data) =>
     request("/classes", { method: "POST", body: JSON.stringify(data) }),
@@ -538,7 +541,10 @@ export const templatesService = {
 
 // Reports API
 export const reportsService = {
-  getDashboard: () => request("/reports/dashboard"),
+  getDashboard: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/dashboard${query ? `?${query}` : ""}`);
+  },
   getAdvanced: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/advanced${query ? `?${query}` : ""}`);

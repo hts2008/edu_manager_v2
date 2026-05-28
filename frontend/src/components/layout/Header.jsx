@@ -48,7 +48,7 @@ export default function Header({ onMenuClick }) {
   const roleLabel = user?.role === "admin" ? "Admin" : "Lễ tân";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/50 bg-white/70 px-4 backdrop-blur-2xl lg:px-8">
+    <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/95 px-4 shadow-sm lg:px-8">
       <div className="flex h-[72px] items-center justify-between gap-4">
         {/* Left Side: Mobile Menu Toggle & Title */}
         <div className="flex min-w-0 items-center gap-4">

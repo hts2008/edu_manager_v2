@@ -50,11 +50,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const [receipts, payments] = await Promise.all([
       prisma.receipt.findMany({
         where,
-        include: { student: { select: { fullName: true } } },
+        select: {
+          id: true,
+          studentId: true,
+          month: true,
+          amount: true,
+          createdAt: true,
+          student: { select: { fullName: true } },
+        },
         orderBy: { createdAt: "asc" },
       }),
       prisma.payment.findMany({
         where,
+        select: {
+          id: true,
+          category: true,
+          recipientName: true,
+          amount: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: "asc" },
       }),
     ]);

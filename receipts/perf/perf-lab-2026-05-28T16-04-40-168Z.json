@@ -1,0 +1,772 @@
+{
+  "ok": true,
+  "started_at": "2026-05-28T16:04:40.168Z",
+  "finished_at": "2026-05-28T16:05:01.587Z",
+  "base_url": "http://127.0.0.1:3000",
+  "username": "admin",
+  "month": "2026-05",
+  "output_dir": "C:\\Users\\haitr\\OneDrive\\0. GAU DATA\\0.APP\\EDU_MANAGER_V2\\receipts\\perf",
+  "auth_login": {
+    "path": "/api/auth/login",
+    "method": "POST",
+    "status": 200,
+    "duration_ms": 1376.8,
+    "ok": true,
+    "error": null
+  },
+  "browser": {
+    "enabled": true,
+    "engine": "chromium",
+    "channel": "chrome",
+    "headless": true
+  },
+  "thresholds": {
+    "route_severe_ms": 15000,
+    "api_severe_ms": 10000,
+    "route_timeout_ms": 45000,
+    "api_timeout_ms": 30000,
+    "network_idle_ms": 20000
+  },
+  "selected_routes": [
+    "/",
+    "/students",
+    "/classes",
+    "/attendance",
+    "/fee-collection",
+    "/reports",
+    "/advanced-reports",
+    "/templates",
+    "/payments",
+    "/history"
+  ],
+  "selected_api_paths": [
+    "/api/auth/me",
+    "/api/reports/dashboard",
+    "/api/students?fields=options",
+    "/api/classes",
+    "/api/teachers",
+    "/api/parents",
+    "/api/monthly-fees/workbench?month=2026-05&limit=500",
+    "/api/reports/financial?from=2026-05-01&to=2026-05-28&type=monthly",
+    "/api/reports/student-fees?from=2026-05&to=2026-05",
+    "/api/reports/advanced?from=2025-05-28&to=2026-05-28&group_by=month",
+    "/api/templates",
+    "/api/payments",
+    "/api/receipts",
+    "/api/attendance-periods"
+  ],
+  "direct_api_checks": [
+    {
+      "path": "/api/auth/me",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 109.3,
+      "response_bytes": 236,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/dashboard",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 1247,
+      "response_bytes": 3605,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/students?fields=options",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 326.2,
+      "response_bytes": 9817,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/classes",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 268.4,
+      "response_bytes": 3335,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/teachers",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 163.4,
+      "response_bytes": 1273,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/parents",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 272.1,
+      "response_bytes": 4483,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/monthly-fees/workbench?month=2026-05&limit=500",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 595.7,
+      "response_bytes": 34925,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/financial?from=2026-05-01&to=2026-05-28&type=monthly",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 261.6,
+      "response_bytes": 4224,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/student-fees?from=2026-05&to=2026-05",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 550.9,
+      "response_bytes": 11678,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/advanced?from=2025-05-28&to=2026-05-28&group_by=month",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 349.7,
+      "response_bytes": 2484,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/templates",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 208.9,
+      "response_bytes": 589,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/payments",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 328,
+      "response_bytes": 812,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/receipts",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 515.8,
+      "response_bytes": 8255,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/attendance-periods",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 361.8,
+      "response_bytes": 2881,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "routes": [
+    {
+      "route": "/",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1652.8,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 32,
+        "load_event_ms": 32,
+        "first_paint_ms": 172,
+        "first_contentful_paint_ms": 372,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 3,
+          "style": 0,
+          "fetch": 3
+        },
+        "resource_transfer_bytes": {
+          "script": 419108,
+          "style": 0,
+          "fetch": 5613
+        }
+      },
+      "api_call_count": 3,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/students",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1369.6,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 16,
+        "load_event_ms": 17,
+        "first_paint_ms": 24,
+        "first_contentful_paint_ms": 88,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 5,
+          "style": 0,
+          "fetch": 2
+        },
+        "resource_transfer_bytes": {
+          "script": 167861,
+          "style": 0,
+          "fetch": 11312
+        }
+      },
+      "api_call_count": 2,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/classes",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1145.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 20,
+        "load_event_ms": 21,
+        "first_paint_ms": 40,
+        "first_contentful_paint_ms": 108,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 5,
+          "style": 0,
+          "fetch": 3
+        },
+        "resource_transfer_bytes": {
+          "script": 170327,
+          "style": 0,
+          "fetch": 5744
+        }
+      },
+      "api_call_count": 3,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1120.8,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 17,
+        "load_event_ms": 18,
+        "first_paint_ms": 32,
+        "first_contentful_paint_ms": 92,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 3,
+          "style": 0,
+          "fetch": 2
+        },
+        "resource_transfer_bytes": {
+          "script": 72222,
+          "style": 0,
+          "fetch": 4171
+        }
+      },
+      "api_call_count": 2,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/fee-collection",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1341.8,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 18,
+        "load_event_ms": 19,
+        "first_paint_ms": 28,
+        "first_contentful_paint_ms": 104,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 5,
+          "style": 0,
+          "fetch": 3
+        },
+        "resource_transfer_bytes": {
+          "script": 72866,
+          "style": 0,
+          "fetch": 39396
+        }
+      },
+      "api_call_count": 3,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/reports",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1479.6,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 21,
+        "load_event_ms": 22,
+        "first_paint_ms": 28,
+        "first_contentful_paint_ms": 116,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 4,
+          "style": 0,
+          "fetch": 3
+        },
+        "resource_transfer_bytes": {
+          "script": 62408,
+          "style": 0,
+          "fetch": 17038
+        }
+      },
+      "api_call_count": 3,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/advanced-reports",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1260.3,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 18,
+        "load_event_ms": 18,
+        "first_paint_ms": 24,
+        "first_contentful_paint_ms": 108,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 4,
+          "style": 0,
+          "fetch": 2
+        },
+        "resource_transfer_bytes": {
+          "script": 59803,
+          "style": 0,
+          "fetch": 3194
+        }
+      },
+      "api_call_count": 2,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/templates",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1050.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 20,
+        "load_event_ms": 20,
+        "first_paint_ms": 28,
+        "first_contentful_paint_ms": 96,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 2,
+          "style": 0,
+          "fetch": 2
+        },
+        "resource_transfer_bytes": {
+          "script": 57966,
+          "style": 0,
+          "fetch": 1425
+        }
+      },
+      "api_call_count": 2,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/payments",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1142.3,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 19,
+        "load_event_ms": 19,
+        "first_paint_ms": 28,
+        "first_contentful_paint_ms": 100,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 4,
+          "style": 0,
+          "fetch": 2
+        },
+        "resource_transfer_bytes": {
+          "script": 161119,
+          "style": 0,
+          "fetch": 1648
+        }
+      },
+      "api_call_count": 2,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "route": "/history",
+      "sample": 1,
+      "ok": true,
+      "duration_ms": 1398.1,
+      "browser_metrics": {
+        "dom_content_loaded_ms": 19,
+        "load_event_ms": 19,
+        "first_paint_ms": 28,
+        "first_contentful_paint_ms": 92,
+        "document_transfer_bytes": 1089,
+        "resource_counts": {
+          "script": 4,
+          "style": 0,
+          "fetch": 3
+        },
+        "resource_transfer_bytes": {
+          "script": 63420,
+          "style": 0,
+          "fetch": 10203
+        }
+      },
+      "api_call_count": 3,
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "browser_api_requests": [
+    {
+      "route": "/",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 52.5,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/reports/dashboard?mode=summary",
+      "path": "/api/reports/dashboard?mode=summary",
+      "status": 200,
+      "duration_ms": 182.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/reports/dashboard?mode=full",
+      "path": "/api/reports/dashboard?mode=full",
+      "status": 200,
+      "duration_ms": 524.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/students",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 53.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/students",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/students?fields=table&limit=500",
+      "path": "/api/students?fields=table&limit=500",
+      "status": 200,
+      "duration_ms": 459,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 55.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/classes",
+      "path": "/api/classes",
+      "status": 200,
+      "duration_ms": 212.4,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/classes",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/teachers",
+      "path": "/api/teachers",
+      "status": 200,
+      "duration_ms": 226.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/attendance",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 49.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/attendance",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/classes",
+      "path": "/api/classes",
+      "status": 200,
+      "duration_ms": 209.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 55.2,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/classes",
+      "path": "/api/classes",
+      "status": 200,
+      "duration_ms": 329.8,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/fee-collection",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/monthly-fees/workbench?month=2026-05&limit=500",
+      "path": "/api/monthly-fees/workbench?month=2026-05&limit=500",
+      "status": 200,
+      "duration_ms": 423.5,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 63.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/reports/financial?from=2026-05-01&to=2026-05-28&type=monthly",
+      "path": "/api/reports/financial?from=2026-05-01&to=2026-05-28&type=monthly",
+      "status": 200,
+      "duration_ms": 265.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/reports",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/reports/student-fees?from=2026-05&to=2026-05",
+      "path": "/api/reports/student-fees?from=2026-05&to=2026-05",
+      "status": 200,
+      "duration_ms": 558,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/advanced-reports",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 57.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/advanced-reports",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/reports/advanced?from=2025-05-31&to=2026-05-28&group_by=month",
+      "path": "/api/reports/advanced?from=2025-05-31&to=2026-05-28&group_by=month",
+      "status": 200,
+      "duration_ms": 345.9,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/templates",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 48.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/templates",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/templates",
+      "path": "/api/templates",
+      "status": 200,
+      "duration_ms": 141.7,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/payments",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 47.1,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/payments",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/payments",
+      "path": "/api/payments",
+      "status": 200,
+      "duration_ms": 231.2,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/auth/me",
+      "path": "/api/auth/me",
+      "status": 200,
+      "duration_ms": 48,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/receipts",
+      "path": "/api/receipts",
+      "status": 200,
+      "duration_ms": 291.3,
+      "failure": null,
+      "severe": false
+    },
+    {
+      "route": "/history",
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/payments",
+      "path": "/api/payments",
+      "status": 200,
+      "duration_ms": 198.4,
+      "failure": null,
+      "severe": false
+    }
+  ],
+  "read_only_violations": [],
+  "warnings": [],
+  "trace_path": null,
+  "summary": {
+    "auth_login_ok": true,
+    "direct_api_total": 14,
+    "direct_api_failed": 0,
+    "direct_api_p95_ms": 1247,
+    "route_total": 10,
+    "route_failed": 0,
+    "route_p95_ms": 1652.8,
+    "browser_api_total": 25,
+    "browser_api_failed_or_severe": 0,
+    "browser_api_p95_ms": 524.8,
+    "read_only_violations": 0
+  }
+}

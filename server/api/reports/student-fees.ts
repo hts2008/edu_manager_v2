@@ -41,18 +41,31 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const students = await prisma.student.findMany({
       where: { deletedAt: null },
-      include: {
+      select: {
+        id: true,
+        fullName: true,
         parent: { select: { fullName: true, phone: true } },
         studentClasses: {
           where: { status: "active" },
-          include: { class: { select: { className: true } } },
+          select: { class: { select: { className: true } } },
         },
         monthlyFees: {
           where: { month: { in: months } },
-          include: { receipt: true },
+          select: {
+            month: true,
+            status: true,
+            totalDays: true,
+            totalAmount: true,
+          },
         },
         receipts: {
           where: { month: { in: months }, deletedAt: null },
+          select: {
+            id: true,
+            month: true,
+            amount: true,
+            daysCount: true,
+          },
           orderBy: { createdAt: "desc" },
         },
       },

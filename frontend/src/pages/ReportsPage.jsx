@@ -60,32 +60,32 @@ export default function ReportsPage() {
 
   const fromMonth = dateRange.from.slice(0, 7);
   const toMonth = dateRange.to.slice(0, 7);
+  const financialKey = `${dateRange.from}:${dateRange.to}:${reportType}`;
+  const feeKey = `${fromMonth}:${toMonth}`;
 
-  const { data, loading } = useAsyncData(async () => {
-    const [financialResponse, studentFeesResponse] = await Promise.all([
-      reportsService.getFinancial({
-        from: dateRange.from,
-        to: dateRange.to,
-        type: reportType,
-      }),
-      reportsService.getStudentFees({
-        from: fromMonth,
-        to: toMonth,
-      }),
-    ]);
+  const financialState = useAsyncData(async () => {
+    const response = await reportsService.getFinancial({
+      from: dateRange.from,
+      to: dateRange.to,
+      type: reportType,
+    });
+    if (!response.success) throw response.error || new Error("Financial report failed");
+    return response.data;
+  }, financialKey);
 
-    return {
-      financial: financialResponse.success ? financialResponse.data : null,
-      studentFees: studentFeesResponse.success ? studentFeesResponse.data : null,
-      errors: [
-        financialResponse.success ? null : financialResponse.error,
-        studentFeesResponse.success ? null : studentFeesResponse.error,
-      ].filter(Boolean),
-    };
-  }, `${dateRange.from}:${dateRange.to}:${reportType}`);
+  const feeState = useAsyncData(async () => {
+    const response = await reportsService.getStudentFees({
+      from: fromMonth,
+      to: toMonth,
+    });
+    if (!response.success) throw response.error || new Error("Student fee report failed");
+    return response.data;
+  }, feeKey);
 
-  const financial = data?.financial;
-  const studentFees = data?.studentFees;
+  const financial = financialState.data;
+  const studentFees = feeState.data;
+  const financialPending = financialState.loading && !financial;
+  const feesPending = feeState.loading && !studentFees;
   const studentRows = studentFees?.students || [];
 
   const totalReceipts =
@@ -182,8 +182,8 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="motion-hero motion-rise overflow-hidden rounded-[1.75rem] border border-white/70 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-300/60 md:p-8">
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <section className="overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-slate-950 p-6 text-white shadow-lg md:p-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-200">
               Tài chính & học phí
@@ -192,8 +192,7 @@ export default function ReportsPage() {
               Báo cáo vận hành trung tâm
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Theo dõi thu chi, đối soát học phí theo từng học viên và phát hiện
-              bất thường như đã thu tiền nhưng số buổi bằng 0.
+              Theo dõi thu chi, đối soát học phí theo từng học viên và phát hiện bất thường như đã thu tiền nhưng số buổi bằng 0.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -201,13 +200,13 @@ export default function ReportsPage() {
               Export CSV
             </button>
             <button type="button" onClick={() => window.print()} className="btn-primary">
-              In bao cao
+              In báo cáo
             </button>
           </div>
         </div>
       </section>
 
-      <div className="card motion-rise">
+      <div className="card">
         <div className="card-body">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex flex-wrap gap-2">
@@ -216,9 +215,9 @@ export default function ReportsPage() {
                   key={option.value}
                   type="button"
                   onClick={() => setReportType(option.value)}
-                  className={`rounded-lg px-4 py-2 font-semibold transition-all ${
+                  className={`rounded-lg px-4 py-2 font-semibold transition-colors ${
                     reportType === option.value
-                      ? "bg-primary-600 text-white shadow-lg shadow-primary-500/30"
+                      ? "bg-primary-600 text-white shadow-sm"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -247,7 +246,7 @@ export default function ReportsPage() {
               />
             </div>
           </div>
-          {data?.errors?.length > 0 && (
+          {(financialState.error || feeState.error) && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               Một phần báo cáo chưa tải được. Vui lòng kiểm tra quyền truy cập hoặc API.
             </div>
@@ -258,34 +257,40 @@ export default function ReportsPage() {
       <div className="grid gap-4 lg:grid-cols-4">
         <MetricCard
           label="Tổng thu"
-          value={formatCurrency(totalReceipts)}
-          helper={`${financial?.receipts?.length || 0} phiếu thu`}
+          value={financialPending ? "Đang tải" : formatCurrency(totalReceipts)}
+          helper={financialPending ? "Đang lấy dữ liệu thu" : `${financial?.receipts?.length || 0} phiếu thu`}
           tone="emerald"
         />
         <MetricCard
           label="Tổng chi"
-          value={formatCurrency(totalPayments)}
-          helper={`${financial?.payments?.length || 0} phiếu chi`}
+          value={financialPending ? "Đang tải" : formatCurrency(totalPayments)}
+          helper={financialPending ? "Đang lấy dữ liệu chi" : `${financial?.payments?.length || 0} phiếu chi`}
           tone="rose"
         />
         <MetricCard
           label="Cân đối"
-          value={formatCurrency(balance)}
-          helper={balance >= 0 ? "Dương tiền" : "Âm tiền"}
+          value={financialPending ? "Đang tải" : formatCurrency(balance)}
+          helper={financialPending ? "Không hiển thị số 0 khi đang tải" : balance >= 0 ? "Dương tiền" : "Âm tiền"}
           tone={balance >= 0 ? "sky" : "amber"}
         />
         <MetricCard
           label="Còn phải thu"
-          value={formatCurrency(studentFees?.summary?.outstanding_amount || 0)}
-          helper={`${studentFees?.summary?.anomaly_count || 0} cảnh báo`}
+          value={feesPending ? "Đang tải" : formatCurrency(studentFees?.summary?.outstanding_amount || 0)}
+          helper={feesPending ? "Đang đối soát học phí" : `${studentFees?.summary?.anomaly_count || 0} cảnh báo`}
           tone="violet"
         />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
-        <div className="card motion-rise p-6">
+        <div className="card p-6">
           <h3 className="mb-4 font-bold text-slate-900">Chi tiêu theo danh mục</h3>
-          {Object.keys(paymentsByCategory).length > 0 ? (
+          {financialPending ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="h-10 animate-pulse rounded-xl bg-slate-100" />
+              ))}
+            </div>
+          ) : Object.keys(paymentsByCategory).length > 0 ? (
             <div className="space-y-4">
               {Object.entries(paymentsByCategory).map(([category, amount]) => {
                 const percent = totalPayments > 0 ? Math.round((amount / totalPayments) * 100) : 0;
@@ -317,12 +322,12 @@ export default function ReportsPage() {
           )}
         </div>
 
-        <div className="card motion-rise p-6">
+        <div className="card p-6">
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h3 className="font-bold text-slate-900">Theo dõi học phí theo học viên</h3>
               <p className="text-sm text-slate-500">
-                {monthLabel(fromMonth)} - {monthLabel(toMonth)} - {filteredStudentRows.length} học viên
+                {monthLabel(fromMonth)} - {monthLabel(toMonth)} - {feesPending ? "đang tải" : `${filteredStudentRows.length} học viên`}
               </p>
             </div>
             <input
@@ -395,17 +400,11 @@ export default function ReportsPage() {
 
           {!filteredStudentRows.length && (
             <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
-              Không có học viên phù hợp bộ lọc hiện tại.
+              {feesPending ? "Đang tải dữ liệu học phí..." : "Không có học viên phù hợp bộ lọc hiện tại."}
             </div>
           )}
         </div>
       </div>
-
-      {loading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <div className="spinner h-8 w-8" />
-        </div>
-      )}
     </div>
   );
 }
@@ -420,7 +419,7 @@ function MetricCard({ label, value, helper, tone }) {
   }[tone];
 
   return (
-    <div className={`motion-rise rounded-3xl border bg-gradient-to-br p-5 shadow-lg shadow-slate-200/70 ${toneClass}`}>
+    <div className={`rounded-3xl border bg-gradient-to-br p-5 shadow-sm ${toneClass}`}>
       <p className="text-sm font-bold opacity-80">{label}</p>
       <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
       <p className="mt-2 text-xs font-semibold opacity-75">{helper}</p>

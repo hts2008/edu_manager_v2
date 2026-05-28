@@ -207,3 +207,10 @@
 **Decision**: Split page modules with `React.lazy`/`Suspense`, isolate heavy vendors with Vite manual chunks, keep page transitions lightweight, add short-lived GET-only dedupe/cache with mutation and 401 invalidation, and introduce read aggregate endpoints for high-fanout screens instead of relying on multiple independent page requests.
 **Rationale**: This improves first-load and navigation responsiveness without weakening mutation safety. GET caching is intentionally short, bypassable, and invalidated by mutations; aggregate reads preserve the existing snake_case API boundary while cutting duplicate fetches for operator workbenches.
 **Status**: IMPLEMENTED with local/prod perf smoke 10/10, local/prod UX 11/11, local/prod Phase-B 17/17, Neon additive index sync, and Vercel deployment `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`.
+
+### ADR-30: Performance Evidence Must Separate UI Jank From Serverless Cold Latency
+**Date**: 2026-05-28
+**Context**: Follow-up browser testing showed the app could still feel slow even after route-level lazy loading. The remaining symptoms mixed real UI jank, stale request races, broad table work, report overfetch, and production-only cold-start/Neon latency.
+**Decision**: Keep frontend interactions lightweight by avoiding large blur/motion surfaces, false zero loading states, broad table scans, and stale async response writes. Add `scripts/perf-lab.mjs` as a read-only browser/API evidence harness so production latency is measured separately from UI regressions.
+**Rationale**: The platform needs repeatable evidence before declaring lag fixed. Perf-lab allows local/production comparison with a write guard, while UI patches reduce client-side repaint and state-race defects without changing business contracts.
+**Status**: IMPLEMENTED with local/prod perf-lab pass, local/prod Playwright 28/28, and Vercel deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`.

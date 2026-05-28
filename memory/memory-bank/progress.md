@@ -465,3 +465,16 @@
 - **Production Smoke**: Production Chrome perf smoke passed 10/10 routes and 25/25 API calls with read-only guard enabled; production UX smoke passed 11/11; production Phase-B smoke passed 17/17.
 - **Evidence**: `receipts/2026-05-27-performance-production-closeout.md`, `receipts/perf/perf-smoke-2026-05-27T06-11-33-159Z.md`, `receipts/perf/perf-smoke-2026-05-27T06-17-57-458Z.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-05-28 - Performance Lag RCA Closeout
+- **Scope**: Continue the active production-live performance goal after the user reported remaining lag/jank. Close the next unchecked item with `ck:team` subagent outputs, final local/browser verification, production deploy, and evidence write-back.
+- **RCA**: Remaining lag came from a combination of large blur/motion surfaces, route loading overlays, false zero states while data loaded, broad DataTable search/default-all rendering, high-fanout report overfetch, and stale async Attendance/Fee Workbench request races. Production still has a cold-start/Neon latency floor, now measured separately from UI jank.
+- **Implementation**: Removed heavy page remount/y motion, changed protected route loading to a lightweight skeleton, defaulted DataTable to 100 rows with deferred/keyed search, made Students/Fee metrics honest while loading, guarded Fee Workbench request races, guarded and parallelized Attendance class/week/month fetches, removed large header/sidebar/Attendance backdrop blur surfaces, narrowed report Prisma selects, added `scripts/perf-lab.mjs`, and added `npm run perf:lab`.
+- **Team Mode**: Integrated three bounded subagent outputs: backend report-select worker, perf-lab worker, and frontend performance reviewer. All subagents were closed after integration.
+- **Validation**: `node --check scripts/perf-lab.mjs`, `npm run perf:lab -- --help`, `npx tsc --noEmit`, frontend lint max-warnings=0, `npm run test:unit` 39/39, `npm run build`, and `git diff --check` passed. Local perf-lab passed with read-only guard and local Playwright `ux-redesign-smoke.spec.js phase-b-smoke.spec.js` passed 28/28.
+- **Deployment**: `npx vercel deploy --prod --yes` produced Ready deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`, aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production perf-lab passed against `https://edu-manager-gules.vercel.app` with read-only violations 0. Production Playwright `ux-redesign-smoke.spec.js phase-b-smoke.spec.js` passed 28/28.
+- **Evidence**: `receipts/2026-05-28-performance-lag-rca-closeout.md`, `receipts/perf/perf-lab-2026-05-28T16-04-40-168Z.md`, `receipts/perf/perf-lab-2026-05-28T16-08-15-968Z.md`.
+- **STATUS**: IMPLEMENTED.

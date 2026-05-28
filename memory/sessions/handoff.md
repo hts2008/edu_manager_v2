@@ -45,6 +45,17 @@
 
 ## Final Verification + Write-Back - 2026-05-17
 - **Mode**: Operational closeout.
+# Performance Lag RCA Closeout - 2026-05-28
+- **Mode**: Production performance follow-up after user-reported remaining lag/jank.
+- **Current Outcome**: Latest production deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Implemented**: reduced large motion/blur surfaces, lighter protected-route loading, DataTable default 100 + deferred/keyed search, honest Students/Fee loading metrics, Fee Workbench stale-request guard, Attendance stale-request guard plus parallel month fetches, report select narrowing, and read-only `scripts/perf-lab.mjs`.
+- **Evidence**: `receipts/2026-05-28-performance-lag-rca-closeout.md`, local perf-lab `receipts/perf/perf-lab-2026-05-28T16-04-40-168Z.md`, production perf-lab `receipts/perf/perf-lab-2026-05-28T16-08-15-968Z.md`.
+- **Validation**: typecheck, lint zero warnings, unit 39/39, build, diff-check, local perf-lab pass, local Playwright 28/28, production perf-lab pass, production Playwright 28/28.
+- **Residual risk**: production cold-start/Neon latency remains visible in perf-lab p95 route/API timings; next infra-level optimization should evaluate Fluid Compute/warmers, report materialization, region/pooling alignment, and cache headers.
+- **Tooling note**: MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn, so Dual-Brain write-back remains markdown-only/manual.
+
+---
+
 - **Current Outcome**: Phase A/B/C and B2B-005/B2B-008 closeout are implemented with evidence.
 - **Latest docs/evidence commit before this update**: `4fb8297 docs(phase-c): record operations closeout`.
 - **Verification**: Production `/` returned 200; protected APIs returned 401; cron routes returned 403; branch `main` matched `origin/main`; local ports 3000/5000 had no listeners; out-of-scope marker scan returned no matches.

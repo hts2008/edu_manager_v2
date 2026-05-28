@@ -1,9 +1,11 @@
-import { useState, useMemo, useEffect, useId } from 'react';
+import { useState, useMemo, useEffect, useId, useDeferredValue } from 'react';
 
 const PAGE_SIZE_ALL = 'all';
 const DEFAULT_PAGE_SIZE_OPTIONS = [PAGE_SIZE_ALL, 500, 100, 50];
+const DEFAULT_PAGE_SIZE = 100;
 
 const normalizePageSize = (value) => {
+  if (value === undefined) return DEFAULT_PAGE_SIZE;
   if (value === PAGE_SIZE_ALL || value == null) {
     return PAGE_SIZE_ALL;
   }
@@ -26,6 +28,8 @@ export default function DataTable({
   selectedIds = [],
   onSelectionChange,
   getRowId = (row) => row.id,
+  searchKeys,
+  getSearchText,
 }) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -33,7 +37,24 @@ export default function DataTable({
   const [rowsPerPage, setRowsPerPage] = useState(() => normalizePageSize(pageSize));
   const searchId = useId();
   const pageSizeId = useId();
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const searchableRows = useMemo(
+    () =>
+      data.map((row) => ({
+        row,
+        searchText: (
+          getSearchText
+            ? getSearchText(row)
+            : (searchKeys && searchKeys.length
+                ? searchKeys.map((key) => row[key]).join(" ")
+                : columns.map((column) => row[column.key]).join(" "))
+        )
+          .toString()
+          .toLowerCase(),
+      })),
+    [columns, data, getSearchText, searchKeys]
+  );
   const pageSizeOptions = useMemo(() => {
     if (
       rowsPerPage !== PAGE_SIZE_ALL &&
@@ -56,16 +77,14 @@ export default function DataTable({
 
   // Filter and sort data
   const processedData = useMemo(() => {
-    let result = [...data];
+    let result = searchableRows.map((item) => item.row);
 
     // Search filter
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter((row) =>
-        Object.values(row).some((val) =>
-          String(val).toLowerCase().includes(lowerSearch)
-        )
-      );
+    if (deferredSearchTerm) {
+      const lowerSearch = deferredSearchTerm.toLowerCase();
+      result = searchableRows
+        .filter((item) => item.searchText.includes(lowerSearch))
+        .map((item) => item.row);
     }
 
     // Sort
@@ -81,7 +100,7 @@ export default function DataTable({
     }
 
     return result;
-  }, [data, searchTerm, sortConfig]);
+  }, [deferredSearchTerm, searchableRows, sortConfig]);
 
   // Pagination
   const totalPages =
@@ -137,7 +156,7 @@ export default function DataTable({
   // Reset page when search or page size changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, rowsPerPage]);
+  }, [deferredSearchTerm, rowsPerPage]);
 
   useEffect(() => {
     const safeTotalPages = Math.max(totalPages, 1);
@@ -145,7 +164,7 @@ export default function DataTable({
   }, [totalPages]);
 
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm">
+    <div className="w-full overflow-hidden rounded-2xl border border-slate-200/60 bg-white/95 shadow-sm">
       {/* Search */}
       <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-transparent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
@@ -290,7 +309,7 @@ export default function DataTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-200/60 bg-slate-50/50 px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-t border-slate-200/60 bg-slate-50/80 px-4 py-3">
           <span className="text-sm text-gray-500">
             Trang {currentPage} / {totalPages}
           </span>

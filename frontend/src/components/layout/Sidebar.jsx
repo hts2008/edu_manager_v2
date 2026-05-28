@@ -136,14 +136,14 @@ export default function Sidebar({ isOpen, onClose }) {
             exit={{ opacity: 0 }}
             type="button"
             aria-label="Đóng menu"
-            className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
             onClick={onClose}
           />
         )}
       </AnimatePresence>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] xl:w-[300px] transform flex-col border-r border-slate-200/50 bg-white/80 backdrop-blur-2xl shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] xl:w-[300px] transform flex-col border-r border-slate-200/60 bg-white/95 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:translate-x-0 lg:shadow-none ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

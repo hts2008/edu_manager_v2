@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { Wallet, Printer, Calculator, Banknote, CreditCard, CheckCircle2 } from 'lucide-react';
 import { studentsService, classesService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
@@ -36,6 +36,7 @@ export default function FeeCollectionPage() {
   const [processing, setProcessing] = useState(false);
   const [printQueue, setPrintQueue] = useState([]);
   const [showPrintQueue, setShowPrintQueue] = useState(false);
+  const loadRequestRef = useRef(0);
   const toast = useToast();
 
   useEffect(() => {
@@ -60,6 +61,10 @@ export default function FeeCollectionPage() {
   };
 
   const loadData = async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    const isCurrentRequest = () => loadRequestRef.current === requestId;
+
     setLoading(true);
     const workbenchRes = await monthlyFeesService.getWorkbench({
       month: selectedMonth,
@@ -68,6 +73,7 @@ export default function FeeCollectionPage() {
     });
 
     if (workbenchRes.success) {
+      if (!isCurrentRequest()) return;
       const feeMap = {};
       (workbenchRes.data.fees || []).forEach((fee) => {
         feeMap[fee.student_id] = fee;
@@ -82,6 +88,8 @@ export default function FeeCollectionPage() {
       studentsService.getAll({ status: 'active', limit: 500, ...classFilterParams }),
       monthlyFeesService.getAll({ month: selectedMonth, ...classFilterParams }),
     ]);
+
+    if (!isCurrentRequest()) return;
 
     if (studentsRes.success) {
       setStudents(studentsRes.data.students || []);
@@ -144,6 +152,8 @@ export default function FeeCollectionPage() {
 
     return { total, pending, ready, confirmed, paid, totalAmount, paidAmount, selectedAmount };
   }, [studentFees, payableRows]);
+  const initialLoading = loading && studentFees.length === 0;
+  const displayMetric = (value) => (initialLoading ? "..." : value);
 
   const navigateMonth = (delta) => {
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -396,7 +406,7 @@ export default function FeeCollectionPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_repeat(4,1fr)]">
-        <div className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-xl shadow-slate-200/50 backdrop-blur-2xl">
+        <div className="rounded-3xl border border-slate-200/70 bg-white/95 p-4 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -438,14 +448,14 @@ export default function FeeCollectionPage() {
         </div>
 
         {[
-          { label: 'Tổng học viên', value: summary.total, tone: 'slate', icon: Wallet },
-          { label: 'Chờ thu', value: summary.pending + summary.ready + summary.confirmed, tone: 'amber', icon: Calculator },
-          { label: 'Đã thu', value: summary.paid, tone: 'emerald', icon: CheckCircle2 },
-          { label: 'Dòng tiền', value: formatMoney(summary.paidAmount), sub: `/ ${formatMoney(summary.totalAmount)}`, tone: 'primary', icon: Banknote },
+          { label: 'Tổng học viên', value: displayMetric(summary.total), tone: 'slate', icon: Wallet },
+          { label: 'Chờ thu', value: displayMetric(summary.pending + summary.ready + summary.confirmed), tone: 'amber', icon: Calculator },
+          { label: 'Đã thu', value: displayMetric(summary.paid), tone: 'emerald', icon: CheckCircle2 },
+          { label: 'Dòng tiền', value: displayMetric(formatMoney(summary.paidAmount)), sub: initialLoading ? 'Đang tải dữ liệu' : `/ ${formatMoney(summary.totalAmount)}`, tone: 'primary', icon: Banknote },
         ].map((metric) => {
           const Icon = metric.icon;
           return (
-            <div key={metric.label} className="rounded-3xl border border-white/60 bg-white/70 p-4 shadow-xl shadow-slate-200/50 backdrop-blur-2xl">
+            <div key={metric.label} className="rounded-3xl border border-slate-200/70 bg-white/95 p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
                 <div className="rounded-2xl bg-slate-100 p-2 text-slate-500">
@@ -488,12 +498,13 @@ export default function FeeCollectionPage() {
       <DataTable
         columns={columns}
         data={filteredStudents}
-        loading={loading}
+        loading={initialLoading}
         emptyMessage="Không có học viên nào"
         selectable
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         getRowId={(row) => row.id}
+        searchKeys={["full_name", "parent_name", "parent_phone", "class_names", "feeStatus", "attendanceSummary"]}
       />
 
       <Modal

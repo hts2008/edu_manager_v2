@@ -7,11 +7,10 @@ export default function PageTransition({ children }) {
   return (
     <Motion.div
       key={location.pathname}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{
-        duration: 0.18,
+        duration: 0.1,
         ease: [0.22, 1, 0.36, 1],
       }}
       className="w-full h-full"

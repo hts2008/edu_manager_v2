@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion as Motion } from "framer-motion";
 import {
   classesService,
@@ -68,6 +68,8 @@ export default function AttendancePage() {
   const [classSchedule, setClassSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const classDataRequestRef = useRef(0);
+  const weekAttendanceRequestRef = useRef(0);
   const toast = useToast();
   const { isAdmin } = useAuth();
 
@@ -275,15 +277,27 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
-    if (selectedClass) {
+    if (!selectedClass) {
+      classDataRequestRef.current += 1;
+      weekAttendanceRequestRef.current += 1;
       setSelectedWeek(null);
-      loadClassData();
+      setStudents([]);
+      setAttendance({});
+      setCalendarAttendance({});
+      setPeriods({});
+      setClassSchedule(null);
+      setLoading(false);
+      return;
     }
+
+    setSelectedWeek(null);
+    setAttendance({});
+    loadClassData(selectedClass, threeMonths);
   }, [selectedClass, visibleMonthKey]);
 
   useEffect(() => {
     if (selectedClass && selectedWeek) {
-      loadWeekAttendance();
+      loadWeekAttendance(selectedClass, selectedWeek, students);
     }
   }, [selectedClass, selectedWeek]);
 
@@ -294,113 +308,154 @@ export default function AttendancePage() {
     }
   };
 
-  const loadClassData = async () => {
+  const loadClassData = async (classId = selectedClass, monthsWindow = threeMonths) => {
+    if (!classId) return;
+
+    const requestId = classDataRequestRef.current + 1;
+    classDataRequestRef.current = requestId;
     setLoading(true);
-    const classRes = await classesService.getById(selectedClass);
-    if (classRes.success) {
+
+    try {
+      const token = localStorage.getItem("token");
+      const classPromise = classesService.getById(classId);
+      const periodsPromise = Promise.all(
+        monthsWindow.map(async (m) => ({
+          month: m.key,
+          response: await attendancePeriodsService.getAll({
+            class_id: classId,
+            month: m.key,
+          }),
+        })),
+      );
+      const calendarPromise = Promise.all(
+        monthsWindow.map(async (m) => {
+          try {
+            const res = await fetch(
+              `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${m.key}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            );
+            if (!res.ok) return [];
+            const data = await res.json();
+            return data.success ? data.data.attendance || [] : [];
+          } catch (e) {
+            console.error(
+              "Error loading calendar attendance for month",
+              m.key,
+              e,
+            );
+            return [];
+          }
+        }),
+      );
+
+      const [classRes, periodResults, calendarResults] = await Promise.all([
+        classPromise,
+        periodsPromise,
+        calendarPromise,
+      ]);
+
+      if (classDataRequestRef.current !== requestId) return;
+
+      if (!classRes.success) {
+        setClassSchedule(null);
+        setStudents([]);
+        setPeriods({});
+        setCalendarAttendance({});
+        return;
+      }
+
       setClassSchedule(classRes.data);
       setStudents(classRes.data.students || []);
 
-      // Load periods for all 3 months
       const periodsMap = {};
-      for (const m of threeMonths) {
-        const periodRes = await attendancePeriodsService.getAll({
-          class_id: selectedClass,
-          month: m.key,
-        });
+      periodResults.forEach(({ month, response: periodRes }) => {
         if (periodRes.success && periodRes.data.periods?.length > 0) {
-          periodsMap[m.key] = periodRes.data.periods[0];
+          periodsMap[month] = periodRes.data.periods[0];
         }
-      }
+      });
       setPeriods(periodsMap);
 
-      // Load attendance for calendar markers (all 3 months)
       const calendarData = {};
-      for (const m of threeMonths) {
-        try {
-          const res = await fetch(
-            `/api/attendance/month?class_id=${selectedClass}&month=${m.key}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            },
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success && data.data.attendance) {
-              // Aggregate attendance by date
-              data.data.attendance.forEach((a) => {
-                const dateKey = a.attendance_date;
-                if (!calendarData[dateKey]) {
-                  calendarData[dateKey] = {
-                    present: 0,
-                    absent_with_fee: 0,
-                    absent_no_fee: 0,
-                    holiday: 0,
-                    total: 0,
-                  };
-                }
-                calendarData[dateKey][a.status] =
-                  (calendarData[dateKey][a.status] || 0) + 1;
-                calendarData[dateKey].total++;
-              });
-            }
-          }
-        } catch (e) {
-          console.error(
-            "Error loading calendar attendance for month",
-            m.key,
-            e,
-          );
+      calendarResults.flat().forEach((a) => {
+        const dateKey = a.attendance_date;
+        if (!calendarData[dateKey]) {
+          calendarData[dateKey] = {
+            present: 0,
+            absent_with_fee: 0,
+            absent_no_fee: 0,
+            holiday: 0,
+            total: 0,
+          };
         }
-      }
+        calendarData[dateKey][a.status] =
+          (calendarData[dateKey][a.status] || 0) + 1;
+        calendarData[dateKey].total++;
+      });
       setCalendarAttendance(calendarData);
+    } finally {
+      if (classDataRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
   };
 
-  const loadWeekAttendance = async () => {
-    if (!selectedWeek) return;
+  const loadWeekAttendance = async (
+    classId = selectedClass,
+    week = selectedWeek,
+    studentList = students,
+  ) => {
+    if (!classId || !week) return;
+
+    const requestId = weekAttendanceRequestRef.current + 1;
+    weekAttendanceRequestRef.current = requestId;
 
     const allAttendance = {};
-    students.forEach((s) => {
+    studentList.forEach((s) => {
       allAttendance[s.id] = {};
     });
 
     // Get months for the week (could span 2 months)
-    const startMonth = toMonthKey(selectedWeek.start);
-    const endMonth = toMonthKey(selectedWeek.end);
+    const startMonth = toMonthKey(week.start);
+    const endMonth = toMonthKey(week.end);
     const months = [startMonth];
     if (endMonth !== startMonth) {
       months.push(endMonth);
     }
 
-    // Load attendance for all months in the week
-    for (const month of months) {
-      try {
-        const res = await fetch(
-          `/api/attendance/month?class_id=${selectedClass}&month=${month}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
+    const token = localStorage.getItem("token");
+    const monthResults = await Promise.all(
+      months.map(async (month) => {
+        try {
+          const res = await fetch(
+            `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${month}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             },
-          },
-        );
-        if (res.ok) {
+          );
+          if (!res.ok) return [];
           const data = await res.json();
-          if (data.success && data.data.attendance) {
-            data.data.attendance.forEach((a) => {
-              if (!allAttendance[a.student_id])
-                allAttendance[a.student_id] = {};
-              allAttendance[a.student_id][a.attendance_date] = a.status;
-            });
-          }
+          return data.success ? data.data.attendance || [] : [];
+        } catch (e) {
+          console.error("Error loading attendance for month", month, e);
+          return [];
         }
-      } catch (e) {
-        console.error("Error loading attendance for month", month, e);
+      }),
+    );
+
+    if (weekAttendanceRequestRef.current !== requestId) return;
+
+    monthResults.flat().forEach((a) => {
+      if (!allAttendance[a.student_id]) {
+        allAttendance[a.student_id] = {};
       }
-    }
+      allAttendance[a.student_id][a.attendance_date] = a.status;
+    });
 
     setAttendance(allAttendance);
   };
@@ -627,7 +682,7 @@ export default function AttendancePage() {
       </Motion.div>
 
       {/* Class Selector */}
-      <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
+      <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
         <div className="card-body">
           <div className="flex items-center gap-4">
             <div className="flex-1 max-w-sm">
@@ -676,14 +731,14 @@ export default function AttendancePage() {
       </Motion.div>
 
       {loading ? (
-        <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
           <div className="card-body text-center py-12">
             <div className="spinner w-8 h-8 mx-auto mb-4"></div>
             <p className="text-gray-500">Đang tải...</p>
           </div>
         </Motion.div>
       ) : !selectedClass ? (
-        <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
           <div className="card-body text-center py-12 text-gray-500">
             Vui lòng chọn lớp học để xem lịch điểm danh
           </div>
@@ -691,7 +746,7 @@ export default function AttendancePage() {
       ) : (
         <>
           {/* 3-Month Calendar Grid - SAP Style */}
-          <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
+          <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
             <div className="card-body">
               <div className="flex flex-col gap-3 mb-4 xl:flex-row xl:items-start xl:justify-between">
                 <h3 className="font-semibold text-gray-900">
@@ -913,7 +968,7 @@ export default function AttendancePage() {
 
           {/* Week Timesheet - SAP Style */}
           {selectedWeek && (
-            <Motion.div variants={itemVariants} className="rounded-3xl border border-white/40 bg-white/60 backdrop-blur-2xl shadow-xl shadow-slate-200/50 overflow-hidden">
+            <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
               <div className="card-body">
                 <div className="flex flex-col gap-4 mb-4 xl:flex-row xl:items-center xl:justify-between">
                   <div>

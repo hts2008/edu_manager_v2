@@ -148,6 +148,58 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return successResponse(res, { students, total });
       }
 
+      if (fields === "table") {
+        const [rawStudents, total] = await Promise.all([
+          prisma.student.findMany({
+            where,
+            select: {
+              id: true,
+              fullName: true,
+              dateOfBirth: true,
+              gender: true,
+              status: true,
+              parentId: true,
+              parent: { select: { id: true, fullName: true, phone: true } },
+              studentClasses: {
+                where: { status: "active" },
+                select: { class: { select: { id: true, className: true } } },
+              },
+              createdAt: true,
+              deletedAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+            take: parseInt(limit as string),
+            skip: parseInt(offset as string),
+          }),
+          prisma.student.count({ where }),
+        ]);
+
+        const students = rawStudents.map((s: any) => ({
+          id: s.id,
+          full_name: s.fullName,
+          date_of_birth:
+            s.dateOfBirth?.toISOString?.()?.split("T")[0] || s.dateOfBirth,
+          gender: s.gender,
+          status: s.status,
+          parent_id: s.parentId,
+          parent_name: s.parent?.fullName || null,
+          parent_phone: s.parent?.phone || null,
+          class_names:
+            s.studentClasses
+              ?.map((sc: any) => sc.class?.className)
+              .filter(Boolean)
+              .join(", ") || null,
+          class_ids:
+            s.studentClasses
+              ?.map((sc: any) => sc.class?.id)
+              .filter(Boolean) || [],
+          created_at: s.createdAt,
+          deleted_at: s.deletedAt,
+        }));
+
+        return successResponse(res, { students, total });
+      }
+
       const [rawStudents, total] = await Promise.all([
         prisma.student.findMany({
           where,
