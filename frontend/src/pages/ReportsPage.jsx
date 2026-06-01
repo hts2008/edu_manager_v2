@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { reportsService } from "../services/api";
+import { receiptsService, reportsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { toDateKey } from "../utils/dateKeys";
+import { useToast } from "../components/ui/Toast";
 
 const REPORT_TYPES = [
   { value: "daily", label: "Ngày" },
@@ -57,6 +58,9 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState(getInitialDateRange);
   const [reportType, setReportType] = useState("monthly");
   const [studentQuery, setStudentQuery] = useState("");
+  const [showOnlyAnomalies, setShowOnlyAnomalies] = useState(false);
+  const [correctingReceiptId, setCorrectingReceiptId] = useState(null);
+  const toast = useToast();
 
   const fromMonth = dateRange.from.slice(0, 7);
   const toMonth = dateRange.to.slice(0, 7);
@@ -105,9 +109,10 @@ export default function ReportsPage() {
 
   const filteredStudentRows = useMemo(() => {
     const keyword = studentQuery.trim().toLowerCase();
-    if (!keyword) return studentRows;
-    return studentRows.filter((student) =>
-      [
+    return studentRows.filter((student) => {
+      if (showOnlyAnomalies && !(student.anomalies || []).length) return false;
+      if (!keyword) return true;
+      return [
         student.student_name,
         student.parent_name,
         student.parent_phone,
@@ -116,9 +121,35 @@ export default function ReportsPage() {
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(keyword)
+        .includes(keyword);
+    });
+  }, [showOnlyAnomalies, studentQuery, studentRows]);
+
+  const handleCorrectReceipt = async (item, student) => {
+    const receiptId = item.anomaly_detail?.receipt_ids?.[0] || item.receipt_ids?.[0];
+    if (!receiptId) {
+      toast.error("Không tìm thấy phiếu thu cần đối soát");
+      return;
+    }
+
+    const reason = window.prompt(
+      `Lý do hủy và tính lại phiếu ${receiptId} cho ${student.student_name}:`,
+      "Đối soát phiếu thu có số buổi bằng 0 nhưng có số tiền"
     );
-  }, [studentQuery, studentRows]);
+    if (!reason) return;
+
+    setCorrectingReceiptId(receiptId);
+    const response = await receiptsService.correct(receiptId, { reason });
+    setCorrectingReceiptId(null);
+
+    if (!response.success) {
+      toast.error(response.error?.message || "Không thể đối soát phiếu thu");
+      return;
+    }
+
+    toast.success("Đã hủy phiếu lỗi và tính lại học phí. Kiểm tra Thu tiền để thu lại nếu còn phải thu.");
+    await Promise.all([feeState.reload(), financialState.reload()]);
+  };
 
   const exportCsv = () => {
     const financialRows = [
@@ -330,6 +361,17 @@ export default function ReportsPage() {
                 {monthLabel(fromMonth)} - {monthLabel(toMonth)} - {feesPending ? "đang tải" : `${filteredStudentRows.length} học viên`}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowOnlyAnomalies((value) => !value)}
+              className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                showOnlyAnomalies
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              {showOnlyAnomalies ? "Đang lọc cảnh báo" : "Chỉ cảnh báo"}
+            </button>
             <input
               type="search"
               value={studentQuery}
@@ -388,6 +430,24 @@ export default function ReportsPage() {
                             } ${item.anomaly ? "ring-2 ring-amber-300" : ""}`}
                           >
                             {monthLabel(item.month)}
+                            {item.anomaly_detail?.can_correct && (
+                              <button
+                                type="button"
+                                disabled={
+                                  correctingReceiptId === item.anomaly_detail.receipt_ids?.[0]
+                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleCorrectReceipt(item, student);
+                                }}
+                                className="ml-1 rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] font-black text-amber-900 hover:bg-amber-300 disabled:opacity-50"
+                                title={item.anomaly_detail.message}
+                              >
+                                {correctingReceiptId === item.anomaly_detail.receipt_ids?.[0]
+                                  ? "..."
+                                  : "Sửa"}
+                              </button>
+                            )}
                           </span>
                         ))}
                       </div>

@@ -37,6 +37,8 @@ test("money APIs protect fee ledger linkage", () => {
   const cancel = source("server/api/monthly-fees/[id]/cancel.ts");
   const calculate = source("server/api/monthly-fees/calculate.ts");
   const receipts = source("server/api/receipts/index.ts");
+  const receiptCorrect = source("server/api/receipts/[id]/correct.ts");
+  const recycleBin = source("lib/recycle-bin.ts");
 
   assert.match(pay, /FEE_PAYMENT_CONFLICT/);
   assert.match(pay, /ZERO_DAY_POSITIVE_RECEIPT/);
@@ -55,6 +57,10 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(receipts, /monthly_fee_id/);
   assert.match(receipts, /MONTHLY_FEE_LINK_CONFLICT/);
   assert.match(receipts, /ZERO_DAY_POSITIVE_RECEIPT/);
+  assert.match(receiptCorrect, /CORRECTION_REASON_REQUIRED/);
+  assert.match(receiptCorrect, /RECEIPT_NOT_ANOMALOUS/);
+  assert.match(receiptCorrect, /CORRECT_RECEIPT/);
+  assert.match(recycleBin, /CORRECTED_RECEIPT_CANNOT_BE_RESTORED/);
 });
 
 test("monthly-fees bulk-pay route is resolved before dynamic id route", () => {
@@ -65,6 +71,22 @@ test("monthly-fees bulk-pay route is resolved before dynamic id route", () => {
     router.indexOf('exact(parts, ["monthly-fees", "bulk-pay"]') <
       router.indexOf('resource === "monthly-fees" && parts.length === 2'),
     "bulk-pay must be declared before /monthly-fees/:id"
+  );
+});
+
+test("receipt correction route is resolved before dynamic id route", () => {
+  const router = source("api/router.ts");
+
+  assert.match(router, /receiptCorrect/);
+  assert.ok(
+    router.indexOf('action === "correct"') >
+      router.indexOf('action === "pdf"'),
+    "receipt correction should be declared alongside static receipt actions"
+  );
+  assert.ok(
+    router.indexOf('action === "correct"') <
+      router.indexOf('resource === "payments"'),
+    "receipt correction must resolve before the next resource block"
   );
 });
 
@@ -81,7 +103,8 @@ test("student fee report flags paid receipt anomalies even without monthly fee r
   const code = source("server/api/reports/student-fees.ts");
 
   assert.match(code, /RECEIPT_WITH_ZERO_DAYS/);
-  assert.match(code, /hasZeroDayPositiveReceipt/);
+  assert.match(code, /detectReceiptAnomaly/);
+  assert.match(code, /anomaly_detail/);
 });
 
 test("core serverless handlers use DB-backed requireAuth instead of token-only auth", () => {

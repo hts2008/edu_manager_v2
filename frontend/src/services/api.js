@@ -397,6 +397,11 @@ export const receiptsService = {
   getById: (id) => request(`/receipts/${id}`),
   create: (data) =>
     request("/receipts", { method: "POST", body: JSON.stringify(data) }),
+  correct: (id, data = {}) =>
+    request(`/receipts/${id}/correct`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   delete: (id) => request(`/receipts/${id}`, { method: "DELETE" }),
 };
 

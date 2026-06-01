@@ -13,8 +13,11 @@ import {
   logActivity,
   sendApiError,
 } from "../../../../lib/api-utils.js";
+import { detectReceiptAnomaly } from "../../../../lib/finance-corrections.js";
 
 function receiptToDto(receipt: any) {
+  const monthlyFee = receipt.monthlyFees?.[0] || null;
+  const anomaly = detectReceiptAnomaly(receipt);
   return {
     id: receipt.id,
     student_id: receipt.studentId,
@@ -28,6 +31,14 @@ function receiptToDto(receipt: any) {
     payment_method: receipt.paymentMethod,
     template_id: receipt.templateId,
     template_name: receipt.template?.templateName || null,
+    monthly_fee_id: monthlyFee?.id || null,
+    monthly_fee_status: monthlyFee?.status || null,
+    anomaly_code: anomaly,
+    anomaly_message:
+      anomaly === "RECEIPT_WITH_ZERO_DAYS"
+        ? "Receipt has positive amount but zero chargeable sessions"
+        : null,
+    can_correct: Boolean(anomaly && !receipt.deletedAt),
     notes: receipt.notes,
     pdf_path: receipt.pdfPath,
     created_by: receipt.createdById,
@@ -48,6 +59,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         include: {
           student: { include: { parent: { select: { fullName: true, phone: true } } } },
           template: { select: { templateName: true } },
+          monthlyFees: {
+            select: { id: true, status: true },
+            take: 1,
+          },
         },
       });
       if (!receipt) throw new ApiError("NOT_FOUND", "Receipt not found", 404);

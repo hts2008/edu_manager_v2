@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast';
 import { receiptFormSchema } from '../utils/formValidation';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
+import { useAuth } from '../context/AuthContext';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
@@ -16,7 +17,9 @@ export default function ReceiptsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedReceiptIds, setSelectedReceiptIds] = useState([]);
+  const [correctingReceiptId, setCorrectingReceiptId] = useState(null);
   const toast = useToast();
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     loadReceipts();
@@ -63,6 +66,26 @@ export default function ReceiptsPage() {
     } catch (error) {
       toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
     }
+  };
+
+  const handleCorrectReceipt = async (receipt) => {
+    const reason = window.prompt(
+      `Lý do hủy và tính lại phiếu ${receipt.id}:`,
+      'Đối soát phiếu thu có số buổi bằng 0 nhưng có số tiền'
+    );
+    if (!reason) return;
+
+    setCorrectingReceiptId(receipt.id);
+    const response = await receiptsService.correct(receipt.id, { reason });
+    setCorrectingReceiptId(null);
+
+    if (!response.success) {
+      toast.error(response.error?.message || 'Không thể đối soát phiếu thu');
+      return;
+    }
+
+    toast.success('Đã hủy phiếu lỗi và tính lại học phí. Kiểm tra Thu tiền để thu lại nếu còn phải thu.');
+    await loadReceipts();
   };
 
   const handleSuccess = (receiptId) => {
@@ -123,18 +146,30 @@ export default function ReceiptsPage() {
       key: 'actions',
       title: '',
       render: (_, row) => (
-        <button
-          onClick={() => handlePrintPdf(row.id)}
-          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-          title="In PDF"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 9V2h12v7" />
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-            <path d="M6 14h12v8H6z" />
-          </svg>
-          <span className="sr-only">In PDF</span>
-        </button>
+        <div className="flex items-center justify-end gap-1">
+          {row.can_correct && isAdmin() && (
+            <button
+              onClick={() => handleCorrectReceipt(row)}
+              disabled={correctingReceiptId === row.id}
+              className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+              title={row.anomaly_message || 'Đối soát phiếu thu'}
+            >
+              {correctingReceiptId === row.id ? '...' : 'Đối soát'}
+            </button>
+          )}
+          <button
+            onClick={() => handlePrintPdf(row.id)}
+            className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            title="In PDF"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 9V2h12v7" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <path d="M6 14h12v8H6z" />
+            </svg>
+            <span className="sr-only">In PDF</span>
+          </button>
+        </div>
       ),
     },
   ];

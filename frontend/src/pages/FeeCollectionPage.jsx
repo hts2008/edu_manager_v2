@@ -134,7 +134,10 @@ export default function FeeCollectionPage() {
   );
 
   const payableRows = useMemo(
-    () => selectedRows.filter((student) => student.feeStatus !== 'paid'),
+    () =>
+      selectedRows.filter(
+        (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
+      ),
     [selectedRows]
   );
 
@@ -172,7 +175,9 @@ export default function FeeCollectionPage() {
   };
 
   const handleCalculateSelected = async () => {
-    const rows = selectedRows.filter((student) => student.feeStatus !== 'paid');
+    const rows = selectedRows.filter(
+      (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
+    );
     if (!rows.length) {
       toast.error('Chọn ít nhất một học viên chưa thu');
       return;
@@ -190,7 +195,9 @@ export default function FeeCollectionPage() {
   };
 
   const collectRows = async (rows, method) => {
-    const targetRows = rows.filter((student) => student.feeStatus !== 'paid');
+    const targetRows = rows.filter(
+      (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
+    );
     if (!targetRows.length) {
       toast.error('Không có học viên cần thu trong lựa chọn hiện tại');
       return;
@@ -304,6 +311,11 @@ export default function FeeCollectionPage() {
           {row.fee?.receipt_id ? (
             <p className="text-[11px] text-slate-400">Phiếu: {row.fee.receipt_id}</p>
           ) : null}
+          {row.fee?.needs_admin_review ? (
+            <p className="mt-1 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+              Cần admin đối soát
+            </p>
+          ) : null}
         </div>
       ),
     },
@@ -334,7 +346,7 @@ export default function FeeCollectionPage() {
               Tính phí
             </button>
           )}
-          {row.feeStatus !== 'paid' && (
+          {row.feeStatus !== 'paid' && !row.fee?.needs_admin_review && (
             <button
               type="button"
               onClick={(e) => {
@@ -345,6 +357,11 @@ export default function FeeCollectionPage() {
             >
               Thu tiền
             </button>
+          )}
+          {row.fee?.needs_admin_review && (
+            <span className="rounded-xl bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              Khóa thu
+            </span>
           )}
           {row.feeStatus === 'paid' && row.fee?.receipt_id && (
             <button

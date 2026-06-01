@@ -8,6 +8,13 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import { getBusinessMonthKey, getString, sendApiError } from "../../../lib/api-utils.js";
+import {
+  detectMonthlyFeeAnomaly,
+  detectReceiptAnomaly,
+} from "../../../lib/finance-corrections.js";
+import type { FinanceAnomalyCode } from "../../../lib/finance-corrections.js";
+
+type StudentFeeAnomalyCode = FinanceAnomalyCode | "RECEIPT_FEE_MISMATCH";
 
 function monthRange(from: string, to: string) {
   const months: string[] = [];
@@ -52,10 +59,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         monthlyFees: {
           where: { month: { in: months } },
           select: {
+            id: true,
             month: true,
             status: true,
             totalDays: true,
             totalAmount: true,
+            receiptId: true,
+            paidAt: true,
           },
         },
         receipts: {
@@ -65,6 +75,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             month: true,
             amount: true,
             daysCount: true,
+            createdAt: true,
           },
           orderBy: { createdAt: "desc" },
         },
@@ -90,21 +101,54 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           (sum, receipt) => sum + Number(receipt.amount || 0),
           0
         );
-        const hasZeroDayPositiveReceipt = receipts.some(
-          (receipt) =>
-            Number(receipt.amount || 0) > 0 && Number(receipt.daysCount || 0) <= 0
+        const anomalousReceipt = receipts.find((receipt) => detectReceiptAnomaly(receipt));
+        const receiptDays = receipts.reduce(
+          (sum, receipt) => sum + Number(receipt.daysCount || 0),
+          0
         );
         const paidAmount =
           receiptAmount || (fee?.status === "paid" ? Number(fee.totalAmount || 0) : 0);
         const expectedAmount = Number(fee?.totalAmount || 0);
-        const anomaly =
-          hasZeroDayPositiveReceipt
-            ? "RECEIPT_WITH_ZERO_DAYS"
-            : fee && fee.status === "paid" && fee.totalDays === 0 && expectedAmount > 0
-            ? "PAID_WITH_ZERO_DAYS"
-            : receiptAmount && fee && Math.round(receiptAmount) !== Math.round(expectedAmount)
-              ? "RECEIPT_FEE_MISMATCH"
-              : null;
+        let anomaly: StudentFeeAnomalyCode | null = anomalousReceipt
+          ? detectReceiptAnomaly(anomalousReceipt)
+          : null;
+        if (!anomaly) {
+          anomaly = detectMonthlyFeeAnomaly(fee);
+        }
+        if (
+          !anomaly &&
+          receiptAmount &&
+          fee &&
+          Math.round(receiptAmount) !== Math.round(expectedAmount)
+        ) {
+          anomaly = "RECEIPT_FEE_MISMATCH";
+        }
+        const anomalyDetail = anomaly
+          ? {
+              code: anomaly,
+              severity: anomaly === "RECEIPT_FEE_MISMATCH" ? "warning" : "critical",
+              message:
+                anomaly === "RECEIPT_WITH_ZERO_DAYS"
+                  ? "Receipt has positive amount but zero chargeable sessions"
+                  : anomaly === "PAID_WITH_ZERO_DAYS"
+                  ? "Monthly fee is marked paid with positive amount but zero chargeable sessions"
+                  : "Receipt amount differs from current monthly fee",
+              receipt_ids: receipts.map((receipt) => receipt.id),
+              monthly_fee_id: fee?.id || null,
+              expected_days: Number(fee?.totalDays || 0),
+              expected_amount: expectedAmount,
+              paid_days: receiptDays || Number(fee?.totalDays || 0),
+              paid_amount: paidAmount,
+              can_correct: Boolean(
+                anomaly !== "RECEIPT_FEE_MISMATCH" &&
+                  (anomalousReceipt?.id || fee?.receiptId)
+              ),
+              recommended_action:
+                anomaly === "RECEIPT_FEE_MISMATCH"
+                  ? "review_monthly_fee_and_receipts"
+                  : "void_receipt_and_recalculate",
+            }
+          : null;
 
         return {
           month,
@@ -113,7 +157,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           expected_amount: expectedAmount,
           paid_amount: paidAmount,
           receipt_ids: receipts.map((receipt) => receipt.id),
+          monthly_fee_id: fee?.id || null,
           anomaly,
+          anomaly_detail: anomalyDetail,
         };
       });
 

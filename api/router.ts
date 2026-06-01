@@ -60,6 +60,7 @@ const routes = {
   parentPortalMe: () => import("../server/api/parent-portal/me.js"),
   recycleBinIndex: () => import("../server/api/recycle-bin/index.js"),
   receiptById: () => import("../server/api/receipts/[id]/index.js"),
+  receiptCorrect: () => import("../server/api/receipts/[id]/correct.js"),
   receiptPdf: () => import("../server/api/receipts/[id]/pdf.js"),
   receiptsIndex: () => import("../server/api/receipts/index.js"),
   reportsDashboard: () => import("../server/api/reports/dashboard.js"),
@@ -131,6 +132,9 @@ function resolveRoute(parts: string[]): RouteMatch | null {
       : null) ||
     (resource === "receipts" && action === "pdf" && parts.length === 3
       ? { load: routes.receiptPdf, params: { id } }
+      : null) ||
+    (resource === "receipts" && action === "correct" && parts.length === 3
+      ? { load: routes.receiptCorrect, params: { id } }
       : null) ||
     exact(parts, ["payments"], routes.paymentsIndex) ||
     (resource === "payments" && parts.length === 2

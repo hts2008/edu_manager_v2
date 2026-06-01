@@ -8,6 +8,10 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import { getString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
+import {
+  detectMonthlyFeeAnomaly,
+  detectReceiptAnomaly,
+} from "../../../lib/finance-corrections.js";
 
 function currentMonthKey() {
   const now = new Date();
@@ -52,6 +56,9 @@ function studentToDto(student: any) {
 }
 
 function feeToDto(fee: any, student: any | undefined) {
+  const receipt = fee.receipt || null;
+  const anomaly =
+    detectReceiptAnomaly(receipt || {}) || detectMonthlyFeeAnomaly(fee);
   return {
     id: fee.id,
     student_id: fee.studentId,
@@ -88,6 +95,16 @@ function feeToDto(fee: any, student: any | undefined) {
     status: fee.status,
     receipt_id: fee.receiptId,
     receiptId: fee.receiptId,
+    receipt_days: receipt?.daysCount ?? null,
+    receipt_amount: receipt?.amount ?? null,
+    anomaly_code: anomaly,
+    anomaly_message:
+      anomaly === "RECEIPT_WITH_ZERO_DAYS"
+        ? "Receipt has positive amount but zero chargeable sessions"
+        : anomaly === "PAID_WITH_ZERO_DAYS"
+        ? "Monthly fee is paid with positive amount but zero chargeable sessions"
+        : null,
+    needs_admin_review: Boolean(anomaly),
     paid_at: fee.paidAt,
     paidAt: fee.paidAt,
     notes: fee.notes,
@@ -163,6 +180,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               notes: true,
               createdAt: true,
               updatedAt: true,
+              receipt: {
+                select: {
+                  id: true,
+                  daysCount: true,
+                  amount: true,
+                  deletedAt: true,
+                },
+              },
             },
             orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
           })

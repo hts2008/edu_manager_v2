@@ -1,4 +1,5 @@
 import { ApiError } from "./api-utils.js";
+import { isCorrectionNote } from "./finance-corrections.js";
 
 export type RecycleResource = "students" | "parents" | "receipts" | "payments";
 export type RecycleAction = "restore" | "purge";
@@ -44,6 +45,7 @@ function receiptDto(receipt: any) {
     student_name: receipt.student?.fullName || null,
     month: receipt.month,
     amount: receipt.amount,
+    is_correction: isCorrectionNote(receipt.notes),
     deleted_at: toDateOnly(receipt.deletedAt),
     created_at: receipt.createdAt,
   };
@@ -142,6 +144,13 @@ async function restoreParent(prisma: any, id: string) {
 async function restoreReceipt(prisma: any, id: string) {
   const receipt = await prisma.receipt.findFirst({ where: { id, deletedAt: { not: null } } });
   if (!receipt) throw new ApiError("NOT_FOUND", "Deleted receipt not found", 404);
+  if (isCorrectionNote(receipt.notes)) {
+    throw new ApiError(
+      "CORRECTED_RECEIPT_CANNOT_BE_RESTORED",
+      "Corrected financial receipts cannot be restored. Re-collect the recalculated monthly fee instead.",
+      409
+    );
+  }
   return prisma.receipt.update({ where: { id }, data: { deletedAt: null } });
 }
 
