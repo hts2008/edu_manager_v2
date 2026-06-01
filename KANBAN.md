@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - latest performance lag hardening deployed and production-smoked on 2026-05-28
+> **Status**: PRODUCTION LIVE - financial correction policy deployed and production-smoked on 2026-06-01
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,11 +10,30 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest hardening deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest financial correction policy deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
 **Default/dev login:** `admin / admin123` — rotate before real production operation.
+
+---
+
+## IMPLEMENTED - FINANCIAL CORRECTION POLICY CLOSEOUT (2026-06-01)
+
+**Objective:** close the next unchecked item: historical paid receipts/monthly fees with `days_count=0` and non-zero amount must be corrected through an explicit admin workflow, not silent data rewrite.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| FIN-2026-06-01-01 | Add shared finance anomaly detection and correction note policy | `lib/finance-corrections.ts`, tests | backend-specialist | ADR-25, ADR-27 | IMPLEMENTED | Unit 43/43, typecheck |
+| FIN-2026-06-01-02 | Add admin-only receipt correction endpoint | `server/api/receipts/[id]/correct.ts`, `api/router.ts` | backend-specialist | FIN-2026-06-01-01 | IMPLEMENTED | Production 401/404 route smoke, no mutation |
+| FIN-2026-06-01-03 | Surface anomaly metadata across receipts, reports, and fee workbench | Receipts API, student-fees report, monthly-fees workbench | backend-specialist | FIN-2026-06-01-01 | IMPLEMENTED | Contract tests, local/prod smoke |
+| FIN-2026-06-01-04 | Add admin UI entry points and lock unsafe collection rows | `ReceiptsPage`, `ReportsPage`, `FeeCollectionPage`, API client | frontend-specialist | FIN-2026-06-01-02..03 | IMPLEMENTED | Local/prod Playwright |
+| FIN-2026-06-01-05 | Prevent recycle-bin restore from resurrecting corrected receipts | `lib/recycle-bin.ts` | backend-specialist | FIN-2026-06-01-02 | IMPLEMENTED | Contract test |
+| FIN-2026-06-01-06 | Deploy and verify production | Vercel alias `edu-manager-gules` | release-manager | FIN-2026-06-01-01..05 | IMPLEMENTED | Deploy `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`, local/prod smoke |
+
+**Evidence:** `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
+
+**Residual risk:** production serverless/DB latency remains visible on first-touch dashboard/report/workbench APIs, with samples still around 2.8-4.6s on some endpoints. UI smoke passes and no 500/network errors were found, but deeper backend latency work remains a separate performance task.
 
 ---
 

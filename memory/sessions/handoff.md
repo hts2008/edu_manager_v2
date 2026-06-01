@@ -82,6 +82,45 @@
 - **Tooling Note**: MCPProxy/Neural Memory and Context+ tools were not exposed to this Codex turn after tool discovery, so Dual-Brain write-back is degraded/manual for this task.
 
 ## Session Summary
+- **Date**: 2026-06-01
+- **Workspace**: EDU_MANAGER_V2
+- **Mode**: Financial correction policy closeout after production performance/UX hardening.
+- **Current Outcome**: Explicit admin correction workflow for historical paid receipt/monthly-fee anomalies is implemented, deployed, and smoke-tested on production.
+
+## Latest Project Truth
+- **Product**: Edu Manager V2 education management system.
+- **Status**: Production live on `https://edu-manager-gules.vercel.app`.
+- **Latest production deployment observed**: Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`.
+- **Correction policy**: do not bulk rewrite historical paid receipts. Use Reports/Receipts anomaly actions one record at a time with an operator reason.
+- **Residual risk**: production serverless/DB latency remains measurable on dashboard/report/workbench APIs; current UI/API smoke passes but deeper backend latency work remains separate.
+
+## Completed This Session
+- [x] Added shared finance anomaly detection and correction-note policy.
+- [x] Added admin-only `POST /api/receipts/:id/correct`.
+- [x] Exposed anomaly metadata in Receipts, student-fees report, and Monthly Fees workbench.
+- [x] Added Reports/Receipts admin correction actions and Fee Workbench admin-review locks.
+- [x] Blocked recycle-bin restore for corrected receipts.
+- [x] Deployed to production and ran local + production smoke evidence.
+
+## Verification Snapshot
+- `npx tsc --noEmit` passed.
+- `npm run test:unit` passed 43/43.
+- `npm --prefix frontend run lint -- --max-warnings=0` passed.
+- `npm run build` passed.
+- `git diff --check` passed with LF/CRLF warnings only.
+- Local Playwright UX 11/11 and Phase-B 17/17 passed.
+- Production Playwright Phase-B 17/17, modal-scroll 1/1, and targeted UX 4/4 passed.
+- Production perf-lab passed; latest reports live under `receipts/perf/perf-lab-2026-06-01T*.md`.
+- Production correction route probes were non-mutating: no-token 401, authenticated nonexistent receipt 404.
+
+## Next Recommended Work
+1. Audit current report anomalies and correct them through the new admin action with a reason.
+2. Rotate default admin credentials and JWT secret before real operation.
+3. Open a dedicated backend-latency task for serverless/DB endpoints still sampling around 2.8-4.6s.
+
+---
+
+## Session Summary
 - **Date**: 2026-05-14
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: Scope/path cleanup after agency PRD reset

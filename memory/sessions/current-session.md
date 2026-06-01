@@ -266,29 +266,43 @@
   - [x] Sync Neon schema indexes with `npx prisma db push`.
   - [x] Deploy Vercel production `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`.
   - [x] Record KANBAN, active context, progress, decision, and receipt evidence.
+- [x] Implement 2026-06-01 financial correction policy closeout.
+  - [x] Summarize progress and inspect git diff/status before continuing.
+  - [x] Use `ck:team` subagents for backend/dataflow, frontend UX, and verification review.
+  - [x] Add shared anomaly detection and finance correction note policy.
+  - [x] Add admin-only receipt correction route and router dispatch.
+  - [x] Surface anomaly metadata in receipts, reports, and monthly fee workbench APIs.
+  - [x] Add Reports/Receipts admin correction actions and Fee Workbench admin-review locks.
+  - [x] Block recycle-bin restore for corrected receipts.
+  - [x] Verify static gates, local Chrome/Playwright, local perf-lab, production deploy, production Playwright, production perf-lab, and non-mutating correction route probes.
+  - [x] Update KANBAN, activeContext, progress, decisionLog, current-session, and receipt evidence.
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, and performance route-loading closeout are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, and 2026-06-01 financial correction policy closeout are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_A4LV7b5BR7g6SmVmirRAusA1Y69B`; production alias `https://edu-manager-gules.vercel.app` passed perf smoke 10/10 routes, UX 11/11, and Phase-B 17/17 after the performance route-loading closeout.
+- **Latest production deployment observed in Codex session**: Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`; production alias `https://edu-manager-gules.vercel.app` passed perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, and correction route probes 401/404 after the financial correction policy closeout.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
 - Local workflow structure can remain, but memory truth must be Edu Manager-specific.
-- Working tree contains only the current docs/memory/evidence closeout edits after implementation commit `5c761ba`; avoid broad commits and stage explicit paths only.
+- Working tree contains financial correction policy source changes plus docs/memory/evidence closeout edits; avoid broad commits and stage explicit paths only.
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
-1. Decide correction policy for paid records with `days_count=0` and non-zero amount; do not rewrite historical receipts silently.
+1. Audit the current anomaly list in Reports and apply the correction action per record with an operator reason; do not bulk rewrite historical paid receipts.
 2. Rotate default credentials and JWT secret before real production operation.
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
 5. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
+- 2026-06-01 financial correction closeout gates passed: `npx tsc --noEmit`, `npm run test:unit` 43/43, `npm --prefix frontend run lint -- --max-warnings=0`, `npm run build`, `git diff --check`, local perf-lab, local UX 11/11, local Phase-B 17/17.
+- 2026-06-01 production deployment inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- 2026-06-01 production smoke passed: perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, correction route no-token 401, authenticated nonexistent receipt correction 404.
+- Evidence: `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
 - `npx tsc --noEmit` passed.
 - `npm run test:unit` passed 39/39.
 - `npm --prefix frontend run lint -- --max-warnings=0` passed.

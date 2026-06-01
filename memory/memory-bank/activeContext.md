@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj` on `https://edu-manager-gules.vercel.app` after the 2026-05-28 performance lag RCA closeout.
+- **Latest production deployment observed in Codex session**: Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ` on `https://edu-manager-gules.vercel.app` after the 2026-06-01 financial correction policy closeout.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -45,15 +45,16 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **Performance Lag RCA Closeout** - latest pass reduced large motion/blur surfaces, made table/search/loading states lighter, guarded Fee Workbench and Attendance stale async responses, parallelized Attendance month fetches, narrowed report selects, added read-only `perf-lab`, and passed local + production browser/API smoke on 2026-05-28.
-2. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
-3. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
-4. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
-5. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-6. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-7. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-8. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
-9. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Financial Correction Policy Closeout** - explicit admin correction is implemented for historical paid receipt/monthly-fee anomalies (`days_count=0` with non-zero amount); Reports/Receipts surface anomaly metadata and Fee Workbench blocks unsafe collection rows. Deployed and production-smoked on 2026-06-01.
+2. **Performance Lag RCA Closeout** - latest pass reduced large motion/blur surfaces, made table/search/loading states lighter, guarded Fee Workbench and Attendance stale async responses, parallelized Attendance month fetches, narrowed report selects, added read-only `perf-lab`, and passed local + production browser/API smoke on 2026-05-28.
+3. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
+4. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
+5. **Production P0/P1 Hardening** - `/classes` crash, full-menu route coverage, attendance lock multi-class aggregation, monthly-fee state-machine race guards, zero-day positive receipt prevention, dashboard aggregate accuracy, and Fabric-to-PDF fidelity are deployed and production-smoked on 2026-05-25.
+6. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
+7. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+8. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+9. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
+10. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.
@@ -155,7 +156,7 @@ MOT-UX-002 Dashboard Glassmorphic Redesign: refactored `DashboardPage.jsx` using
 Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and EduFlow UI pass to `https://edu-manager-gules.vercel.app`. Fixed Vercel env drift (`DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`), linked Vercel Blob store `edu-manager-live-blob`, added `.vercelignore`, corrected an unanchored ignore bug that excluded `server/api/receipts` and `server/api/reports`, closed the frontend `ws` audit advisory, and verified production with login 200, upload-image 201, auth no-token 401, cron no-token 403, and Playwright 6/6.
 
 ## Now Doing
-Production is live on `https://edu-manager-gules.vercel.app` with the latest modal scroll production fix deployed and smoked. Existing paid anomalous receipts were not auto-mutated; use the student-fees report to identify and correct them through explicit financial adjustment/void/reissue policy.
+Production is live on `https://edu-manager-gules.vercel.app` with the financial correction policy deployed and smoked. Existing paid anomalous receipts are intentionally not auto-mutated; admins should use Reports/Receipts anomaly actions to void/recalculate one record at a time with an operator reason.
 
 2026-05-25 P0/P1 hardening closeout: fixed `/classes` crash by importing Motion, added full protected-menu traversal across 22 routes desktop/mobile, made attendance-period lock transactional and multi-class aware, guarded monthly-fee calculate/confirm/cancel/pay transitions with conditional `updateMany`, blocked new positive tuition receipts with zero chargeable sessions, made student-fees report surface receipt-only anomalies, corrected dashboard unpaid aggregate math, and expanded PDF Fabric rendering for text/line/rect/circle/ellipse/group/base64 image with fallback for unsupported images. Local gates passed: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 35/35, frontend lint max-warnings=0, `npm run build`, root/frontend audits 0 vulnerabilities, and Playwright UX/menu/PDF 7/7 against `npm run dev:smoke`. Implementation commit `d2e19df` and docs commit `5b2b568` were pushed; final Vercel production deployment `dpl_2gi9iJBPBnMAKRJb1ZsZs365DGcL` is Ready; production Playwright 7/7 and API probes passed.
 
@@ -169,8 +170,10 @@ Production is live on `https://edu-manager-gules.vercel.app` with the latest mod
 
 2026-05-28 performance lag RCA closeout: finished the follow-up lag pass after user-reported jank. Integrated subagent work for backend select narrowing, read-only perf-lab, and frontend review. Reduced route/page motion and large blur surfaces, replaced full-screen protected-route spinner with a lightweight skeleton, made DataTable default to 100 rows with deferred/keyed search, prevented false zero metrics on initial load, guarded Fee Workbench stale requests, guarded Attendance class/week async requests, and parallelized Attendance 3-month fetches. Added `scripts/perf-lab.mjs` and `npm run perf:lab`. Vercel production deploy `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj` is Ready and aliased to `https://edu-manager-gules.vercel.app`. Local gates passed: typecheck, lint zero warnings, unit 39/39, build, diff-check, perf-lab pass, and Playwright 28/28. Production gates passed: perf-lab pass and Playwright 28/28. Evidence: `receipts/2026-05-28-performance-lag-rca-closeout.md`.
 
+2026-06-01 financial correction policy closeout: implemented explicit admin correction for historical paid receipt/monthly-fee anomalies instead of silent rewrite. Added `lib/finance-corrections.ts`, admin-only `POST /api/receipts/:id/correct`, anomaly metadata in receipts/student-fees/workbench APIs, Reports/Receipts correction entry points, Fee Workbench admin-review locks, and recycle-bin restore protection for corrected receipts. Vercel production deploy inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ` is Ready and aliased to `https://edu-manager-gules.vercel.app`. Local gates passed: typecheck, unit 43/43, lint zero warnings, build, diff-check, local perf-lab, UX 11/11, and Phase-B 17/17. Production gates passed: perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, and no-mutation correction route probes 401/404. Evidence: `receipts/2026-06-01-financial-correction-policy-closeout.md`.
+
 ## Next Recommended Action
-1. Decide financial correction policy for historical paid records with `days_count=0` and non-zero amount.
+1. Audit the current anomaly list in Reports and apply the correction action per record with an operator reason; do not bulk rewrite historical paid receipts.
 2. Rotate production default credentials and JWT secret before real operation.
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.

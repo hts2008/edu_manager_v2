@@ -214,3 +214,10 @@
 **Decision**: Keep frontend interactions lightweight by avoiding large blur/motion surfaces, false zero loading states, broad table scans, and stale async response writes. Add `scripts/perf-lab.mjs` as a read-only browser/API evidence harness so production latency is measured separately from UI regressions.
 **Rationale**: The platform needs repeatable evidence before declaring lag fixed. Perf-lab allows local/production comparison with a write guard, while UI patches reduce client-side repaint and state-race defects without changing business contracts.
 **Status**: IMPLEMENTED with local/prod perf-lab pass, local/prod Playwright 28/28, and Vercel deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`.
+
+### ADR-31: Financial Correction Must Be Explicit And Auditable
+**Date**: 2026-06-01
+**Context**: Historical paid receipts/monthly fees can contain `days_count=0` with a non-zero amount from earlier billing bugs. Rewriting paid receipt totals silently would break auditability and could make previously printed PDFs disagree with financial history.
+**Decision**: Do not bulk rewrite or auto-mutate historical paid receipts. Surface anomalies in Reports/Receipts/Fee Workbench, allow admins to run an explicit receipt correction with a reason, soft-delete the anomalous receipt with a correction marker, recalculate the linked monthly fee back to `ready`, and block recycle-bin restore for corrected receipts.
+**Rationale**: Operators get a usable correction path while finance history remains reviewable. The workflow prevents new collection against unsafe rows and avoids resurrecting a voided/corrected receipt into revenue reports.
+**Status**: IMPLEMENTED with unit 43/43, local/prod Playwright smoke, production route probes 401/404 without mutation, and Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`.

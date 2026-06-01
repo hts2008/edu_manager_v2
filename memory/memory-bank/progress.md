@@ -478,3 +478,16 @@
 - **Production Smoke**: Production perf-lab passed against `https://edu-manager-gules.vercel.app` with read-only violations 0. Production Playwright `ux-redesign-smoke.spec.js phase-b-smoke.spec.js` passed 28/28.
 - **Evidence**: `receipts/2026-05-28-performance-lag-rca-closeout.md`, `receipts/perf/perf-lab-2026-05-28T16-04-40-168Z.md`, `receipts/perf/perf-lab-2026-05-28T16-08-15-968Z.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-01 - Financial Correction Policy Closeout
+- **Scope**: Continue the approved production-live goal and close the next unchecked item: historical paid records with `days_count=0` and non-zero amount must be corrected by explicit admin action, not silent mutation.
+- **Implementation**: Added shared finance anomaly helpers, admin-only `POST /api/receipts/:id/correct`, anomaly fields in Receipts/student-fees/workbench APIs, Reports/Receipts admin correction entry points, Fee Workbench admin-review locks, and recycle-bin restore protection for corrected receipts.
+- **Team Mode**: Used existing `ck:team` subagents for backend dataflow, frontend UX, and verification review; integrated their outputs inline and closed them after evidence write-back.
+- **Validation**: `npx tsc --noEmit`, `npm run test:unit` 43/43, frontend lint max-warnings=0, `npm run build`, `git diff --check`, local perf-lab, local UX smoke 11/11, local Phase-B smoke 17/17 all passed.
+- **Deployment**: `npx vercel deploy --prod --yes` produced production inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production perf-lab passed; production Phase-B smoke passed 17/17; production modal-scroll smoke passed 1/1; production calendar/template/PDF targeted UX smoke passed 4/4; correction route no-token returned 401 and authenticated nonexistent receipt returned 404, with no production data mutation.
+- **Residual Risk**: Production backend latency remains measurable on dashboard/report/workbench endpoints, with serverless/DB samples still around 2.8-4.6s. This is tracked as a separate performance follow-up, not a UI smoke failure.
+- **Evidence**: `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
+- **STATUS**: IMPLEMENTED.
