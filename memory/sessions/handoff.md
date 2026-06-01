@@ -90,7 +90,7 @@
 ## Latest Project Truth
 - **Product**: Edu Manager V2 education management system.
 - **Status**: Production live on `https://edu-manager-gules.vercel.app`.
-- **Latest production deployment observed**: Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`.
+- **Latest production deployment observed**: `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`.
 - **Correction policy**: do not bulk rewrite historical paid receipts. Use Reports/Receipts anomaly actions one record at a time with an operator reason.
 - **Residual risk**: production serverless/DB latency remains measurable on dashboard/report/workbench APIs; current UI/API smoke passes but deeper backend latency work remains separate.
 

@@ -283,7 +283,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: Vercel inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`; production alias `https://edu-manager-gules.vercel.app` passed perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, and correction route probes 401/404 after the financial correction policy closeout.
+- **Latest production deployment observed in Codex session**: `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`; production alias `https://edu-manager-gules.vercel.app` passed perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, correction route probes 401/404, and final post-commit root/auth/correction smoke after the financial correction policy closeout.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -300,7 +300,7 @@
 
 ## Evidence Needed Before Done
 - 2026-06-01 financial correction closeout gates passed: `npx tsc --noEmit`, `npm run test:unit` 43/43, `npm --prefix frontend run lint -- --max-warnings=0`, `npm run build`, `git diff --check`, local perf-lab, local UX 11/11, local Phase-B 17/17.
-- 2026-06-01 production deployment inspect `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- 2026-06-01 production deployment `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
 - 2026-06-01 production smoke passed: perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, correction route no-token 401, authenticated nonexistent receipt correction 404.
 - Evidence: `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
 - `npx tsc --noEmit` passed.

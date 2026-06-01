@@ -48,7 +48,8 @@
 
 ## Production Deployment
 - Command: `npx vercel deploy --prod --yes`.
-- Vercel inspect: `https://vercel.com/hts2008s-projects/edu-manager/BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`.
+- Vercel inspect: `https://vercel.com/hts2008s-projects/edu-manager/GJ3U47QRgzsCGxF3mvBhUGa29h9v`.
+- Final production deployment ID after committing/pushing evidence: `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`.
 - Production URL: `https://edu-manager-gules.vercel.app`.
 - Build completed successfully on Vercel.
 
@@ -63,6 +64,10 @@
 - Production correction route no-mutation probes:
   - No-token `POST /api/receipts/nonexistent/correct`: 401.
   - Authenticated nonexistent receipt correction: 404.
+- Final post-commit smoke:
+  - Root page: 200.
+  - No-token `/api/auth/me`: 401.
+  - No-token `/api/receipts/nonexistent/correct`: 401.
 
 ## Team / Tooling Notes
 - `ck:team` subagents reviewed backend/dataflow, frontend UX, and verification/test surface.

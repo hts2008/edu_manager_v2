@@ -29,7 +29,7 @@
 | FIN-2026-06-01-03 | Surface anomaly metadata across receipts, reports, and fee workbench | Receipts API, student-fees report, monthly-fees workbench | backend-specialist | FIN-2026-06-01-01 | IMPLEMENTED | Contract tests, local/prod smoke |
 | FIN-2026-06-01-04 | Add admin UI entry points and lock unsafe collection rows | `ReceiptsPage`, `ReportsPage`, `FeeCollectionPage`, API client | frontend-specialist | FIN-2026-06-01-02..03 | IMPLEMENTED | Local/prod Playwright |
 | FIN-2026-06-01-05 | Prevent recycle-bin restore from resurrecting corrected receipts | `lib/recycle-bin.ts` | backend-specialist | FIN-2026-06-01-02 | IMPLEMENTED | Contract test |
-| FIN-2026-06-01-06 | Deploy and verify production | Vercel alias `edu-manager-gules` | release-manager | FIN-2026-06-01-01..05 | IMPLEMENTED | Deploy `BK4QDffa4v66M2MyuRsYXZ8Tk4eZ`, local/prod smoke |
+| FIN-2026-06-01-06 | Deploy and verify production | Vercel alias `edu-manager-gules` | release-manager | FIN-2026-06-01-01..05 | IMPLEMENTED | Deploy `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`, local/prod smoke |
 
 **Evidence:** `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
 
