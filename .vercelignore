@@ -12,7 +12,9 @@
 /docs/audit/
 /reports/
 /test-results/
+/frontend/test-results*/
 /playwright-report/
+/frontend/playwright-report/
 /frontend/output/
 /coverage/
 /backend/

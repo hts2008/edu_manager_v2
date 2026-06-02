@@ -35,10 +35,35 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           },
         },
         template: true,
+        receiptLines: {
+          include: {
+            class: { include: { teacher: true } },
+            monthlyFeeLine: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
     if (!receipt) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
+
+    const receiptLines =
+      receipt.receiptLines?.map((line) => ({
+        class_name: line.classNameSnapshot || line.class?.className || "",
+        teacher_name: line.teacherNameSnapshot || line.class?.teacher?.fullName || "",
+        days_count: line.daysCount,
+        expected_sessions: line.expectedSessions || line.monthlyFeeLine?.expectedSessions || 0,
+        fee_per_day: line.feePerDay,
+        amount: line.amount,
+        notes: line.notes || "",
+      })) || [];
+    const fallbackClassName =
+      receipt.student.studentClasses
+        .map((studentClass) => studentClass.class.className)
+        .join(", ") || "";
+    const className =
+      receiptLines.map((line) => line.class_name).filter(Boolean).join(", ") ||
+      fallbackClassName;
 
     const data = {
       type: "receipt",
@@ -48,10 +73,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       student_name: receipt.student.fullName,
       parent_name: receipt.student.parent?.fullName || "",
       parent_phone: receipt.student.parent?.phone || "",
-      class_name:
-        receipt.student.studentClasses
-          .map((studentClass) => studentClass.class.className)
-          .join(", ") || "",
+      class_name: className,
       month: receipt.month,
       days_count: receipt.daysCount,
       fee_per_day: receipt.feePerDay,
@@ -60,6 +82,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       payment_method: receipt.paymentMethod === "cash" ? "Tiền mặt" : "Chuyển khoản",
       amount_in_words: numberToWords(receipt.amount),
       notes: receipt.notes || "",
+      items: receiptLines,
     };
 
     const buffer = await generatePdf(receipt.template, data);

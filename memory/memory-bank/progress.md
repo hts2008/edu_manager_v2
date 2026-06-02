@@ -491,3 +491,15 @@
 - **Residual Risk**: Production backend latency remains measurable on dashboard/report/workbench endpoints, with serverless/DB samples still around 2.8-4.6s. This is tracked as a separate performance follow-up, not a UI smoke failure.
 - **Evidence**: `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-02 - No-Blocking Flows + Line Fee Ledger Closeout
+- **Scope**: Continue the active production-live goal and close the latest reported blockers in attendance make-up/cross-month logic, class bulk student loading, per-class tuition collection, receipt print/PDF, finance reports, and Template Designer.
+- **Implementation**: Added `MonthlyFeeLine` and `ReceiptLine` schema models plus line sync helpers; updated monthly-fee calculate/workbench/bulk-pay to return and collect class-level fee rows; updated receipt DTO/PDF/default layout and authenticated print popups; added make-up attendance handling and cross-month period checks; fixed the class modal student loader; added finance dashboard reporting; hardened Template Designer canvas/object/upload interactions and regression coverage; ignored frontend Playwright artifact folders for Vercel packaging.
+- **Team Mode**: Integrated bounded `ck:team` subagent outputs for attendance/dataflow, reports, and Template Designer slices. A final release-readiness explorer did not return before closeout, so final verification and evidence continued inline.
+- **Database/Deploy**: `npx prisma db push` synced additive line-ledger schema to Neon; no seed was run. Vercel production deployment `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Validation**: `npx prisma generate`, `npx tsc --noEmit`, `npm run test:unit` 44/44, frontend lint max-warnings=0, frontend build, root build, and `git diff --check` passed. Local Playwright passed 12/12 for template/UX and 17/17 for Phase-B.
+- **Production Smoke**: Production Playwright with `E2E_BASE_URL=https://edu-manager-gules.vercel.app` passed 29/29 across Template Designer hardening, UX/menu/modal/calendar/template/PDF, and Phase-B protected route/API smoke.
+- **Evidence**: `receipts/2026-06-02-no-blocking-flows-line-fee-closeout.md`.
+- **STATUS**: IMPLEMENTED.

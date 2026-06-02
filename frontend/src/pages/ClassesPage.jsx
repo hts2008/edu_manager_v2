@@ -38,36 +38,39 @@ export default function ClassesPage() {
   const teachers = pageData?.teachers || [];
 
   useEffect(() => {
-    if (!showForm || studentsLoaded || studentsLoading) return undefined;
+    if (!showForm || studentsLoaded) return undefined;
 
     let ignore = false;
     async function loadStudentOptions() {
       setStudentsLoading(true);
       setStudentsError("");
-      const response = await studentsService.getAll({
-        status: "active",
-        fields: "options",
-        limit: 500,
-      });
+      try {
+        const response = await studentsService.getAll({
+          status: "active",
+          fields: "options",
+          limit: 500,
+        });
 
-      if (ignore) return;
+        if (ignore) return;
 
-      if (response.success) {
-        setStudentOptions(response.data.students || []);
-        setStudentsLoaded(true);
-      } else {
-        setStudentsError(
-          response.error?.message || "Khong the tai danh sach hoc vien"
-        );
+        if (response.success) {
+          setStudentOptions(response.data.students || []);
+          setStudentsLoaded(true);
+        } else {
+          setStudentsError(
+            response.error?.message || "Khong the tai danh sach hoc vien"
+          );
+        }
+      } finally {
+        if (!ignore) setStudentsLoading(false);
       }
-      setStudentsLoading(false);
     }
 
     loadStudentOptions();
     return () => {
       ignore = true;
     };
-  }, [showForm, studentsLoaded, studentsLoading]);
+  }, [showForm, studentsLoaded]);
 
   const handleDelete = async () => {
     if (selectedClass) {

@@ -379,6 +379,80 @@ function defaultContent(template: any, data: PdfData) {
   ];
 }
 
+function productionDefaultContent(template: any, data: PdfData) {
+  const isReceipt = (template.type || data.type) === "receipt";
+  const amount = data.total_amount || data.amount || 0;
+  const items = Array.isArray(data.items) ? (data.items as any[]) : [];
+  const receiptTable =
+    isReceipt && items.length
+      ? [
+          { text: "\n" },
+          {
+            table: {
+              widths: ["*", "auto", "auto", "auto"],
+              body: [
+                [
+                  { text: "Lớp", bold: true },
+                  { text: "Buổi", bold: true, alignment: "right" },
+                  { text: "Đơn giá", bold: true, alignment: "right" },
+                  { text: "Thành tiền", bold: true, alignment: "right" },
+                ],
+                ...items.map((item) => [
+                  item.class_name || "",
+                  { text: String(item.days_count || 0), alignment: "right" },
+                  { text: formatCurrency(item.fee_per_day || 0), alignment: "right" },
+                  { text: formatCurrency(item.amount || 0), alignment: "right" },
+                ]),
+              ],
+            },
+            layout: "lightHorizontalLines",
+          },
+        ]
+      : [];
+
+  return [
+    {
+      text: isReceipt ? "PHIẾU THU" : "PHIẾU CHI",
+      style: "header",
+      alignment: "center",
+    },
+    { text: "\n" },
+    { text: `Số phiếu: ${data.receipt_id || data.payment_id || data.id || ""}` },
+    {
+      text: `Ngày: ${
+        data.receipt_date ||
+        data.payment_date ||
+        new Date().toLocaleDateString("vi-VN")
+      }`,
+    },
+    { text: "\n" },
+    {
+      text: isReceipt
+        ? `Học viên: ${data.student_name || ""}`
+        : `Người nhận: ${data.recipient_name || ""}`,
+    },
+    ...(isReceipt ? [{ text: `Lớp: ${data.class_name || ""}` }] : []),
+    ...(isReceipt ? [{ text: `Tháng: ${data.month || ""}` }] : []),
+    ...(isReceipt ? [{ text: `Phương thức: ${data.payment_method || ""}` }] : []),
+    ...receiptTable,
+    { text: `Số tiền: ${formatCurrency(amount)}` },
+    { text: `Bằng chữ: ${data.amount_in_words || numberToWords(amount)}` },
+    { text: `Nội dung: ${data.notes || (isReceipt ? "Học phí" : "")}` },
+    { text: "\n\n" },
+    {
+      columns: isReceipt
+        ? [
+            { text: "Người nộp tiền\n\n\n\n_______________", alignment: "center" },
+            { text: "Người thu tiền\n\n\n\n_______________", alignment: "center" },
+          ]
+        : [
+            { text: "Người nhận tiền\n\n\n\n_______________", alignment: "center" },
+            { text: "Người chi tiền\n\n\n\n_______________", alignment: "center" },
+          ],
+    },
+  ];
+}
+
 export async function generatePdf(template: any, data: PdfData = {}) {
   const paper =
     paperSizes[String(template.paperSize || template.paper_size || "a4")] ||
@@ -398,7 +472,7 @@ export async function generatePdf(template: any, data: PdfData = {}) {
     pageSize: { width: mmToPt(width), height: mmToPt(height) },
     pageOrientation: isLandscape ? "landscape" : "portrait",
     pageMargins: [mmToPt(15), mmToPt(15), mmToPt(15), mmToPt(15)],
-    content: content.length ? (content as any) : (defaultContent(template, data) as any),
+    content: content.length ? (content as any) : (productionDefaultContent(template, data) as any),
     styles: {
       header: { fontSize: 18, bold: true },
     },
@@ -413,7 +487,7 @@ export async function generatePdf(template: any, data: PdfData = {}) {
     pdfDoc = await printer.createPdfKitDocument(definition);
   } catch (error) {
     if (!content.length) throw error;
-    definition.content = defaultContent(template, data) as any;
+    definition.content = productionDefaultContent(template, data) as any;
     pdfDoc = await printer.createPdfKitDocument(definition);
   }
 

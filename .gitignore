@@ -40,7 +40,9 @@ coverage/
 
 # Test artifacts
 test-results/
+frontend/test-results*/
 playwright-report/
+frontend/playwright-report/
 frontend/output/
 
 # Temp

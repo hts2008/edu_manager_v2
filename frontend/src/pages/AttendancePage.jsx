@@ -47,6 +47,18 @@ const STATUS_LABELS = {
   holiday: "Ngày lễ",
 };
 
+const MAKE_UP_REASON = "Hoc bu ngoai lich";
+
+function getAttendanceWeekRange(date) {
+  const start = new Date(date);
+  const weekday = start.getDay();
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  start.setDate(start.getDate() + mondayOffset);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return { start, end };
+}
+
 // Calendar Legend colors matching SAP style
 const LEGEND = [
   { status: "complete", label: "Đã điểm danh", color: "bg-green-500" },
@@ -60,7 +72,7 @@ const LEGEND = [
 export default function AttendancePage() {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
-  const [selectedWeek, setSelectedWeek] = useState(null); // { start: Date, end: Date }
+  const [selectedWeek, setSelectedWeek] = useState(null); // { start: Date, end: Date, anchor: Date }
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [calendarAttendance, setCalendarAttendance] = useState({}); // { "2026-01-15": { present: 5, holiday: 1, ... } }
@@ -150,7 +162,7 @@ export default function AttendancePage() {
   );
 
   const activeFeeMonth = selectedWeek
-    ? selectedWeek.start
+    ? selectedWeek.anchor || selectedWeek.start
     : new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
 
   const plannedSessionsInMonth = useMemo(() => {
@@ -177,28 +189,19 @@ export default function AttendancePage() {
     return classSchedule?.sessions_per_week || 7;
   }, [classSchedule]);
 
-  // Generate week dates for selected week - ALWAYS show all days (Mon-Sun)
-  // Teachers can freely choose which days to mark attendance
+  // Fixed-weekday classes expose off-schedule weekdays as make-up candidates.
   const weekDates = useMemo(() => {
     if (!selectedWeek) return [];
     const dates = [];
     const current = new Date(selectedWeek.start);
-
-    // Determine how to filter days
     const hasScheduleDays = scheduleDayNumbers.length > 0;
 
     while (current <= selectedWeek.end) {
-      let shouldInclude = false;
-
-      if (hasScheduleDays) {
-        // If schedule_days is defined, only show those days
-        shouldInclude = scheduleDayNumbers.includes(current.getDay());
-      } else {
-        // If no schedule_days, show ALL weekdays (Mon-Sat, excluding Sunday)
-        // Teachers can choose which days to mark attendance
-        const dayOfWeek = current.getDay();
-        shouldInclude = dayOfWeek !== 0; // Exclude Sunday (0)
-      }
+      const dayOfWeek = current.getDay();
+      const isWeekday = dayOfWeek !== 0;
+      const isScheduleDay =
+        !hasScheduleDays || scheduleDayNumbers.includes(dayOfWeek);
+      const shouldInclude = isWeekday;
 
       if (shouldInclude) {
         dates.push({
@@ -206,22 +209,29 @@ export default function AttendancePage() {
           dateStr: toDateKey(current),
           dayOfWeek: current.toLocaleDateString("vi-VN", { weekday: "short" }),
           dayNum: current.getDate(),
+          isScheduleDay,
+          isMakeUpDate: hasScheduleDays && !isScheduleDay,
         });
       }
       current.setDate(current.getDate() + 1);
     }
 
-    // NO longer limiting - show all available days
     return dates;
   }, [selectedWeek, scheduleDayNumbers]);
+
+  const selectedWeekMonthKeys = useMemo(
+    () => [...new Set(weekDates.map(({ dateStr }) => dateStr.slice(0, 7)))],
+    [weekDates],
+  );
 
   const weekSessionLimit = useMemo(() => {
     if (!selectedWeek || !classSchedule) return sessionsPerWeek;
     const sessions = Number(classSchedule.sessions_per_week || 0);
     const eligibleDatesInMonth = weekDates.filter(
-      ({ date }) =>
+      ({ date, isScheduleDay }) =>
         date.getFullYear() === activeFeeMonth.getFullYear() &&
-        date.getMonth() === activeFeeMonth.getMonth()
+        date.getMonth() === activeFeeMonth.getMonth() &&
+        (!scheduleDayNumbers.length || isScheduleDay)
     ).length;
     if (scheduleDayNumbers.length) return eligibleDatesInMonth;
     if (sessions > 0) return Math.max(1, Math.min(sessions, eligibleDatesInMonth || sessions));
@@ -460,8 +470,11 @@ export default function AttendancePage() {
     setAttendance(allAttendance);
   };
 
-  const handleWeekClick = (weekStart, weekEnd) => {
-    setSelectedWeek({ start: weekStart, end: weekEnd });
+  const handleWeekClick = (weekStart) => {
+    setSelectedWeek({
+      ...getAttendanceWeekRange(weekStart),
+      anchor: new Date(weekStart),
+    });
   };
 
   const handleCellClick = (studentId, dateStr) => {
@@ -496,29 +509,39 @@ export default function AttendancePage() {
       return;
     }
 
-    const monthKey = toMonthKey(selectedWeek.start);
-    const period = periods[monthKey];
-    if (period?.status === "locked") {
+    const lockedMonth = selectedWeekMonthKeys.find(
+      (monthKey) => periods[monthKey]?.status === "locked",
+    );
+    if (lockedMonth) {
       toast.error("Không thể sửa điểm danh đã chốt");
       return;
     }
 
     setSaving(true);
 
-    // Ensure period exists
-    if (!period) {
-      await attendancePeriodsService.create({
-        class_id: selectedClass,
-        month: monthKey,
-      });
-    }
+    try {
+      for (const monthKey of selectedWeekMonthKeys) {
+        if (periods[monthKey]) continue;
+        const createRes = await attendancePeriodsService.create({
+          class_id: selectedClass,
+          month: monthKey,
+        });
+        if (!createRes.success) {
+          toast.error(createRes.error?.message || "Khong the tao ky diem danh");
+          return;
+        }
+        if (createRes.data?.period?.status === "locked") {
+          toast.error("Khong the sua diem danh da chot");
+          return;
+        }
+      }
 
-    const records = [];
-    const allDates = weekDates.map((w) => w.dateStr); // All dates in the week for deletion
+      const records = [];
+      const allDates = weekDates.map((w) => w.dateStr); // All dates in the week for deletion
 
-    students.forEach((student) => {
+      students.forEach((student) => {
       const studentAtt = attendance[student.id] || {};
-      weekDates.forEach(({ dateStr }) => {
+      weekDates.forEach(({ dateStr, isMakeUpDate }) => {
         const status = studentAtt[dateStr];
         if (status && STATUS_CYCLE.includes(status)) {
           records.push({
@@ -526,6 +549,8 @@ export default function AttendancePage() {
             class_id: selectedClass,
             attendance_date: dateStr,
             status,
+            is_make_up: Boolean(isMakeUpDate),
+            make_up_reason: isMakeUpDate ? MAKE_UP_REASON : null,
           });
         }
       });
@@ -545,7 +570,9 @@ export default function AttendancePage() {
     } else {
       toast.error(response.error?.message || "Không thể lưu điểm danh");
     }
-    setSaving(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSubmit = async (monthKey) => {
@@ -822,9 +849,12 @@ export default function AttendancePage() {
                             const weekEnd = [...week]
                               .reverse()
                               .find((d) => d)?.date;
+                            const weekRange = weekStart
+                              ? getAttendanceWeekRange(weekStart)
+                              : null;
                             const isSelected =
                               selectedWeek &&
-                              weekStart?.toDateString() ===
+                              weekRange?.start.toDateString() ===
                                 selectedWeek.start.toDateString();
 
                             return (
@@ -833,7 +863,7 @@ export default function AttendancePage() {
                                 onClick={() =>
                                   weekStart &&
                                   weekEnd &&
-                                  handleWeekClick(weekStart, weekEnd)
+                                  handleWeekClick(weekStart)
                                 }
                                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                                   isSelected ? "bg-primary-100" : ""
@@ -1025,7 +1055,7 @@ export default function AttendancePage() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 sticky left-0 bg-gray-50 z-10">
                             Học viên
                           </th>
-                          {weekDates.map(({ dateStr, dayOfWeek, dayNum }) => {
+                          {weekDates.map(({ dateStr, dayOfWeek, dayNum, isMakeUpDate }) => {
                             // Check if all students are marked present for this date
                             const allPresent = students.every(
                               (s) => attendance[s.id]?.[dateStr] === "present",
@@ -1033,6 +1063,8 @@ export default function AttendancePage() {
                             const anyMarked = students.some(
                               (s) => attendance[s.id]?.[dateStr],
                             );
+                            const isDateLocked =
+                              periods[dateStr.slice(0, 7)]?.status === "locked";
                             return (
                               <th
                                 key={dateStr}
@@ -1040,10 +1072,19 @@ export default function AttendancePage() {
                               >
                                 <div>{dayOfWeek}</div>
                                 <div className="font-bold">{dayNum}</div>
+                                {isMakeUpDate && (
+                                  <div className="mt-1 text-[10px] font-semibold text-orange-700">
+                                    Hoc bu
+                                  </div>
+                                )}
                                 {/* Select All checkbox */}
                                 <div className="mt-1">
                                   <button
                                     onClick={() => {
+                                      if (isDateLocked) {
+                                        toast.error("Khong the sua diem danh da chot");
+                                        return;
+                                      }
                                       // Toggle all students for this date
                                       const newStatus = allPresent
                                         ? null
@@ -1061,10 +1102,13 @@ export default function AttendancePage() {
                                         return updated;
                                       });
                                     }}
+                                    disabled={isDateLocked}
                                     className={`px-2 py-1 text-[10px] rounded font-medium transition-colors ${
                                       allPresent
                                         ? "bg-green-500 text-white"
-                                        : anyMarked
+                                        : isDateLocked
+                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                          : anyMarked
                                           ? "bg-yellow-200 text-yellow-800"
                                           : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                                     }`}
@@ -1110,7 +1154,7 @@ export default function AttendancePage() {
                                   </div>
                                 </div>
                               </td>
-                              {weekDates.map(({ dateStr }) => {
+                              {weekDates.map(({ dateStr, isMakeUpDate }) => {
                                 const status =
                                   attendance[student.id]?.[dateStr];
                                 return (
@@ -1132,6 +1176,7 @@ export default function AttendancePage() {
                                                 ? "bg-red-100 hover:bg-red-200"
                                                 : "bg-gray-100 hover:bg-gray-200"
                                         }
+                                        ${isMakeUpDate ? "ring-2 ring-orange-300" : ""}
                                       `}
                                       title={
                                         status

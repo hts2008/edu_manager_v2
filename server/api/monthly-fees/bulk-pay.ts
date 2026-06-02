@@ -20,6 +20,11 @@ import {
   calculateTuitionForClass,
   CHARGEABLE_ATTENDANCE_STATUSES,
 } from "../../../lib/tuition.js";
+import {
+  receiptLineDataFromMonthlyFeeLine,
+  refreshMonthlyFeeAggregateFromLines,
+  syncMonthlyFeeLines,
+} from "../../../lib/monthly-fee-lines.js";
 
 type PaymentMethod = "cash" | "transfer";
 
@@ -42,7 +47,7 @@ async function calculateFeeForStudent(client: any, studentId: string, month: str
     include: {
       studentClasses: {
         where: { status: "active" },
-        include: { class: true },
+        include: { class: { include: { teacher: true } } },
       },
     },
   });
@@ -72,15 +77,29 @@ async function calculateFeeForStudent(client: any, studentId: string, month: str
       (sum: number, item: any) => sum + item._count.status,
       0
     );
+    const makeUpSessions = await client.attendance.count({
+      where: {
+        studentId,
+        classId: enrollment.classId,
+        attendanceDate: { gte: startDate, lte: endDate },
+        status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
+        isMakeUp: true,
+      },
+    });
     const tuition = calculateTuitionForClass(enrollment.class, month, daysCount);
 
     breakdown.push({
       class_id: enrollment.classId,
       class_name: enrollment.class.className,
+      teacher_name: enrollment.class.teacher?.fullName || null,
       days_count: daysCount,
       fee_per_day: tuition.feePerSession,
       expected_sessions: tuition.expectedSessions,
+      make_up_sessions: makeUpSessions,
+      extra_sessions: Math.max(0, daysCount - tuition.expectedSessions),
       billing_mode: tuition.billingMode,
+      schedule_mode: tuition.scheduleStrategy,
+      monthly_tuition: tuition.monthlyTuition,
       amount: tuition.totalAmount,
     });
 
@@ -106,7 +125,9 @@ async function calculateFeeForStudent(client: any, studentId: string, month: str
         status: "ready",
       },
     });
-    return { fee, student, breakdown, alreadyPaid: false };
+    const lines = await syncMonthlyFeeLines(client, fee, breakdown);
+    const refreshed = await refreshMonthlyFeeAggregateFromLines(client, fee.id);
+    return { fee: refreshed || fee, student, breakdown, lines, alreadyPaid: false };
   }
 
   const updated = await client.monthlyFee.updateMany({
@@ -134,7 +155,9 @@ async function calculateFeeForStudent(client: any, studentId: string, month: str
   const fee = await client.monthlyFee.findUniqueOrThrow({
     where: { id: existing.id },
   });
-  return { fee, student, breakdown, alreadyPaid: false };
+  const lines = await syncMonthlyFeeLines(client, fee, breakdown);
+  const refreshed = await refreshMonthlyFeeAggregateFromLines(client, fee.id);
+  return { fee: refreshed || fee, student, breakdown, lines, alreadyPaid: false };
 }
 
 async function collectFee(
@@ -221,12 +244,127 @@ async function collectFee(
     },
   });
 
+  await client.receiptLine.create({
+    data: {
+      receiptId: receipt.id,
+      monthlyFeeLineId: null,
+      classId: null,
+      classNameSnapshot: fee.student?.classNames || null,
+      daysCount: fee.totalDays,
+      expectedSessions: fee.totalDays,
+      feePerDay,
+      amount: fee.totalAmount,
+      notes,
+    },
+  });
+
   const updatedFee = await client.monthlyFee.update({
     where: { id: fee.id },
     data: { receiptId: receipt.id },
   });
 
   return { fee: updatedFee, receipt, alreadyPaid: false };
+}
+
+async function collectFeeLine(
+  client: any,
+  lineId: string,
+  paymentMethod: PaymentMethod,
+  templateId: string,
+  notes: string | undefined,
+  userId: string
+) {
+  const line = await client.monthlyFeeLine.findUnique({
+    where: { id: lineId },
+    include: {
+      monthlyFee: true,
+      student: true,
+      class: { include: { teacher: true } },
+      receipt: true,
+    },
+  });
+  if (!line) throw new ApiError("NOT_FOUND", "Monthly fee line not found", 404);
+
+  if (line.status === "paid") {
+    if (line.receipt) return { line, fee: line.monthlyFee, receipt: line.receipt, alreadyPaid: true };
+    throw new ApiError(
+      "FEE_LINE_ALREADY_PAID",
+      "Monthly fee line is already paid but receipt linkage is missing",
+      409
+    );
+  }
+
+  if (!["ready", "pending", "confirmed"].includes(line.status)) {
+    throw new ApiError("INVALID_STATUS", `Cannot pay line: current status is ${line.status}`, 400);
+  }
+
+  if (Number(line.amount || 0) <= 0) {
+    throw new ApiError("NO_CHARGEABLE_AMOUNT", "No tuition amount to collect", 409);
+  }
+
+  if (Number(line.amount || 0) > 0 && Number(line.chargedSessions || 0) <= 0) {
+    throw new ApiError(
+      "ZERO_DAY_POSITIVE_RECEIPT",
+      "Cannot collect a positive tuition fee line with zero chargeable sessions",
+      409
+    );
+  }
+
+  const receipt = await client.receipt.create({
+    data: {
+      studentId: line.studentId,
+      month: line.month,
+      daysCount: line.chargedSessions,
+      feePerDay: line.feePerSession,
+      amount: line.amount,
+      paymentMethod,
+      templateId,
+      notes,
+      createdById: userId,
+    },
+  });
+
+  const claimed = await client.monthlyFeeLine.updateMany({
+    where: {
+      id: line.id,
+      status: { in: ["ready", "pending", "confirmed"] },
+      receiptId: null,
+    },
+    data: {
+      status: "paid",
+      receiptId: receipt.id,
+      paidAt: new Date(),
+      notes,
+    },
+  });
+
+  if (claimed.count !== 1) {
+    throw new ApiError(
+      "FEE_LINE_PAYMENT_CONFLICT",
+      "Monthly fee line payment is already being processed or linked",
+      409
+    );
+  }
+
+  await client.receiptLine.create({
+    data: receiptLineDataFromMonthlyFeeLine(line, receipt.id),
+  });
+
+  const updatedLine = await client.monthlyFeeLine.findUniqueOrThrow({
+    where: { id: line.id },
+    include: { monthlyFee: true, receipt: true, student: true },
+  });
+  const refreshedFee = await refreshMonthlyFeeAggregateFromLines(
+    client,
+    line.monthlyFeeId
+  );
+
+  return {
+    line: updatedLine,
+    fee: refreshedFee || updatedLine.monthlyFee,
+    receipt,
+    alreadyPaid: false,
+  };
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
@@ -250,8 +388,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const studentIds = readStringArray(req.body?.student_ids || req.body?.studentIds);
     const feeIds = readStringArray(req.body?.fee_ids || req.body?.feeIds);
-    if (!studentIds.length && !feeIds.length) {
-      throw new ApiError("NO_SELECTION", "student_ids or fee_ids is required", 400);
+    const lineIds = readStringArray(req.body?.line_ids || req.body?.lineIds);
+    if (!studentIds.length && !feeIds.length && !lineIds.length) {
+      throw new ApiError("NO_SELECTION", "student_ids, fee_ids or line_ids is required", 400);
     }
 
     const notes = getString(req.body?.notes);
@@ -262,12 +401,37 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const targets = [
       ...studentIds.map((id) => ({ type: "student" as const, id })),
       ...feeIds.map((id) => ({ type: "fee" as const, id })),
+      ...lineIds.map((id) => ({ type: "line" as const, id })),
     ];
 
     const results = [];
     for (const target of targets) {
       try {
         const item = await prisma.$transaction(async (tx) => {
+          if (target.type === "line") {
+            const paidLine = await collectFeeLine(
+              tx,
+              target.id,
+              paymentMethod,
+              templateId,
+              notes,
+              req.user.id
+            );
+
+            return {
+              status: paidLine.alreadyPaid ? "already_paid" : "paid",
+              student_id: paidLine.line.studentId,
+              student_name: paidLine.line.student?.fullName || null,
+              fee_id: paidLine.fee?.id || paidLine.line.monthlyFeeId,
+              line_id: paidLine.line.id,
+              class_id: paidLine.line.classId,
+              class_name: paidLine.line.classNameSnapshot,
+              receipt_id: paidLine.receipt.id,
+              total_days: paidLine.line.chargedSessions,
+              total_amount: paidLine.line.amount,
+            };
+          }
+
           const fee =
             target.type === "student"
               ? (await calculateFeeForStudent(tx, target.id, month)).fee

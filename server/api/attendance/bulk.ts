@@ -8,6 +8,17 @@ import {
 } from "../../../lib/auth.js";
 import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
 import { sendApiError } from "../../../lib/api-utils.js";
+import { resolveAttendanceSessionPolicy } from "../../../lib/tuition.js";
+
+function toOptionalBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes"].includes(normalized)) return true;
+    if (["false", "0", "no"].includes(normalized)) return false;
+  }
+  return null;
+}
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -39,6 +50,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     // Allow empty records (user cleared all attendance for the week)
     const recordsArray = records || [];
     const validStatuses = ["present", "absent_with_fee", "absent_no_fee", "holiday"];
+    const classRecord = await prisma.class.findUnique({
+      where: { id: class_id },
+      select: { scheduleDays: true, sessionsPerWeek: true },
+    });
+    if (!classRecord) {
+      return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
+    }
 
     // Filter and transform valid records
     const validRecords = recordsArray
@@ -47,17 +65,34 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           r.status &&
           validStatuses.includes(r.status) &&
           r.student_id &&
-          r.class_id &&
+          r.class_id === class_id &&
           r.attendance_date
       )
-      .map((r: any) => ({
-        studentId: r.student_id,
-        classId: r.class_id,
-        attendanceDate: new Date(r.attendance_date),
-        status: r.status as "present" | "absent_with_fee" | "absent_no_fee",
-        reason: r.reason || null,
-        createdById: req.user.id,
-      }));
+      .map((r: any) => {
+        const sessionPolicy = resolveAttendanceSessionPolicy(
+          classRecord,
+          r.attendance_date,
+          {
+            isMakeUp: toOptionalBoolean(r.is_make_up ?? r.isMakeUp),
+            makeUpReason: r.make_up_reason ?? r.makeUpReason,
+          }
+        );
+
+        return {
+          studentId: r.student_id,
+          classId: class_id,
+          attendanceDate: new Date(r.attendance_date),
+          status: r.status as
+            | "present"
+            | "absent_with_fee"
+            | "absent_no_fee"
+            | "holiday",
+          reason: r.reason || null,
+          isMakeUp: sessionPolicy.isMakeUp,
+          makeUpReason: sessionPolicy.makeUpReason,
+          createdById: req.user.id,
+        };
+      });
 
     // Convert ALL dates to Date objects for deletion (not just from records)
     const dateObjects = dates.map((d: string) => new Date(d));

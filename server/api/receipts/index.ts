@@ -21,6 +21,19 @@ import { detectReceiptAnomaly } from "../../../lib/finance-corrections.js";
 function receiptToDto(receipt: any) {
   const monthlyFee = receipt.monthlyFees?.[0] || null;
   const anomaly = detectReceiptAnomaly(receipt);
+  const lines =
+    receipt.receiptLines?.map((line: any) => ({
+      id: line.id,
+      monthly_fee_line_id: line.monthlyFeeLineId,
+      class_id: line.classId,
+      class_name: line.classNameSnapshot || line.class?.className || null,
+      teacher_name: line.teacherNameSnapshot || line.class?.teacher?.fullName || null,
+      days_count: line.daysCount,
+      expected_sessions: line.expectedSessions,
+      fee_per_day: line.feePerDay,
+      amount: line.amount,
+      notes: line.notes,
+    })) || [];
   return {
     id: receipt.id,
     student_id: receipt.studentId,
@@ -36,6 +49,7 @@ function receiptToDto(receipt: any) {
     template_name: receipt.template?.templateName || null,
     monthly_fee_id: monthlyFee?.id || null,
     monthly_fee_status: monthlyFee?.status || null,
+    lines,
     anomaly_code: anomaly,
     anomaly_message:
       anomaly === "RECEIPT_WITH_ZERO_DAYS"
@@ -81,6 +95,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             monthlyFees: {
               select: { id: true, status: true },
               take: 1,
+            },
+            receiptLines: {
+              include: { class: { include: { teacher: true } } },
+              orderBy: { createdAt: "asc" },
             },
           },
           orderBy: { createdAt: "desc" },
@@ -196,6 +214,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             monthlyFees: {
               select: { id: true, status: true },
               take: 1,
+            },
+            receiptLines: {
+              include: { class: { include: { teacher: true } } },
+              orderBy: { createdAt: "asc" },
             },
           },
         });

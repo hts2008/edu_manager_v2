@@ -8,6 +8,47 @@ import {
 } from "../../../lib/auth.js";
 import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
 import { sendApiError } from "../../../lib/api-utils.js";
+import { resolveAttendanceSessionPolicy } from "../../../lib/tuition.js";
+
+function toOptionalBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes"].includes(normalized)) return true;
+    if (["false", "0", "no"].includes(normalized)) return false;
+  }
+  return null;
+}
+
+function toAttendanceResponse(record: any) {
+  return {
+    id: record.id,
+    student_id: record.studentId,
+    class_id: record.classId,
+    attendance_date: record.attendanceDate?.toISOString?.().split("T")[0],
+    status: record.status,
+    reason: record.reason,
+    is_make_up: record.isMakeUp,
+    make_up_reason: record.makeUpReason,
+    created_by: record.createdById,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt,
+    student_name: record.student?.fullName,
+    class_name: record.class?.className,
+    student: record.student
+      ? {
+          id: record.student.id,
+          full_name: record.student.fullName,
+        }
+      : undefined,
+    class: record.class
+      ? {
+          id: record.class.id,
+          class_name: record.class.className,
+        }
+      : undefined,
+  };
+}
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - Get attendance records
@@ -35,7 +76,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         orderBy: [{ attendanceDate: "desc" }, { student: { fullName: "asc" } }],
       });
 
-      return successResponse(res, records);
+      return successResponse(res, records.map(toAttendanceResponse));
     } catch (error) {
       return sendApiError(res, error, "ATTENDANCE_LIST_ERROR");
     }
@@ -44,8 +85,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   // POST - Create single attendance record
   if (req.method === "POST") {
     try {
-      const { student_id, class_id, attendance_date, status, reason } =
-        req.body;
+      const { student_id, class_id, attendance_date, status, reason } = req.body;
 
       if (!student_id || !class_id || !attendance_date || !status) {
         return errorResponse(
@@ -57,6 +97,23 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       await assertAttendanceDatesEditable(class_id, [attendance_date]);
+
+      const classRecord = await prisma.class.findUnique({
+        where: { id: class_id },
+        select: { scheduleDays: true, sessionsPerWeek: true },
+      });
+      if (!classRecord) {
+        return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
+      }
+
+      const sessionPolicy = resolveAttendanceSessionPolicy(
+        classRecord,
+        attendance_date,
+        {
+          isMakeUp: toOptionalBoolean(req.body.is_make_up ?? req.body.isMakeUp),
+          makeUpReason: req.body.make_up_reason ?? req.body.makeUpReason,
+        }
+      );
 
       const record = await prisma.attendance.upsert({
         where: {
@@ -72,15 +129,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           attendanceDate: new Date(attendance_date),
           status,
           reason,
+          isMakeUp: sessionPolicy.isMakeUp,
+          makeUpReason: sessionPolicy.makeUpReason,
           createdById: req.user.id,
         },
         update: {
           status,
           reason,
+          isMakeUp: sessionPolicy.isMakeUp,
+          makeUpReason: sessionPolicy.makeUpReason,
         },
       });
 
-      return res.status(201).json({ success: true, data: record });
+      return res.status(201).json({ success: true, data: toAttendanceResponse(record) });
     } catch (error) {
       return sendApiError(res, error, "ATTENDANCE_CREATE_ERROR");
     }

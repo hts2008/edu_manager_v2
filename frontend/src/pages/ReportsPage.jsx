@@ -1,4 +1,17 @@
 import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Download, Printer } from "lucide-react";
 import { receiptsService, reportsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { toDateKey } from "../utils/dateKeys";
@@ -41,6 +54,14 @@ function formatCurrency(value) {
   }).format(value || 0);
 }
 
+function formatCompactCurrency(value) {
+  if (!value) return "0";
+  if (Math.abs(value) >= 1_000_000_000) return `${Math.round(value / 100_000_000) / 10}B`;
+  if (Math.abs(value) >= 1_000_000) return `${Math.round(value / 100_000) / 10}M`;
+  if (Math.abs(value) >= 1_000) return `${Math.round(value / 100) / 10}K`;
+  return String(Math.round(value));
+}
+
 function monthLabel(month) {
   const [year, number] = String(month).split("-");
   return `${number}/${year}`;
@@ -65,6 +86,7 @@ export default function ReportsPage() {
   const fromMonth = dateRange.from.slice(0, 7);
   const toMonth = dateRange.to.slice(0, 7);
   const financialKey = `${dateRange.from}:${dateRange.to}:${reportType}`;
+  const dashboardKey = `${financialKey}:finance-dashboard`;
   const feeKey = `${fromMonth}:${toMonth}`;
 
   const financialState = useAsyncData(async () => {
@@ -77,6 +99,15 @@ export default function ReportsPage() {
     return response.data;
   }, financialKey);
 
+  const dashboardState = useAsyncData(async () => {
+    const response = await reportsService.getFinanceDashboard({
+      from: dateRange.from,
+      to: dateRange.to,
+      type: reportType,
+    });
+    return response.success ? response.data : null;
+  }, dashboardKey);
+
   const feeState = useAsyncData(async () => {
     const response = await reportsService.getStudentFees({
       from: fromMonth,
@@ -86,31 +117,103 @@ export default function ReportsPage() {
     return response.data;
   }, feeKey);
 
+  const dashboard = dashboardState.data;
   const financial = financialState.data;
   const studentFees = feeState.data;
-  const financialPending = financialState.loading && !financial;
+  const financialPending = (dashboardState.loading || financialState.loading) && !dashboard && !financial;
   const feesPending = feeState.loading && !studentFees;
-  const studentRows = studentFees?.students || [];
+  const studentRows = studentFees?.students || dashboard?.student_fee_drilldown || [];
 
-  const totalReceipts =
+  const fallbackReceipts =
     financial?.receipts?.reduce((sum, receipt) => sum + (receipt.amount || 0), 0) || 0;
-  const totalPayments =
+  const fallbackPayments =
     financial?.payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+  const financeSummary = dashboard?.summary || financial?.summary || {};
+  const totalReceipts =
+    financeSummary.total_revenue ??
+    financeSummary.total_receipts ??
+    financeSummary.totalReceipts ??
+    fallbackReceipts;
+  const totalPayments =
+    financeSummary.total_expenses ??
+    financeSummary.total_payments ??
+    financeSummary.totalPayments ??
+    fallbackPayments;
   const balance = totalReceipts - totalPayments;
+  const collectionSummary =
+    dashboard?.collection_summary || {
+      expected_amount: studentFees?.summary?.total_expected || 0,
+      paid_amount: studentFees?.summary?.total_paid || 0,
+      outstanding_amount: studentFees?.summary?.outstanding_amount || 0,
+      anomaly_count: studentFees?.summary?.anomaly_count || 0,
+      collection_rate: studentFees?.summary?.total_expected
+        ? Math.round(
+            ((studentFees?.summary?.total_paid || 0) /
+              studentFees.summary.total_expected) *
+              100
+          )
+        : 0,
+    };
 
-  const paymentsByCategory = useMemo(
-    () =>
+  const paymentsByCategory = useMemo(() => {
+    if (dashboard?.payments_by_category?.length) {
+      return dashboard.payments_by_category.map((item) => ({
+        category: item.category,
+        label: item.category_label || CATEGORY_LABELS[item.category] || item.category,
+        amount: item.total_amount || item.total || 0,
+        percentage: item.percentage || 0,
+      }));
+    }
+
+    const fallback =
       financial?.payments?.reduce((acc, payment) => {
         acc[payment.category] = (acc[payment.category] || 0) + (payment.amount || 0);
         return acc;
-      }, {}) || {},
-    [financial?.payments]
+      }, {}) || {};
+
+    return Object.entries(fallback).map(([category, amount]) => ({
+      category,
+      label: CATEGORY_LABELS[category] || category,
+      amount,
+      percentage: totalPayments > 0 ? Math.round((amount / totalPayments) * 100) : 0,
+    }));
+  }, [dashboard, financial, totalPayments]);
+
+  const trendRows = useMemo(() => {
+    if (dashboard?.revenue_expense_trend?.length) {
+      return dashboard.revenue_expense_trend.map((item) => ({
+        period: item.period,
+        revenue: item.revenue || item.total_revenue || 0,
+        expenses: item.expenses || item.total_expenses || 0,
+        net: item.net ?? (item.revenue || 0) - (item.expenses || 0),
+        expected_collection: item.expected_collection || 0,
+        outstanding_amount: item.outstanding_amount || 0,
+      }));
+    }
+
+    return (financial?.byPeriod || []).map((item) => ({
+      period: item.period,
+      revenue: item.receipts || item.total_receipts || 0,
+      expenses: item.payments || item.total_payments || 0,
+      net:
+        (item.receipts || item.total_receipts || 0) -
+        (item.payments || item.total_payments || 0),
+      expected_collection: 0,
+      outstanding_amount: 0,
+    }));
+  }, [dashboard, financial]);
+
+  const outstandingByClass = dashboard?.outstanding_by_class || [];
+  const maxClassOutstanding = Math.max(
+    1,
+    ...outstandingByClass.map((item) => item.outstanding_amount || 0)
   );
 
   const filteredStudentRows = useMemo(() => {
     const keyword = studentQuery.trim().toLowerCase();
     return studentRows.filter((student) => {
-      if (showOnlyAnomalies && !(student.anomalies || []).length) return false;
+      const anomalyCount = (student.anomalies || []).length || student.anomaly_count || 0;
+      if (showOnlyAnomalies && !anomalyCount) return false;
       if (!keyword) return true;
       return [
         student.student_name,
@@ -197,7 +300,33 @@ export default function ReportsPage() {
       ]),
     ];
 
-    const csv = [...financialRows, ...studentFeeRows]
+    const dashboardRows = [
+      [],
+      ["finance_dashboard_trend", dateRange.from, dateRange.to],
+      ["period", "revenue", "expenses", "net", "expected_collection", "outstanding_amount"],
+      ...trendRows.map((item) => [
+        item.period,
+        item.revenue || 0,
+        item.expenses || 0,
+        item.net || 0,
+        item.expected_collection || 0,
+        item.outstanding_amount || 0,
+      ]),
+      [],
+      ["outstanding_by_class"],
+      ["class_id", "class_name", "student_count", "expected_amount", "paid_amount", "outstanding_amount", "source"],
+      ...outstandingByClass.map((item) => [
+        item.class_id || "",
+        item.class_name || "",
+        item.student_count || 0,
+        item.expected_amount || 0,
+        item.paid_amount || 0,
+        item.outstanding_amount || 0,
+        item.source || "",
+      ]),
+    ];
+
+    const csv = [...financialRows, ...dashboardRows, ...studentFeeRows]
       .map((row) =>
         row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(",")
       )
@@ -228,10 +357,10 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={exportCsv} className="btn-secondary bg-white/95">
-              Export CSV
+              <Download size={17} /> Export CSV
             </button>
             <button type="button" onClick={() => window.print()} className="btn-primary">
-              In báo cáo
+              <Printer size={17} /> In báo cáo
             </button>
           </div>
         </div>
@@ -306,10 +435,163 @@ export default function ReportsPage() {
         />
         <MetricCard
           label="Còn phải thu"
-          value={feesPending ? "Đang tải" : formatCurrency(studentFees?.summary?.outstanding_amount || 0)}
-          helper={feesPending ? "Đang đối soát học phí" : `${studentFees?.summary?.anomaly_count || 0} cảnh báo`}
+          value={feesPending && !dashboard ? "Đang tải" : formatCurrency(collectionSummary.outstanding_amount || 0)}
+          helper={feesPending && !dashboard ? "Đang đối soát học phí" : `${collectionSummary.anomaly_count || 0} cảnh báo`}
           tone="violet"
         />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+        <section className="card p-6">
+          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900">Xu hướng thu chi</h3>
+              <p className="text-sm text-slate-500">
+                Revenue, expense và số còn phải thu theo kỳ đã chọn.
+              </p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {dashboard?.group_by || reportType}
+            </span>
+          </div>
+          <div className="h-72">
+            {financialPending ? (
+              <div className="h-full animate-pulse rounded-2xl bg-slate-100" />
+            ) : trendRows.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendRows} margin={{ top: 12, right: 20, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="period" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatCompactCurrency}
+                  />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Legend />
+                  <Line type="monotone" dataKey="revenue" name="Thu" stroke="#059669" strokeWidth={3} dot={false} />
+                  <Line type="monotone" dataKey="expenses" name="Chi" stroke="#e11d48" strokeWidth={3} dot={false} />
+                  <Line type="monotone" dataKey="outstanding_amount" name="Còn phải thu" stroke="#7c3aed" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-center text-sm text-slate-500">
+                Chưa có giao dịch hoặc học phí trong khoảng đã chọn.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="card p-6">
+          <h3 className="font-bold text-slate-900">Tổng hợp thu học phí</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Tỷ lệ thu {collectionSummary.collection_rate || 0}% trên kỳ {monthLabel(fromMonth)} - {monthLabel(toMonth)}.
+          </p>
+          <div className="mt-5 space-y-4">
+            <SummaryBar
+              label="Đã thu"
+              value={collectionSummary.paid_amount || 0}
+              total={collectionSummary.expected_amount || 0}
+              tone="emerald"
+            />
+            <SummaryBar
+              label="Còn phải thu"
+              value={collectionSummary.outstanding_amount || 0}
+              total={collectionSummary.expected_amount || 0}
+              tone="violet"
+            />
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="text-xs font-bold uppercase text-slate-500">Kỳ phí chưa thu</p>
+              <p className="mt-1 text-xl font-black text-slate-900">
+                {collectionSummary.unpaid_fees || 0}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-3">
+              <p className="text-xs font-bold uppercase text-amber-700">Cảnh báo</p>
+              <p className="mt-1 text-xl font-black text-amber-900">
+                {collectionSummary.anomaly_count || 0}
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="card p-6">
+          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900">Còn phải thu theo lớp</h3>
+              <p className="text-sm text-slate-500">
+                {dashboard?.meta?.has_class_line_data
+                  ? "Tính theo dòng học phí của từng lớp."
+                  : "Tạm phân bổ theo lớp đang học khi chưa có dòng học phí."}
+              </p>
+            </div>
+          </div>
+          {outstandingByClass.length > 0 ? (
+            <div className="space-y-4">
+              {outstandingByClass.slice(0, 8).map((item) => (
+                <div key={item.class_id || item.class_name}>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-800">{item.class_name}</p>
+                      <p className="text-xs text-slate-500">{item.student_count || 0} học viên</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-black text-violet-700">
+                      {formatCurrency(item.outstanding_amount)}
+                    </p>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-violet-500"
+                      style={{
+                        width: `${Math.max(
+                          4,
+                          Math.round(((item.outstanding_amount || 0) / maxClassOutstanding) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+              Không có khoản phải thu theo lớp trong khoảng đã chọn.
+            </div>
+          )}
+        </section>
+
+        <section className="card p-6">
+          <h3 className="mb-4 font-bold text-slate-900">Cấu trúc thu chi</h3>
+          <div className="h-64">
+            {!financialPending && paymentsByCategory.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={paymentsByCategory} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="label" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatCompactCurrency}
+                  />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Bar dataKey="amount" name="Chi" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-center text-sm text-slate-500">
+                Chưa có dữ liệu chi tiêu trong khoảng đã chọn.
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
@@ -321,27 +603,26 @@ export default function ReportsPage() {
                 <div key={item} className="h-10 animate-pulse rounded-xl bg-slate-100" />
               ))}
             </div>
-          ) : Object.keys(paymentsByCategory).length > 0 ? (
+          ) : paymentsByCategory.length > 0 ? (
             <div className="space-y-4">
-              {Object.entries(paymentsByCategory).map(([category, amount]) => {
-                const percent = totalPayments > 0 ? Math.round((amount / totalPayments) * 100) : 0;
+              {paymentsByCategory.map((item) => {
                 return (
-                  <div key={category}>
+                  <div key={item.category}>
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700">
-                        {CATEGORY_LABELS[category] || category}
+                        {item.label}
                       </span>
                       <span className="text-sm font-bold text-slate-900">
-                        {formatCurrency(amount)}
+                        {formatCurrency(item.amount)}
                       </span>
                     </div>
                     <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className={`h-full rounded-full ${CATEGORY_COLORS[category] || "bg-slate-500"}`}
-                        style={{ width: `${percent}%` }}
+                        className={`h-full rounded-full ${CATEGORY_COLORS[item.category] || "bg-slate-500"}`}
+                        style={{ width: `${item.percentage}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-xs font-medium text-slate-400">{percent}%</p>
+                    <p className="mt-1 text-xs font-medium text-slate-400">{item.percentage}%</p>
                   </div>
                 );
               })}
@@ -397,7 +678,7 @@ export default function ReportsPage() {
                     <td className="px-3 py-4">
                       <p className="font-bold text-slate-900">{student.student_name}</p>
                       <p className="mt-1 text-xs text-slate-500">{student.class_names || "Chưa có lớp"}</p>
-                      {student.anomalies?.length > 0 && (
+                      {((student.anomalies || []).length > 0 || student.anomaly_count > 0) && (
                         <p className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
                           Cần đối soát
                         </p>
@@ -465,6 +746,27 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SummaryBar({ label, value, total, tone }) {
+  const percent = total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
+  const toneClass = {
+    emerald: "bg-emerald-500",
+    violet: "bg-violet-500",
+  }[tone];
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-bold text-slate-700">{label}</span>
+        <span className="text-sm font-black text-slate-950">{formatCurrency(value)}</span>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${toneClass}`} style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-1 text-xs font-semibold text-slate-400">{percent}% kế hoạch</p>
     </div>
   );
 }

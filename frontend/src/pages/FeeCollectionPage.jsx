@@ -4,7 +4,7 @@ import { studentsService, classesService, monthlyFeesService } from '../services
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
-import { openAuthenticatedPdf } from '../utils/pdfPrint';
+import { openAuthenticatedPdf, openAuthenticatedPdfs } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
 
 const FEE_STATUS = {
@@ -20,6 +20,42 @@ const PAYMENT_LABEL = {
 };
 
 const formatMoney = (value = 0) => `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
+
+const normalizeWorkbenchRow = (row) => {
+  const rowId =
+    row.row_id ||
+    row.line_id ||
+    row.id ||
+    `${row.student_id || row.studentId}:${row.class_id || row.className || 'all'}`;
+  const totalDays =
+    row.total_days ?? row.days_count ?? row.charged_sessions ?? row.totalDays ?? 0;
+  const totalAmount = row.total_amount ?? row.amount ?? row.totalAmount ?? 0;
+  const className = row.class_name || row.class_names || row.className || row.classNames || '';
+
+  return {
+    ...row,
+    id: rowId,
+    row_id: rowId,
+    student_id: row.student_id || row.studentId || row.id,
+    full_name: row.full_name || row.student_name || row.studentName,
+    parent_name: row.parent_name || row.parentName,
+    parent_phone: row.parent_phone || row.parentPhone,
+    class_names: className,
+    fee: {
+      ...row,
+      id: row.fee_id || row.monthly_fee_id || row.id,
+      line_id: row.line_id || null,
+      receipt_id: row.receipt_id || row.receiptId || null,
+      needs_admin_review: Boolean(row.needs_admin_review),
+      total_days: totalDays,
+      total_amount: totalAmount,
+    },
+    attendanceSummary: `${totalDays || 0} buổi`,
+    feeAmount: totalAmount,
+    feeStatus: row.status || 'pending',
+    __workbenchRow: true,
+  };
+};
 
 export default function FeeCollectionPage() {
   const [classes, setClasses] = useState([]);
@@ -78,7 +114,8 @@ export default function FeeCollectionPage() {
       (workbenchRes.data.fees || []).forEach((fee) => {
         feeMap[fee.student_id] = fee;
       });
-      setStudents(workbenchRes.data.students || []);
+      const rows = workbenchRes.data.rows || [];
+      setStudents(rows.length ? rows.map(normalizeWorkbenchRow) : workbenchRes.data.students || []);
       setFeeData(feeMap);
       setLoading(false);
       return;
@@ -112,6 +149,7 @@ export default function FeeCollectionPage() {
 
   const studentFees = useMemo(() => {
     return students.map((student) => {
+      if (student.__workbenchRow) return student;
       const fee = feeData[student.id];
       return {
         ...student,
@@ -136,7 +174,11 @@ export default function FeeCollectionPage() {
   const payableRows = useMemo(
     () =>
       selectedRows.filter(
-        (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
+        (student) =>
+          student.feeStatus !== 'paid' &&
+          !student.fee?.needs_admin_review &&
+          Number(student.feeAmount || 0) > 0 &&
+          Boolean(student.fee?.line_id || student.fee?.id)
       ),
     [selectedRows]
   );
@@ -164,7 +206,11 @@ export default function FeeCollectionPage() {
     setSelectedMonth(toMonthKey(date));
   };
 
-  const handleCalculateFee = async (studentId) => {
+  const handleCalculateFee = async (studentOrId) => {
+    const studentId =
+      typeof studentOrId === 'string'
+        ? studentOrId
+        : studentOrId?.student_id || studentOrId?.studentId || studentOrId?.id;
     const res = await monthlyFeesService.calculate(studentId, selectedMonth);
     if (res.success) {
       toast.success('Đã tính học phí');
@@ -184,11 +230,14 @@ export default function FeeCollectionPage() {
     }
 
     setProcessing(true);
+    const studentIds = [
+      ...new Set(rows.map((student) => student.student_id || student.studentId || student.id)),
+    ];
     const results = await Promise.all(
-      rows.map((student) => monthlyFeesService.calculate(student.id, selectedMonth))
+      studentIds.map((studentId) => monthlyFeesService.calculate(studentId, selectedMonth))
     );
     const failed = results.filter((result) => !result.success).length;
-    toast.success(`Đã tính ${rows.length - failed}/${rows.length} học viên`);
+    toast.success(`Đã tính ${studentIds.length - failed}/${studentIds.length} học viên`);
     if (failed) toast.error(`${failed} học viên không thể tính phí`);
     await loadData();
     setProcessing(false);
@@ -196,7 +245,11 @@ export default function FeeCollectionPage() {
 
   const collectRows = async (rows, method) => {
     const targetRows = rows.filter(
-      (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
+      (student) =>
+        student.feeStatus !== 'paid' &&
+        !student.fee?.needs_admin_review &&
+        Number(student.feeAmount || 0) > 0 &&
+        Boolean(student.fee?.line_id || student.fee?.id)
     );
     if (!targetRows.length) {
       toast.error('Không có học viên cần thu trong lựa chọn hiện tại');
@@ -204,9 +257,19 @@ export default function FeeCollectionPage() {
     }
 
     setProcessing(true);
+    const lineIds = targetRows.map((student) => student.fee?.line_id).filter(Boolean);
+    const feeIds = targetRows
+      .filter((student) => !student.fee?.line_id && student.fee?.id)
+      .map((student) => student.fee.id);
+    const studentIds = targetRows
+      .filter((student) => !student.fee?.line_id && !student.fee?.id)
+      .map((student) => student.student_id || student.studentId || student.id);
+
     const res = await monthlyFeesService.bulkPay({
       month: selectedMonth,
-      student_ids: targetRows.map((student) => student.id),
+      line_ids: lineIds,
+      fee_ids: feeIds,
+      student_ids: studentIds,
       payment_method: method,
     });
 
@@ -215,7 +278,7 @@ export default function FeeCollectionPage() {
       setPrintQueue(receipts);
       setShowPrintQueue(receipts.length > 0);
       toast.success(
-        `Đã thu ${res.data.paid || 0} học viên bằng ${PAYMENT_LABEL[method]}`
+        `Đã thu ${res.data.paid || 0} dòng bằng ${PAYMENT_LABEL[method]}`
       );
       if (res.data.failed) {
         toast.error(`${res.data.failed} dòng không thu được, xem lại dữ liệu điểm danh/học phí`);
@@ -258,8 +321,12 @@ export default function FeeCollectionPage() {
   };
 
   const handlePrintAll = async () => {
-    for (const item of printQueue) {
-      await handlePrintReceipt(item.receipt_id);
+    try {
+      await openAuthenticatedPdfs(
+        printQueue.map((item) => `/api/receipts/${item.receipt_id}/pdf`)
+      );
+    } catch (error) {
+      toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
     }
   };
 
@@ -339,7 +406,7 @@ export default function FeeCollectionPage() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleCalculateFee(row.id);
+                handleCalculateFee(row);
               }}
               className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
             >
@@ -608,9 +675,11 @@ export default function FeeCollectionPage() {
             {printQueue.map((item) => (
               <div key={item.receipt_id} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3">
                 <div>
-                  <p className="font-bold text-slate-900">{item.student_id}</p>
+                  <p className="font-bold text-slate-900">
+                    {item.student_name || item.student_id}
+                  </p>
                   <p className="text-xs text-slate-500">
-                    {item.total_days} buổi · {formatMoney(item.total_amount)}
+                    {item.class_name ? `${item.class_name} · ` : ''}{item.total_days} buổi · {formatMoney(item.total_amount)}
                   </p>
                 </div>
                 <button

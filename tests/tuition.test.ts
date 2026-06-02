@@ -6,6 +6,7 @@ import {
   countCalendarRowsInMonth,
   countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
+  resolveAttendanceSessionPolicy,
   normalizeScheduleDays,
 } from "../lib/tuition.js";
 
@@ -74,6 +75,33 @@ describe("tuition calculation", () => {
     const mondayWednesday = normalizeScheduleDays([2, 4]);
     assert.deepEqual(mondayWednesday, [1, 3]);
     assert.equal(countScheduleDaysInMonth("2026-06", mondayWednesday), 9);
+  });
+
+  it("marks off-schedule fixed-weekday attendance as make-up", () => {
+    const scheduled = resolveAttendanceSessionPolicy(
+      { scheduleDays: [2, 4] },
+      "2026-06-01"
+    );
+    assert.equal(scheduled.isMakeUp, false);
+    assert.equal(scheduled.offSchedule, false);
+    assert.equal(scheduled.makeUpReason, null);
+
+    const offSchedule = resolveAttendanceSessionPolicy(
+      { scheduleDays: [2, 4] },
+      "2026-06-02"
+    );
+    assert.equal(offSchedule.isMakeUp, true);
+    assert.equal(offSchedule.offSchedule, true);
+    assert.equal(offSchedule.makeUpReason, "Hoc bu ngoai lich");
+
+    const explicit = resolveAttendanceSessionPolicy(
+      { sessionsPerWeek: 2 },
+      "2026-06-02",
+      { isMakeUp: true, makeUpReason: "Student requested make-up" }
+    );
+    assert.equal(explicit.isMakeUp, true);
+    assert.equal(explicit.offSchedule, false);
+    assert.equal(explicit.makeUpReason, "Student requested make-up");
   });
 
   it("keeps unscheduled legacy classes as per-session billing", () => {

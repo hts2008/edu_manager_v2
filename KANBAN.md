@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - financial correction policy deployed and production-smoked on 2026-06-01
+> **Status**: PRODUCTION LIVE - no-blocking flows and line-level fee ledger deployed and production-smoked on 2026-06-02
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,11 +10,35 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest financial correction policy deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest line-level fee ledger/no-blocking flows deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
 **Default/dev login:** `admin / admin123` — rotate before real production operation.
+
+---
+
+## IMPLEMENTED - NO-BLOCKING FLOWS + LINE FEE LEDGER CLOSEOUT (2026-06-02)
+
+**Objective:** close the latest reported production blockers in attendance, class edit, tuition collection, receipt printing, reports, and template design while keeping production usable end to end.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| NBF-2026-06-02-01 | Add make-up attendance and cross-month attendance period handling | `AttendancePage`, attendance APIs, `lib/tuition.ts` | backend/frontend specialists | Month-bounded tuition policy | IMPLEMENTED | Unit 44/44, local/prod Playwright |
+| NBF-2026-06-02-02 | Fix class bulk student loader in create/edit modal | `ClassesPage` | frontend-specialist | Modal scroll fix | IMPLEMENTED | Local/prod Playwright |
+| NBF-2026-06-02-03 | Add per-class fee ledger and collection flow | `MonthlyFeeLine`, `ReceiptLine`, monthly-fees APIs, Fee Workbench | database/backend/frontend specialists | Neon schema sync | IMPLEMENTED | Prisma generate, typecheck, unit, browser smoke |
+| NBF-2026-06-02-04 | Fix receipt print and default PDF line layout | `pdfPrint`, receipts APIs, `lib/pdf.ts` | backend/frontend specialists | Receipt line data | IMPLEMENTED | Production receipt PDF smoke |
+| NBF-2026-06-02-05 | Expand financial reports with finance dashboard data | Reports API/UI | backend/frontend specialists | Fee line data | IMPLEMENTED | Phase-B + UX smoke |
+| NBF-2026-06-02-06 | Make Template Designer controls actionable | `TemplateDesignerPage`, designer E2E | frontend-specialist | Template API | IMPLEMENTED | Template hardening smoke |
+| NBF-2026-06-02-07 | Deploy and verify production | Neon + Vercel alias `edu-manager-gules` | release-manager | NBF-2026-06-02-01..06 | IMPLEMENTED | Deploy `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ`, production Playwright 29/29 |
+
+**Evidence:** `receipts/2026-06-02-no-blocking-flows-line-fee-closeout.md`.
+
+**Validation:** `npx prisma generate`, `npx tsc --noEmit`, `npm run test:unit` 44/44, frontend lint zero warnings, frontend build, root build, `git diff --check`, local Playwright 12/12 + 17/17, and production Playwright 29/29.
+
+**Database note:** `npx prisma db push` synced additive `MonthlyFeeLine` and `ReceiptLine` schema to Neon. No seed was run.
+
+**Residual risk:** serverless cold-start/Neon latency can still appear on first-touch routes. Rotate default credentials before real operation.
 
 ---
 

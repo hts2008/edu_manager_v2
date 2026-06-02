@@ -26,8 +26,22 @@ export type StudentMonthlyTuitionResult = {
   classes: Array<TuitionResult & { classId?: string | null }>;
 };
 
+export type AttendanceSessionPolicyOptions = {
+  isMakeUp?: boolean | null;
+  makeUpReason?: string | null;
+  defaultMakeUpReason?: string | null;
+};
+
+export type AttendanceSessionPolicyResult = {
+  isMakeUp: boolean;
+  makeUpReason: string | null;
+  offSchedule: boolean;
+  scheduleDays: number[];
+};
+
 export const CHARGEABLE_ATTENDANCE_STATUSES = ["present", "absent_with_fee"];
 export const DEFAULT_WEEKLY_SESSION_DAYS = [1, 2, 3, 4, 5, 6];
+export const DEFAULT_MAKE_UP_REASON = "Hoc bu ngoai lich";
 
 export function parseMonthParts(month: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(month);
@@ -95,6 +109,47 @@ function normalizeRawScheduleDays(raw: unknown): number[] {
 
 export function normalizeScheduleDays(raw: unknown) {
   return normalizeRawScheduleDays(raw);
+}
+
+function getUtcWeekday(value: Date | string) {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return value.getUTCDay();
+  }
+
+  const dateText = String(value || "").trim();
+  if (!dateText) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}/.test(dateText)
+    ? dateText.slice(0, 10)
+    : null;
+  const parsed = new Date(dateOnly ? `${dateOnly}T00:00:00.000Z` : dateText);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.getUTCDay();
+}
+
+export function resolveAttendanceSessionPolicy(
+  classData: TuitionClassInput,
+  attendanceDate: Date | string,
+  options: AttendanceSessionPolicyOptions = {}
+): AttendanceSessionPolicyResult {
+  const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
+  const weekday = getUtcWeekday(attendanceDate);
+  const offSchedule =
+    scheduleDays.length > 0 && weekday !== null && !scheduleDays.includes(weekday);
+  const isMakeUp = Boolean(options.isMakeUp) || offSchedule;
+  const requestedReason = String(options.makeUpReason || "").trim();
+
+  return {
+    isMakeUp,
+    makeUpReason: isMakeUp
+      ? requestedReason ||
+        (offSchedule
+          ? options.defaultMakeUpReason || DEFAULT_MAKE_UP_REASON
+          : null)
+      : null,
+    offSchedule,
+    scheduleDays,
+  };
 }
 
 export function countScheduleDaysInMonth(month: string, scheduleDays: number[]) {

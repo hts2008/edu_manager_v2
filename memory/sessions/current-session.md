@@ -5,8 +5,8 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, and the 2026-05-27 performance route-loading closeout are implemented with production evidence.
-- **Latest Outcome**: 2026-05-28 performance lag RCA closeout is implemented, deployed, and production-smoked with perf-lab + Playwright 28/28.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, and the 2026-06-02 no-blocking flows + line fee ledger closeout are implemented with production evidence.
+- **Latest Outcome**: 2026-06-02 no-blocking flows + line fee ledger closeout is implemented, deployed as `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ`, and production-smoked with Playwright 29/29.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -155,6 +155,19 @@
   - [x] Deploy production deployment `dpl_8tNtmmYtCJtY8U4gv8swgUWhpKEj`.
   - [x] Verify production browser behavior with perf-lab and Playwright 28/28.
   - [x] Update KANBAN, activeContext, progress, decisionLog, current-session, and receipt evidence.
+- [x] Implement 2026-06-02 no-blocking flows + line fee ledger closeout.
+  - [x] Summarize current progress and inspect git diff before continuing.
+  - [x] Use `ck:team` subagent outputs for attendance/dataflow, reports, and Template Designer slices.
+  - [x] Add `MonthlyFeeLine` and `ReceiptLine` plus helper services.
+  - [x] Update monthly-fee calculate/workbench/bulk-pay to operate on per-class rows.
+  - [x] Fix class bulk student loading and receipt authenticated print flow.
+  - [x] Add attendance make-up/cross-month handling and tuition regression tests.
+  - [x] Add finance dashboard data and Template Designer interaction hardening.
+  - [x] Sync additive Neon schema with `npx prisma db push`; no seed run.
+  - [x] Verify local static/unit/build/browser gates.
+  - [x] Deploy Vercel production `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ`.
+  - [x] Verify production Playwright 29/29 on `https://edu-manager-gules.vercel.app`.
+  - [x] Update KANBAN, activeContext, progress, current-session, and receipt evidence.
 - [x] Implement PDF + UX production hardening.
   - [x] Diagnose garbled Vietnamese receipt PDF with hypothesis testing.
   - [x] Embed Unicode Roboto fonts in Vercel and Express PDF generation.

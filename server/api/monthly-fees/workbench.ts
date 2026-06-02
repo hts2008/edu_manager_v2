@@ -12,6 +12,7 @@ import {
   detectMonthlyFeeAnomaly,
   detectReceiptAnomaly,
 } from "../../../lib/finance-corrections.js";
+import { monthlyFeeLineToDto } from "../../../lib/monthly-fee-lines.js";
 
 function currentMonthKey() {
   const now = new Date();
@@ -115,6 +116,73 @@ function feeToDto(fee: any, student: any | undefined) {
   };
 }
 
+function lineRowToDto(line: any, student: any | undefined) {
+  const base = monthlyFeeLineToDto(line, student);
+  const anomaly =
+    detectReceiptAnomaly(line.receipt || {}) ||
+    (Number(line.amount || 0) > 0 && Number(line.chargedSessions || 0) <= 0
+      ? "PAID_WITH_ZERO_DAYS"
+      : null);
+
+  return {
+    ...base,
+    id: line.id,
+    row_id: line.id,
+    fee_id: line.monthlyFeeId,
+    class_ids: line.classId ? [line.classId] : [],
+    class_names: base.class_name,
+    full_name: base.student_name,
+    parentPhone: base.parent_phone,
+    receipt_days: line.receipt?.daysCount ?? null,
+    receipt_amount: line.receipt?.amount ?? null,
+    anomaly_code: anomaly,
+    anomaly_message:
+      anomaly === "PAID_WITH_ZERO_DAYS"
+        ? "Fee line has positive amount but zero chargeable sessions"
+        : null,
+    needs_admin_review: Boolean(anomaly),
+  };
+}
+
+function pendingLinePlaceholder(student: any, enrollment: any, month: string) {
+  const classRecord = enrollment?.class || null;
+  const rowId = `pending:${student.id}:${classRecord?.id || "unallocated"}`;
+  return {
+    id: rowId,
+    row_id: rowId,
+    line_id: null,
+    fee_id: null,
+    student_id: student.id,
+    studentId: student.id,
+    student_name: student.fullName,
+    studentName: student.fullName,
+    full_name: student.fullName,
+    parent_name: student.parent?.fullName || null,
+    parentName: student.parent?.fullName || null,
+    parent_phone: student.parent?.phone || null,
+    parentPhone: student.parent?.phone || null,
+    class_id: classRecord?.id || null,
+    class_name: classRecord?.className || null,
+    class_ids: classRecord?.id ? [classRecord.id] : [],
+    class_names: classRecord?.className || null,
+    month,
+    total_days: 0,
+    days_count: 0,
+    charged_sessions: 0,
+    expected_sessions: 0,
+    make_up_sessions: 0,
+    extra_sessions: 0,
+    fee_per_day: Number(classRecord?.feePerDay || 0),
+    total_amount: 0,
+    amount: 0,
+    status: "pending",
+    receipt_id: null,
+    paid_at: null,
+    allocation_confidence: "not_calculated",
+    needs_admin_review: false,
+  };
+}
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -162,7 +230,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       month,
       studentId: { in: studentIds },
     };
-    if (status && status !== "all") feeWhere.status = status;
 
     const rawFees =
       studentIds.length > 0
@@ -188,6 +255,20 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                   deletedAt: true,
                 },
               },
+              lines: {
+                include: {
+                  class: { include: { teacher: true } },
+                  receipt: {
+                    select: {
+                      id: true,
+                      daysCount: true,
+                      amount: true,
+                      deletedAt: true,
+                    },
+                  },
+                },
+                orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
+              },
             },
             orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
           })
@@ -202,29 +283,55 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         if (statusCompare !== 0) return statusCompare;
         return String(a.student_name || "").localeCompare(String(b.student_name || ""));
       });
-    const feeByStudentId = new Map(fees.map((fee) => [fee.student_id, fee]));
-    const rows = students.map((student) => feeByStudentId.get(student.id));
+    const feeByStudentId = new Map(rawFees.map((fee) => [fee.studentId, fee]));
+    const rows = rawStudents.flatMap((student) => {
+      const fee = feeByStudentId.get(student.id) as any;
+      const lineRows =
+        fee?.lines?.map((line: any) => lineRowToDto(line, student)) || [];
+      const filteredLineRows = lineRows.filter((row: any) => {
+        if (classId && classId !== "all" && row.class_id !== classId) return false;
+        if (status && status !== "all" && row.status !== status) return false;
+        return true;
+      });
+      if (filteredLineRows.length > 0) return filteredLineRows;
+      if (fee) {
+        const aggregate = feeToDto(fee, student);
+        if (classId && classId !== "all") return [];
+        if (status && status !== "all" && aggregate.status !== status) return [];
+        return [{ ...aggregate, row_id: aggregate.id, line_id: null }];
+      }
+
+      const placeholders = student.studentClasses
+        .filter((studentClass: any) => {
+          if (classId && classId !== "all") return studentClass.classId === classId;
+          return true;
+        })
+        .map((studentClass: any) => pendingLinePlaceholder(student, studentClass, month));
+      if (status && status !== "all" && status !== "pending") return [];
+      return placeholders;
+    });
     const summary = {
       month,
       class_id: classId || "all",
-      total: students.length,
+      total: rows.length,
       pending: rows.filter((fee) => !fee || fee.status === "pending").length,
       ready: rows.filter((fee) => fee?.status === "ready").length,
       confirmed: rows.filter((fee) => fee?.status === "confirmed").length,
       paid: rows.filter((fee) => fee?.status === "paid").length,
       total_amount: rows.reduce(
-        (sum, fee) => sum + Number(fee?.total_amount || 0),
+        (sum, fee) => sum + Number(fee?.total_amount || fee?.amount || 0),
         0
       ),
       paid_amount: rows
         .filter((fee) => fee?.status === "paid")
-        .reduce((sum, fee) => sum + Number(fee?.total_amount || 0), 0),
+        .reduce((sum, fee) => sum + Number(fee?.total_amount || fee?.amount || 0), 0),
     };
 
     return successResponse(res, {
       month,
       students,
       fees,
+      rows,
       summary,
     });
   } catch (error) {

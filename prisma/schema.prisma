@@ -107,6 +107,7 @@ model Student {
   studentClasses StudentClass[]
   attendance     Attendance[]
   monthlyFees    MonthlyFee[]
+  monthlyFeeLines MonthlyFeeLine[]
   receipts       Receipt[]
 
   @@index([parentId])
@@ -184,6 +185,8 @@ model Class {
   studentClasses   StudentClass[]
   attendance       Attendance[]
   attendancePeriods AttendancePeriod[]
+  monthlyFeeLines  MonthlyFeeLine[]
+  receiptLines     ReceiptLine[]
 
   @@index([teacherId])
   @@index([status])
@@ -317,6 +320,7 @@ model MonthlyFee {
   // Relations
   student Student  @relation(fields: [studentId], references: [id])
   receipt Receipt? @relation(fields: [receiptId], references: [id])
+  lines   MonthlyFeeLine[]
 
   @@unique([studentId, month])
   @@index([studentId])
@@ -325,6 +329,46 @@ model MonthlyFee {
   @@index([month, status])
   @@index([studentId, month])
   @@map("monthly_fees")
+}
+
+model MonthlyFeeLine {
+  id                   String    @id @default(cuid())
+  monthlyFeeId         String    @map("monthly_fee_id")
+  studentId            String    @map("student_id")
+  classId              String?   @map("class_id")
+  allocationKey        String    @map("allocation_key")
+  month                String
+  classNameSnapshot    String?   @map("class_name_snapshot")
+  teacherNameSnapshot  String?   @map("teacher_name_snapshot")
+  expectedSessions     Int       @default(0) @map("expected_sessions")
+  chargedSessions      Int       @default(0) @map("charged_sessions")
+  makeUpSessions       Int       @default(0) @map("make_up_sessions")
+  extraSessions        Int       @default(0) @map("extra_sessions")
+  feePerSession        Float     @default(0) @map("fee_per_session")
+  monthlyTuition       Float     @default(0) @map("monthly_tuition")
+  amount               Float     @default(0)
+  billingMode          String?   @map("billing_mode")
+  scheduleMode         String?   @map("schedule_mode")
+  status               FeeStatus @default(pending)
+  receiptId            String?   @map("receipt_id")
+  paidAt               DateTime? @map("paid_at")
+  allocationConfidence String    @default("calculated") @map("allocation_confidence")
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  monthlyFee  MonthlyFee  @relation(fields: [monthlyFeeId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id])
+  class       Class?      @relation(fields: [classId], references: [id])
+  receipt     Receipt?    @relation(fields: [receiptId], references: [id])
+  receiptLines ReceiptLine[]
+
+  @@unique([studentId, month, allocationKey])
+  @@index([monthlyFeeId])
+  @@index([studentId, month])
+  @@index([classId, month, status])
+  @@index([receiptId])
+  @@map("monthly_fee_lines")
 }
 
 enum FeeStatus {
@@ -399,6 +443,8 @@ model Receipt {
   template    Template     @relation(fields: [templateId], references: [id])
   createdBy   User         @relation(fields: [createdById], references: [id])
   monthlyFees MonthlyFee[]
+  monthlyFeeLines MonthlyFeeLine[]
+  receiptLines ReceiptLine[]
 
   @@index([studentId])
   @@index([month])
@@ -407,6 +453,30 @@ model Receipt {
   @@index([deletedAt, createdAt])
   @@index([studentId, month])
   @@map("receipts")
+}
+
+model ReceiptLine {
+  id                  String   @id @default(cuid())
+  receiptId           String   @map("receipt_id")
+  monthlyFeeLineId    String?  @map("monthly_fee_line_id")
+  classId             String?  @map("class_id")
+  classNameSnapshot   String?  @map("class_name_snapshot")
+  teacherNameSnapshot String?  @map("teacher_name_snapshot")
+  daysCount           Int      @default(0) @map("days_count")
+  expectedSessions    Int?     @map("expected_sessions")
+  feePerDay           Float    @default(0) @map("fee_per_day")
+  amount              Float    @default(0)
+  notes               String?
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  receipt        Receipt         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  monthlyFeeLine MonthlyFeeLine? @relation(fields: [monthlyFeeLineId], references: [id])
+  class          Class?          @relation(fields: [classId], references: [id])
+
+  @@index([receiptId])
+  @@index([monthlyFeeLineId])
+  @@index([classId])
+  @@map("receipt_lines")
 }
 
 enum PaymentMethod {

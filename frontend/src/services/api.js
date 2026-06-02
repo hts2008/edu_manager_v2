@@ -558,6 +558,10 @@ export const reportsService = {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/financial${query ? `?${query}` : ""}`);
   },
+  getFinanceDashboard: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/finance-dashboard${query ? `?${query}` : ""}`);
+  },
   getStudentFees: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/student-fees${query ? `?${query}` : ""}`);

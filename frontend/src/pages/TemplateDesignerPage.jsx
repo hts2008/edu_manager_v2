@@ -38,6 +38,39 @@ const CUSTOM_JSON_PROPS = [
 
 const mmToPx = (mm) => Math.round(mm * 3.7795275591);
 
+const countExportableObjects = (canvas) =>
+  canvas?.getObjects().filter((object) => !object.excludeFromExport).length || 0;
+
+const getTemplateFromResponse = (response) =>
+  response?.data?.template || response?.data || null;
+
+const parseTemplateConfig = (jsonConfig) => {
+  if (!jsonConfig) return null;
+  if (typeof jsonConfig === "string") return JSON.parse(jsonConfig);
+  return jsonConfig;
+};
+
+const getObjectLabel = (object) => {
+  if (!object) return "Chua chon";
+  if (object.bindingField) return `Field: ${object.bindingField}`;
+  if (object.customType === "background_image") return "Background image";
+  if (object.customType === "image" || object.type === "image") return "Image";
+  if (object.customType === "heading") return "Heading";
+  if (object.customType === "qr_placeholder") return "QR";
+  if (object.type === "rect") return "Rectangle";
+  if (object.type === "circle") return "Circle";
+  if (object.type === "line") return "Line";
+  if (object.type === "textbox") return "Text";
+  return object.customType || object.type || "Object";
+};
+
+const getStatusTone = (type) => {
+  if (type === "error") return "border-red-200 bg-red-50 text-red-700";
+  if (type === "loading") return "border-blue-200 bg-blue-50 text-blue-700";
+  if (type === "success") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  return "border-slate-200 bg-white text-slate-600";
+};
+
 export default function TemplateDesignerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -52,11 +85,20 @@ export default function TemplateDesignerPage() {
   const historyRef = useRef([]);
   const redoRef = useRef([]);
   const restoringRef = useRef(false);
+  const newObjectOffsetRef = useRef(0);
 
   const [template, setTemplate] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedObject, setSelectedObject] = useState(null);
+  const [canvasReady, setCanvasReady] = useState(false);
+  const [canvasError, setCanvasError] = useState("");
+  const [canvasObjectCount, setCanvasObjectCount] = useState(0);
+  const [uploadState, setUploadState] = useState({
+    status: "idle",
+    message: "",
+  });
+  const [designerNotice, setDesignerNotice] = useState("");
   const [zoom, setZoom] = useState(1);
   const [, setSelectionVersion] = useState(0);
 
@@ -75,8 +117,12 @@ export default function TemplateDesignerPage() {
     keyboardCleanupRef.current = null;
     canvasRef.current?.dispose();
     canvasRef.current = null;
+    setCanvasReady(false);
+    setCanvasError("");
+    setCanvasObjectCount(0);
     historyRef.current = [];
     redoRef.current = [];
+    newObjectOffsetRef.current = 0;
     initCanvas();
 
     return () => {
@@ -95,19 +141,28 @@ export default function TemplateDesignerPage() {
   };
 
   const refreshSelection = () => {
-    setSelectedObject(canvasRef.current?.getActiveObject() || null);
+    const canvas = canvasRef.current;
+    setSelectedObject(canvas?.getActiveObject() || null);
+    setCanvasObjectCount(countExportableObjects(canvas));
     setSelectionVersion((value) => value + 1);
   };
 
   const loadTemplate = async () => {
     setLoading(true);
-    const response = await templatesService.getById(id);
-    if (response.success) {
-      setTemplate(response.data.template);
-    } else {
+    try {
+      const response = await templatesService.getById(id);
+      if (response.success) {
+        setTemplate(getTemplateFromResponse(response));
+      } else {
       toast.error("Không tải được mẫu in.");
     }
-    setLoading(false);
+    } catch (error) {
+      const message = error?.message || "Khong tai duoc mau in.";
+      setDesignerNotice(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const captureHistory = () => {
@@ -119,9 +174,13 @@ export default function TemplateDesignerPage() {
   };
 
   const initCanvas = async () => {
+    setCanvasReady(false);
+    setCanvasError("");
     const fabric = await getFabric();
     const FabricCanvas = fabric.Canvas || fabric.default?.Canvas;
     if (!FabricCanvas || !canvasElRef.current) {
+      setCanvasError("Khong khoi tao duoc canvas.");
+      setDesignerNotice("Khong khoi tao duoc canvas.");
       toast.error("Không khởi tạo được Fabric canvas.");
       return;
     }
@@ -150,9 +209,10 @@ export default function TemplateDesignerPage() {
 
     if (template?.json_config) {
       try {
-        await canvas.loadFromJSON(JSON.parse(template.json_config));
-      } catch (error) {
-        console.error("Template JSON load error:", error);
+        await canvas.loadFromJSON(parseTemplateConfig(template.json_config));
+        canvas.backgroundColor = "#ffffff";
+      } catch {
+        setDesignerNotice("JSON mau in loi, da mo scaffold mac dinh.");
         toast.error("JSON mẫu in lỗi, đã mở canvas trống.");
       }
     }
@@ -164,6 +224,9 @@ export default function TemplateDesignerPage() {
 
     drawGrid(canvas, width, height, fabric);
     canvas.renderAll();
+    setCanvasReady(true);
+    setDesignerNotice((current) => current || "Canvas san sang.");
+    refreshSelection();
     captureHistory();
 
     const handleKeyDown = (event) => {
@@ -284,6 +347,39 @@ export default function TemplateDesignerPage() {
     }
   };
 
+  const addObjectToCanvas = (object, label, options = {}) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      setDesignerNotice("Canvas chua san sang.");
+      return;
+    }
+
+    if (!options.preservePlacement) {
+      const offset = newObjectOffsetRef.current;
+      const objectWidth =
+        typeof object.getScaledWidth === "function" ? object.getScaledWidth() : object.width || 160;
+      const objectHeight =
+        typeof object.getScaledHeight === "function" ? object.getScaledHeight() : object.height || 40;
+      const maxLeft = Math.max(32, canvas.getWidth() - objectWidth - 32);
+      const maxTop = Math.max(32, canvas.getHeight() - objectHeight - 32);
+      const left = Math.min(maxLeft, Math.max(32, (canvas.getWidth() - objectWidth) / 2 + offset));
+      const top = Math.min(maxTop, Math.max(32, (canvas.getHeight() - objectHeight) / 3 + offset));
+      object.set({ left, top });
+      newObjectOffsetRef.current = (offset + 28) % 140;
+    }
+
+    canvas.add(object);
+    if (options.background) {
+      canvas.sendObjectToBack(object);
+    } else {
+      canvas.bringObjectToFront(object);
+    }
+    canvas.setActiveObject(object);
+    canvas.renderAll();
+    setDesignerNotice(`Da them ${label}.`);
+    refreshSelection();
+  };
+
   const addTextObject = async (text, options = {}) => {
     const fabric = await getFabric();
     const Textbox = fabric.Textbox || fabric.default?.Textbox;
@@ -297,10 +393,7 @@ export default function TemplateDesignerPage() {
       ...options,
     });
 
-    canvasRef.current?.add(textbox);
-    canvasRef.current?.setActiveObject(textbox);
-    canvasRef.current?.renderAll();
-    refreshSelection();
+    addObjectToCanvas(textbox, options.bindingField ? `field ${options.bindingField}` : getObjectLabel(textbox));
   };
 
   const addHeading = () =>
@@ -339,10 +432,7 @@ export default function TemplateDesignerPage() {
       customType: "shape",
     });
 
-    canvasRef.current?.add(rect);
-    canvasRef.current?.setActiveObject(rect);
-    canvasRef.current?.renderAll();
-    refreshSelection();
+    addObjectToCanvas(rect, "rectangle");
   };
 
   const addCircle = async () => {
@@ -358,10 +448,7 @@ export default function TemplateDesignerPage() {
       customType: "shape",
     });
 
-    canvasRef.current?.add(circle);
-    canvasRef.current?.setActiveObject(circle);
-    canvasRef.current?.renderAll();
-    refreshSelection();
+    addObjectToCanvas(circle, "circle");
   };
 
   const addLine = async () => {
@@ -373,10 +460,7 @@ export default function TemplateDesignerPage() {
       customType: "line",
     });
 
-    canvasRef.current?.add(line);
-    canvasRef.current?.setActiveObject(line);
-    canvasRef.current?.renderAll();
-    refreshSelection();
+    addObjectToCanvas(line, "line");
   };
 
   const addQrPlaceholder = async () => {
@@ -406,10 +490,7 @@ export default function TemplateDesignerPage() {
       customType: "qr_placeholder",
     });
 
-    canvasRef.current?.add(group);
-    canvasRef.current?.setActiveObject(group);
-    canvasRef.current?.renderAll();
-    refreshSelection();
+    addObjectToCanvas(group, "QR");
   };
 
   const openImagePicker = (mode) => {
@@ -422,22 +503,53 @@ export default function TemplateDesignerPage() {
     event.target.value = "";
     if (!file) return;
 
-    const response = await templatesService.uploadImage(file);
-    if (!response.success) {
+    const mode = imageUploadModeRef.current;
+    if (!file.type.startsWith("image/")) {
+      const message = "Chi chap nhan file anh.";
+      setUploadState({ status: "error", message });
+      toast.error(message);
+      return;
+    }
+
+    setUploadState({
+      status: "loading",
+      message: mode === "background" ? "Dang upload anh nen..." : "Dang upload anh...",
+    });
+
+    try {
+      const response = await templatesService.uploadImage(file);
+      if (!response.success) {
+        const message = response.error?.message || "Upload anh that bai.";
+        setUploadState({ status: "error", message });
       toast.error(response.error?.message || "Upload ảnh thất bại.");
       return;
     }
 
-    await addImageFromUrl(response.data.url, imageUploadModeRef.current);
+      const imageUrl = response.data?.url || response.data?.path;
+      if (!imageUrl) throw new Error("Upload khong tra ve URL anh.");
+
+      await addImageFromUrl(imageUrl, mode);
+      setUploadState({
+        status: "success",
+        message: mode === "background" ? "Da them anh nen." : "Da them anh.",
+      });
     toast.success("Đã thêm ảnh vào mẫu.");
+    } catch (error) {
+      const message = error?.message || "Upload anh that bai.";
+      setUploadState({ status: "error", message });
+      toast.error(message);
+    }
   };
 
   const addImageFromUrl = async (url, mode = "object") => {
+    const canvas = canvasRef.current;
+    if (!canvas) throw new Error("Canvas chua san sang.");
     const fabric = await getFabric();
     const FabricImage = fabric.FabricImage || fabric.Image || fabric.default?.FabricImage;
+    if (!FabricImage?.fromURL) throw new Error("Fabric image loader is not available.");
     const image = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-    const maxWidth = mode === "background" ? canvasRef.current.getWidth() : 260;
-    const maxHeight = mode === "background" ? canvasRef.current.getHeight() : 180;
+    const maxWidth = mode === "background" ? canvas.getWidth() : 260;
+    const maxHeight = mode === "background" ? canvas.getHeight() : 180;
     const scale = Math.min(maxWidth / (image.width || maxWidth), maxHeight / (image.height || maxHeight), 1);
 
     image.set({
@@ -452,13 +564,10 @@ export default function TemplateDesignerPage() {
       evented: true,
     });
 
-    canvasRef.current.add(image);
-    if (mode === "background") {
-      canvasRef.current.sendObjectToBack(image);
-    }
-    canvasRef.current.setActiveObject(image);
-    canvasRef.current.renderAll();
-    refreshSelection();
+    addObjectToCanvas(image, mode === "background" ? "background image" : "image", {
+      background: mode === "background",
+      preservePlacement: mode === "background",
+    });
   };
 
   const deleteSelected = () => {
@@ -575,6 +684,7 @@ export default function TemplateDesignerPage() {
   const handleSave = async () => {
     if (!canvasRef.current || !template) return;
     setSaving(true);
+    setDesignerNotice("Dang luu mau...");
 
     const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
     json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
@@ -586,6 +696,11 @@ export default function TemplateDesignerPage() {
 
     setSaving(false);
     if (response.success) {
+      const savedTemplate = getTemplateFromResponse(response);
+      if (savedTemplate) {
+        setTemplate((current) => ({ ...current, ...savedTemplate }));
+      }
+      setDesignerNotice("Da luu mau.");
       toast.success("Đã lưu mẫu thành công.");
     } else {
       toast.error(response.error?.message || "Không thể lưu mẫu.");
@@ -613,6 +728,21 @@ export default function TemplateDesignerPage() {
   const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
   const selectedIsText = selectedObject?.type === "textbox";
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
+  const selectedLabel = getObjectLabel(selectedObject);
+  const uploadBusy = uploadState.status === "loading";
+  const statusMessage =
+    (uploadBusy ? uploadState.message : "") ||
+    designerNotice ||
+    uploadState.message ||
+    (canvasReady ? "Canvas san sang." : "Dang khoi tao canvas...");
+  const statusType =
+    uploadBusy
+      ? uploadState.status
+      : canvasError
+        ? "error"
+        : designerNotice
+          ? "success"
+          : uploadState.status;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-slate-100">
@@ -620,6 +750,7 @@ export default function TemplateDesignerPage() {
         ref={imageInputRef}
         type="file"
         accept="image/*"
+        disabled={uploadBusy}
         className="hidden"
         onChange={handleImagePicked}
       />
@@ -652,19 +783,47 @@ export default function TemplateDesignerPage() {
           <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary px-3 py-2">
             +
           </button>
-          <button type="button" onClick={handleSave} disabled={saving || !template} className="btn-primary">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || !template || !canvasReady}
+            className="btn-primary disabled:opacity-50"
+            data-testid="save-template"
+          >
             {saving ? "Đang lưu..." : "Lưu mẫu"}
           </button>
         </div>
       </header>
+
+      <div
+        role="status"
+        aria-live="polite"
+        data-testid="designer-status"
+        className={`border-b px-4 py-2 text-sm font-semibold ${getStatusTone(statusType)}`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>{statusMessage}</span>
+          <span data-testid="canvas-object-count">{canvasObjectCount} object(s)</span>
+        </div>
+      </div>
 
       <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_300px]">
         <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
           <PanelTitle title="Thành phần" subtitle="Thêm nhanh các khối dùng trong phiếu." />
           <div className="grid grid-cols-2 gap-2">
             <ToolButton label="Tiêu đề" onClick={addHeading} />
-            <ToolButton label="Text" onClick={addText} />
-            <ToolButton label="Khung" onClick={addRectangle} />
+            <ToolButton
+              label="Text"
+              onClick={addText}
+              active={selectedObject?.customType === "text"}
+              testId="tool-text"
+            />
+            <ToolButton
+              label="Khung"
+              onClick={addRectangle}
+              active={selectedObject?.type === "rect"}
+              testId="tool-rect"
+            />
             <ToolButton label="Tròn" onClick={addCircle} />
             <ToolButton label="Line" onClick={addLine} />
             <ToolButton label="QR" onClick={addQrPlaceholder} />
@@ -676,17 +835,28 @@ export default function TemplateDesignerPage() {
               <button
                 type="button"
                 onClick={() => openImagePicker("object")}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                disabled={uploadBusy}
+                data-testid="upload-image"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-wait disabled:opacity-60"
               >
                 Upload ảnh
               </button>
               <button
                 type="button"
                 onClick={() => openImagePicker("background")}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                disabled={uploadBusy}
+                data-testid="upload-background"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-wait disabled:opacity-60"
               >
                 Upload làm nền
               </button>
+              <p
+                aria-live="polite"
+                data-testid="upload-status"
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold ${getStatusTone(uploadState.status)}`}
+              >
+                {uploadState.message || "Chua co upload nao."}
+              </p>
             </div>
           </div>
 
@@ -698,7 +868,13 @@ export default function TemplateDesignerPage() {
                   key={field.field}
                   type="button"
                   onClick={() => addBindingField(field.field, field.label)}
-                  className="w-full rounded-lg bg-blue-50 px-3 py-2 text-left text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                  data-testid={`field-${field.field}`}
+                  aria-pressed={selectedObject?.bindingField === field.field}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-blue-100 ${
+                    selectedObject?.bindingField === field.field
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-blue-50 text-blue-700"
+                  }`}
                 >
                   {field.label}
                 </button>
@@ -707,19 +883,35 @@ export default function TemplateDesignerPage() {
           </div>
         </aside>
 
-        <section className="min-w-0 overflow-auto bg-slate-200 p-4 lg:p-8">
+        <section className="min-w-0 overflow-auto bg-slate-100 p-4 lg:p-8">
           <div
-            className="mx-auto w-max rounded-[1.5rem] bg-slate-900/10 p-5 shadow-inner transition-transform"
+            className="mx-auto w-max rounded-[1.5rem] bg-white p-5 shadow-inner ring-1 ring-slate-200 transition-transform"
             style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
+            data-testid="canvas-stage"
           >
-            <div className="shadow-2xl shadow-slate-900/20">
-              <canvas ref={canvasElRef} />
+            <div className="relative overflow-hidden rounded-sm bg-white shadow-2xl shadow-slate-900/20">
+              {!canvasReady && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/90 text-sm font-semibold text-slate-600">
+                  {canvasError || "Dang khoi tao canvas..."}
+                </div>
+              )}
+              <canvas ref={canvasElRef} data-testid="template-canvas" className="block bg-white" />
             </div>
           </div>
         </section>
 
         <aside className="overflow-y-auto border-l border-slate-200 bg-white p-4">
           <PanelTitle title="Thuộc tính" subtitle="Chọn object trên canvas để chỉnh." />
+          <div
+            data-testid="selection-summary"
+            className={`mb-4 rounded-xl border px-3 py-2 text-sm font-semibold ${
+              selectedObject
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-slate-50 text-slate-500"
+            }`}
+          >
+            Dang chon: {selectedObject ? selectedLabel : "Chua co object"}
+          </div>
           {selectedObject ? (
             <div className="space-y-5">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -860,12 +1052,19 @@ function PanelTitle({ title, subtitle }) {
   );
 }
 
-function ToolButton({ label, onClick }) {
+function ToolButton({ label, onClick, active = false, disabled = false, testId }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+      disabled={disabled}
+      data-testid={testId}
+      aria-pressed={active}
+      className={`rounded-xl border px-3 py-2 text-sm font-bold shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60 ${
+        active
+          ? "border-primary-300 bg-primary-50 text-primary-700 ring-2 ring-primary-100"
+          : "border-slate-200 bg-white text-slate-700"
+      }`}
     >
       {label}
     </button>
