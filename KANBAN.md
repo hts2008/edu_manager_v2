@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - no-blocking flows and line-level fee ledger deployed and production-smoked on 2026-06-02
+> **Status**: PRODUCTION LIVE - Fee Workbench class-line split deployed and production-smoked on 2026-06-03
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -39,6 +39,25 @@
 **Database note:** `npx prisma db push` synced additive `MonthlyFeeLine` and `ReceiptLine` schema to Neon. No seed was run.
 
 **Residual risk:** serverless cold-start/Neon latency can still appear on first-touch routes. Rotate default credentials before real operation.
+
+---
+
+## IMPLEMENTED - FEE WORKBENCH CLASS-LINE SPLIT PATCH (2026-06-03)
+
+**Objective:** fix the production issue where a student enrolled in multiple classes could still appear as one aggregate tuition row, making operators collect a combined amount instead of class-by-class payments.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| FEE-LINE-2026-06-03-01 | Return one Fee Workbench row per class line and keep GET read-only | `server/api/monthly-fees/workbench.ts` | backend-specialist | Line fee ledger | IMPLEMENTED | Typecheck, unit, local/prod API smoke |
+| FEE-LINE-2026-06-03-02 | Ensure bulk collection resolves to `MonthlyFeeLine` targets only | `server/api/monthly-fees/bulk-pay.ts` | backend-specialist | FEE-LINE-2026-06-03-01 | IMPLEMENTED | Unit contract, no null receipt line linkage |
+| FEE-LINE-2026-06-03-03 | Disable selection/payment for non-line legacy rows | `DataTable`, `FeeCollectionPage` | frontend-specialist | FEE-LINE-2026-06-03-01 | IMPLEMENTED | Lint, build, local/prod Playwright |
+| FEE-LINE-2026-06-03-04 | Add regression coverage and deploy production | Unit/E2E, Vercel alias `edu-manager-gules` | qa/release | FEE-LINE-2026-06-03-01..03 | IMPLEMENTED | Deploy `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`, production API + E2E |
+
+**Evidence:** `receipts/2026-06-03-fee-workbench-class-line-split.md`.
+
+**Validation:** `npx tsc --noEmit`, `npm run test:unit` 46/46, frontend lint zero warnings, `npm run build`, local API smoke (`rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, 577ms), local Chromium E2E 1/1, production API smoke (`rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, 6170ms), and production Chromium E2E 1/1.
+
+**Residual risk:** historical paid aggregate monthly fees without line rows are shown as estimated per-class review rows and remain non-collectable until recalculated/corrected.
 
 ---
 

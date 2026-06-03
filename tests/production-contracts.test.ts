@@ -48,6 +48,9 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(bulkPay, /NO_CHARGEABLE_AMOUNT/);
   assert.match(bulkPay, /receipt_ids/);
   assert.match(bulkPay, /student_ids/);
+  assert.match(bulkPay, /resolveLineIdsForTarget/);
+  assert.match(bulkPay, /monthlyFeeLineIdsForCollection/);
+  assert.doesNotMatch(bulkPay, /monthlyFeeLineId:\s*null/);
   assert.match(confirm, /updateMany/);
   assert.match(confirm, /MONTHLY_FEE_STATE_CONFLICT/);
   assert.match(cancel, /updateMany/);
@@ -105,6 +108,16 @@ test("student fee report flags paid receipt anomalies even without monthly fee r
   assert.match(code, /RECEIPT_WITH_ZERO_DAYS/);
   assert.match(code, /detectReceiptAnomaly/);
   assert.match(code, /anomaly_detail/);
+});
+
+test("workbench never downgrades confirmed legacy fees during read-only listing", () => {
+  const code = source("server/api/monthly-fees/workbench.ts");
+
+  assert.doesNotMatch(code, /syncMonthlyFeeLines/);
+  assert.doesNotMatch(code, /refreshMonthlyFeeAggregateFromLines/);
+  assert.match(code, /legacyFeeClassRows/);
+  assert.match(code, /legacy_needs_recalculation/);
+  assert.match(code, /LEGACY_AGGREGATE_FEE/);
 });
 
 test("core serverless handlers use DB-backed requireAuth instead of token-only auth", () => {

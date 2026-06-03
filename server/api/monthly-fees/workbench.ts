@@ -183,6 +183,67 @@ function pendingLinePlaceholder(student: any, enrollment: any, month: string) {
   };
 }
 
+function legacyFeeClassRows(fee: any, student: any, month: string) {
+  const enrollments = student.studentClasses || [];
+  if (!enrollments.length) {
+    const aggregate = feeToDto(fee, student);
+    return [
+      {
+        ...aggregate,
+        row_id: aggregate.id,
+        line_id: null,
+        fee_id: null,
+        needs_admin_review: true,
+        anomaly_code: aggregate.anomaly_code || "LEGACY_AGGREGATE_FEE",
+        anomaly_message:
+          aggregate.anomaly_message ||
+          "Monthly fee has no class-level lines. Recalculate before collecting.",
+      },
+    ];
+  }
+
+  if (fee.status === "paid" || fee.receiptId || fee.paidAt) {
+    const amountShare = Math.round(Number(fee.totalAmount || 0) / enrollments.length);
+    const dayShare = Math.round(Number(fee.totalDays || 0) / enrollments.length);
+    return enrollments.map((enrollment: any, index: number) => {
+      const row = pendingLinePlaceholder(student, enrollment, month);
+      const isLast = index === enrollments.length - 1;
+      const amount = isLast
+        ? Number(fee.totalAmount || 0) - amountShare * (enrollments.length - 1)
+        : amountShare;
+      const days = isLast
+        ? Number(fee.totalDays || 0) - dayShare * (enrollments.length - 1)
+        : dayShare;
+      return {
+        ...row,
+        id: `legacy-paid:${fee.id}:${row.class_id || index}`,
+        row_id: `legacy-paid:${fee.id}:${row.class_id || index}`,
+        monthly_fee_id: fee.id,
+        status: "paid",
+        receipt_id: fee.receiptId,
+        receiptId: fee.receiptId,
+        paid_at: fee.paidAt,
+        total_days: Math.max(0, days),
+        days_count: Math.max(0, days),
+        charged_sessions: Math.max(0, days),
+        total_amount: Math.max(0, amount),
+        amount: Math.max(0, amount),
+        allocation_confidence: "legacy_estimated_split",
+        needs_admin_review: true,
+        anomaly_code: "LEGACY_AGGREGATE_FEE",
+        anomaly_message:
+          "Paid before class-level fee lines existed. Amount is displayed as an estimated class split for review.",
+      };
+    });
+  }
+
+  return enrollments.map((enrollment: any) => ({
+    ...pendingLinePlaceholder(student, enrollment, month),
+    monthly_fee_id: fee.id,
+    allocation_confidence: "legacy_needs_recalculation",
+  }));
+}
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -218,7 +279,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         parent: { select: { id: true, fullName: true, phone: true } },
         studentClasses: {
           where: { status: "active" },
-          include: { class: { select: { id: true, className: true } } },
+          include: {
+            class: {
+              select: {
+                id: true,
+                className: true,
+                feePerDay: true,
+                scheduleDays: true,
+                sessionsPerWeek: true,
+                teacher: { select: { fullName: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { fullName: "asc" },
@@ -284,21 +356,28 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return String(a.student_name || "").localeCompare(String(b.student_name || ""));
       });
     const feeByStudentId = new Map(rawFees.map((fee) => [fee.studentId, fee]));
-    const rows = rawStudents.flatMap((student) => {
+    const rows: any[] = [];
+    for (const student of rawStudents) {
       const fee = feeByStudentId.get(student.id) as any;
-      const lineRows =
-        fee?.lines?.map((line: any) => lineRowToDto(line, student)) || [];
+      const lineRows = (fee?.lines || []).map((line: any) => lineRowToDto(line, student));
       const filteredLineRows = lineRows.filter((row: any) => {
         if (classId && classId !== "all" && row.class_id !== classId) return false;
         if (status && status !== "all" && row.status !== status) return false;
         return true;
       });
-      if (filteredLineRows.length > 0) return filteredLineRows;
+      if (filteredLineRows.length > 0) {
+        rows.push(...filteredLineRows);
+        continue;
+      }
       if (fee) {
-        const aggregate = feeToDto(fee, student);
-        if (classId && classId !== "all") return [];
-        if (status && status !== "all" && aggregate.status !== status) return [];
-        return [{ ...aggregate, row_id: aggregate.id, line_id: null }];
+        const legacyRows = legacyFeeClassRows(fee, student, month);
+        const filteredLegacyRows = legacyRows.filter((row: any) => {
+          if (classId && classId !== "all" && row.class_id !== classId) return false;
+          if (status && status !== "all" && row.status !== status) return false;
+          return true;
+        });
+        rows.push(...filteredLegacyRows);
+        continue;
       }
 
       const placeholders = student.studentClasses
@@ -307,9 +386,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           return true;
         })
         .map((studentClass: any) => pendingLinePlaceholder(student, studentClass, month));
-      if (status && status !== "all" && status !== "pending") return [];
-      return placeholders;
-    });
+      if (status && status !== "all" && status !== "pending") continue;
+      rows.push(...placeholders);
+    }
     const summary = {
       month,
       class_id: classId || "all",

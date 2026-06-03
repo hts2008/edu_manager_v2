@@ -503,3 +503,16 @@
 - **Production Smoke**: Production Playwright with `E2E_BASE_URL=https://edu-manager-gules.vercel.app` passed 29/29 across Template Designer hardening, UX/menu/modal/calendar/template/PDF, and Phase-B protected route/API smoke.
 - **Evidence**: `receipts/2026-06-02-no-blocking-flows-line-fee-closeout.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-03 - Fee Workbench Class-Line Split Patch
+- **Scope**: Fix the production defect where a multi-class student could still appear as one aggregate tuition row in Fee Workbench. Each class must be a separate row because parents can pay per class on different dates.
+- **RCA**: Workbench still had aggregate/legacy fallback behavior, `bulk-pay` still accepted fee/student targets, and the frontend selection model could tick non-line rows even though payment ignored them. A prior production smoke also found GET workbench timeout risk from read-time backfill/write work.
+- **Implementation**: Made `GET /api/monthly-fees/workbench` read-only, returning existing line rows or non-collectable legacy review rows; changed bulk-pay to resolve all targets to `MonthlyFeeLine` IDs; made Fee Workbench send only `line_ids`; added `DataTable.isRowSelectable` so non-line/paid/admin-review rows cannot be selected; added unit/contract/E2E regression coverage.
+- **Team Mode**: Used two `ck:team` explorer agents. The frontend explorer found the row-selection gap and the fix was integrated inline. The backend explorer timed out and was shut down after local/static/production gates covered the risk.
+- **Validation**: `npx tsc --noEmit`, `npm run test:unit` 46/46, frontend lint max-warnings=0, `npm run build`, local API smoke (`rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, 577ms), and local Chromium E2E 1/1 passed.
+- **Deployment**: Vercel production deployment `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Production API smoke returned `rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, `prod_workbench_ms=6170`; production Chromium/Playwright `fee-workbench-line-split.spec.js` passed 1/1.
+- **Evidence**: `receipts/2026-06-03-fee-workbench-class-line-split.md`.
+- **STATUS**: IMPLEMENTED.

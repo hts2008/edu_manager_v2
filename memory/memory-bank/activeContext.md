@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ` on `https://edu-manager-gules.vercel.app` after the 2026-06-02 no-blocking flows + line fee ledger closeout.
+- **Latest production deployment observed in Codex session**: `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU` on `https://edu-manager-gules.vercel.app` after the 2026-06-03 Fee Workbench class-line split patch.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -45,16 +45,17 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **No-Blocking Flows + Line Fee Ledger Closeout** - attendance make-up/cross-month period handling, class bulk student loading, per-class fee lines, receipt line printing, finance dashboard data, and Template Designer interactions are implemented, deployed, and production-smoked on 2026-06-02.
-2. **Financial Correction Policy Closeout** - explicit admin correction is implemented for historical paid receipt/monthly-fee anomalies (`days_count=0` with non-zero amount); Reports/Receipts surface anomaly metadata and Fee Workbench blocks unsafe collection rows. Deployed and production-smoked on 2026-06-01.
-3. **Performance Lag RCA Closeout** - latest pass reduced large motion/blur surfaces, made table/search/loading states lighter, guarded Fee Workbench and Attendance stale async responses, parallelized Attendance month fetches, narrowed report selects, added read-only `perf-lab`, and passed local + production browser/API smoke on 2026-05-28.
-4. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
-5. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
-6. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-7. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
-8. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
-9. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
-10. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
+1. **Fee Workbench Class-Line Split Patch** - multi-class students now render and collect as one Fee Workbench row per class line; aggregate legacy rows are not collectable. Deployed and production-smoked on 2026-06-03.
+2. **No-Blocking Flows + Line Fee Ledger Closeout** - attendance make-up/cross-month period handling, class bulk student loading, per-class fee lines, receipt line printing, finance dashboard data, and Template Designer interactions are implemented, deployed, and production-smoked on 2026-06-02.
+3. **Financial Correction Policy Closeout** - explicit admin correction is implemented for historical paid receipt/monthly-fee anomalies (`days_count=0` with non-zero amount); Reports/Receipts surface anomaly metadata and Fee Workbench blocks unsafe collection rows. Deployed and production-smoked on 2026-06-01.
+4. **Performance Lag RCA Closeout** - latest pass reduced large motion/blur surfaces, made table/search/loading states lighter, guarded Fee Workbench and Attendance stale async responses, parallelized Attendance month fetches, narrowed report selects, added read-only `perf-lab`, and passed local + production browser/API smoke on 2026-05-28.
+5. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
+6. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
+7. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
+8. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+9. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
+10. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
+11. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
 
 ## Verified Architecture
 - **Frontend**: Vite + React + Tailwind CSS v4. Code truth from `frontend/package.json` currently shows React 19.2.0 and Vite 7.2.4; older docs may still mention stale React versions.

@@ -5,8 +5,8 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, and the 2026-06-02 no-blocking flows + line fee ledger closeout are implemented with production evidence.
-- **Latest Outcome**: 2026-06-02 no-blocking flows + line fee ledger closeout is implemented, deployed as `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ`, and production-smoked with Playwright 29/29.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, the 2026-06-02 no-blocking flows + line fee ledger closeout, and the 2026-06-03 Fee Workbench class-line split patch are implemented with production evidence.
+- **Latest Outcome**: 2026-06-03 Fee Workbench class-line split patch is implemented, deployed as `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`, and production-smoked with API invariants plus Chromium/Playwright 1/1.
 
 ## Active Task
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
@@ -168,6 +168,17 @@
   - [x] Deploy Vercel production `dpl_JCDmyuFBV7yQ2zEYHu5bLyyvF4kJ`.
   - [x] Verify production Playwright 29/29 on `https://edu-manager-gules.vercel.app`.
   - [x] Update KANBAN, activeContext, progress, current-session, and receipt evidence.
+- [x] Implement 2026-06-03 Fee Workbench class-line split patch.
+  - [x] Summarize completed progress and inspect git diff/status before continuing.
+  - [x] Use `ck:team` explorer subagents for backend and frontend/E2E review.
+  - [x] Make workbench GET read-only and render legacy aggregate fees as non-collectable review rows.
+  - [x] Make bulk-pay collect class-level `MonthlyFeeLine` IDs only.
+  - [x] Disable selection/payment for non-line rows in Fee Workbench.
+  - [x] Add unit/contract/E2E regression coverage.
+  - [x] Verify local typecheck, unit 46/46, lint, build, API smoke, and Chromium E2E.
+  - [x] Deploy Vercel production `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`.
+  - [x] Verify production API smoke and Chromium E2E 1/1 on `https://edu-manager-gules.vercel.app`.
+  - [x] Update KANBAN, activeContext, progress, decisionLog, current-session, and receipt evidence.
 - [x] Implement PDF + UX production hardening.
   - [x] Diagnose garbled Vietnamese receipt PDF with hypothesis testing.
   - [x] Embed Unicode Roboto fonts in Vercel and Express PDF generation.

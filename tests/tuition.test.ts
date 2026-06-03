@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import jwt from "jsonwebtoken";
+import prisma from "../lib/prisma.js";
 import {
   calculateTuitionForClass,
   calculateStudentMonthlyTuition,
@@ -9,6 +11,31 @@ import {
   resolveAttendanceSessionPolicy,
   normalizeScheduleDays,
 } from "../lib/tuition.js";
+
+function mockResponse() {
+  const response: any = {
+    statusCode: 200,
+    body: undefined,
+    headers: new Map<string, unknown>(),
+    setHeader(name: string, value: unknown) {
+      this.headers.set(name, value);
+      return this;
+    },
+    status(code: number) {
+      this.statusCode = code;
+      return this;
+    },
+    json(payload: unknown) {
+      this.body = payload;
+      return this;
+    },
+    end(payload?: unknown) {
+      this.body = payload;
+      return this;
+    },
+  };
+  return response;
+}
 
 describe("tuition calculation", () => {
   it("bounds sessions-per-week billing to default class days inside the month", () => {
@@ -145,5 +172,176 @@ describe("tuition calculation", () => {
     assert.equal(result.totalDays, 18);
     assert.equal(result.totalAmount, 1560000);
     assert.deepEqual(result.classes.map((item) => item.classId), ["english", "math"]);
+  });
+
+  it("returns one Fee Workbench collectable row per class for a multi-class student", async () => {
+    const { default: workbenchHandler } = await import(
+      "../server/api/monthly-fees/workbench.js"
+    );
+    const mockedPrisma = prisma as any;
+    const originalUserFindUnique = mockedPrisma.user.findUnique;
+    const originalStudentFindMany = mockedPrisma.student.findMany;
+    const originalMonthlyFeeFindMany = mockedPrisma.monthlyFee.findMany;
+    const timestamp = new Date("2026-05-31T00:00:00.000Z");
+    const student = {
+      id: "student-1",
+      fullName: "Nguyen Van A",
+      phone: "0900000000",
+      email: null,
+      status: "active",
+      parentId: "parent-1",
+      parent: { id: "parent-1", fullName: "Parent A", phone: "0911111111" },
+      studentClasses: [
+        {
+          classId: "english",
+          status: "active",
+          class: { id: "english", className: "English A1" },
+        },
+        {
+          classId: "math",
+          status: "active",
+          class: { id: "math", className: "Math B1" },
+        },
+      ],
+    };
+
+    try {
+      mockedPrisma.user.findUnique = async () => ({
+        id: "admin-1",
+        username: "admin",
+        fullName: "Admin",
+        email: null,
+        phone: null,
+        role: "admin",
+        status: "active",
+        lastLogin: null,
+      });
+      mockedPrisma.student.findMany = async () => [student];
+      mockedPrisma.monthlyFee.findMany = async () => [
+        {
+          id: "fee-1",
+          studentId: student.id,
+          month: "2026-05",
+          totalDays: 15,
+          totalAmount: 1300000,
+          status: "ready",
+          receiptId: null,
+          paidAt: null,
+          notes: null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          receipt: null,
+          lines: [
+            {
+              id: "line-english",
+              monthlyFeeId: "fee-1",
+              studentId: student.id,
+              classId: "english",
+              allocationKey: "class:english",
+              month: "2026-05",
+              classNameSnapshot: "English A1",
+              teacherNameSnapshot: "Teacher E",
+              chargedSessions: 10,
+              expectedSessions: 10,
+              makeUpSessions: 0,
+              extraSessions: 0,
+              feePerSession: 50000,
+              monthlyTuition: 500000,
+              amount: 500000,
+              billingMode: "monthly_package",
+              scheduleMode: "sessions_per_week",
+              status: "ready",
+              receiptId: null,
+              paidAt: null,
+              allocationConfidence: "calculated",
+              notes: null,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              receipt: null,
+              class: {
+                className: "English A1",
+                teacher: { fullName: "Teacher E" },
+              },
+            },
+            {
+              id: "line-math",
+              monthlyFeeId: "fee-1",
+              studentId: student.id,
+              classId: "math",
+              allocationKey: "class:math",
+              month: "2026-05",
+              classNameSnapshot: "Math B1",
+              teacherNameSnapshot: "Teacher M",
+              chargedSessions: 5,
+              expectedSessions: 5,
+              makeUpSessions: 0,
+              extraSessions: 0,
+              feePerSession: 160000,
+              monthlyTuition: 800000,
+              amount: 800000,
+              billingMode: "monthly_package",
+              scheduleMode: "sessions_per_week",
+              status: "ready",
+              receiptId: null,
+              paidAt: null,
+              allocationConfidence: "calculated",
+              notes: null,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+              receipt: null,
+              class: {
+                className: "Math B1",
+                teacher: { fullName: "Teacher M" },
+              },
+            },
+          ],
+        },
+      ];
+
+      const token = jwt.sign(
+        { userId: "admin-1", username: "admin", role: "admin" },
+        process.env.JWT_SECRET || "your-secret-key"
+      );
+      const response = mockResponse();
+      await workbenchHandler(
+        {
+          method: "GET",
+          headers: { authorization: `Bearer ${token}` },
+          query: { month: "2026-05" },
+        } as any,
+        response
+      );
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body.success, true);
+      const rows = response.body.data.rows;
+      assert.equal(rows.length, 2);
+      assert.deepEqual(
+        rows.map((row: any) => row.row_id),
+        ["line-english", "line-math"]
+      );
+      assert.deepEqual(
+        rows.map((row: any) => row.fee_id),
+        ["fee-1", "fee-1"]
+      );
+      assert.deepEqual(
+        rows.map((row: any) => row.class_ids),
+        [["english"], ["math"]]
+      );
+      assert.deepEqual(
+        rows.map((row: any) => row.class_names),
+        ["English A1", "Math B1"]
+      );
+      assert.deepEqual(
+        rows.map((row: any) => row.total_amount),
+        [500000, 800000]
+      );
+      assert.equal(response.body.data.summary.total, 2);
+      assert.equal(response.body.data.summary.total_amount, 1300000);
+    } finally {
+      mockedPrisma.user.findUnique = originalUserFindUnique;
+      mockedPrisma.student.findMany = originalStudentFindMany;
+      mockedPrisma.monthlyFee.findMany = originalMonthlyFeeFindMany;
+    }
   });
 });

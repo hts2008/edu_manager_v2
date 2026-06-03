@@ -28,6 +28,7 @@ export default function DataTable({
   selectedIds = [],
   onSelectionChange,
   getRowId = (row) => row.id,
+  isRowSelectable = () => true,
   searchKeys,
   getSearchText,
 }) {
@@ -114,7 +115,9 @@ export default function DataTable({
           (currentPage - 1) * rowsPerPage,
           currentPage * rowsPerPage
         );
-  const selectableRows = paginatedData.filter((row) => getRowId(row));
+  const selectableRows = paginatedData.filter(
+    (row) => getRowId(row) && isRowSelectable(row)
+  );
   const allPageSelected =
     selectableRows.length > 0 &&
     selectableRows.every((row) => selectedSet.has(getRowId(row)));
@@ -126,7 +129,7 @@ export default function DataTable({
   const toggleRowSelection = (event, row) => {
     event.stopPropagation();
     const rowId = getRowId(row);
-    if (!rowId) return;
+    if (!rowId || !isRowSelectable(row)) return;
     if (selectedSet.has(rowId)) {
       updateSelection(selectedIds.filter((id) => id !== rowId));
       return;
@@ -277,31 +280,36 @@ export default function DataTable({
                 </td>
               </tr>
             ) : (
-              paginatedData.map((row, i) => (
-                <tr
-                  key={row.id || i}
-                  onClick={() => onRowClick?.(row)}
-                  className={onRowClick ? 'cursor-pointer' : ''}
-                >
-                  {selectable && (
-                    <td onClick={(event) => event.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        aria-label="Select row"
-                        data-testid="row-select"
-                        checked={selectedSet.has(getRowId(row))}
-                        onChange={(event) => toggleRowSelection(event, row)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                      />
-                    </td>
-                  )}
-                  {columns.map((col) => (
-                    <td key={col.key}>
-                      {col.render ? col.render(row[col.key], row) : row[col.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              paginatedData.map((row, i) => {
+                const rowId = getRowId(row);
+                const rowSelectable = isRowSelectable(row);
+                return (
+                  <tr
+                    key={row.id || i}
+                    onClick={() => onRowClick?.(row)}
+                    className={onRowClick ? 'cursor-pointer' : ''}
+                  >
+                    {selectable && (
+                      <td onClick={(event) => event.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label="Select row"
+                          data-testid="row-select"
+                          checked={rowSelectable && selectedSet.has(rowId)}
+                          disabled={!rowSelectable}
+                          onChange={(event) => toggleRowSelection(event, row)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </td>
+                    )}
+                    {columns.map((col) => (
+                      <td key={col.key}>
+                        {col.render ? col.render(row[col.key], row) : row[col.key]}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

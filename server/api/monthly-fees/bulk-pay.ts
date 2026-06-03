@@ -160,112 +160,6 @@ async function calculateFeeForStudent(client: any, studentId: string, month: str
   return { fee: refreshed || fee, student, breakdown, lines, alreadyPaid: false };
 }
 
-async function collectFee(
-  client: any,
-  feeId: string,
-  paymentMethod: PaymentMethod,
-  templateId: string,
-  notes: string | undefined,
-  userId: string
-) {
-  const fee = await client.monthlyFee.findUnique({
-    where: { id: feeId },
-    include: { student: true },
-  });
-  if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
-
-  if (fee.status === "paid") {
-    if (fee.receiptId) {
-      const receipt = await client.receipt.findUnique({ where: { id: fee.receiptId } });
-      if (receipt) return { fee, receipt, alreadyPaid: true };
-    }
-    throw new ApiError(
-      "FEE_ALREADY_PAID",
-      "Monthly fee is already paid but receipt linkage is missing",
-      409
-    );
-  }
-
-  if (!["ready", "pending", "confirmed"].includes(fee.status)) {
-    throw new ApiError("INVALID_STATUS", `Cannot pay: current status is ${fee.status}`, 400);
-  }
-
-  if (Number(fee.totalAmount || 0) <= 0) {
-    throw new ApiError("NO_CHARGEABLE_AMOUNT", "No tuition amount to collect", 409);
-  }
-
-  if (Number(fee.totalAmount || 0) > 0 && Number(fee.totalDays || 0) <= 0) {
-    throw new ApiError(
-      "ZERO_DAY_POSITIVE_RECEIPT",
-      "Cannot collect a positive tuition fee with zero chargeable sessions",
-      409
-    );
-  }
-
-  const paidAt = new Date();
-  const claimed = await client.monthlyFee.updateMany({
-    where: {
-      id: fee.id,
-      status: { in: ["ready", "pending", "confirmed"] },
-      receiptId: null,
-    },
-    data: {
-      status: "paid",
-      paidAt,
-      notes,
-    },
-  });
-
-  if (claimed.count !== 1) {
-    const current = await client.monthlyFee.findUnique({ where: { id: fee.id } });
-    if (current?.status === "paid" && current.receiptId) {
-      const receipt = await client.receipt.findUnique({ where: { id: current.receiptId } });
-      if (receipt) return { fee: current, receipt, alreadyPaid: true };
-    }
-    throw new ApiError(
-      "FEE_PAYMENT_CONFLICT",
-      "Monthly fee payment is already being processed or linked",
-      409
-    );
-  }
-
-  const feePerDay = fee.totalDays > 0 ? fee.totalAmount / fee.totalDays : 0;
-  const receipt = await client.receipt.create({
-    data: {
-      studentId: fee.studentId,
-      month: fee.month,
-      daysCount: fee.totalDays,
-      feePerDay,
-      amount: fee.totalAmount,
-      paymentMethod,
-      templateId,
-      notes,
-      createdById: userId,
-    },
-  });
-
-  await client.receiptLine.create({
-    data: {
-      receiptId: receipt.id,
-      monthlyFeeLineId: null,
-      classId: null,
-      classNameSnapshot: fee.student?.classNames || null,
-      daysCount: fee.totalDays,
-      expectedSessions: fee.totalDays,
-      feePerDay,
-      amount: fee.totalAmount,
-      notes,
-    },
-  });
-
-  const updatedFee = await client.monthlyFee.update({
-    where: { id: fee.id },
-    data: { receiptId: receipt.id },
-  });
-
-  return { fee: updatedFee, receipt, alreadyPaid: false };
-}
-
 async function collectFeeLine(
   client: any,
   lineId: string,
@@ -367,6 +261,104 @@ async function collectFeeLine(
   };
 }
 
+async function monthlyFeeLineIdsForCollection(client: any, feeId: string) {
+  const lines = await client.monthlyFeeLine.findMany({
+    where: { monthlyFeeId: feeId },
+    select: {
+      id: true,
+      status: true,
+      amount: true,
+      receiptId: true,
+    },
+    orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
+  });
+
+  const collectable = lines.filter(
+    (line: any) =>
+      line.status === "paid" ||
+      line.receiptId ||
+      Number(line.amount || 0) > 0
+  );
+
+  if (!collectable.length) {
+    throw new ApiError(
+      "NO_CLASS_LEVEL_FEE_LINES",
+      "Monthly fee has no class-level tuition lines to collect",
+      409
+    );
+  }
+
+  return collectable.map((line: any) => line.id);
+}
+
+async function resolveLineIdsForTarget(
+  client: any,
+  target: { type: "student" | "fee"; id: string },
+  month: string
+) {
+  if (target.type === "student") {
+    const calculated = await calculateFeeForStudent(client, target.id, month);
+    const lineIds = await monthlyFeeLineIdsForCollection(client, calculated.fee.id);
+    if (calculated.alreadyPaid && !lineIds.length) {
+      throw new ApiError(
+        "LEGACY_AGGREGATE_ALREADY_PAID",
+        "Monthly fee was paid before class-level lines existed and cannot be collected again",
+        409
+      );
+    }
+    return lineIds;
+  }
+
+  const fee = await client.monthlyFee.findUnique({
+    where: { id: target.id },
+    select: {
+      id: true,
+      studentId: true,
+      month: true,
+      status: true,
+      receiptId: true,
+      paidAt: true,
+      lines: { select: { id: true } },
+    },
+  });
+  if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+  if (fee.month !== month) {
+    throw new ApiError(
+      "MONTH_MISMATCH",
+      "Monthly fee target does not belong to the requested month",
+      400
+    );
+  }
+
+  if (!fee.lines.length) {
+    if (fee.status === "paid" || fee.receiptId || fee.paidAt) {
+      throw new ApiError(
+        "LEGACY_AGGREGATE_ALREADY_PAID",
+        "Monthly fee was paid before class-level lines existed and cannot be collected again",
+        409
+      );
+    }
+    await calculateFeeForStudent(client, fee.studentId, fee.month);
+  }
+
+  return monthlyFeeLineIdsForCollection(client, fee.id);
+}
+
+function paidLineResult(paidLine: any) {
+  return {
+    status: paidLine.alreadyPaid ? "already_paid" : "paid",
+    student_id: paidLine.line.studentId,
+    student_name: paidLine.line.student?.fullName || null,
+    fee_id: paidLine.fee?.id || paidLine.line.monthlyFeeId,
+    line_id: paidLine.line.id,
+    class_id: paidLine.line.classId,
+    class_name: paidLine.line.classNameSnapshot,
+    receipt_id: paidLine.receipt.id,
+    total_days: paidLine.line.chargedSessions,
+    total_amount: paidLine.line.amount,
+  };
+}
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -418,46 +410,30 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               req.user.id
             );
 
-            return {
-              status: paidLine.alreadyPaid ? "already_paid" : "paid",
-              student_id: paidLine.line.studentId,
-              student_name: paidLine.line.student?.fullName || null,
-              fee_id: paidLine.fee?.id || paidLine.line.monthlyFeeId,
-              line_id: paidLine.line.id,
-              class_id: paidLine.line.classId,
-              class_name: paidLine.line.classNameSnapshot,
-              receipt_id: paidLine.receipt.id,
-              total_days: paidLine.line.chargedSessions,
-              total_amount: paidLine.line.amount,
-            };
+            return [paidLineResult(paidLine)];
           }
 
-          const fee =
-            target.type === "student"
-              ? (await calculateFeeForStudent(tx, target.id, month)).fee
-              : await tx.monthlyFee.findUnique({ where: { id: target.id } });
-
-          if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
-          const paid = await collectFee(
+          const lineIdsForTarget = await resolveLineIdsForTarget(
             tx,
-            fee.id,
-            paymentMethod,
-            templateId,
-            notes,
-            req.user.id
+            target,
+            month
           );
-
-          return {
-            status: paid.alreadyPaid ? "already_paid" : "paid",
-            student_id: paid.fee.studentId,
-            fee_id: paid.fee.id,
-            receipt_id: paid.receipt.id,
-            total_days: paid.fee.totalDays,
-            total_amount: paid.fee.totalAmount,
-          };
+          const lineResults = [];
+          for (const lineId of lineIdsForTarget) {
+            const paidLine = await collectFeeLine(
+              tx,
+              lineId,
+              paymentMethod,
+              templateId,
+              notes,
+              req.user.id
+            );
+            lineResults.push(paidLineResult(paidLine));
+          }
+          return lineResults;
         });
 
-        results.push(item);
+        results.push(...item);
       } catch (error) {
         const apiError = error as { code?: string; message?: string };
         results.push({

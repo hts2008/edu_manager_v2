@@ -221,3 +221,10 @@
 **Decision**: Do not bulk rewrite or auto-mutate historical paid receipts. Surface anomalies in Reports/Receipts/Fee Workbench, allow admins to run an explicit receipt correction with a reason, soft-delete the anomalous receipt with a correction marker, recalculate the linked monthly fee back to `ready`, and block recycle-bin restore for corrected receipts.
 **Rationale**: Operators get a usable correction path while finance history remains reviewable. The workflow prevents new collection against unsafe rows and avoids resurrecting a voided/corrected receipt into revenue reports.
 **Status**: IMPLEMENTED with unit 43/43, local/prod Playwright smoke, production route probes 401/404 without mutation, and Vercel deployment `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`.
+
+### ADR-32: Fee Workbench Collects Class Lines, Not Student Aggregates
+**Date**: 2026-06-03
+**Context**: A student enrolled in multiple classes could still be shown as one aggregate tuition row, which made operators collect multiple class fees as one payment. Parents may pay different classes on different dates, so this aggregate workflow is operationally wrong.
+**Decision**: Fee Workbench must render and collect one row per class-level `MonthlyFeeLine`. The frontend sends only `line_ids` to bulk-pay, and non-line legacy rows are disabled for selection/payment. `GET /api/monthly-fees/workbench` must remain read-only; it may display legacy review rows but must not backfill/write line rows during listing.
+**Rationale**: Class-line collection matches the real payment workflow, prevents accidental aggregate receipts, and avoids serverless timeout risk from DB writes in read endpoints.
+**Status**: IMPLEMENTED with unit 46/46, typecheck, lint, build, local/prod API smoke, production Chromium E2E 1/1, and Vercel deployment `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`.
