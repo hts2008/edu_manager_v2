@@ -50,6 +50,52 @@ const parseTemplateConfig = (jsonConfig) => {
   return jsonConfig;
 };
 
+const normalizeTemplateConfig = (jsonConfig) => {
+  const config = parseTemplateConfig(jsonConfig);
+  if (!config || typeof config !== "object") return null;
+  if (Array.isArray(config.objects)) return config;
+  if (Array.isArray(config.elements)) return null;
+  return null;
+};
+
+const disposeCanvasSafely = (canvas) => {
+  if (!canvas) return;
+  try {
+    const result = canvas.dispose();
+    if (result && typeof result.catch === "function") {
+      result.catch(() => {});
+    }
+  } catch {
+    // Fabric may throw if React StrictMode cleans an already-disposed canvas.
+  }
+};
+
+const canvasIsDisposed = (canvas) => Boolean(canvas?.disposed || canvas?.destroyed);
+
+const moveToBack = (canvas, object) => {
+  if (!canvas || !object || canvasIsDisposed(canvas)) return;
+  if (typeof canvas.sendObjectToBack === "function") canvas.sendObjectToBack(object);
+  else if (typeof canvas.sendToBack === "function") canvas.sendToBack(object);
+};
+
+const moveToFront = (canvas, object) => {
+  if (!canvas || !object || canvasIsDisposed(canvas)) return;
+  if (typeof canvas.bringObjectToFront === "function") canvas.bringObjectToFront(object);
+  else if (typeof canvas.bringToFront === "function") canvas.bringToFront(object);
+};
+
+const moveForward = (canvas, object) => {
+  if (!canvas || !object || canvasIsDisposed(canvas)) return;
+  if (typeof canvas.bringObjectForward === "function") canvas.bringObjectForward(object);
+  else if (typeof canvas.bringForward === "function") canvas.bringForward(object);
+};
+
+const moveBackward = (canvas, object) => {
+  if (!canvas || !object || canvasIsDisposed(canvas)) return;
+  if (typeof canvas.sendObjectBackwards === "function") canvas.sendObjectBackwards(object);
+  else if (typeof canvas.sendBackwards === "function") canvas.sendBackwards(object);
+};
+
 const getObjectLabel = (object) => {
   if (!object) return "Chua chon";
   if (object.bindingField) return `Field: ${object.bindingField}`;
@@ -86,6 +132,7 @@ export default function TemplateDesignerPage() {
   const redoRef = useRef([]);
   const restoringRef = useRef(false);
   const newObjectOffsetRef = useRef(0);
+  const canvasInitIdRef = useRef(0);
 
   const [template, setTemplate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,9 +160,11 @@ export default function TemplateDesignerPage() {
   useEffect(() => {
     if (loading) return undefined;
 
+    const initId = canvasInitIdRef.current + 1;
+    canvasInitIdRef.current = initId;
     keyboardCleanupRef.current?.();
     keyboardCleanupRef.current = null;
-    canvasRef.current?.dispose();
+    disposeCanvasSafely(canvasRef.current);
     canvasRef.current = null;
     setCanvasReady(false);
     setCanvasError("");
@@ -123,12 +172,13 @@ export default function TemplateDesignerPage() {
     historyRef.current = [];
     redoRef.current = [];
     newObjectOffsetRef.current = 0;
-    initCanvas();
+    initCanvas(initId);
 
     return () => {
+      canvasInitIdRef.current += 1;
       keyboardCleanupRef.current?.();
       keyboardCleanupRef.current = null;
-      canvasRef.current?.dispose();
+      disposeCanvasSafely(canvasRef.current);
       canvasRef.current = null;
     };
   }, [loading, template?.id]);
@@ -173,10 +223,17 @@ export default function TemplateDesignerPage() {
     redoRef.current = [];
   };
 
-  const initCanvas = async () => {
+  const isActiveCanvasInit = (initId, canvas) =>
+    canvasInitIdRef.current === initId &&
+    canvasRef.current === canvas &&
+    !canvasIsDisposed(canvas);
+
+  const initCanvas = async (initId) => {
     setCanvasReady(false);
     setCanvasError("");
     const fabric = await getFabric();
+    if (canvasInitIdRef.current !== initId) return;
+
     const FabricCanvas = fabric.Canvas || fabric.default?.Canvas;
     if (!FabricCanvas || !canvasElRef.current) {
       setCanvasError("Khong khoi tao duoc canvas.");
@@ -209,27 +266,45 @@ export default function TemplateDesignerPage() {
 
     if (template?.json_config) {
       try {
-        await canvas.loadFromJSON(parseTemplateConfig(template.json_config));
-        canvas.backgroundColor = "#ffffff";
+        const config = normalizeTemplateConfig(template.json_config);
+        if (config) {
+          await canvas.loadFromJSON(config);
+          if (!isActiveCanvasInit(initId, canvas)) return;
+          canvas.backgroundColor = "#ffffff";
+        } else {
+          setDesignerNotice("Canvas san sang. JSON mau in cu da duoc scaffold mac dinh.");
+        }
       } catch {
+        if (!isActiveCanvasInit(initId, canvas)) return;
         setDesignerNotice("JSON mau in loi, da mo scaffold mac dinh.");
         toast.error("JSON mẫu in lỗi, đã mở canvas trống.");
       }
     }
 
+    if (!isActiveCanvasInit(initId, canvas)) return;
     const hasObjects = canvas.getObjects().some((object) => !object.excludeFromExport);
     if (!hasObjects) {
       await createDefaultTemplate(fabric, canvas, width, height);
     }
 
-    drawGrid(canvas, width, height, fabric);
-    canvas.renderAll();
+    if (!isActiveCanvasInit(initId, canvas)) return;
+    try {
+      drawGrid(canvas, width, height, fabric);
+      canvas.renderAll();
+    } catch (error) {
+      if (!isActiveCanvasInit(initId, canvas)) return;
+      const message = error?.message || "Khong khoi tao duoc canvas.";
+      setCanvasError(message);
+      setDesignerNotice(message);
+      return;
+    }
     setCanvasReady(true);
     setDesignerNotice((current) => current || "Canvas san sang.");
     refreshSelection();
     captureHistory();
 
     const handleKeyDown = (event) => {
+      if (!isActiveCanvasInit(initId, canvas)) return;
       const activeObject = canvas.getActiveObject();
       if ((event.key === "Delete" || event.key === "Backspace") && activeObject) {
         if (!activeObject.isEditing) {
@@ -331,7 +406,7 @@ export default function TemplateDesignerPage() {
         excludeFromExport: true,
       });
       canvas.add(line);
-      canvas.sendObjectToBack(line);
+      moveToBack(canvas, line);
     }
 
     for (let y = 0; y <= height; y += gridSize) {
@@ -343,7 +418,7 @@ export default function TemplateDesignerPage() {
         excludeFromExport: true,
       });
       canvas.add(line);
-      canvas.sendObjectToBack(line);
+      moveToBack(canvas, line);
     }
   };
 
@@ -370,9 +445,9 @@ export default function TemplateDesignerPage() {
 
     canvas.add(object);
     if (options.background) {
-      canvas.sendObjectToBack(object);
+      moveToBack(canvas, object);
     } else {
-      canvas.bringObjectToFront(object);
+      moveToFront(canvas, object);
     }
     canvas.setActiveObject(object);
     canvas.renderAll();
@@ -597,10 +672,10 @@ export default function TemplateDesignerPage() {
     const activeObject = canvas?.getActiveObject();
     if (!canvas || !activeObject) return;
 
-    if (direction === "front") canvas.bringObjectToFront(activeObject);
-    if (direction === "forward") canvas.bringObjectForward(activeObject);
-    if (direction === "backward") canvas.sendObjectBackwards(activeObject);
-    if (direction === "back") canvas.sendObjectToBack(activeObject);
+    if (direction === "front") moveToFront(canvas, activeObject);
+    if (direction === "forward") moveForward(canvas, activeObject);
+    if (direction === "backward") moveBackward(canvas, activeObject);
+    if (direction === "back") moveToBack(canvas, activeObject);
     canvas.renderAll();
     refreshSelection();
   };

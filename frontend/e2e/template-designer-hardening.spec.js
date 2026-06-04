@@ -12,7 +12,7 @@ const baseTemplate = {
   paper_size: "a4",
   orientation: "portrait",
   is_default: 1,
-  json_config: JSON.stringify({ version: "6.0.0", objects: [] }),
+  json_config: JSON.stringify({ version: "1.0", elements: [] }),
 };
 
 async function seedAuth(page) {
