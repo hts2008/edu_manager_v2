@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - Fee Workbench class-line split deployed and production-smoked on 2026-06-03
+> **Status**: PRODUCTION LIVE - Template Designer legacy canvas fix deployed and production-smoked on 2026-06-04
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest line-level fee ledger/no-blocking flows deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest Template Designer legacy canvas fix deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -58,6 +58,24 @@
 **Validation:** `npx tsc --noEmit`, `npm run test:unit` 46/46, frontend lint zero warnings, `npm run build`, local API smoke (`rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, 577ms), local Chromium E2E 1/1, production API smoke (`rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, 6170ms), and production Chromium E2E 1/1.
 
 **Residual risk:** historical paid aggregate monthly fees without line rows are shown as estimated per-class review rows and remain non-collectable until recalculated/corrected.
+
+---
+
+## IMPLEMENTED - TEMPLATE DESIGNER LEGACY CANVAS FIX (2026-06-04)
+
+**Objective:** fix the production Template Designer issue where the default receipt template stayed stuck at `Dang khoi tao canvas...` even after refresh/cache clear.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| TPL-CANVAS-2026-06-04-01 | RCA and fix legacy `{ elements: [] }` template config init hang | `TemplateDesignerPage.jsx` | frontend-specialist | Template Designer hardening | IMPLEMENTED | Local/prod Playwright, lint, tsc, unit, build |
+| TPL-CANVAS-2026-06-04-02 | Add regression coverage for legacy template JSON | `template-designer-hardening.spec.js` | qa-automation | TPL-CANVAS-2026-06-04-01 | IMPLEMENTED | Local/prod E2E 1/1 |
+| TPL-CANVAS-2026-06-04-03 | Deploy and production smoke | Vercel alias `edu-manager-gules` | release-manager | TPL-CANVAS-2026-06-04-01..02 | IMPLEMENTED | Deploy `dpl_EGoc3DQj6qYhSkFPxehw8LVUdHHt`, production UI probe + E2E |
+
+**Evidence:** `receipts/2026-06-04-template-designer-legacy-canvas-fix.md`.
+
+**Validation:** production repro showed status `Dang khoi tao canvas...13 object(s)` and page error `Cannot read properties of undefined (reading 'save')`; local legacy-config probe after fix showed save enabled and no page errors; `npm --prefix frontend run test:e2e -- template-designer-hardening.spec.js --reporter=list --output=...` passed 1/1 locally and on production; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, and `npm run build` passed. Production probe opened default receipt template, added Text + `receipt_id` field, saw `15 object(s)`, save enabled, and no page errors.
+
+**Residual risk:** existing default template still stores legacy `{ elements: [] }`; the designer now scaffolds it safely. Saving the template will persist Fabric `{ objects: [] }` JSON.
 
 ---
 

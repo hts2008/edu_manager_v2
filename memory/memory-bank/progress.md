@@ -516,3 +516,15 @@
 - **Production Smoke**: Production API smoke returned `rows=41`, `bad_multi_class_rows=0`, `payable_without_line=0`, `prod_workbench_ms=6170`; production Chromium/Playwright `fee-workbench-line-split.spec.js` passed 1/1.
 - **Evidence**: `receipts/2026-06-03-fee-workbench-class-line-split.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-04 - Template Designer Legacy Canvas Fix
+- **Scope**: Fix the production issue where the default receipt template designer stayed stuck at `Dang khoi tao canvas...` after refresh/cache clear.
+- **RCA**: Production and local probes showed the default template still stored legacy JSON `{"version":"1.0","elements":[]}`. Passing that shape through Fabric `loadFromJSON()` left the init path vulnerable to Fabric/React StrictMode canvas lifecycle races, producing `Cannot read properties of undefined (reading 'save')` before `canvasReady` could be set.
+- **Implementation**: Added template JSON normalization that skips unsupported legacy `elements` configs and opens the default scaffold instead; added guarded Fabric disposal and init-id checks so stale async init paths cannot render or update state after cleanup; wrapped Fabric layer operations behind safe helpers; changed Template Designer E2E to use the legacy config as regression input.
+- **Validation**: Local production-shape probe passed with save enabled and no page errors; `npm --prefix frontend run test:e2e -- template-designer-hardening.spec.js --reporter=list --output=playwright-template-fix-results` passed 1/1; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, and `npm run build` passed.
+- **Deployment**: Commit `5e1b907` was pushed to `origin/main`; Vercel production deployment `dpl_EGoc3DQj6qYhSkFPxehw8LVUdHHt` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Direct Playwright probe opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, added Text + `receipt_id` field, saw `15 object(s)`, save enabled, blank stage overlay, and no page errors. Production E2E `template-designer-hardening.spec.js` passed 1/1.
+- **Evidence**: `receipts/2026-06-04-template-designer-legacy-canvas-fix.md`.
+- **STATUS**: IMPLEMENTED.

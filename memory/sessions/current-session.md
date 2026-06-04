@@ -303,11 +303,11 @@
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, and 2026-06-01 financial correction policy closeout are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, 2026-06-01 financial correction policy closeout, 2026-06-03 Fee Workbench class-line split, and 2026-06-04 Template Designer legacy canvas fix are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`; production alias `https://edu-manager-gules.vercel.app` passed perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, correction route probes 401/404, and final post-commit root/auth/correction smoke after the financial correction policy closeout.
+- **Latest production deployment observed in Codex session**: `dpl_EGoc3DQj6qYhSkFPxehw8LVUdHHt`; production alias `https://edu-manager-gules.vercel.app` passed direct Template Designer production probe and production `template-designer-hardening.spec.js` 1/1 after the legacy canvas fix.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
