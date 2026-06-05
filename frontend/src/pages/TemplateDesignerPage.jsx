@@ -96,6 +96,15 @@ const moveBackward = (canvas, object) => {
   else if (typeof canvas.sendBackwards === "function") canvas.sendBackwards(object);
 };
 
+const scaleImageForMode = (image, canvas, mode) => {
+  const imageWidth = image.width || canvas.getWidth();
+  const imageHeight = image.height || canvas.getHeight();
+  const maxWidth = mode === "background" ? canvas.getWidth() : 260;
+  const maxHeight = mode === "background" ? canvas.getHeight() : 180;
+  const fitScale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+  return mode === "background" ? fitScale : Math.min(fitScale, 1);
+};
+
 const getObjectLabel = (object) => {
   if (!object) return "Chua chon";
   if (object.bindingField) return `Field: ${object.bindingField}`;
@@ -192,9 +201,24 @@ export default function TemplateDesignerPage() {
 
   const refreshSelection = () => {
     const canvas = canvasRef.current;
+    if (!canvas || canvasIsDisposed(canvas)) return;
     setSelectedObject(canvas?.getActiveObject() || null);
     setCanvasObjectCount(countExportableObjects(canvas));
     setSelectionVersion((value) => value + 1);
+  };
+
+  const getUsableCanvas = () => {
+    const canvas = canvasRef.current;
+    if (
+      !canvasReady ||
+      !canvas ||
+      canvasIsDisposed(canvas) ||
+      (canvas.lowerCanvasEl && !canvas.lowerCanvasEl.isConnected)
+    ) {
+      setDesignerNotice("Canvas chua san sang.");
+      return null;
+    }
+    return canvas;
   };
 
   const loadTemplate = async () => {
@@ -423,9 +447,8 @@ export default function TemplateDesignerPage() {
   };
 
   const addObjectToCanvas = (object, label, options = {}) => {
-    const canvas = canvasRef.current;
+    const canvas = getUsableCanvas();
     if (!canvas) {
-      setDesignerNotice("Canvas chua san sang.");
       return;
     }
 
@@ -444,13 +467,15 @@ export default function TemplateDesignerPage() {
     }
 
     canvas.add(object);
+    if (typeof object.setCoords === "function") object.setCoords();
     if (options.background) {
       moveToBack(canvas, object);
     } else {
       moveToFront(canvas, object);
     }
     canvas.setActiveObject(object);
-    canvas.renderAll();
+    if (typeof canvas.requestRenderAll === "function") canvas.requestRenderAll();
+    else canvas.renderAll();
     setDesignerNotice(`Da them ${label}.`);
     refreshSelection();
   };
@@ -569,6 +594,7 @@ export default function TemplateDesignerPage() {
   };
 
   const openImagePicker = (mode) => {
+    if (!getUsableCanvas()) return;
     imageUploadModeRef.current = mode;
     imageInputRef.current?.click();
   };
@@ -617,22 +643,20 @@ export default function TemplateDesignerPage() {
   };
 
   const addImageFromUrl = async (url, mode = "object") => {
-    const canvas = canvasRef.current;
+    const canvas = getUsableCanvas();
     if (!canvas) throw new Error("Canvas chua san sang.");
     const fabric = await getFabric();
     const FabricImage = fabric.FabricImage || fabric.Image || fabric.default?.FabricImage;
     if (!FabricImage?.fromURL) throw new Error("Fabric image loader is not available.");
     const image = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
-    const maxWidth = mode === "background" ? canvas.getWidth() : 260;
-    const maxHeight = mode === "background" ? canvas.getHeight() : 180;
-    const scale = Math.min(maxWidth / (image.width || maxWidth), maxHeight / (image.height || maxHeight), 1);
+    const scale = scaleImageForMode(image, canvas, mode);
 
     image.set({
       left: mode === "background" ? 0 : 70,
       top: mode === "background" ? 0 : 70,
       scaleX: scale,
       scaleY: scale,
-      opacity: mode === "background" ? 0.24 : 1,
+      opacity: mode === "background" ? 0.72 : 1,
       customType: mode === "background" ? "background_image" : "image",
       imageUrl: url,
       selectable: true,
@@ -805,6 +829,7 @@ export default function TemplateDesignerPage() {
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
   const selectedLabel = getObjectLabel(selectedObject);
   const uploadBusy = uploadState.status === "loading";
+  const controlsDisabled = !canvasReady || Boolean(canvasError);
   const statusMessage =
     (uploadBusy ? uploadState.message : "") ||
     designerNotice ||
@@ -886,22 +911,24 @@ export default function TemplateDesignerPage() {
         <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
           <PanelTitle title="Thành phần" subtitle="Thêm nhanh các khối dùng trong phiếu." />
           <div className="grid grid-cols-2 gap-2">
-            <ToolButton label="Tiêu đề" onClick={addHeading} />
+            <ToolButton label="Tiêu đề" onClick={addHeading} disabled={controlsDisabled} />
             <ToolButton
               label="Text"
               onClick={addText}
               active={selectedObject?.customType === "text"}
+              disabled={controlsDisabled}
               testId="tool-text"
             />
             <ToolButton
               label="Khung"
               onClick={addRectangle}
               active={selectedObject?.type === "rect"}
+              disabled={controlsDisabled}
               testId="tool-rect"
             />
-            <ToolButton label="Tròn" onClick={addCircle} />
-            <ToolButton label="Line" onClick={addLine} />
-            <ToolButton label="QR" onClick={addQrPlaceholder} />
+            <ToolButton label="Tròn" onClick={addCircle} disabled={controlsDisabled} />
+            <ToolButton label="Line" onClick={addLine} disabled={controlsDisabled} />
+            <ToolButton label="QR" onClick={addQrPlaceholder} disabled={controlsDisabled} />
           </div>
 
           <div className="mt-6">
@@ -910,7 +937,7 @@ export default function TemplateDesignerPage() {
               <button
                 type="button"
                 onClick={() => openImagePicker("object")}
-                disabled={uploadBusy}
+                disabled={uploadBusy || controlsDisabled}
                 data-testid="upload-image"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-wait disabled:opacity-60"
               >
@@ -919,7 +946,7 @@ export default function TemplateDesignerPage() {
               <button
                 type="button"
                 onClick={() => openImagePicker("background")}
-                disabled={uploadBusy}
+                disabled={uploadBusy || controlsDisabled}
                 data-testid="upload-background"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-bold text-slate-700 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-wait disabled:opacity-60"
               >
@@ -943,9 +970,10 @@ export default function TemplateDesignerPage() {
                   key={field.field}
                   type="button"
                   onClick={() => addBindingField(field.field, field.label)}
+                  disabled={controlsDisabled}
                   data-testid={`field-${field.field}`}
                   aria-pressed={selectedObject?.bindingField === field.field}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-blue-100 ${
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 ${
                     selectedObject?.bindingField === field.field
                       ? "bg-blue-600 text-white shadow-sm"
                       : "bg-blue-50 text-blue-700"
@@ -970,7 +998,7 @@ export default function TemplateDesignerPage() {
                   {canvasError || "Dang khoi tao canvas..."}
                 </div>
               )}
-              <canvas ref={canvasElRef} data-testid="template-canvas" className="block bg-white" />
+              <canvas ref={canvasElRef} data-testid="template-canvas" className="block" />
             </div>
           </div>
         </section>
