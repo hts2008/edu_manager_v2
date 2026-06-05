@@ -528,3 +528,17 @@
 - **Production Smoke**: Direct Playwright probe opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, added Text + `receipt_id` field, saw `15 object(s)`, save enabled, blank stage overlay, and no page errors. Production E2E `template-designer-hardening.spec.js` passed 1/1.
 - **Evidence**: `receipts/2026-06-04-template-designer-legacy-canvas-fix.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-05 - Template Designer Visible Render + Upload Fix
+- **Scope**: Continue the active Template Designer production goal after the user reported that upload succeeded and object count increased, but images/fields/components were still invisible on the canvas.
+- **RCA**: Fabric copies the source canvas CSS class to the generated `upper-canvas`. The source canvas had `bg-white`, so the generated interaction canvas sat above the render canvas with an opaque white background and covered all visible objects. Background uploads also used low opacity and did not upscale small images.
+- **Implementation**: Removed the source canvas `bg-white`, added `getUsableCanvas()` guards, disabled tool/upload/field controls until canvas-ready, refreshed coordinates/rendering after object insertion, scaled background uploads to fit the page, raised background opacity to `0.72`, and expanded Template Designer E2E to assert visible pixel/hash changes, transparent upper canvas, upload behavior, and save/reload persistence.
+- **Team Mode**: Used bounded `ck:team` exploration for the RCA/review path. One final closeout explorer hit usage-limit and was closed; closeout evidence continued inline under the lead agent.
+- **Validation**: `npm --prefix frontend run test:e2e -- template-designer-hardening.spec.js --reporter=list --output=playwright-template-visible-results-final` passed 1/1; headed Chrome E2E passed 1/1; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, `npm run build`, and `git diff --check` passed.
+- **Deployment**: Commit `d3e3df0` was pushed to `origin/main`; Vercel production deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Chrome/Playwright opened `https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design`, verified `upper-canvas` transparent before/after actions, clicked Text and `receipt_id`, uploaded image/background through the real production endpoint, confirmed checksum changes after each action, saw `17 object(s)`, and captured no runtime/API errors.
+- **Safety**: Production smoke uploaded two small test images to Vercel Blob but did not click save, so template JSON was not intentionally mutated. No Prisma migration or seed was run.
+- **Evidence**: `receipts/2026-06-05-template-designer-visible-render-fix.md`.
+- **STATUS**: IMPLEMENTED.

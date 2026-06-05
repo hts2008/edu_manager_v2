@@ -40,3 +40,19 @@ sessions in the actual month; for `schedule_days`, count actual matching
 weekdays. Do not silently rewrite paid anomalous receipts; surface them in the
 student-fees report for explicit correction policy.
 **Status**: Fixed locally on 2026-05-19; production deploy/smoke pending.
+
+## ERR-006: Fabric Upper Canvas Masks Rendered Objects
+
+**Symptom**: Template Designer upload/add-field/add-component actions show
+success, object count increases, and selection state changes, but the visible
+canvas stays blank/white.
+**Cause**: Fabric creates an `upper-canvas` interaction layer above the lower
+render canvas and copies the source canvas CSS classes. If the source canvas has
+an opaque background class such as `bg-white`, the generated upper layer covers
+all rendered lower-canvas objects.
+**Fix**: Keep the source Fabric canvas free of opaque background classes, verify
+the generated `upper-canvas` background is transparent, call `setCoords()` and
+`requestRenderAll()` after object insertion, and assert visible pixel/hash
+changes in E2E tests.
+**Status**: Fixed and production-smoked on 2026-06-05 with deployment
+`dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.

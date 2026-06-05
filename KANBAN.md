@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - Template Designer legacy canvas fix deployed and production-smoked on 2026-06-04
+> **Status**: PRODUCTION LIVE - Template Designer visible render/upload fix deployed and production-smoked on 2026-06-05
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest Template Designer legacy canvas fix deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest Template Designer visible render/upload fix deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -76,6 +76,25 @@
 **Validation:** production repro showed status `Dang khoi tao canvas...13 object(s)` and page error `Cannot read properties of undefined (reading 'save')`; local legacy-config probe after fix showed save enabled and no page errors; `npm --prefix frontend run test:e2e -- template-designer-hardening.spec.js --reporter=list --output=...` passed 1/1 locally and on production; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, and `npm run build` passed. Production probe opened default receipt template, added Text + `receipt_id` field, saw `15 object(s)`, save enabled, and no page errors.
 
 **Residual risk:** existing default template still stores legacy `{ elements: [] }`; the designer now scaffolds it safely. Saving the template will persist Fabric `{ objects: [] }` JSON.
+
+---
+
+## IMPLEMENTED - TEMPLATE DESIGNER VISIBLE RENDER + UPLOAD FIX (2026-06-05)
+
+**Objective:** fix the production Template Designer issue where upload and add-field/add-component actions reported success but nothing visibly appeared on the canvas.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| TPL-RENDER-2026-06-05-01 | RCA and fix Fabric upper-canvas overlay hiding rendered objects | `TemplateDesignerPage.jsx` | frontend-specialist | TPL-CANVAS-2026-06-04 | IMPLEMENTED | Local E2E, headed Chrome, production smoke |
+| TPL-RENDER-2026-06-05-02 | Make upload background visibly fit the page and guard actions until canvas-ready | `TemplateDesignerPage.jsx` | frontend-specialist | TPL-RENDER-2026-06-05-01 | IMPLEMENTED | Pixel/hash browser smoke |
+| TPL-RENDER-2026-06-05-03 | Add regression coverage for visible canvas deltas and runtime/API errors | `template-designer-hardening.spec.js` | qa-automation | TPL-RENDER-2026-06-05-01 | IMPLEMENTED | E2E 1/1 |
+| TPL-RENDER-2026-06-05-04 | Deploy and production smoke real upload + field/component actions | Vercel alias `edu-manager-gules` | release-manager | TPL-RENDER-2026-06-05-01..03 | IMPLEMENTED | Deploy `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`, production Chrome smoke |
+
+**Evidence:** `receipts/2026-06-05-template-designer-visible-render-fix.md`.
+
+**Validation:** focused Template Designer E2E passed 1/1 locally; Chrome headed Template Designer E2E passed 1/1; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, `npm run build`, and `git diff --check` passed. Production smoke opened `https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design`, confirmed `upper-canvas` background `rgba(0, 0, 0, 0)`, clicked Text and `receipt_id`, uploaded image and background through the real production endpoint, verified canvas pixel/hash changes after every action, saw `17 object(s)`, and captured no runtime/API errors.
+
+**Safety:** production smoke uploaded two small test images to Vercel Blob but did not save the template JSON. No Prisma migration or seed was run.
 
 ---
 
@@ -636,4 +655,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-05-27 13:25
+**Last Updated:** 2026-06-05 20:46

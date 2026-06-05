@@ -1,5 +1,17 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Template Designer Visible Render + Upload Fix - 2026-06-05
+- **Current Outcome**: Template Designer no longer appears blank after adding fields/components or uploading images. The root cause was Fabric's generated `upper-canvas` inheriting an opaque `bg-white` class from the source canvas and covering the lower render canvas.
+- **Deployment**: Vercel production deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`, status Ready, aliased to `https://edu-manager-gules.vercel.app`.
+- **Implemented**: removed the opaque source canvas background class, added `getUsableCanvas()` guards, disabled tools until canvas-ready, refreshed coordinates/rendering after insertions, scaled background uploads to fit the page, raised background opacity, and added visual pixel/hash regression checks.
+- **Verification**: local Template Designer E2E 1/1, headed Chrome E2E 1/1, final E2E 1/1, frontend lint, `npx tsc --noEmit`, unit 46/46, `npm run build`, and `git diff --check` passed.
+- **Production Smoke**: Chrome/Playwright opened `https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design`, verified transparent `upper-canvas`, clicked Text and `receipt_id`, uploaded image/background through the real production upload endpoint, confirmed checksum changes after every action, saw `17 object(s)`, and captured no runtime/API errors.
+- **Safety**: Production smoke uploaded two small test images to Vercel Blob but did not click save, so production template JSON was not intentionally mutated. No Prisma migration or seed was run.
+- **Evidence**: `receipts/2026-06-05-template-designer-visible-render-fix.md`.
+- **Next**: If the user still sees a blank designer, first hard refresh the exact Vercel alias and inspect whether `upper-canvas` has a non-transparent background. Do not rely only on object count; verify visible pixels.
+
+---
+
 ## Main Fast-Forward + Production Deploy - 2026-05-24
 - **Current Outcome**: `main` is synced with `codex/edu-production-readiness` and pushed to `origin/main` at `e4bab40`.
 - **Deployment**: Vercel production deployment `dpl_8vQ9fWhfVJh1AAfKjzUr8mpNHH4o`, status Ready, aliases include `edu-manager-gules.vercel.app`.
@@ -90,7 +102,8 @@
 ## Latest Project Truth
 - **Product**: Edu Manager V2 education management system.
 - **Status**: Production live on `https://edu-manager-gules.vercel.app`.
-- **Latest production deployment observed**: `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v`.
+- **Latest production deployment observed**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
+- **Latest fix**: Template Designer visible render/upload fix. Fabric `upper-canvas` must remain transparent; future tests should prove visible pixel/hash deltas, not only object count.
 - **Correction policy**: do not bulk rewrite historical paid receipts. Use Reports/Receipts anomaly actions one record at a time with an operator reason.
 - **Residual risk**: production serverless/DB latency remains measurable on dashboard/report/workbench APIs; current UI/API smoke passes but deeper backend latency work remains separate.
 

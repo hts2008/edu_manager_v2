@@ -5,10 +5,20 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, the 2026-06-02 no-blocking flows + line fee ledger closeout, and the 2026-06-03 Fee Workbench class-line split patch are implemented with production evidence.
-- **Latest Outcome**: 2026-06-03 Fee Workbench class-line split patch is implemented, deployed as `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`, and production-smoked with API invariants plus Chromium/Playwright 1/1.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, the 2026-06-02 no-blocking flows + line fee ledger closeout, the 2026-06-03 Fee Workbench class-line split patch, the 2026-06-04 Template Designer legacy canvas fix, and the 2026-06-05 Template Designer visible render/upload fix are implemented with production evidence.
+- **Latest Outcome**: 2026-06-05 Template Designer visible render/upload fix is implemented, deployed as `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`, and production-smoked in Chrome with transparent `upper-canvas`, visible pixel/hash changes for Text, `receipt_id`, image upload, and background upload, plus no runtime/API errors.
 
 ## Active Task
+- [x] Implement 2026-06-05 Template Designer visible render/upload fix.
+  - [x] Summarize completed work and inspect git diff before continuing.
+  - [x] Use `ck:team` bounded sidecar review where useful; close quota-limited agents and continue inline.
+  - [x] RCA: Fabric `upper-canvas` inherited opaque `bg-white` and covered lower-canvas rendering.
+  - [x] Patch `TemplateDesignerPage.jsx` canvas readiness guards, render refresh, upload/background visibility, and transparent source canvas.
+  - [x] Strengthen `template-designer-hardening.spec.js` with visible pixel/hash assertions and runtime/API failure guards.
+  - [x] Verify local/headed Chrome E2E, lint, typecheck, unit 46/46, build, and diff-check.
+  - [x] Deploy Vercel production `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
+  - [x] Smoke production Chrome against `https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design`.
+  - [x] Record KANBAN, activeContext, progress, decisionLog, error catalog, current-session, handoff, and receipt evidence.
 - [x] Restore memory files to accurate EDU_MANAGER_V2 context.
   - [x] Confirm KANBAN shows Edu Manager production-live state.
   - [x] Confirm `activeContext.md` was contaminated with external workspace state.
@@ -303,11 +313,11 @@
 
 ## Correct Project Snapshot
 - **Product**: Edu Manager V2.
-- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, 2026-06-01 financial correction policy closeout, 2026-06-03 Fee Workbench class-line split, and 2026-06-04 Template Designer legacy canvas fix are deployed and production-smoked.
+- **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, 2026-06-01 financial correction policy closeout, 2026-06-03 Fee Workbench class-line split, 2026-06-04 Template Designer legacy canvas fix, and 2026-06-05 Template Designer visible render/upload fix are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_EGoc3DQj6qYhSkFPxehw8LVUdHHt`; production alias `https://edu-manager-gules.vercel.app` passed direct Template Designer production probe and production `template-designer-hardening.spec.js` 1/1 after the legacy canvas fix.
+- **Latest production deployment observed in Codex session**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`; production alias `https://edu-manager-gules.vercel.app` passed direct Template Designer Chrome smoke with visible pixel/hash deltas for Text, `receipt_id`, image upload, and background upload after the visible render/upload fix.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -323,10 +333,10 @@
 5. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
-- 2026-06-01 financial correction closeout gates passed: `npx tsc --noEmit`, `npm run test:unit` 43/43, `npm --prefix frontend run lint -- --max-warnings=0`, `npm run build`, `git diff --check`, local perf-lab, local UX 11/11, local Phase-B 17/17.
-- 2026-06-01 production deployment `dpl_GJ3U47QRgzsCGxF3mvBhUGa29h9v` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
-- 2026-06-01 production smoke passed: perf-lab, Phase-B 17/17, modal-scroll 1/1, calendar/template/PDF 4/4, correction route no-token 401, authenticated nonexistent receipt correction 404.
-- Evidence: `receipts/2026-06-01-financial-correction-policy-closeout.md`, `receipts/perf/perf-lab-2026-06-01T13-55-44-834Z.md`, `receipts/perf/perf-lab-2026-06-01T13-58-02-410Z.md`, `receipts/perf/perf-lab-2026-06-01T14-08-01-723Z.md`.
+- 2026-06-05 Template Designer visible render/upload gates passed: local focused E2E 1/1, headed Chrome E2E 1/1, final E2E 1/1, `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, `npm run build`, and `git diff --check`.
+- 2026-06-05 production deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- 2026-06-05 production Chrome smoke passed: transparent `upper-canvas`, visible checksum changes after Text, `receipt_id`, image upload, and background upload, `17 object(s)`, and no runtime/API errors.
+- Evidence: `receipts/2026-06-05-template-designer-visible-render-fix.md`.
 - `npx tsc --noEmit` passed.
 - `npm run test:unit` passed 39/39.
 - `npm --prefix frontend run lint -- --max-warnings=0` passed.

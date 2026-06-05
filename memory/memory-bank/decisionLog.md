@@ -228,3 +228,10 @@
 **Decision**: Fee Workbench must render and collect one row per class-level `MonthlyFeeLine`. The frontend sends only `line_ids` to bulk-pay, and non-line legacy rows are disabled for selection/payment. `GET /api/monthly-fees/workbench` must remain read-only; it may display legacy review rows but must not backfill/write line rows during listing.
 **Rationale**: Class-line collection matches the real payment workflow, prevents accidental aggregate receipts, and avoids serverless timeout risk from DB writes in read endpoints.
 **Status**: IMPLEMENTED with unit 46/46, typecheck, lint, build, local/prod API smoke, production Chromium E2E 1/1, and Vercel deployment `dpl_AnCEyFGkpmZohfsrA8d95JmsuMoU`.
+
+### ADR-33: Template Designer Verification Requires Visible Canvas Proof
+**Date**: 2026-06-05
+**Context**: Template Designer actions could report success, increase object count, and update selected object state while the actual canvas remained visually blank in production. The cause was not missing objects but Fabric's generated `upper-canvas` inheriting an opaque `bg-white` class from the source canvas and covering the lower render canvas.
+**Decision**: Template Designer fixes must keep Fabric's generated `upper-canvas` transparent and must verify visible canvas behavior with pixel/hash deltas, not only object count or saved JSON. Image/background upload tests must also assert visible changes and fail on page errors, API 5xx, and failed API requests.
+**Rationale**: The operator cares whether fields/images are visible and printable. State-only assertions missed this defect, while visual-pixel regression coverage catches overlay, opacity, and render-layer failures.
+**Status**: IMPLEMENTED with local/headed Chrome E2E, lint, typecheck, unit 46/46, build, production Chrome smoke, and Vercel deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
