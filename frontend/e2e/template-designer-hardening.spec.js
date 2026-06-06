@@ -180,6 +180,24 @@ function expectCanvasChanged(after, before) {
   expect(after.checksum).not.toBe(before.checksum);
 }
 
+function expectSavedObjectsInsideCanvas(savedConfig) {
+  const canvas = savedConfig.canvas || {};
+  const width = Number(canvas.width);
+  const height = Number(canvas.height);
+  expect(width).toBeGreaterThan(0);
+  expect(height).toBeGreaterThan(0);
+
+  for (const object of savedConfig.objects || []) {
+    if (!object || object.excludeFromExport) continue;
+    const left = Number(object.left ?? 0);
+    const top = Number(object.top ?? 0);
+    expect(left).toBeGreaterThanOrEqual(-2);
+    expect(top).toBeGreaterThanOrEqual(-2);
+    expect(left).toBeLessThanOrEqual(width + 2);
+    expect(top).toBeLessThanOrEqual(height + 2);
+  }
+}
+
 function attachRuntimeGuards(page, ignoredConsolePatterns = []) {
   const errors = [];
 
@@ -237,6 +255,29 @@ test("template designer tools visibly add/select objects and save/reload", async
   expect(initialMetrics.height).toBeGreaterThan(1000);
   expect(initialMetrics.nonWhitePixels).toBeGreaterThan(0);
 
+  await page.getByTestId("paper-size-select").selectOption("a6");
+  await expect(page.getByTestId("paper-size-summary")).toContainText("A6");
+  await page.waitForTimeout(100);
+  const a6Metrics = await canvasMetrics(page);
+  expect(a6Metrics.width).toBeGreaterThanOrEqual(395);
+  expect(a6Metrics.width).toBeLessThanOrEqual(400);
+  expect(a6Metrics.height).toBeGreaterThanOrEqual(558);
+  expect(a6Metrics.height).toBeLessThanOrEqual(562);
+  expect(a6Metrics.checksum).not.toBe(initialMetrics.checksum);
+
+  await page.getByTestId("paper-size-select").selectOption("custom");
+  await page.getByTestId("paper-width-mm").fill("120");
+  await page.getByTestId("paper-height-mm").fill("180");
+  await page.getByTestId("apply-paper-size").click();
+  await expect(page.getByTestId("paper-size-summary")).toContainText("120 x 180");
+  await page.waitForTimeout(100);
+  const customMetrics = await canvasMetrics(page);
+  expect(customMetrics.width).toBeGreaterThanOrEqual(452);
+  expect(customMetrics.width).toBeLessThanOrEqual(456);
+  expect(customMetrics.height).toBeGreaterThanOrEqual(678);
+  expect(customMetrics.height).toBeLessThanOrEqual(682);
+  expect(customMetrics.checksum).not.toBe(a6Metrics.checksum);
+
   const initialCount = Number((await page.getByTestId("canvas-object-count").innerText()).match(/\d+/)?.[0] || 0);
 
   await page.getByTestId("tool-text").click();
@@ -244,7 +285,7 @@ test("template designer tools visibly add/select objects and save/reload", async
   await expect(page.getByTestId("tool-text")).toHaveAttribute("aria-pressed", "true");
   await page.waitForTimeout(100);
   const afterTextMetrics = await canvasMetrics(page);
-  expectCanvasChanged(afterTextMetrics, initialMetrics);
+  expectCanvasChanged(afterTextMetrics, customMetrics);
 
   await page.getByTestId("field-receipt_id").click();
   await expect(page.getByTestId("selection-summary")).toContainText("Field: receipt_id");
@@ -286,7 +327,18 @@ test("template designer tools visibly add/select objects and save/reload", async
   await expect(page.getByTestId("designer-status")).toContainText("Da luu mau");
   expect(state.savedJsonConfig).toBeTruthy();
 
-  const savedObjects = JSON.parse(state.savedJsonConfig).objects || [];
+  const savedConfig = JSON.parse(state.savedJsonConfig);
+  expect(savedConfig.paper).toMatchObject({
+    mode: "custom",
+    preset: "custom",
+    width_mm: 120,
+    height_mm: 180,
+  });
+  expect(savedConfig.canvas.width).toBe(customMetrics.width);
+  expect(savedConfig.canvas.height).toBe(customMetrics.height);
+  expectSavedObjectsInsideCanvas(savedConfig);
+
+  const savedObjects = savedConfig.objects || [];
   const savedJsonText = JSON.stringify(savedObjects);
   expect(savedObjects.length).toBeGreaterThan(initialCount);
   expect(savedJsonText).toContain("receipt_id");
@@ -307,6 +359,8 @@ test("template designer tools visibly add/select objects and save/reload", async
   const reloadedCount = Number((await page.getByTestId("canvas-object-count").innerText()).match(/\d+/)?.[0] || 0);
   expect(reloadedCount).toBeGreaterThanOrEqual(savedObjects.length);
   const reloadedMetrics = await canvasMetrics(page);
+  expect(reloadedMetrics.width).toBe(customMetrics.width);
+  expect(reloadedMetrics.height).toBe(customMetrics.height);
   expect(reloadedMetrics.checksum).not.toBe(initialMetrics.checksum);
   assertNoRuntimeErrors();
 });

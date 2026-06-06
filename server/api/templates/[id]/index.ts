@@ -17,6 +17,8 @@ import {
   templateToDto,
 } from "../../../../lib/api-utils.js";
 
+const DB_PAPER_SIZES = new Set(["a4", "a5", "letter", "thermal_80mm"]);
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -44,7 +46,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const type = getString(req.body?.type);
 
       if (templateName) data.templateName = templateName;
-      if (paperSize) data.paperSize = paperSize;
+      if (paperSize && DB_PAPER_SIZES.has(paperSize)) data.paperSize = paperSize;
       if (orientation) data.orientation = orientation;
       if (type) data.type = type;
       if (req.body?.json_config !== undefined || req.body?.jsonConfig !== undefined) {

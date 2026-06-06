@@ -6,9 +6,15 @@ import { useToast } from "../components/ui/Toast";
 const PAPER_SIZES = {
   a4: { width: 210, height: 297, label: "A4" },
   a5: { width: 148, height: 210, label: "A5" },
+  a6: { width: 105, height: 148, label: "A6" },
   letter: { width: 216, height: 279, label: "Letter" },
   thermal_80mm: { width: 80, height: 200, label: "Thermal 80mm" },
 };
+
+const DB_PAPER_SIZES = new Set(["a4", "a5", "letter", "thermal_80mm"]);
+const DEFAULT_PAPER_KEY = "a4";
+const MIN_PAPER_MM = 40;
+const MAX_PAPER_MM = 500;
 
 const BINDING_FIELDS = [
   { field: "receipt_id", label: "Mã phiếu" },
@@ -37,6 +43,101 @@ const CUSTOM_JSON_PROPS = [
 ];
 
 const mmToPx = (mm) => Math.round(mm * 3.7795275591);
+
+const clampPaperMm = (value, fallback = 100) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(MAX_PAPER_MM, Math.max(MIN_PAPER_MM, Math.round(number)));
+};
+
+const parseJsonConfigSafe = (jsonConfig) => {
+  try {
+    return parseTemplateConfig(jsonConfig);
+  } catch {
+    return null;
+  }
+};
+
+const normalizePaperConfig = (paper, fallbackKey = DEFAULT_PAPER_KEY) => {
+  const fallback = PAPER_SIZES[fallbackKey] ? fallbackKey : DEFAULT_PAPER_KEY;
+  if (paper && typeof paper === "object") {
+    const mode = paper.mode || paper.kind;
+    const preset = paper.preset || paper.paper_size || paper.paperSize;
+    const width = clampPaperMm(paper.width_mm ?? paper.widthMm ?? paper.width, PAPER_SIZES[fallback].width);
+    const height = clampPaperMm(paper.height_mm ?? paper.heightMm ?? paper.height, PAPER_SIZES[fallback].height);
+
+    if (mode === "custom" || preset === "custom") {
+      return {
+        mode: "custom",
+        preset: "custom",
+        width,
+        height,
+        label: `Tùy chỉnh ${width}x${height}mm`,
+      };
+    }
+
+    if (preset && PAPER_SIZES[preset]) {
+      return {
+        mode: "preset",
+        preset,
+        width: PAPER_SIZES[preset].width,
+        height: PAPER_SIZES[preset].height,
+        label: PAPER_SIZES[preset].label,
+      };
+    }
+  }
+
+  return {
+    mode: "preset",
+    preset: fallback,
+    width: PAPER_SIZES[fallback].width,
+    height: PAPER_SIZES[fallback].height,
+    label: PAPER_SIZES[fallback].label,
+  };
+};
+
+const getPaperConfigFromTemplate = (template) => {
+  const config = parseJsonConfigSafe(template?.json_config);
+  return normalizePaperConfig(config?.paper, template?.paper_size || DEFAULT_PAPER_KEY);
+};
+
+const serializePaperConfig = (paperConfig) => ({
+  mode: paperConfig.mode,
+  preset: paperConfig.preset,
+  width_mm: paperConfig.width,
+  height_mm: paperConfig.height,
+  label: paperConfig.label,
+});
+
+const paperToCanvasSize = (paperConfig, orientation = "portrait") => {
+  const isLandscape = orientation === "landscape";
+  return {
+    width: mmToPx(isLandscape ? paperConfig.height : paperConfig.width),
+    height: mmToPx(isLandscape ? paperConfig.width : paperConfig.height),
+  };
+};
+
+const getCanvasSizeFromConfig = (config, fallbackPaperKey = DEFAULT_PAPER_KEY, orientation = "portrait") => {
+  const canvas = config?.canvas;
+  const width = Number(canvas?.width);
+  const height = Number(canvas?.height);
+  if (Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0) {
+    return { width, height };
+  }
+
+  if (config?.paper) {
+    return paperToCanvasSize(normalizePaperConfig(config.paper, fallbackPaperKey), config.orientation || orientation);
+  }
+
+  return null;
+};
+
+const getPersistedPaperSize = (paperConfig, fallback = DEFAULT_PAPER_KEY) => {
+  if (paperConfig.mode === "preset" && DB_PAPER_SIZES.has(paperConfig.preset)) {
+    return paperConfig.preset;
+  }
+  return DB_PAPER_SIZES.has(fallback) ? fallback : DEFAULT_PAPER_KEY;
+};
 
 const countExportableObjects = (canvas) =>
   canvas?.getObjects().filter((object) => !object.excludeFromExport).length || 0;
@@ -144,6 +245,8 @@ export default function TemplateDesignerPage() {
   const canvasInitIdRef = useRef(0);
 
   const [template, setTemplate] = useState(null);
+  const [paperConfig, setPaperConfig] = useState(() => normalizePaperConfig(null));
+  const [paperDraft, setPaperDraft] = useState(() => normalizePaperConfig(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedObject, setSelectedObject] = useState(null);
@@ -226,7 +329,11 @@ export default function TemplateDesignerPage() {
     try {
       const response = await templatesService.getById(id);
       if (response.success) {
-        setTemplate(getTemplateFromResponse(response));
+        const loadedTemplate = getTemplateFromResponse(response);
+        const loadedPaper = getPaperConfigFromTemplate(loadedTemplate);
+        setPaperConfig(loadedPaper);
+        setPaperDraft(loadedPaper);
+        setTemplate(loadedTemplate);
       } else {
       toast.error("Không tải được mẫu in.");
     }
@@ -239,10 +346,20 @@ export default function TemplateDesignerPage() {
     }
   };
 
-  const captureHistory = () => {
+  const captureHistory = (paperOverride, orientationOverride) => {
     if (restoringRef.current || !canvasRef.current) return;
+    const effectivePaper = paperOverride?.mode ? paperOverride : paperConfig;
+    const effectiveOrientation = orientationOverride || template?.orientation || "portrait";
     const snapshot = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
     snapshot.objects = (snapshot.objects || []).filter((object) => !object.excludeFromExport);
+    snapshot.paper = serializePaperConfig(effectivePaper);
+    snapshot.canvas = {
+      width: canvasRef.current.getWidth(),
+      height: canvasRef.current.getHeight(),
+      unit: "px",
+      mm_to_px: 3.7795275591,
+    };
+    snapshot.orientation = effectiveOrientation;
     historyRef.current = [...historyRef.current.slice(-30), snapshot];
     redoRef.current = [];
   };
@@ -266,10 +383,8 @@ export default function TemplateDesignerPage() {
       return;
     }
 
-    const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
-    const isLandscape = template?.orientation === "landscape";
-    const width = mmToPx(isLandscape ? paperSize.height : paperSize.width);
-    const height = mmToPx(isLandscape ? paperSize.width : paperSize.height);
+    const orientation = template?.orientation || "portrait";
+    const { width, height } = paperToCanvasSize(paperConfig, orientation);
 
     const canvas = new FabricCanvas(canvasElRef.current, {
       width,
@@ -292,8 +407,16 @@ export default function TemplateDesignerPage() {
       try {
         const config = normalizeTemplateConfig(template.json_config);
         if (config) {
+          const sourceSize = getCanvasSizeFromConfig(config, template?.paper_size, orientation);
           await canvas.loadFromJSON(config);
           if (!isActiveCanvasInit(initId, canvas)) return;
+          if (typeof canvas.setDimensions === "function") {
+            canvas.setDimensions({ width, height });
+          } else {
+            canvas.setWidth(width);
+            canvas.setHeight(height);
+          }
+          applyLoadedCanvasAlignment(canvas, width, height, sourceSize);
           canvas.backgroundColor = "#ffffff";
         } else {
           setDesignerNotice("Canvas san sang. JSON mau in cu da duoc scaffold mac dinh.");
@@ -444,6 +567,119 @@ export default function TemplateDesignerPage() {
       canvas.add(line);
       moveToBack(canvas, line);
     }
+  };
+
+  const removeGrid = (canvas) => {
+    canvas
+      .getObjects()
+      .filter((object) => object.excludeFromExport)
+      .forEach((object) => canvas.remove(object));
+  };
+
+  const getExportableObjects = (canvas) =>
+    canvas.getObjects().filter((object) => !object.excludeFromExport);
+
+  const scaleCanvasObject = (object, scaleX, scaleY, options = {}) => {
+    const shouldScalePosition = options.scalePosition !== false;
+    const left = shouldScalePosition ? Number(object.left || 0) * scaleX : Number(object.left || 0);
+    const top = shouldScalePosition ? Number(object.top || 0) * scaleY : Number(object.top || 0);
+    const objectType = String(object.type || "").toLowerCase();
+    const textScale = Math.min(scaleX, scaleY);
+
+    object.set({ left, top });
+
+    if (["textbox", "text", "i-text"].includes(objectType)) {
+      object.set({
+        width: Math.max(24, Number(object.width || 120) * scaleX),
+        fontSize: Math.max(7, Number(object.fontSize || 14) * textScale),
+        scaleX: Number(object.scaleX || 1),
+        scaleY: Number(object.scaleY || 1),
+      });
+    } else {
+      object.set({
+        scaleX: Number(object.scaleX || 1) * scaleX,
+        scaleY: Number(object.scaleY || 1) * scaleY,
+      });
+    }
+
+    if (typeof object.setCoords === "function") object.setCoords();
+  };
+
+  const scaleExportableObjects = (canvas, scaleX, scaleY) => {
+    getExportableObjects(canvas).forEach((object) => scaleCanvasObject(object, scaleX, scaleY));
+  };
+
+  const getObjectBounds = (canvas) => {
+    const objects = getExportableObjects(canvas);
+    if (!objects.length) return null;
+
+    return objects.reduce(
+      (bounds, object) => {
+        const rect = object.getBoundingRect ? object.getBoundingRect() : object;
+        const left = Number(rect.left ?? object.left ?? 0);
+        const top = Number(rect.top ?? object.top ?? 0);
+        const width = Number(rect.width ?? object.width ?? 0);
+        const height = Number(rect.height ?? object.height ?? 0);
+        return {
+          left: Math.min(bounds.left, left),
+          top: Math.min(bounds.top, top),
+          right: Math.max(bounds.right, left + width),
+          bottom: Math.max(bounds.bottom, top + height),
+        };
+      },
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity }
+    );
+  };
+
+  const translateExportableObjects = (canvas, dx, dy) => {
+    getExportableObjects(canvas).forEach((object) => {
+      object.set({
+        left: Number(object.left || 0) + dx,
+        top: Number(object.top || 0) + dy,
+      });
+      if (typeof object.setCoords === "function") object.setCoords();
+    });
+  };
+
+  const fitObjectsInsideCanvas = (canvas, width, height, margin = 24) => {
+    let bounds = getObjectBounds(canvas);
+    if (!bounds) return;
+
+    const boundsWidth = bounds.right - bounds.left;
+    const boundsHeight = bounds.bottom - bounds.top;
+    const maxWidth = Math.max(1, width - margin * 2);
+    const maxHeight = Math.max(1, height - margin * 2);
+    const fitScale = Math.min(1, maxWidth / Math.max(1, boundsWidth), maxHeight / Math.max(1, boundsHeight));
+
+    if (fitScale < 0.995) {
+      getExportableObjects(canvas).forEach((object) => {
+        object.set({
+          left: (Number(object.left || 0) - bounds.left) * fitScale + margin,
+          top: (Number(object.top || 0) - bounds.top) * fitScale + margin,
+        });
+        scaleCanvasObject(object, fitScale, fitScale, { scalePosition: false });
+      });
+      bounds = getObjectBounds(canvas);
+    }
+
+    if (!bounds) return;
+    const dx = bounds.left < margin ? margin - bounds.left : bounds.right > width - margin ? width - margin - bounds.right : 0;
+    const dy = bounds.top < margin ? margin - bounds.top : bounds.bottom > height - margin ? height - margin - bounds.bottom : 0;
+    if (dx || dy) translateExportableObjects(canvas, dx, dy);
+  };
+
+  const applyLoadedCanvasAlignment = (canvas, width, height, sourceSize) => {
+    const sourceWidth = Number(sourceSize?.width);
+    const sourceHeight = Number(sourceSize?.height);
+    if (sourceWidth > 0 && sourceHeight > 0) {
+      const scaleX = width / sourceWidth;
+      const scaleY = height / sourceHeight;
+      if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
+        scaleExportableObjects(canvas, scaleX, scaleY);
+      }
+    }
+
+    fitObjectsInsideCanvas(canvas, width, height);
   };
 
   const addObjectToCanvas = (object, label, options = {}) => {
@@ -747,17 +983,38 @@ export default function TemplateDesignerPage() {
     const canvas = canvasRef.current;
     if (!canvas || !snapshot) return;
     restoringRef.current = true;
-    await canvas.loadFromJSON(snapshot);
-    const fabric = await getFabric();
-    const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
-    const isLandscape = template?.orientation === "landscape";
-    const width = mmToPx(isLandscape ? paperSize.height : paperSize.width);
-    const height = mmToPx(isLandscape ? paperSize.width : paperSize.height);
-    drawGrid(canvas, width, height, fabric);
-    canvas.discardActiveObject();
-    canvas.renderAll();
-    restoringRef.current = false;
-    refreshSelection();
+    try {
+      const snapshotPaper = normalizePaperConfig(snapshot.paper, template?.paper_size || DEFAULT_PAPER_KEY);
+      const orientation = snapshot.orientation || template?.orientation || "portrait";
+      const { width, height } = paperToCanvasSize(snapshotPaper, orientation);
+      await canvas.loadFromJSON(snapshot);
+      const fabric = await getFabric();
+      if (typeof canvas.setDimensions === "function") {
+        canvas.setDimensions({ width, height });
+      } else {
+        canvas.setWidth(width);
+        canvas.setHeight(height);
+      }
+      setPaperConfig(snapshotPaper);
+      setPaperDraft(snapshotPaper);
+      setTemplate((current) =>
+        current
+          ? {
+              ...current,
+              paper_size: getPersistedPaperSize(snapshotPaper, current.paper_size),
+              orientation,
+            }
+          : current
+      );
+      removeGrid(canvas);
+      applyLoadedCanvasAlignment(canvas, width, height, getCanvasSizeFromConfig(snapshot, template?.paper_size, orientation));
+      drawGrid(canvas, width, height, fabric);
+      canvas.discardActiveObject();
+      canvas.renderAll();
+      refreshSelection();
+    } finally {
+      restoringRef.current = false;
+    }
   };
 
   const undo = async () => {
@@ -780,6 +1037,83 @@ export default function TemplateDesignerPage() {
     setZoom((current) => Math.min(1.4, Math.max(0.55, Number((current + delta).toFixed(2)))));
   };
 
+  const applyCanvasPage = async (nextPaperConfig, nextOrientation = template?.orientation || "portrait") => {
+    const normalizedPaper = normalizePaperConfig(nextPaperConfig, template?.paper_size || DEFAULT_PAPER_KEY);
+    const canvas = canvasRef.current;
+    const previousWidth = canvas?.getWidth?.() || paperToCanvasSize(paperConfig, template?.orientation).width;
+    const previousHeight = canvas?.getHeight?.() || paperToCanvasSize(paperConfig, template?.orientation).height;
+    const { width, height } = paperToCanvasSize(normalizedPaper, nextOrientation);
+
+    setPaperConfig(normalizedPaper);
+    setPaperDraft(normalizedPaper);
+    setTemplate((current) =>
+      current
+        ? {
+            ...current,
+            paper_size: getPersistedPaperSize(normalizedPaper, current.paper_size),
+            orientation: nextOrientation,
+          }
+        : current
+    );
+
+    if (!canvas || canvasIsDisposed(canvas)) return;
+
+    const fabric = await getFabric();
+    const wasRestoring = restoringRef.current;
+    restoringRef.current = true;
+    try {
+      removeGrid(canvas);
+      if (typeof canvas.setDimensions === "function") {
+        canvas.setDimensions({ width, height });
+      } else {
+        canvas.setWidth(width);
+        canvas.setHeight(height);
+      }
+
+      if (previousWidth > 0 && previousHeight > 0) {
+        scaleExportableObjects(canvas, width / previousWidth, height / previousHeight);
+      }
+      fitObjectsInsideCanvas(canvas, width, height);
+      drawGrid(canvas, width, height, fabric);
+    } finally {
+      restoringRef.current = wasRestoring;
+    }
+
+    canvas.discardActiveObject();
+    if (typeof canvas.requestRenderAll === "function") canvas.requestRenderAll();
+    else canvas.renderAll();
+    refreshSelection();
+    captureHistory(normalizedPaper, nextOrientation);
+    setDesignerNotice(`Da cap nhat kho giay ${normalizedPaper.label}.`);
+  };
+
+  const handlePaperPresetChange = (value) => {
+    const nextPaper =
+      value === "custom"
+        ? normalizePaperConfig({
+            mode: "custom",
+            preset: "custom",
+            width_mm: paperDraft.width,
+            height_mm: paperDraft.height,
+          })
+        : normalizePaperConfig({ mode: "preset", preset: value });
+    setPaperDraft(nextPaper);
+    if (value !== "custom") {
+      void applyCanvasPage(nextPaper);
+    }
+  };
+
+  const updateCustomPaperDraft = (field, value) => {
+    setPaperDraft((current) =>
+      normalizePaperConfig({
+        mode: "custom",
+        preset: "custom",
+        width_mm: field === "width" ? value : current.width,
+        height_mm: field === "height" ? value : current.height,
+      })
+    );
+  };
+
   const handleSave = async () => {
     if (!canvasRef.current || !template) return;
     setSaving(true);
@@ -787,9 +1121,19 @@ export default function TemplateDesignerPage() {
 
     const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
     json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
+    json.paper = serializePaperConfig(paperConfig);
+    json.canvas = {
+      width: canvasRef.current.getWidth(),
+      height: canvasRef.current.getHeight(),
+      unit: "px",
+      mm_to_px: 3.7795275591,
+    };
+    json.orientation = template?.orientation || "portrait";
 
     const response = await templatesService.update(template.id, {
       ...template,
+      paper_size: getPersistedPaperSize(paperConfig, template?.paper_size),
+      orientation: template?.orientation || "portrait",
       json_config: JSON.stringify(json),
     });
 
@@ -824,7 +1168,7 @@ export default function TemplateDesignerPage() {
     );
   }
 
-  const paperSize = PAPER_SIZES[template?.paper_size || "a4"];
+  const paperSize = paperConfig;
   const selectedIsText = selectedObject?.type === "textbox";
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
   const selectedLabel = getObjectLabel(selectedObject);
@@ -909,6 +1253,67 @@ export default function TemplateDesignerPage() {
 
       <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_300px]">
         <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
+          <PanelTitle title="Khổ giấy" subtitle="Chọn preset hoặc nhập kích thước riêng cho canvas." />
+          <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Preset</span>
+              <select
+                value={paperDraft.mode === "custom" ? "custom" : paperDraft.preset}
+                onChange={(event) => handlePaperPresetChange(event.target.value)}
+                disabled={controlsDisabled}
+                data-testid="paper-size-select"
+                className="input"
+              >
+                <option value="a4">A4 - 210 x 297 mm</option>
+                <option value="a5">A5 - 148 x 210 mm</option>
+                <option value="a6">A6 - 105 x 148 mm</option>
+                <option value="custom">Tùy chỉnh</option>
+              </select>
+            </label>
+
+            {paperDraft.mode === "custom" && (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Rộng mm</span>
+                  <input
+                    type="number"
+                    min={MIN_PAPER_MM}
+                    max={MAX_PAPER_MM}
+                    value={paperDraft.width}
+                    onChange={(event) => updateCustomPaperDraft("width", event.target.value)}
+                    data-testid="paper-width-mm"
+                    className="input"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Cao mm</span>
+                  <input
+                    type="number"
+                    min={MIN_PAPER_MM}
+                    max={MAX_PAPER_MM}
+                    value={paperDraft.height}
+                    onChange={(event) => updateCustomPaperDraft("height", event.target.value)}
+                    data-testid="paper-height-mm"
+                    className="input"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => applyCanvasPage(paperDraft)}
+                  disabled={controlsDisabled}
+                  data-testid="apply-paper-size"
+                  className="btn-secondary col-span-2 px-3 py-2"
+                >
+                  Áp dụng khổ giấy
+                </button>
+              </div>
+            )}
+
+            <p className="text-xs font-semibold text-slate-500" data-testid="paper-size-summary">
+              Đang dùng: {paperConfig.label} ({paperConfig.width} x {paperConfig.height} mm)
+            </p>
+          </div>
+
           <PanelTitle title="Thành phần" subtitle="Thêm nhanh các khối dùng trong phiếu." />
           <div className="grid grid-cols-2 gap-2">
             <ToolButton label="Tiêu đề" onClick={addHeading} disabled={controlsDisabled} />

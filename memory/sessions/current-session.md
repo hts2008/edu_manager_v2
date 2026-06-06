@@ -5,10 +5,24 @@
 - **Workspace**: EDU_MANAGER_V2
 - **Mode**: PRODUCTION READINESS HARDENING
 - **Primary Objective**: Continue from `PLAN.md`, close the next unchecked production-readiness item, and verify current-code behavior with evidence.
-- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, the 2026-06-02 no-blocking flows + line fee ledger closeout, the 2026-06-03 Fee Workbench class-line split patch, the 2026-06-04 Template Designer legacy canvas fix, and the 2026-06-05 Template Designer visible render/upload fix are implemented with production evidence.
-- **Latest Outcome**: 2026-06-05 Template Designer visible render/upload fix is implemented, deployed as `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`, and production-smoked in Chrome with transparent `upper-canvas`, visible pixel/hash changes for Text, `receipt_id`, image upload, and background upload, plus no runtime/API errors.
+- **Outcome**: Phase A production API parity, Phase B hardening, Phase C C1-C12, PDF/UX hardening, the 2026-05-18 dashboard/dataflow hardening pass, the 2026-05-19 attendance/tuition/report/template UX pass, the 2026-05-23 production deploy/env closeout, the 2026-05-25 P0/P1 hardening pass, the 2026-05-25 month-bounded tuition + EduFlow UI closeout, the 2026-05-25 Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, the 2026-05-28 performance lag RCA closeout, the 2026-06-01 financial correction policy closeout, the 2026-06-02 no-blocking flows + line fee ledger closeout, the 2026-06-03 Fee Workbench class-line split patch, the 2026-06-04 Template Designer legacy canvas fix, the 2026-06-05 Template Designer visible render/upload fix, and the 2026-06-06 Template Designer paper-size/custom canvas alignment fix are implemented with production evidence.
+- **Latest Outcome**: 2026-06-06 Template Designer paper-size/custom canvas alignment fix is implemented, deployed as `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`, and production-smoked in Chrome with A6/custom 120x180mm canvas sizing, visible Text/`receipt_id` object rendering, no runtime/API errors, and no production template save/mutation.
 
 ## Active Task
+- [x] Implement 2026-06-06 Template Designer paper-size/custom canvas alignment fix.
+  - [x] Summarize current progress and inspect git diff before continuing.
+  - [x] Use `ck:team` read-only sidecar for RCA and close it after integration.
+  - [x] Add A4/A5/A6/custom paper controls in Template Designer.
+  - [x] Store effective paper metadata in `json_config.paper` and `json_config.canvas`.
+  - [x] Scale and fit existing Fabric objects when paper/canvas size changes.
+  - [x] Make undo/redo snapshots restore paper metadata and canvas dimensions.
+  - [x] Prevent metadata-only template edits from overwriting `json_config`.
+  - [x] Guard API `paper_size` update against invalid Prisma enum writes.
+  - [x] Make PDF generation honor custom JSON paper metadata.
+  - [x] Verify focused E2E, headed Chrome, lint, typecheck, unit 47/47, build, diff-check.
+  - [x] Deploy Vercel production `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`.
+  - [x] Smoke production Chrome against `https://edu-manager-gules.vercel.app/templates/cmp6dbuc900s7gcyrty4jd0ik/design` without saving/mutating template DB.
+  - [x] Record KANBAN, activeContext, progress, decisionLog, current-session, and receipt evidence.
 - [x] Implement 2026-06-05 Template Designer visible render/upload fix.
   - [x] Summarize completed work and inspect git diff before continuing.
   - [x] Use `ck:team` bounded sidecar review where useful; close quota-limited agents and continue inline.

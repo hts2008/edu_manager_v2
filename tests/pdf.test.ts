@@ -191,4 +191,36 @@ describe("PDF generation", () => {
     assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
     assert.ok(buffer.length > 1000);
   });
+
+  it("uses custom paper metadata stored in template JSON", async () => {
+    const buffer = await generatePdf(
+      {
+        type: "receipt",
+        paper_size: "a4",
+        orientation: "portrait",
+        json_config: JSON.stringify({
+          paper: {
+            mode: "custom",
+            preset: "custom",
+            width_mm: 120,
+            height_mm: 180,
+          },
+          canvas: {
+            width: 454,
+            height: 680,
+            unit: "px",
+          },
+          objects: [],
+        }),
+      },
+      {
+        receipt_id: "RCPT_CUSTOM_PAPER",
+        amount: 120000,
+      }
+    );
+
+    const raw = buffer.toString("latin1");
+    assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
+    assert.match(raw, /\/MediaBox \[0 0 340\.2 510\.3\]/);
+  });
 });

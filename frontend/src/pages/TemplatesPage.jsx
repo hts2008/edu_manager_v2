@@ -237,9 +237,18 @@ function TemplateForm({ template, onSuccess, onCancel }) {
     setLoading(true);
     setError('');
 
+    const payload = template
+      ? {
+          template_name: formData.template_name,
+          type: formData.type,
+          paper_size: formData.paper_size,
+          orientation: formData.orientation,
+        }
+      : formData;
+
     const response = template
-      ? await templatesService.update(template.id, formData)
-      : await templatesService.create(formData);
+      ? await templatesService.update(template.id, payload)
+      : await templatesService.create(payload);
 
     if (response.success) {
       onSuccess();

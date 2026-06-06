@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - Template Designer visible render/upload fix deployed and production-smoked on 2026-06-05
+> **Status**: PRODUCTION LIVE - Template Designer paper-size/custom canvas alignment fix deployed and production-smoked on 2026-06-06
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest Template Designer visible render/upload fix deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, latest Template Designer paper-size/custom canvas alignment fix deployed and smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -95,6 +95,26 @@
 **Validation:** focused Template Designer E2E passed 1/1 locally; Chrome headed Template Designer E2E passed 1/1; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, `npm run build`, and `git diff --check` passed. Production smoke opened `https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design`, confirmed `upper-canvas` background `rgba(0, 0, 0, 0)`, clicked Text and `receipt_id`, uploaded image and background through the real production endpoint, verified canvas pixel/hash changes after every action, saw `17 object(s)`, and captured no runtime/API errors.
 
 **Safety:** production smoke uploaded two small test images to Vercel Blob but did not save the template JSON. No Prisma migration or seed was run.
+
+---
+
+## IMPLEMENTED - TEMPLATE DESIGNER PAPER SIZE + CANVAS ALIGNMENT FIX (2026-06-06)
+
+**Objective:** add A4/A5/A6/custom paper-size controls in Template Designer and fix existing-template field alignment so saved fields/images fit the active canvas instead of drifting against stale paper metadata.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| TPL-PAPER-2026-06-06-01 | Add designer paper metadata model with A4/A5/A6/custom dimensions | `TemplateDesignerPage.jsx` | frontend-specialist | TPL-RENDER-2026-06-05 | IMPLEMENTED | E2E, headed Chrome, production smoke |
+| TPL-PAPER-2026-06-06-02 | Scale and fit existing Fabric objects when paper/canvas changes | `TemplateDesignerPage.jsx`, designer E2E | frontend/qa | TPL-PAPER-2026-06-06-01 | IMPLEMENTED | Pixel/hash + bounds assertions |
+| TPL-PAPER-2026-06-06-03 | Keep metadata edits from wiping `json_config` and keep API enum-safe | `TemplatesPage.jsx`, `server/api/templates/[id]/index.ts` | frontend/backend | Template API | IMPLEMENTED | Lint, typecheck |
+| TPL-PAPER-2026-06-06-04 | Make PDF generation honor JSON paper metadata | `lib/pdf.ts`, `tests/pdf.test.ts` | backend-specialist | TPL-PAPER-2026-06-06-01 | IMPLEMENTED | Unit PDF MediaBox regression |
+| TPL-PAPER-2026-06-06-05 | Deploy and production-smoke without mutating template DB | Vercel alias `edu-manager-gules` | release-manager | TPL-PAPER-2026-06-06-01..04 | IMPLEMENTED | Deploy `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`, production Chrome smoke |
+
+**Evidence:** `receipts/2026-06-06-template-designer-paper-size-alignment.md`, `receipts/artifacts/template-paper-prod-smoke.png`.
+
+**Validation:** focused Template Designer E2E passed locally 1/1 and headed Chrome 1/1; frontend lint, `npx tsc --noEmit`, `npm run test:unit` 47/47, `npm run build`, and `git diff --check` passed. Production smoke opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, switched A6, switched custom 120x180mm, added Text and `receipt_id`, saw canvas `454x680`, `15 object(s)`, non-white pixel proof, and no API/page errors.
+
+**Safety:** no Prisma migration, seed, or production template save was run. Custom paper is stored in `json_config.paper`/`json_config.canvas`; DB `paper_size` remains on a valid enum value for compatibility.
 
 ---
 

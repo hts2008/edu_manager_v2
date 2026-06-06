@@ -542,3 +542,16 @@
 - **Safety**: Production smoke uploaded two small test images to Vercel Blob but did not click save, so template JSON was not intentionally mutated. No Prisma migration or seed was run.
 - **Evidence**: `receipts/2026-06-05-template-designer-visible-render-fix.md`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-06 - Template Designer Paper Size + Canvas Alignment Fix
+- **Scope**: Add A4/A5/A6/custom paper-size controls in Template Designer and fix the existing-template alignment issue where default fields could drift against the visible canvas.
+- **RCA**: Designer and PDF both used DB `paper_size` as fixed enum truth, while saved Fabric JSON did not carry canvas/page metadata. Existing templates could therefore reload with stale coordinates after paper changes. Editing template metadata from the list also risked overwriting `json_config` because list DTOs omit `json_config`.
+- **Implementation**: Added `json_config.paper` and `json_config.canvas` metadata, A6/custom controls, canvas resize with object scale/fit and undo/redo-aware snapshots, PDF effective-paper parsing, API enum guard for invalid paper-size writes, and a TemplatesPage metadata-edit payload that no longer sends `json_config`.
+- **Team Mode**: Used a read-only `ck:team` explorer sidecar for paper/custom/offset RCA and closed it after integrating findings. Main implementation stayed inline to avoid overlapping writes in the same designer file.
+- **Validation**: Focused Template Designer E2E passed 1/1 locally and headed Chrome 1/1; `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 47/47, `npm run build`, and `git diff --check` passed.
+- **Deployment**: Vercel production deployment `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production Smoke**: Opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, switched A6, switched custom 120x180mm, added Text and `receipt_id`, verified canvas `454x680`, non-white pixel proof, `15 object(s)`, and no API/page errors. Did not click save, so production template JSON was not mutated.
+- **Evidence**: `receipts/2026-06-06-template-designer-paper-size-alignment.md`, `receipts/artifacts/template-paper-prod-smoke.png`.
+- **STATUS**: IMPLEMENTED.

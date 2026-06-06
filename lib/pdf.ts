@@ -48,9 +48,50 @@ const printer = new PdfPrinterCtor(fonts, virtualFileSystem, urlResolver);
 const paperSizes: Record<string, { width: number; height: number }> = {
   a4: { width: 210, height: 297 },
   a5: { width: 148, height: 210 },
+  a6: { width: 105, height: 148 },
   letter: { width: 216, height: 279 },
   thermal_80mm: { width: 80, height: 200 },
 };
+
+const MIN_PAPER_MM = 40;
+const MAX_PAPER_MM = 500;
+
+function clampPaperMm(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(MAX_PAPER_MM, Math.max(MIN_PAPER_MM, Math.round(parsed)));
+}
+
+function getTemplateConfig(template: any) {
+  try {
+    return parseJsonConfig(template?.jsonConfig ?? template?.json_config);
+  } catch {
+    return null;
+  }
+}
+
+function getEffectivePaper(template: any) {
+  const config = getTemplateConfig(template) as any;
+  const paper = config?.paper;
+  const fallbackKey = String(template?.paperSize || template?.paper_size || "a4");
+  const fallback = paperSizes[fallbackKey] || paperSizes.a4;
+
+  if (paper && typeof paper === "object") {
+    const preset = String(paper.preset || paper.paper_size || paper.paperSize || "");
+    if ((paper.mode === "custom" || preset === "custom") && (paper.width_mm || paper.width || paper.height_mm || paper.height)) {
+      return {
+        width: clampPaperMm(paper.width_mm ?? paper.widthMm ?? paper.width, fallback.width),
+        height: clampPaperMm(paper.height_mm ?? paper.heightMm ?? paper.height, fallback.height),
+      };
+    }
+
+    if (preset && paperSizes[preset]) {
+      return paperSizes[preset];
+    }
+  }
+
+  return fallback;
+}
 
 function mmToPt(mm: number) {
   return mm * 2.835;
@@ -454,9 +495,7 @@ function productionDefaultContent(template: any, data: PdfData) {
 }
 
 export async function generatePdf(template: any, data: PdfData = {}) {
-  const paper =
-    paperSizes[String(template.paperSize || template.paper_size || "a4")] ||
-    paperSizes.a4;
+  const paper = getEffectivePaper(template);
   const isLandscape = (template.orientation || "portrait") === "landscape";
   const width = isLandscape ? paper.height : paper.width;
   const height = isLandscape ? paper.width : paper.height;

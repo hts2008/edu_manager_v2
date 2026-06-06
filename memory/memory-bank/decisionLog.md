@@ -235,3 +235,10 @@
 **Decision**: Template Designer fixes must keep Fabric's generated `upper-canvas` transparent and must verify visible canvas behavior with pixel/hash deltas, not only object count or saved JSON. Image/background upload tests must also assert visible changes and fail on page errors, API 5xx, and failed API requests.
 **Rationale**: The operator cares whether fields/images are visible and printable. State-only assertions missed this defect, while visual-pixel regression coverage catches overlay, opacity, and render-layer failures.
 **Status**: IMPLEMENTED with local/headed Chrome E2E, lint, typecheck, unit 46/46, build, production Chrome smoke, and Vercel deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
+
+### ADR-34: Template Paper Size Metadata Lives In JSON Config
+**Date**: 2026-06-06
+**Context**: The user needs A4/A5/A6 and custom paper dimensions in Template Designer, but the production Prisma enum only supports `a4`, `a5`, `letter`, and `thermal_80mm`. Running a schema migration for every paper variant would add production risk and still would not store custom dimensions. Existing templates also lacked saved canvas dimensions, causing field alignment drift after paper changes.
+**Decision**: Keep the DB `paper_size` enum as compatibility metadata and store the effective designer/page contract in `json_config.paper` and `json_config.canvas`. Designer, undo/redo, save/reload, and PDF generation must read that JSON metadata first; API updates must ignore invalid enum paper-size values instead of sending them to Prisma.
+**Rationale**: This supports A6/custom immediately without a migration or seed, preserves existing template APIs, and gives the designer and PDF generator the same page dimensions. The JSON metadata also makes future saved templates self-describing, so fields can be scaled/fitted when the canvas size changes.
+**Status**: IMPLEMENTED with local/headed Chrome E2E, lint, typecheck, unit 47/47, build, production Chrome smoke, and Vercel deployment `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`.

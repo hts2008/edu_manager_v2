@@ -1,5 +1,17 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Template Designer Paper Size + Canvas Alignment Fix - 2026-06-06
+- **Current Outcome**: Template Designer supports A4, A5, A6, and custom paper sizes from the designer UI. Existing objects are scaled/fitted when paper changes so fields/images stay on the visible canvas.
+- **Deployment**: Vercel production deployment `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`, status Ready, aliased to `https://edu-manager-gules.vercel.app`.
+- **Implemented**: added `json_config.paper` and `json_config.canvas` metadata, designer A6/custom controls, paper-aware undo/redo snapshots, object fit/scale logic, PDF effective-paper parsing, API enum guard, and metadata-edit protection so `TemplatesPage` does not wipe `json_config`.
+- **Verification**: local Template Designer E2E 1/1, headed Chrome E2E 1/1, frontend lint, `npx tsc --noEmit`, unit 47/47, `npm run build`, and `git diff --check` passed.
+- **Production Smoke**: Chrome/Playwright opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, switched A6 (`397x559`), switched custom 120x180mm (`454x680`), added Text and `receipt_id`, saw `15 object(s)`, non-white pixel proof, and no runtime/API errors.
+- **Safety**: Production smoke did not click save, so production template JSON was not mutated. No Prisma migration or seed was run.
+- **Evidence**: `receipts/2026-06-06-template-designer-paper-size-alignment.md`, `receipts/artifacts/template-paper-prod-smoke.png`.
+- **Next**: If exact WYSIWYG PDF coordinates are required later, plan a separate absolute-position PDF renderer; this closeout makes page size and designer/PDF metadata consistent.
+
+---
+
 ## Template Designer Visible Render + Upload Fix - 2026-06-05
 - **Current Outcome**: Template Designer no longer appears blank after adding fields/components or uploading images. The root cause was Fabric's generated `upper-canvas` inheriting an opaque `bg-white` class from the source canvas and covering the lower render canvas.
 - **Deployment**: Vercel production deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`, status Ready, aliased to `https://edu-manager-gules.vercel.app`.
