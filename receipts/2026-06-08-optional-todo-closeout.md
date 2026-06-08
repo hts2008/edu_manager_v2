@@ -30,6 +30,7 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - `npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-optional-closeout-results` passed 2/2.
 - `E2E_BASE_URL=http://127.0.0.1:3101 npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-ci-preview-closeout-results` passed 2/2 against frontend preview, matching the narrowed CI E2E job.
 - `git diff --check` passed with LF/CRLF warnings only.
+- GitHub Actions `CI #57` failed before tests at frontend `npm ci`; a clean temporary local `npm ci` from `frontend/package.json` and `frontend/package-lock.json` passed, so the follow-up workflow disables npm cache restore to avoid a stale/corrupt cache failure mode.
 
 ## Deployment And Production Smoke
 
