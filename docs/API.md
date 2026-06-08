@@ -1,0 +1,82 @@
+# EDU Manager V2 API
+
+This document tracks the production API surface served by `api/router.ts`.
+The production source of truth is the Vercel Serverless TypeScript API plus Prisma.
+The legacy Express backend under `backend/` is an Express reference for comparison and local archaeology only.
+
+## Boundary Rules
+
+- Base URL: `/api`.
+- Response envelope: `{ success, data, error }`.
+- Frontend boundary fields use snake_case.
+- Auth uses `Authorization: Bearer <jwt>`, except login and parent portal login.
+- Mutations are audited by the router for authenticated `POST`, `PUT`, `PATCH`, and `DELETE`.
+- Production data mutations, migrations, seeds, credential rotation, and destructive correction flows require explicit operator intent.
+- `/api/kanban` is reference-only in the Express reference backend and is not exposed by the production Vercel API.
+
+## Production Vercel API Routes
+
+| Route | Notes |
+| --- | --- |
+| `/api/auth/login` | Login, returns JWT token. |
+| `/api/auth/me` | Current authenticated user. |
+| `/api/auth/logout` | Logout endpoint for frontend parity. |
+| `/api/auth/change-password` | Authenticated password change. |
+| `/api/activity-logs` | Audit log list. |
+| `/api/backups` | Backup operations. |
+| `/api/bulk-actions` | Bulk archive/delete/restore style operations. |
+| `/api/center-settings` | Center configuration. |
+| `/api/cron/backup` | Protected cron backup trigger. |
+| `/api/cron/monthly-fees` | Protected monthly-fee cron trigger. |
+| `/api/fee-reminders` | Reminder preview/config; live send remains disabled until provider and opt-in approval. |
+| `/api/import/students` | Student CSV import preview/commit. |
+| `/api/students` | Student CRUD/list surface. |
+| `/api/parents` | Parent CRUD/list surface. |
+| `/api/teachers` | Teacher CRUD/list surface. |
+| `/api/classes` | Class CRUD/list surface. |
+| `/api/attendance` | Attendance list/save. |
+| `/api/attendance/bulk` | Bulk attendance actions. |
+| `/api/attendance/insights` | Attendance heatmap/summary data. |
+| `/api/attendance/month` | Month attendance data. |
+| `/api/attendance/calculate-fee` | Attendance-based fee calculation. |
+| `/api/attendance-periods` | Attendance period list/lock/unlock. |
+| `/api/attendance-periods/:id` | Attendance period detail/update. |
+| `/api/reports/advanced` | Advanced reports: revenue trend, teacher utilization, retention/cohort. |
+| `/api/reports/dashboard` | Dashboard summary. |
+| `/api/reports/finance-dashboard` | Finance dashboard summary. |
+| `/api/reports/financial` | Financial reports with receipts, payments, categories, and summary. |
+| `/api/reports/student-fees` | Student fee ledger/anomaly report. |
+| `/api/reports/unpaid-students` | Unpaid students by month. |
+| `/api/receipts` | Receipt list/create. |
+| `/api/receipts/:id` | Receipt detail/delete. |
+| `/api/receipts/:id/pdf` | Receipt PDF. |
+| `/api/receipts/:id/correct` | Admin correction action; requires explicit reason. |
+| `/api/payments` | Payment list/create. |
+| `/api/payments/:id` | Payment detail/delete. |
+| `/api/payments/:id/pdf` | Payment PDF. |
+| `/api/parent-portal/login` | Parent portal login. |
+| `/api/parent-portal/me` | Parent portal current read-only data. |
+| `/api/recycle-bin` | Soft-delete/recycle-bin operations. |
+| `/api/templates` | Template list/create. |
+| `/api/templates/upload` | Legacy upload route. |
+| `/api/templates/upload-image` | Template Designer base64 image upload. |
+| `/api/templates/default/:type` | Default template by receipt/payment type. |
+| `/api/templates/:id/set-default` | Set template default. |
+| `/api/templates/:id` | Template detail/update/delete. |
+| `/api/users` | Admin user list/create. |
+| `/api/users/:id/reset-password` | Admin password reset. |
+| `/api/users/:id` | Admin user update/deactivate/delete. |
+| `/api/monthly-fees` | Monthly-fee list. |
+| `/api/monthly-fees/calculate` | Calculate/upsert a monthly fee. |
+| `/api/monthly-fees/generate` | Dry-run or generate monthly fees. |
+| `/api/monthly-fees/bulk-pay` | Collect selected fee lines and create receipts. |
+| `/api/monthly-fees/workbench` | Fee Workbench per-class line ledger. |
+| `/api/monthly-fees/:id/confirm` | Confirm a fee. |
+| `/api/monthly-fees/:id/pay` | Pay a fee. |
+| `/api/monthly-fees/:id/cancel` | Return confirmed fee to ready state. |
+| `/api/monthly-fees/:id` | Monthly-fee detail. |
+
+## Express Reference
+
+The Express reference backend remains useful for parity checks and historical behavior review.
+It is not the production runtime. Any new production route must be added to `api/router.ts`, documented here, and covered by tests.

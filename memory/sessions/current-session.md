@@ -340,6 +340,7 @@
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn after tool discovery, so Dual-Brain write-back remains degraded/manual for this task.
 
 ## Next Recommended
+0. Commit/push the 2026-06-08 optional TODO closeout after final diff review. Scope includes API docs, docs drift test, Advanced Reports chart/E2E, Thermal 80mm designer/PDF coverage, CI E2E job, KANBAN/memory/receipt updates.
 1. Audit the current anomaly list in Reports and apply the correction action per record with an operator reason; do not bulk rewrite historical paid receipts.
 2. Rotate default credentials and JWT secret before real production operation.
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.

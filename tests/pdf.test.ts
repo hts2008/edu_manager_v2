@@ -223,4 +223,23 @@ describe("PDF generation", () => {
     assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
     assert.match(raw, /\/MediaBox \[0 0 340\.2 510\.3\]/);
   });
+
+  it("uses thermal 80mm paper preset for receipt PDFs", async () => {
+    const buffer = await generatePdf(
+      {
+        type: "receipt",
+        paper_size: "thermal_80mm",
+        orientation: "portrait",
+      },
+      {
+        receipt_id: "RCPT_THERMAL",
+        student_name: "Nguyen Van Thermal",
+        amount: 80000,
+      }
+    );
+
+    const raw = buffer.toString("latin1");
+    assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
+    assert.match(raw, /\/MediaBox \[0 0 226\.8 567\]/);
+  });
 });

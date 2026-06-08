@@ -14,7 +14,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts tests/production-contracts.test.ts tests/tuition.test.ts tests/finance-corrections.test.ts",
+    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts tests/production-contracts.test.ts tests/tuition.test.ts tests/finance-corrections.test.ts tests/api-docs.test.ts",
     "test:parity": "node scripts/parity-test.mjs",
     "test:perf": "node scripts/perf-smoke.mjs",
     "perf:lab": "node scripts/perf-lab.mjs"

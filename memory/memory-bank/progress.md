@@ -555,3 +555,14 @@
 - **Production Smoke**: Opened default receipt template `cmp6dbuc900s7gcyrty4jd0ik`, switched A6, switched custom 120x180mm, added Text and `receipt_id`, verified canvas `454x680`, non-white pixel proof, `15 object(s)`, and no API/page errors. Did not click save, so production template JSON was not mutated.
 - **Evidence**: `receipts/2026-06-06-template-designer-paper-size-alignment.md`, `receipts/artifacts/template-paper-prod-smoke.png`.
 - **STATUS**: IMPLEMENTED.
+
+---
+
+### 2026-06-08 - Optional TODO Closeout: API Docs, Reports Chart, Thermal Print, E2E CI
+- **Scope**: Continue the current goal from the clean `main` state and close the remaining low-priority optional TODOs: API documentation, line chart for reports, Thermal 80mm print test, and automated E2E CI.
+- **Implementation**: Added `docs/API.md` as the production Vercel API route surface, updated README to link the API source of truth instead of stale Express/SQLite and `/api/kanban` notes, added `tests/api-docs.test.ts` to enforce docs/router drift, added a Recharts line chart to Advanced Reports, added mocked `advanced-reports-chart.spec.js`, exposed `thermal_80mm` in Template Designer paper picker, hardened Template Designer paper-size E2E with polling, added Thermal 80mm PDF MediaBox coverage, and added a GitHub Actions Playwright E2E job on ephemeral PostgreSQL.
+- **Team Mode**: Used a bounded read-only `ck:team` explorer to review route docs, CI E2E feasibility, Recharts keys, and Template Designer thermal risks. The explorer was closed after findings were integrated.
+- **Validation**: `npm run test:unit` passed 50/50, `npx tsc --noEmit` passed, `npm --prefix frontend run lint -- --max-warnings=0` passed, `npm run build` passed, `git diff --check` passed, and focused Playwright passed 2/2 for `advanced-reports-chart.spec.js` and `template-designer-hardening.spec.js`.
+- **Safety**: No Prisma migration, seed, deploy, or production data mutation was run in this local closeout pass. CI E2E provisions its own PostgreSQL service.
+- **Evidence**: `receipts/2026-06-08-optional-todo-closeout.md`.
+- **STATUS**: IMPLEMENTED.

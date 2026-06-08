@@ -202,6 +202,9 @@ test("advanced reports page and API contract are available", async ({ page, requ
   await expect(page.getByRole("heading", { name: "Hiệu suất giáo viên" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Cohort học viên" })).toBeVisible();
 
+  await expect(page.getByTestId("advanced-revenue-line-chart")).toBeVisible();
+  await expect(page.getByTestId("advanced-revenue-line-chart").locator('svg.recharts-surface[role="application"]')).toBeVisible();
+
   const response = await request.get("/api/reports/advanced?from=2026-05-01&to=2026-05-31", {
     headers: { Authorization: `Bearer ${authToken}` },
   });

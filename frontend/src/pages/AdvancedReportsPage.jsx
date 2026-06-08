@@ -1,4 +1,14 @@
 import { useState } from "react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { reportsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { exportAdvancedReport } from "../utils/excelExport";
@@ -21,6 +31,14 @@ function formatCurrency(value) {
     currency: "VND",
     maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+function formatCompactCurrency(value) {
+  const amount = Number(value || 0);
+  if (Math.abs(amount) >= 1_000_000_000) return `${Math.round(amount / 100_000_000) / 10}B`;
+  if (Math.abs(amount) >= 1_000_000) return `${Math.round(amount / 100_000) / 10}M`;
+  if (Math.abs(amount) >= 1_000) return `${Math.round(amount / 100) / 10}K`;
+  return String(Math.round(amount));
 }
 
 function summaryCard(label, value, tone = "text-gray-900") {
@@ -132,7 +150,7 @@ export default function AdvancedReportsPage() {
         {summaryCard("Lớp đang hoạt động", summary.active_class_count || 0)}
       </div>
 
-      <div className="card">
+      <div className="card" data-testid="advanced-revenue-line-chart">
         <div className="card-header flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Xu hướng doanh thu</h2>
@@ -141,6 +159,31 @@ export default function AdvancedReportsPage() {
           {loading && <div className="spinner h-5 w-5"></div>}
         </div>
         <div className="card-body">
+          {loading && !revenueTrend.length ? (
+            <div className="mb-6 h-72 animate-pulse rounded-2xl bg-gray-100" />
+          ) : revenueTrend.length ? (
+            <div className="mb-6 h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueTrend} margin={{ top: 12, right: 20, bottom: 8, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="period" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatCompactCurrency}
+                  />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Legend />
+                  <Line type="monotone" dataKey="total_receipts" name="Thu" stroke="#059669" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="total_payments" name="Chi" stroke="#dc2626" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="net_revenue" name="Ròng" stroke="#2563eb" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : null}
+
           {revenueTrend.length ? (
             <div className="space-y-3">
               {revenueTrend.map((item) => (

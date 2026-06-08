@@ -1267,6 +1267,7 @@ export default function TemplateDesignerPage() {
                 <option value="a4">A4 - 210 x 297 mm</option>
                 <option value="a5">A5 - 148 x 210 mm</option>
                 <option value="a6">A6 - 105 x 148 mm</option>
+                <option value="thermal_80mm">Thermal 80mm - 80 x 200 mm</option>
                 <option value="custom">Tùy chỉnh</option>
               </select>
             </label>

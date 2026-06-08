@@ -596,12 +596,12 @@
 
 ## 📝 OPTIONAL TODO
 
-| Priority | Task                    |
-| -------- | ----------------------- |
-| 🟢 Low   | API documentation       |
-| 🟢 Low   | Line chart for reports  |
-| 🟢 Low   | Thermal 80mm print test |
-| 🟢 Low   | E2E automated tests     |
+| Priority | Task                    | Status      | Evidence |
+| -------- | ----------------------- | ----------- | -------- |
+| 🟢 Low   | API documentation       | IMPLEMENTED | `docs/API.md`, `tests/api-docs.test.ts` |
+| 🟢 Low   | Line chart for reports  | IMPLEMENTED | `frontend/src/pages/AdvancedReportsPage.jsx`, `frontend/e2e/advanced-reports-chart.spec.js` |
+| 🟢 Low   | Thermal 80mm print test | IMPLEMENTED | `tests/pdf.test.ts`, `frontend/e2e/template-designer-hardening.spec.js` |
+| 🟢 Low   | E2E automated tests     | IMPLEMENTED | `.github/workflows/ci.yml`, `frontend/e2e/*` |
 
 ---
 
@@ -675,4 +675,4 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-06-05 20:46
+**Last Updated:** 2026-06-08 14:10

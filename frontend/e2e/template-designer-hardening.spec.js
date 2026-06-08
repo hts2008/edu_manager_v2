@@ -140,6 +140,19 @@ async function canvasMetrics(page) {
   });
 }
 
+async function waitForCanvasMetrics(page, predicate) {
+  let latestMetrics;
+
+  await expect
+    .poll(async () => {
+      latestMetrics = await canvasMetrics(page);
+      return predicate(latestMetrics);
+    })
+    .toBe(true);
+
+  return latestMetrics;
+}
+
 async function visibleCanvasMetrics(page) {
   return page.evaluate(() => {
     const canvases = [...document.querySelectorAll("[data-fabric='wrapper'] canvas")];
@@ -255,28 +268,44 @@ test("template designer tools visibly add/select objects and save/reload", async
   expect(initialMetrics.height).toBeGreaterThan(1000);
   expect(initialMetrics.nonWhitePixels).toBeGreaterThan(0);
 
+  await page.getByTestId("paper-size-select").selectOption("thermal_80mm");
+  await expect(page.getByTestId("paper-size-summary")).toContainText("Thermal 80mm");
+  const thermalMetrics = await waitForCanvasMetrics(
+    page,
+    (metrics) =>
+      metrics.width >= 300 &&
+      metrics.width <= 304 &&
+      metrics.height >= 754 &&
+      metrics.height <= 758 &&
+      metrics.checksum !== initialMetrics.checksum
+  );
+
   await page.getByTestId("paper-size-select").selectOption("a6");
   await expect(page.getByTestId("paper-size-summary")).toContainText("A6");
-  await page.waitForTimeout(100);
-  const a6Metrics = await canvasMetrics(page);
-  expect(a6Metrics.width).toBeGreaterThanOrEqual(395);
-  expect(a6Metrics.width).toBeLessThanOrEqual(400);
-  expect(a6Metrics.height).toBeGreaterThanOrEqual(558);
-  expect(a6Metrics.height).toBeLessThanOrEqual(562);
-  expect(a6Metrics.checksum).not.toBe(initialMetrics.checksum);
+  const a6Metrics = await waitForCanvasMetrics(
+    page,
+    (metrics) =>
+      metrics.width >= 395 &&
+      metrics.width <= 400 &&
+      metrics.height >= 558 &&
+      metrics.height <= 562 &&
+      metrics.checksum !== thermalMetrics.checksum
+  );
 
   await page.getByTestId("paper-size-select").selectOption("custom");
   await page.getByTestId("paper-width-mm").fill("120");
   await page.getByTestId("paper-height-mm").fill("180");
   await page.getByTestId("apply-paper-size").click();
   await expect(page.getByTestId("paper-size-summary")).toContainText("120 x 180");
-  await page.waitForTimeout(100);
-  const customMetrics = await canvasMetrics(page);
-  expect(customMetrics.width).toBeGreaterThanOrEqual(452);
-  expect(customMetrics.width).toBeLessThanOrEqual(456);
-  expect(customMetrics.height).toBeGreaterThanOrEqual(678);
-  expect(customMetrics.height).toBeLessThanOrEqual(682);
-  expect(customMetrics.checksum).not.toBe(a6Metrics.checksum);
+  const customMetrics = await waitForCanvasMetrics(
+    page,
+    (metrics) =>
+      metrics.width >= 452 &&
+      metrics.width <= 456 &&
+      metrics.height >= 678 &&
+      metrics.height <= 682 &&
+      metrics.checksum !== a6Metrics.checksum
+  );
 
   const initialCount = Number((await page.getByTestId("canvas-object-count").innerText()).match(/\d+/)?.[0] || 0);
 

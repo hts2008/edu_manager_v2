@@ -94,8 +94,10 @@ edu_manager_v2/
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, Vite, Tailwind CSS v4 |
-| Backend | Express.js, better-sqlite3 |
+| Frontend | React, Vite, Tailwind CSS v4 |
+| Backend | Vercel Serverless TypeScript API, Prisma |
+| Reference backend | Express.js reference only |
+| Database | PostgreSQL / Neon |
 | Auth | JWT (jsonwebtoken) |
 | PDF | pdfmake |
 | Template Editor | Fabric.js |
@@ -103,19 +105,9 @@ edu_manager_v2/
 
 ## 📊 API Endpoints
 
-| Module | Endpoints |
-|--------|-----------|
-| Auth | `/api/auth/login`, `/api/auth/me` |
-| Students | `/api/students` (CRUD) |
-| Parents | `/api/parents` (CRUD) |
-| Teachers | `/api/teachers` (CRUD) |
-| Classes | `/api/classes` (CRUD) |
-| Attendance | `/api/attendance` (bulk, calculate-fee) |
-| Receipts | `/api/receipts`, `/api/receipts/:id/pdf` |
-| Payments | `/api/payments`, `/api/payments/:id/pdf` |
-| Templates | `/api/templates` (CRUD, set-default) |
-| Reports | `/api/reports/dashboard`, `/api/reports/financial` |
-| KANBAN | `/api/kanban` |
+Production API source of truth: [`docs/API.md`](docs/API.md) and `api/router.ts`.
+
+The legacy Express backend is reference-only. `/api/kanban` is not exposed by the production Vercel API.
 
 ## 📋 KANBAN Dashboard
 
