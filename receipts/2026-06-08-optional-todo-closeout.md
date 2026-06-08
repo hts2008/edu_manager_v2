@@ -19,7 +19,7 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - Added `thermal_80mm` to the Template Designer paper-size dropdown.
 - Hardened Template Designer E2E paper-size assertions with polling instead of fixed timeouts.
 - Added Thermal 80mm PDF MediaBox coverage in `tests/pdf.test.ts`.
-- Added a separate GitHub Actions `e2e` job with a PostgreSQL service, CI seed, local smoke server, and Playwright.
+- Added a separate GitHub Actions `e2e` job that builds frontend preview and runs deterministic mocked Playwright browser smoke specs for Advanced Reports and Template Designer.
 
 ## Verification
 
@@ -28,6 +28,7 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - `npm --prefix frontend run lint -- --max-warnings=0` passed.
 - `npm run build` passed.
 - `npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-optional-closeout-results` passed 2/2.
+- `E2E_BASE_URL=http://127.0.0.1:3101 npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-ci-preview-closeout-results` passed 2/2 against frontend preview, matching the narrowed CI E2E job.
 - `git diff --check` passed with LF/CRLF warnings only.
 
 ## Deployment And Production Smoke
@@ -42,4 +43,4 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - No Prisma migration was run.
 - No seed was run against production.
 - No production data mutation was run; the Template Designer production smoke did not click save.
-- CI E2E uses an ephemeral PostgreSQL service and seeded CI data.
+- CI E2E uses mocked API responses and frontend preview, so it does not touch Neon, production credentials, or live data.

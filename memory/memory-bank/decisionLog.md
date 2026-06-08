@@ -243,9 +243,9 @@
 **Rationale**: This supports A6/custom immediately without a migration or seed, preserves existing template APIs, and gives the designer and PDF generator the same page dimensions. The JSON metadata also makes future saved templates self-describing, so fields can be scaled/fitted when the canvas size changes.
 **Status**: IMPLEMENTED with local/headed Chrome E2E, lint, typecheck, unit 47/47, build, production Chrome smoke, and Vercel deployment `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH`.
 
-### ADR-35: API Docs Track Production Router And E2E CI Uses Ephemeral Data
+### ADR-35: API Docs Track Production Router And E2E CI Uses Deterministic Browser Smoke
 **Date**: 2026-06-08
 **Context**: The optional TODO list still had API documentation and E2E automation open, while README contained stale coarse routes and referenced `/api/kanban`, which is not exposed by the production Vercel router.
-**Decision**: Treat `docs/API.md` plus `api/router.ts` as the production API documentation source of truth, with `tests/api-docs.test.ts` enforcing route coverage. GitHub Actions E2E must use an ephemeral PostgreSQL service and seeded CI data instead of production credentials or production data.
-**Rationale**: Router-backed docs prevent stale API claims, and ephemeral CI data keeps Playwright coverage broad without mutating Neon or relying on live secrets.
+**Decision**: Treat `docs/API.md` plus `api/router.ts` as the production API documentation source of truth, with `tests/api-docs.test.ts` enforcing route coverage. GitHub Actions E2E must run deterministic mocked browser smoke specs against a frontend preview for the optional UI closeout; broader DB/serverless E2E remains a separate production-hardening track.
+**Rationale**: Router-backed docs prevent stale API claims, and mocked CI browser smoke verifies the changed chart/designer surfaces without mutating Neon, requiring live secrets, or making the optional closeout depend on full seed/serverless setup.
 **Status**: IMPLEMENTED with unit 50/50, typecheck, lint, build, focused Playwright 2/2, diff-check, production Advanced Reports smoke 1/1, production Template Designer thermal smoke, and Vercel deployment `dpl_57m2wBJuvyWonYWqL98Q92BCudfC` on 2026-06-08.

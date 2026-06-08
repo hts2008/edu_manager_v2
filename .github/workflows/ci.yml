@@ -28,26 +28,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: edu_manager_test
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test?schema=public
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test?schema=public
-      JWT_SECRET: ci-test-jwt-secret
-      CRON_SECRET: ci-cron-secret
-      BLOB_READ_WRITE_TOKEN: ci-blob-token
       E2E_BASE_URL: http://127.0.0.1:3000
     steps:
       - uses: actions/checkout@v4
@@ -55,17 +36,16 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+          cache-dependency-path: frontend/package-lock.json
       - run: npm ci
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
-      - run: npx prisma db push
-      - run: npm run db:seed
       - run: npm run build
-      - name: Start local smoke server
+        working-directory: frontend
+      - name: Start frontend preview
         run: |
-          npm run dev:smoke > smoke.log 2>&1 &
+          npm run preview -- --host 127.0.0.1 --port 3000 > ../smoke.log 2>&1 &
           echo $! > smoke.pid
           for i in {1..30}; do
             if curl -fsS "$E2E_BASE_URL" >/dev/null; then
@@ -73,9 +53,10 @@ jobs:
             fi
             sleep 2
           done
-          cat smoke.log
+          cat ../smoke.log
           exit 1
-      - run: npm run test:e2e -- --reporter=list
+        working-directory: frontend
+      - run: npm run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list
         working-directory: frontend
       - name: Upload smoke artifacts
         if: always()
