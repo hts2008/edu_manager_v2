@@ -248,4 +248,4 @@
 **Context**: The optional TODO list still had API documentation and E2E automation open, while README contained stale coarse routes and referenced `/api/kanban`, which is not exposed by the production Vercel router.
 **Decision**: Treat `docs/API.md` plus `api/router.ts` as the production API documentation source of truth, with `tests/api-docs.test.ts` enforcing route coverage. GitHub Actions E2E must use an ephemeral PostgreSQL service and seeded CI data instead of production credentials or production data.
 **Rationale**: Router-backed docs prevent stale API claims, and ephemeral CI data keeps Playwright coverage broad without mutating Neon or relying on live secrets.
-**Status**: IMPLEMENTED locally with unit 50/50, typecheck, lint, build, focused Playwright 2/2, and diff-check on 2026-06-08.
+**Status**: IMPLEMENTED with unit 50/50, typecheck, lint, build, focused Playwright 2/2, diff-check, production Advanced Reports smoke 1/1, production Template Designer thermal smoke, and Vercel deployment `dpl_57m2wBJuvyWonYWqL98Q92BCudfC` on 2026-06-08.

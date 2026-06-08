@@ -139,7 +139,7 @@
 - Production correction route probes were non-mutating: no-token 401, authenticated nonexistent receipt 404.
 
 ## Next Recommended Work
-0. Review and commit the 2026-06-08 optional TODO closeout: `docs/API.md`, API docs drift test, Advanced Reports line chart/mocked E2E, Thermal 80mm designer/PDF coverage, CI E2E job, and evidence updates.
+0. 2026-06-08 optional TODO closeout is deployed; use `receipts/2026-06-08-optional-todo-closeout.md` for evidence and continue with anomaly review or credential rotation.
 1. Audit current report anomalies and correct them through the new admin action with a reason.
 2. Rotate default admin credentials and JWT secret before real operation.
 3. Open a dedicated backend-latency task for serverless/DB endpoints still sampling around 2.8-4.6s.

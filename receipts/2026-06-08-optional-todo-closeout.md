@@ -30,9 +30,16 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - `npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-optional-closeout-results` passed 2/2.
 - `git diff --check` passed with LF/CRLF warnings only.
 
+## Deployment And Production Smoke
+
+- Commit `fee8bc3` was pushed to `origin/main`.
+- Vercel production deployment `dpl_57m2wBJuvyWonYWqL98Q92BCudfC` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Production Playwright smoke passed 1/1 for Advanced Reports, including the new Recharts SVG assertion.
+- Production Template Designer read-only smoke opened template `cmp6dbuc900s7gcyrty4jd0ik`, switched the paper-size selector to `thermal_80mm`, verified summary `Thermal 80mm`, and measured canvas `302x756`.
+
 ## Safety
 
 - No Prisma migration was run.
 - No seed was run against production.
-- No production data mutation was run.
+- No production data mutation was run; the Template Designer production smoke did not click save.
 - CI E2E uses an ephemeral PostgreSQL service and seeded CI data.
