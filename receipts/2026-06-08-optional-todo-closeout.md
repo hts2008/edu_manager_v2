@@ -30,7 +30,7 @@ Closed the remaining low-priority optional TODOs in `KANBAN.md`:
 - `npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-optional-closeout-results` passed 2/2.
 - `E2E_BASE_URL=http://127.0.0.1:3101 npm --prefix frontend run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list --output=playwright-ci-preview-closeout-results` passed 2/2 against frontend preview, matching the narrowed CI E2E job.
 - `git diff --check` passed with LF/CRLF warnings only.
-- GitHub Actions `CI #57` and `CI #58` failed before tests at frontend `npm ci`; a clean temporary local `npm ci` from `frontend/package.json` and `frontend/package-lock.json` passed. Follow-up workflow disables npm cache restore and pins Node 22 LTS instead of a broad Node 20 selector for the current Vite/Tailwind frontend toolchain.
+- GitHub Actions `CI #57` through `CI #59` failed before tests at frontend `npm ci`; a clean temporary local `npm ci` from `frontend/package.json` and `frontend/package-lock.json` passed. Follow-up workflow disables npm cache restore, pins Node 22 LTS, and uses `npm install --include=optional --no-audit --no-fund` for the frontend subpackage while keeping root `npm ci`.
 
 ## Deployment And Production Smoke
 
