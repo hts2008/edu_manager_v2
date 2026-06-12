@@ -2,13 +2,19 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { motion as Motion } from "framer-motion";
+import { AlertTriangle, CheckCircle2, UserCheck, UserPlus, UserRound, Users } from "lucide-react";
 import { bulkActionsService, studentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import BulkActionBar from "../components/ui/BulkActionBar";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { studentFormSchema } from "../utils/formValidation";
+import {
+  ListPanel,
+  MetricGrid,
+  OperationalPage,
+  PageIntro,
+} from "../components/ui/OperationalPage";
 
 // VI: Trang danh sách học viên
 export default function StudentsPage() {
@@ -210,22 +216,85 @@ export default function StudentsPage() {
   const studentCountLabel = initialLoading ? "đang tải" : `${students.length} bản ghi`;
   const metricValue = (value) => (initialLoading ? "..." : value);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
+  const summaryMetrics = [
+    {
+      label: "Đang học",
+      value: metricValue(activeStudents),
+      helper: `${students.length} hồ sơ`,
+      icon: CheckCircle2,
+      tone: "emerald",
+    },
+    {
+      label: "Tỷ lệ active",
+      value: metricValue(`${activationRate}%`),
+      helper: "Theo trạng thái hiện tại",
+      icon: UserCheck,
+      tone: "sky",
+    },
+    {
+      label: "Cần chăm sóc",
+      value: metricValue(inactiveStudents),
+      helper: "Học viên không active",
+      icon: AlertTriangle,
+      tone: "amber",
+    },
+  ];
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+  const metrics = [
+    {
+      label: "Tổng số",
+      value: metricValue(students.length),
+      helper: "Toàn bộ học viên",
+      icon: Users,
+      tone: "indigo",
+    },
+    {
+      label: "Đang học",
+      value: metricValue(activeStudents),
+      helper: "Đang active",
+      icon: CheckCircle2,
+      tone: "emerald",
+    },
+    {
+      label: "Nam",
+      value: metricValue(maleStudents),
+      helper: "Theo hồ sơ",
+      icon: UserRound,
+      tone: "sky",
+    },
+    {
+      label: "Nữ",
+      value: metricValue(femaleStudents),
+      helper: "Theo hồ sơ",
+      icon: UserRound,
+      tone: "rose",
+    },
+  ];
 
   return (
-    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-xl shadow-indigo-950/15">
+    <OperationalPage>
+      <PageIntro
+        eyebrow="Vận hành học viên"
+        title="Quản lý học viên"
+        description="Theo dõi trạng thái học tập, phụ huynh liên hệ và phân bổ lớp bằng một giao diện ổn định cho thao tác hằng ngày."
+        status={studentCountLabel}
+        metrics={summaryMetrics}
+        actions={
+          <>
+            <button onClick={handleAdd} className="btn-primary">
+              <UserPlus size={18} aria-hidden="true" />
+              Thêm học viên
+            </button>
+            <Link to="/classes" className="btn-secondary">
+              Xem lớp học
+            </Link>
+          </>
+        }
+      />
+
+      <MetricGrid metrics={metrics} />
+
+      <div className="hidden">
         <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
@@ -261,15 +330,19 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      <Motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="hidden">
         <StudentStatCard icon="👨‍🎓" label="Tổng số" value={metricValue(students.length)} tone="from-blue-500 to-indigo-600" />
         <StudentStatCard icon="✓" label="Đang học" value={metricValue(activeStudents)} tone="from-emerald-500 to-green-600" />
         <StudentStatCard icon="👦" label="Nam" value={metricValue(maleStudents)} tone="from-sky-500 to-blue-600" />
         <StudentStatCard icon="👧" label="Nữ" value={metricValue(femaleStudents)} tone="from-pink-500 to-rose-600" />
-      </Motion.div>
+      </div>
 
       {/* Data Table */}
-      <Motion.div variants={itemVariants} className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-2 shadow-sm">
+      <ListPanel
+        title="Danh sách học viên"
+        description="Nhấn vào một dòng để chỉnh sửa nhanh hồ sơ và lớp đăng ký."
+        countLabel={`${students.length} hồ sơ`}
+      >
       <BulkActionBar
         count={selectedStudentIds.length}
         onClear={() => setSelectedStudentIds([])}
@@ -297,7 +370,7 @@ export default function StudentsPage() {
         searchKeys={["full_name", "student_code", "parent_name", "parent_phone", "class_names", "status"]}
         emptyMessage="Chưa có học viên nào"
       />
-      </Motion.div>
+      </ListPanel>
 
       {/* Delete Confirm Modal */}
       <ConfirmModal
@@ -315,6 +388,8 @@ export default function StudentsPage() {
         onClose={() => setShowForm(false)}
         title={editingStudent ? "Sửa học viên" : "Thêm học viên mới"}
         size="lg"
+        confirmOnClose
+        confirmCloseMessage="Ban co thay doi chua luu trong ho so hoc vien. Dong hop thoai se bo cac thay doi nay."
       >
         <StudentForm
           student={editingStudent}
@@ -325,7 +400,7 @@ export default function StudentsPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </Motion.div>
+    </OperationalPage>
   );
 }
 
@@ -663,8 +738,8 @@ function StudentForm({ student, onSuccess, onCancel }) {
         </select>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4 shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)] backdrop-blur md:-mx-8 md:-mb-6 md:px-8">
+        <button type="button" onClick={onCancel} data-modal-close className="btn-secondary">
           Hủy
         </button>
         <button type="submit" disabled={loading} className="btn-primary">

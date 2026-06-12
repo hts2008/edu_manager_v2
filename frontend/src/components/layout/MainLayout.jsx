@@ -9,13 +9,16 @@ export default function MainLayout() {
   const location = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-[#f3f4f6] text-slate-900 selection:bg-blue-500/30">
+    <div className="eduflow-app-shell flex min-h-screen text-slate-900 selection:bg-blue-500/30">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex flex-col flex-1 min-w-0 z-10 relative">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 w-full max-w-[1600px] mx-auto">
+        <main className="eduflow-main flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 w-full max-w-[1600px] mx-auto">
+          <div className="sr-only" role="status" aria-live="polite">
+            Giao dien san sang
+          </div>
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>

@@ -53,7 +53,7 @@ jobs:
           cat ../smoke.log
           exit 1
         working-directory: frontend
-      - run: npm run test:e2e -- advanced-reports-chart.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list
+      - run: npm run test:e2e -- advanced-reports-chart.spec.js report-bi.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list
         working-directory: frontend
       - name: Upload smoke artifacts
         if: always()

@@ -260,7 +260,9 @@ test("template designer tools visibly add/select objects and save/reload", async
 
   await page.goto(`/templates/${templateId}/design`);
   await expect(page.getByTestId("designer-status")).toContainText("Canvas san sang");
+  await expect(page.getByTestId("designer-status")).toContainText("Ctrl+Z");
   await expect(page.getByTestId("template-canvas")).toBeVisible();
+  await expect(page.getByTestId("layer-list")).toBeVisible();
   await assertUpperCanvasTransparent(page);
 
   const initialMetrics = await canvasMetrics(page);
@@ -318,6 +320,7 @@ test("template designer tools visibly add/select objects and save/reload", async
 
   await page.getByTestId("field-receipt_id").click();
   await expect(page.getByTestId("selection-summary")).toContainText("Field: receipt_id");
+  await expect(page.getByTestId("layer-list")).toContainText("Field: receipt_id");
   await page.waitForTimeout(100);
   const afterFieldMetrics = await canvasMetrics(page);
   expectCanvasChanged(afterFieldMetrics, afterTextMetrics);

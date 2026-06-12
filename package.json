@@ -14,10 +14,11 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts tests/production-contracts.test.ts tests/tuition.test.ts tests/finance-corrections.test.ts tests/api-docs.test.ts",
+    "test:unit": "tsx --test tests/api-utils.test.ts tests/rate-limit.test.ts tests/observability.test.ts tests/import-students.test.ts tests/phase-c-ops.test.ts tests/pdf.test.ts tests/production-contracts.test.ts tests/report-bi.test.ts tests/student-progress-report.test.ts tests/tuition.test.ts tests/finance-corrections.test.ts tests/api-docs.test.ts tests/ux-motion.test.ts",
     "test:parity": "node scripts/parity-test.mjs",
     "test:perf": "node scripts/perf-smoke.mjs",
-    "perf:lab": "node scripts/perf-lab.mjs"
+    "perf:lab": "node scripts/perf-lab.mjs",
+    "ux:baseline": "node scripts/ux-motion-baseline.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",

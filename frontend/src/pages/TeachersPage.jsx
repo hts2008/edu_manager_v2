@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
-import { motion as Motion } from "framer-motion";
+import { CheckCircle2, Clock, DollarSign, Plus, UserCheck, Users } from "lucide-react";
 import { teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import PageState from "../components/ui/PageState";
+import {
+  ListPanel,
+  MetricGrid,
+  OperationalPage,
+  PageIntro,
+} from "../components/ui/OperationalPage";
 
 // VI: Trang quản lý giáo viên (Admin only) - Premium Design
 export default function TeachersPage() {
@@ -12,6 +19,7 @@ export default function TeachersPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadTeachers();
@@ -19,9 +27,12 @@ export default function TeachersPage() {
 
   const loadTeachers = async () => {
     setLoading(true);
+    setError("");
     const response = await teachersService.getAll();
     if (response.success) {
       setTeachers(response.data.teachers);
+    } else {
+      setError(response.error?.message || "Không thể tải danh sách giáo viên");
     }
     setLoading(false);
   };
@@ -192,23 +203,79 @@ export default function TeachersPage() {
     0
   );
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
+  const summaryMetrics = [
+    {
+      label: "Tổng số GV",
+      value: teachers.length,
+      helper: "Toàn bộ nhân sự",
+      icon: Users,
+      tone: "indigo",
+    },
+    {
+      label: "Đang dạy",
+      value: activeTeachers,
+      helper: "Trạng thái active",
+      icon: UserCheck,
+      tone: "emerald",
+    },
+    {
+      label: "Theo giờ",
+      value: hourlyTeachers,
+      helper: "Tính lương theo tiết",
+      icon: Clock,
+      tone: "sky",
+    },
+  ];
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+  const metrics = [
+    ...summaryMetrics,
+    {
+      label: "Chi phí cố định/tháng",
+      value: formatMoney(totalSalary),
+      helper: "Chưa gồm lương theo giờ",
+      icon: DollarSign,
+      tone: "amber",
+    },
+  ];
+
+  if (error && !loading) {
+    return (
+      <PageState
+        title="Chưa tải được giáo viên"
+        message={error}
+        tone="red"
+        action={loadTeachers}
+        actionLabel="Tải lại"
+      />
+    );
+  }
 
   return (
-    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
+    <OperationalPage>
+      <PageIntro
+        eyebrow="Human resources"
+        title="Giáo viên"
+        description="Quản lý đội ngũ giáo viên, phân bổ chuyên môn và giám sát hình thức tính lương trong cùng một không gian vận hành."
+        status={`${teachers.length} hồ sơ`}
+        metrics={summaryMetrics}
+        actions={
+          <button
+            onClick={() => {
+              setEditingTeacher(null);
+              setShowForm(true);
+            }}
+            className="btn-primary"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Thêm giáo viên
+          </button>
+        }
+      />
+
+      <MetricGrid metrics={metrics} />
+
       {/* Header */}
-      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+      <section className="hidden">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
         <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -238,10 +305,10 @@ export default function TeachersPage() {
             Thêm giáo viên
           </button>
         </div>
-      </Motion.section>
+      </section>
 
       {/* Stats Cards */}
-      <Motion.section variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="hidden">
         {[
           {
             label: "Tổng số GV",
@@ -276,8 +343,7 @@ export default function TeachersPage() {
             bg: "from-amber-50 to-orange-50",
           }
         ].map((card, idx) => (
-          <Motion.div
-            variants={itemVariants}
+          <div
             key={idx}
             className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
           >
@@ -294,13 +360,17 @@ export default function TeachersPage() {
                 {card.icon}
               </div>
             </div>
-          </Motion.div>
+          </div>
         ))}
-      </Motion.section>
+      </section>
 
       {/* Data Table */}
-      <Motion.section variants={itemVariants} className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <ListPanel
+        title="Danh sách nhân sự"
+        description="Nhấn vào dòng để xem hoặc sửa thông tin."
+        countLabel={`${teachers.length} hồ sơ`}
+      >
+        <div className="hidden">
           <div>
             <h2 className="text-lg font-bold text-slate-950">Danh sách nhân sự</h2>
             <p className="text-sm text-slate-500">Nhấn vào dòng để xem hoặc sửa thông tin.</p>
@@ -319,7 +389,7 @@ export default function TeachersPage() {
         }}
         emptyMessage="Chưa có giáo viên nào"
         />
-      </Motion.section>
+      </ListPanel>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -334,6 +404,8 @@ export default function TeachersPage() {
         onClose={() => setShowForm(false)}
         title={editingTeacher ? "Sửa giáo viên" : "Thêm giáo viên mới"}
         size="lg"
+        confirmOnClose
+        confirmCloseMessage="Ban co thay doi chua luu trong ho so giao vien. Dong hop thoai se bo cac thay doi nay."
       >
         <TeacherForm
           teacher={editingTeacher}
@@ -344,7 +416,7 @@ export default function TeachersPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </Motion.div>
+    </OperationalPage>
   );
 }
 
@@ -592,8 +664,8 @@ function TeacherForm({ teacher, onSuccess, onCancel }) {
         />
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4 shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)] backdrop-blur md:-mx-8 md:-mb-6 md:px-8">
+        <button type="button" onClick={onCancel} data-modal-close className="btn-secondary">
           Hủy
         </button>
         <button type="submit" disabled={loading} className="btn-primary">

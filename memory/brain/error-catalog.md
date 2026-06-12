@@ -56,3 +56,34 @@ the generated `upper-canvas` background is transparent, call `setCoords()` and
 changes in E2E tests.
 **Status**: Fixed and production-smoked on 2026-06-05 with deployment
 `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
+
+## ERR-007: Report BI Class Filter Can Misattribute Aggregate Fees
+
+**Symptom**: Financial reports look correct at all-class level, but class-specific
+views can show misleading revenue or tuition status when legacy monthly fees
+were stored only at student-month aggregate level.
+**Cause**: Filtering raw enrollments by `class_id` before building the report
+cube loses the context needed to distinguish class-linked fee lines from legacy
+aggregate monthly fees.
+**Fix**: Build the full student-class-month cube first, attach fee lines only
+when they are linked to the same class, then apply `class_id`, `student_id`,
+`q`, and `risk_only` filters at the report-row boundary.
+**Status**: Fixed and production-smoked on 2026-06-09 with deployment
+`dpl_FiyiYAoozRGsZgdhk2PwCmNP6DPV`.
+
+## ERR-008: Report BI Tabs Look Inert When Mode Is Client-Only
+
+**Symptom**: In the Report Intelligence Center, clicking `Tong quan`,
+`Chuyen can`, `Hoc phi`, or `Rui ro` appears to only change the selected
+button while the dashboard/table content remains effectively unchanged.
+**Cause**: The selected tab was mostly client state. The API request did not
+carry a stable report mode, and local row fallback could keep chart/table data
+too similar. Class options were also derived from narrowed response data, so
+filter controls could drift after a tab narrowed the dataset.
+**Fix**: Add server-side `mode=overview|attendance|tuition|risk` to
+`/api/reports/bi`, apply mode before search and pagination, echo the selected
+mode in `meta.filters.mode`, return stable full-cube `meta.classes`, remove
+focused-tab fallback rows, and add Playwright coverage that asserts each tab
+requests and receives the expected mode.
+**Status**: Fixed and production-smoked on 2026-06-09 with production URL
+`https://edu-manager-gules.vercel.app`.

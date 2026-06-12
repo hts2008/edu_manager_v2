@@ -65,9 +65,11 @@ const routes = {
   receiptsIndex: () => import("../server/api/receipts/index.js"),
   reportsDashboard: () => import("../server/api/reports/dashboard.js"),
   reportsAdvanced: () => import("../server/api/reports/advanced.js"),
+  reportsBi: () => import("../server/api/reports/bi.js"),
   reportsFinanceDashboard: () => import("../server/api/reports/finance-dashboard.js"),
   reportsFinancial: () => import("../server/api/reports/financial.js"),
   reportsStudentFees: () => import("../server/api/reports/student-fees.js"),
+  reportsStudentProgress: () => import("../server/api/reports/student-progress.js"),
   reportsUnpaidStudents: () => import("../server/api/reports/unpaid-students.js"),
   studentsIndex: () => import("../server/api/students/index.js"),
   teachersIndex: () => import("../server/api/teachers/index.js"),
@@ -122,11 +124,13 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     (resource === "attendance-periods" && parts.length === 2
       ? { load: routes.attendancePeriodById, params: { id } }
       : null) ||
+    exact(parts, ["reports", "bi"], routes.reportsBi) ||
     exact(parts, ["reports", "advanced"], routes.reportsAdvanced) ||
     exact(parts, ["reports", "dashboard"], routes.reportsDashboard) ||
     exact(parts, ["reports", "finance-dashboard"], routes.reportsFinanceDashboard) ||
     exact(parts, ["reports", "financial"], routes.reportsFinancial) ||
     exact(parts, ["reports", "student-fees"], routes.reportsStudentFees) ||
+    exact(parts, ["reports", "student-progress"], routes.reportsStudentProgress) ||
     exact(parts, ["reports", "unpaid-students"], routes.reportsUnpaidStudents) ||
     exact(parts, ["receipts"], routes.receiptsIndex) ||
     (resource === "receipts" && parts.length === 2

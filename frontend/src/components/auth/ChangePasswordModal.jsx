@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Modal from '../ui/Modal';
 import { authService } from '../../services/api';
 import { useToast } from '../ui/Toast';
+import ActionProgressButton from '../ui/ActionProgressButton';
 
 // VI: Modal đổi mật khẩu
 
@@ -52,7 +53,7 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Đổi mật khẩu">
+    <Modal isOpen={isOpen} onClose={onClose} title="Đổi mật khẩu" busy={loading} busyLabel="Đang đổi mật khẩu...">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -108,12 +109,12 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
         </div>
         
         <div className="flex justify-end gap-3 pt-4">
-          <button type="button" onClick={onClose} className="btn-secondary">
+          <button type="button" onClick={onClose} disabled={loading} className="btn-secondary disabled:cursor-not-allowed disabled:opacity-60">
             Hủy
           </button>
-          <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
-          </button>
+          <ActionProgressButton type="submit" loading={loading} loadingLabel="Đang xử lý..." className="btn-primary">
+            Đổi mật khẩu
+          </ActionProgressButton>
         </div>
       </form>
     </Modal>

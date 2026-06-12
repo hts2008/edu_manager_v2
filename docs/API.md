@@ -42,10 +42,12 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/attendance-periods` | Attendance period list/lock/unlock. |
 | `/api/attendance-periods/:id` | Attendance period detail/update. |
 | `/api/reports/advanced` | Advanced reports: revenue trend, teacher utilization, retention/cohort. |
+| `/api/reports/bi` | Report Intelligence cube at student-class-month grain with attendance, tuition, risk flags, charts, pagination, and metric definitions. |
 | `/api/reports/dashboard` | Dashboard summary. |
 | `/api/reports/finance-dashboard` | Finance dashboard summary. |
 | `/api/reports/financial` | Financial reports with receipts, payments, categories, and summary. |
 | `/api/reports/student-fees` | Student fee ledger/anomaly report. |
+| `/api/reports/student-progress` | Monthly parent-facing student progress report using student-class-month attendance/fee evidence plus explicit Cambridge skill-input gaps. |
 | `/api/reports/unpaid-students` | Unpaid students by month. |
 | `/api/receipts` | Receipt list/create. |
 | `/api/receipts/:id` | Receipt detail/delete. |

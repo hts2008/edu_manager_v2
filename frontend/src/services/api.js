@@ -554,6 +554,10 @@ export const reportsService = {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/advanced${query ? `?${query}` : ""}`);
   },
+  getBi: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/bi${query ? `?${query}` : ""}`, options);
+  },
   getFinancial: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/financial${query ? `?${query}` : ""}`);
@@ -565,6 +569,10 @@ export const reportsService = {
   getStudentFees: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/reports/student-fees${query ? `?${query}` : ""}`);
+  },
+  getStudentProgress: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/reports/student-progress${query ? `?${query}` : ""}`, options);
   },
   getUnpaidStudents: (month) =>
     request(`/reports/unpaid-students${month ? `?month=${month}` : ""}`),

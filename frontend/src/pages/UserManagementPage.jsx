@@ -2,6 +2,7 @@ import { useState } from "react";
 import { usersService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import UserModal from "../components/users/UserModal";
+import { ConfirmModal } from "../components/ui/Modal";
 
 const emptyForm = {
   username: "",
@@ -37,9 +38,11 @@ export default function UserManagementPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
 
   const requestKey = JSON.stringify(filters);
-  const { data, loading, reload } = useAsyncData(async () => {
+  const { data, loading, error: loadError, reload } = useAsyncData(async () => {
     const response = await usersService.getAll(filters);
     if (!response.success) {
       throw new Error(response.error?.message || "Không tải được danh sách người dùng");
@@ -107,19 +110,24 @@ export default function UserManagementPage() {
         ? { username: form.username, password: form.password }
         : {}),
     };
-    const response =
-      modal.type === "create"
-        ? await usersService.create(payload)
-        : await usersService.update(modal.user.id, payload);
+    setSubmitting(true);
+    try {
+      const response =
+        modal.type === "create"
+          ? await usersService.create(payload)
+          : await usersService.update(modal.user.id, payload);
 
-    if (!response.success) {
-      setError(response.error?.message || "Không lưu được người dùng");
-      return;
+      if (!response.success) {
+        setError(response.error?.message || "Không lưu được người dùng");
+        return;
+      }
+
+      setMessage(modal.type === "create" ? "Đã thêm người dùng" : "Đã cập nhật người dùng");
+      closeModal();
+      reload();
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage(modal.type === "create" ? "Đã thêm người dùng" : "Đã cập nhật người dùng");
-    closeModal();
-    reload();
   }
 
   async function submitReset(event) {
@@ -130,24 +138,29 @@ export default function UserManagementPage() {
       return;
     }
 
-    const response = await usersService.resetPassword(modal.user.id, password);
-    if (!response.success) {
-      setError(response.error?.message || "Không đặt lại được mật khẩu");
-      return;
-    }
+    setSubmitting(true);
+    try {
+      const response = await usersService.resetPassword(modal.user.id, password);
+      if (!response.success) {
+        setError(response.error?.message || "Không đặt lại được mật khẩu");
+        return;
+      }
 
-    setMessage("Đã đặt lại mật khẩu");
-    closeModal();
+      setMessage("Đã đặt lại mật khẩu");
+      closeModal();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function deactivateUser(user) {
-    if (!window.confirm(`Khóa tài khoản ${user.username}?`)) return;
     const response = await usersService.deactivate(user.id);
     if (!response.success) {
       setError(response.error?.message || "Không khóa được tài khoản");
       return;
     }
     setMessage("Đã khóa tài khoản");
+    setDeactivateTarget(null);
     reload();
   }
 
@@ -192,6 +205,14 @@ export default function UserManagementPage() {
 
       {message && <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
       {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loadError && (
+        <div className="flex flex-col gap-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span>{loadError.message}</span>
+          <button type="button" onClick={reload} className="btn-secondary self-start">
+            Tải lại
+          </button>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header flex items-center justify-between">
@@ -225,11 +246,11 @@ export default function UserManagementPage() {
                       <button onClick={() => openEdit(user)} className="text-sm text-blue-700">
                         Sửa
                       </button>
-                      <button onClick={() => openReset(user)} className="text-sm text-amber-700">
-                        Đặt mật khẩu
-                      </button>
-                      {user.status === "active" && (
-                        <button onClick={() => deactivateUser(user)} className="text-sm text-red-700">
+                        <button onClick={() => openReset(user)} className="text-sm text-amber-700">
+                          Đặt mật khẩu
+                        </button>
+                        {user.status === "active" && (
+                        <button onClick={() => setDeactivateTarget(user)} className="text-sm text-red-700">
                           Khóa
                         </button>
                       )}
@@ -255,9 +276,20 @@ export default function UserManagementPage() {
         setForm={setForm}
         password={password}
         setPassword={setPassword}
+        submitting={submitting}
         onClose={closeModal}
         onSubmitUser={submitUser}
         onSubmitReset={submitReset}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deactivateTarget)}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={() => deactivateUser(deactivateTarget)}
+        title="Khóa tài khoản"
+        message={`Bạn có chắc muốn khóa tài khoản ${deactivateTarget?.username || ""}? Người dùng sẽ không thể đăng nhập cho tới khi admin mở lại.`}
+        confirmText="Khóa tài khoản"
+        cancelText="Hủy"
       />
     </div>
   );

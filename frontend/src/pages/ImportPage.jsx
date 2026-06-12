@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { importService } from "../services/api";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
+import LongOperationStatus from "../components/ui/LongOperationStatus";
+import { ConfirmModal } from "../components/ui/Modal";
 
 const sampleCsv = [
   "student_full_name,date_of_birth,gender,parent_full_name,parent_phone,relationship,enrollment_date,student_phone,student_email,address,notes",
@@ -27,6 +30,8 @@ export default function ImportPage() {
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [operation, setOperation] = useState("");
+  const [confirmImportOpen, setConfirmImportOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -43,6 +48,7 @@ export default function ImportPage() {
 
   async function runPreview() {
     setLoading(true);
+    setOperation("preview");
     setError("");
     setMessage("");
     try {
@@ -55,6 +61,7 @@ export default function ImportPage() {
       setMessage("Preview ready");
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
@@ -63,9 +70,9 @@ export default function ImportPage() {
       setError("Fix invalid rows before commit");
       return;
     }
-    if (!window.confirm(`Commit ${preview.summary.valid_rows} students?`)) return;
 
     setLoading(true);
+    setOperation("commit");
     setError("");
     setMessage("");
     try {
@@ -79,8 +86,10 @@ export default function ImportPage() {
       setPreview(null);
       setCsv("");
       setFileName("");
+      setConfirmImportOpen(false);
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
@@ -109,22 +118,35 @@ export default function ImportPage() {
           <button onClick={useSample} className="btn-secondary">
             Load sample
           </button>
-          <button
+          <ActionProgressButton
             onClick={runPreview}
+            loading={operation === "preview"}
             disabled={!csv.trim() || loading}
-            className="btn-primary disabled:opacity-50"
+            className="btn-primary"
+            loadingLabel="Đang kiểm tra..."
           >
             Preview
-          </button>
-          <button
-            onClick={commitImport}
+          </ActionProgressButton>
+          <ActionProgressButton
+            onClick={() => setConfirmImportOpen(true)}
+            loading={operation === "commit"}
             disabled={!canCommit || loading}
-            className="btn-secondary disabled:opacity-50"
+            className="btn-secondary"
+            loadingLabel="Đang import..."
           >
             Commit import
-          </button>
+          </ActionProgressButton>
         </div>
       </div>
+
+      {loading && (
+        <LongOperationStatus
+          title={operation === "commit" ? "Đang ghi dữ liệu import" : "Đang kiểm tra file CSV"}
+          message={operation === "commit" ? "Hệ thống đang tạo học viên/phụ huynh và sẽ rollback nếu có lỗi." : "Hệ thống đang validate dòng, phát hiện trùng lặp và chuẩn bị preview."}
+          steps={operation === "commit" ? ["Khóa dữ liệu preview", "Ghi học viên/phụ huynh", "Trả kết quả"] : ["Đọc CSV", "Validate dữ liệu", "Tổng hợp lỗi"]}
+          activeStep={1}
+        />
+      )}
 
       <div className="card">
         <div className="card-body space-y-4">
@@ -238,6 +260,17 @@ export default function ImportPage() {
           </div>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={confirmImportOpen}
+        onClose={() => setConfirmImportOpen(false)}
+        onConfirm={commitImport}
+        title="Xác nhận import"
+        message={`Import ${preview?.summary?.valid_rows || 0} học viên hợp lệ vào hệ thống? Thao tác này sẽ tạo dữ liệu thật và chỉ tiếp tục khi preview không còn lỗi.`}
+        confirmText="Import dữ liệu"
+        cancelText="Hủy"
+        variant="primary"
+      />
     </div>
   );
 }

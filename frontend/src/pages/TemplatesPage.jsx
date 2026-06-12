@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
+import { FileText, Palette, Plus, Star, Trash2 } from 'lucide-react';
 import { templatesService } from '../services/api';
 import Modal, { ConfirmModal } from '../components/ui/Modal';
+import ActionProgressButton from '../components/ui/ActionProgressButton';
+import LoadingScene from '../components/ui/LoadingScene';
+import PageState from '../components/ui/PageState';
+import { ListPanel, MetricGrid, OperationalPage, PageIntro } from '../components/ui/OperationalPage';
 
 // VI: Trang quản lý mẫu in phiếu thu/chi
 export default function TemplatesPage() {
@@ -11,6 +16,8 @@ export default function TemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState(null);
 
   useEffect(() => {
     loadTemplates();
@@ -18,24 +25,53 @@ export default function TemplatesPage() {
 
   const loadTemplates = async () => {
     setLoading(true);
+    setError('');
     const type = filter === 'all' ? null : filter;
-    const response = await templatesService.getAll(type);
-    if (response.success) {
-      setTemplates(response.data.templates || []);
+    try {
+      const response = await templatesService.getAll(type);
+      if (response.success) {
+        setTemplates(response.data.templates || []);
+      } else {
+        setError(response.error?.message || 'Không tải được danh sách mẫu in');
+      }
+    } catch (loadError) {
+      setError(loadError?.message || 'Không tải được danh sách mẫu in');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSetDefault = async (id) => {
-    await templatesService.setDefault(id);
-    loadTemplates();
+    setActionBusy(`default:${id}`);
+    setError('');
+    try {
+      const response = await templatesService.setDefault(id);
+      if (!response.success) {
+        setError(response.error?.message || 'Không đặt được mẫu mặc định');
+        return;
+      }
+      await loadTemplates();
+    } finally {
+      setActionBusy(null);
+    }
   };
 
   const handleDelete = async () => {
     if (selectedTemplate) {
-      await templatesService.delete(selectedTemplate.id);
-      loadTemplates();
-      setSelectedTemplate(null);
+      setActionBusy(`delete:${selectedTemplate.id}`);
+      setError('');
+      try {
+        const response = await templatesService.delete(selectedTemplate.id);
+        if (!response.success) {
+          setError(response.error?.message || 'Không xóa được mẫu in');
+          return;
+        }
+        await loadTemplates();
+        setSelectedTemplate(null);
+        setShowDeleteConfirm(false);
+      } finally {
+        setActionBusy(null);
+      }
     }
   };
 
@@ -47,31 +83,64 @@ export default function TemplatesPage() {
   const paperSizeLabels = {
     a4: 'A4',
     a5: 'A5',
+    a6: 'A6',
     letter: 'Letter',
     thermal_80mm: 'Thermal 80mm',
   };
 
+  const readTemplateConfig = (template) => {
+    const raw = template?.json_config;
+    if (!raw) return {};
+    if (typeof raw === 'object') return raw;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  };
+
+  const getPaperLabel = (template) => {
+    const paper = readTemplateConfig(template).paper;
+    if (paper?.label) return paper.label;
+    if (paper?.mode === 'custom' || paper?.width_mm || paper?.height_mm) {
+      const width = paper?.width_mm || paper?.width || '?';
+      const height = paper?.height_mm || paper?.height || '?';
+      return `${width} x ${height} mm`;
+    }
+    return paperSizeLabels[template.paper_size] || template.paper_size || 'A4';
+  };
+
+  const isDefaultTemplate = (template) => template.is_default === true || template.is_default === 1;
+
+  const metrics = [
+    { label: 'Tổng mẫu', value: templates.length, helper: 'Đang quản lý', icon: FileText, tone: 'indigo' },
+    { label: 'Phiếu thu', value: templates.filter((item) => item.type === 'receipt').length, helper: 'Mẫu thu tiền', icon: FileText, tone: 'emerald' },
+    { label: 'Phiếu chi', value: templates.filter((item) => item.type === 'payment').length, helper: 'Mẫu chi tiền', icon: FileText, tone: 'rose' },
+    { label: 'Mặc định', value: templates.filter(isDefaultTemplate).length, helper: 'Đang áp dụng', icon: Star, tone: 'amber' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý mẫu in</h1>
-          <p className="text-gray-500">Tạo và chỉnh sửa mẫu phiếu thu, phiếu chi</p>
-        </div>
-        <button 
-          onClick={() => { setEditingTemplate(null); setShowForm(true); }} 
-          className="btn-primary"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Tạo mẫu mới
-        </button>
-      </div>
+    <OperationalPage>
+      <PageIntro
+        eyebrow="Mẫu in"
+        title="Quản lý mẫu in"
+        description="Tạo, chỉnh sửa và chọn mẫu mặc định cho phiếu thu, phiếu chi. Trình thiết kế giữ nguyên canvas khi upload/lưu để người dùng luôn thấy hệ thống đang xử lý."
+        status={loading ? 'Đang tải' : 'Sẵn sàng'}
+        actions={
+          <button
+            onClick={() => { setEditingTemplate(null); setShowForm(true); }}
+            className="btn-primary"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Tạo mẫu mới
+          </button>
+        }
+      />
+
+      <MetricGrid metrics={metrics} />
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {[
           { value: 'all', label: 'Tất cả' },
           { value: 'receipt', label: 'Phiếu thu' },
@@ -91,18 +160,23 @@ export default function TemplatesPage() {
         ))}
       </div>
 
+      {error && (
+        <PageState
+          title="Không tải được mẫu in"
+          message={error}
+          tone="red"
+          action={loadTemplates}
+          actionLabel="Tải lại"
+        />
+      )}
+
       {/* Templates Grid */}
       {loading ? (
-        <div className="grid grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="card p-6 animate-pulse">
-              <div className="h-40 bg-gray-200 rounded-lg mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      ) : templates.length === 0 ? (
+        <LoadingScene
+          label="Đang tải thư viện mẫu in..."
+          detail="Hệ thống đang đọc metadata, mẫu mặc định và cấu hình khổ giấy."
+        />
+      ) : !error && templates.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,13 +190,18 @@ export default function TemplatesPage() {
             Tạo mẫu mới
           </button>
         </div>
-      ) : (
+      ) : !error ? (
+        <ListPanel
+          title="Thư viện mẫu"
+          description="Mỗi mẫu có thể mở vào trình thiết kế canvas để chỉnh ảnh, field động, khổ giấy và layer."
+          countLabel={`${templates.length} mẫu`}
+        >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.map(template => (
             <div 
               key={template.id} 
               className={`card p-4 hover:shadow-lg transition-shadow ${
-                template.is_default ? 'ring-2 ring-primary-500' : ''
+                isDefaultTemplate(template) ? 'ring-2 ring-primary-500' : ''
               }`}
             >
               {/* Preview Thumbnail */}
@@ -131,7 +210,7 @@ export default function TemplatesPage() {
                   <div className="text-4xl mb-2">
                     {template.type === 'receipt' ? '📄' : '📋'}
                   </div>
-                  <p className="text-sm text-gray-500">{paperSizeLabels[template.paper_size]}</p>
+                  <p className="text-sm text-gray-500">{getPaperLabel(template)}</p>
                   <p className="text-xs text-gray-400">{template.orientation}</p>
                 </div>
               </div>
@@ -144,7 +223,7 @@ export default function TemplatesPage() {
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeLabels[template.type]?.color}`}>
                       {typeLabels[template.type]?.label}
                     </span>
-                    {template.is_default === 1 && (
+                    {isDefaultTemplate(template) && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700">
                         Mặc định
                       </span>
@@ -157,38 +236,45 @@ export default function TemplatesPage() {
               <div className="flex items-center gap-2 pt-3 border-t">
                 <a
                   href={`/templates/${template.id}/design`}
-                  className="flex-1 py-2 text-sm font-medium text-center text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
                 >
-                  🎨 Thiết kế
+                  <Palette size={16} aria-hidden="true" />
+                  Thiết kế
                 </a>
                 <button
                   onClick={() => { setEditingTemplate(template); setShowForm(true); }}
+                  aria-label={`Sua mau ${template.template_name}`}
+                  title={`Sua mau ${template.template_name}`}
                   className="py-2 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   ✏️
                 </button>
-                {!template.is_default && (
-                  <button
+                {!isDefaultTemplate(template) && (
+                  <ActionProgressButton
                     onClick={() => handleSetDefault(template.id)}
+                    loading={actionBusy === `default:${template.id}`}
+                    aria-label={`Dat ${template.template_name} lam mau mac dinh`}
+                    title={`Dat ${template.template_name} lam mau mac dinh`}
                     className="py-2 px-3 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    loadingLabel="..."
                   >
-                    ⭐
-                  </button>
+                    <Star size={16} aria-hidden="true" />
+                  </ActionProgressButton>
                 )}
                 <button
                   onClick={() => { setSelectedTemplate(template); setShowDeleteConfirm(true); }}
+                  aria-label={`Xoa mau ${template.template_name}`}
+                  title={`Xoa mau ${template.template_name}`}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
+                  <Trash2 size={16} aria-hidden="true" />
                 </button>
               </div>
             </div>
           ))}
         </div>
-      )}
+        </ListPanel>
+      ) : null}
 
       {/* Create/Edit Modal */}
       <Modal
@@ -212,7 +298,7 @@ export default function TemplatesPage() {
         title="Xóa mẫu"
         message={`Bạn có chắc muốn xóa mẫu "${selectedTemplate?.template_name}"?`}
       />
-    </div>
+    </OperationalPage>
   );
 }
 
@@ -246,16 +332,21 @@ function TemplateForm({ template, onSuccess, onCancel }) {
         }
       : formData;
 
-    const response = template
-      ? await templatesService.update(template.id, payload)
-      : await templatesService.create(payload);
+    try {
+      const response = template
+        ? await templatesService.update(template.id, payload)
+        : await templatesService.create(payload);
 
-    if (response.success) {
-      onSuccess();
-    } else {
-      setError(response.error?.message || 'Có lỗi xảy ra');
+      if (response.success) {
+        onSuccess();
+      } else {
+        setError(response.error?.message || 'Có lỗi xảy ra');
+      }
+    } catch (submitError) {
+      setError(submitError?.message || 'Có lỗi xảy ra');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -311,6 +402,7 @@ function TemplateForm({ template, onSuccess, onCancel }) {
           >
             <option value="a4">A4 (210 × 297 mm)</option>
             <option value="a5">A5 (148 × 210 mm)</option>
+            <option value="a6">A6 (105 × 148 mm)</option>
             <option value="letter">Letter (216 × 279 mm)</option>
             <option value="thermal_80mm">Thermal (80mm)</option>
           </select>

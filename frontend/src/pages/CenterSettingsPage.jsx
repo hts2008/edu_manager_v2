@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { centerSettingsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useToast } from "../components/ui/Toast";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
 
 const emptyForm = {
   center_name: "",
@@ -56,6 +57,14 @@ export default function CenterSettingsPage() {
     }
   }
 
+  async function handleReload() {
+    try {
+      await reload();
+    } catch (reloadError) {
+      toast.error(reloadError.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -63,7 +72,12 @@ export default function CenterSettingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Cài đặt trung tâm</h1>
           <p className="text-gray-500">Thông tin dùng cho phiếu in, báo cáo và hồ sơ vận hành.</p>
         </div>
-        <button onClick={reload} className="btn-secondary self-start lg:self-auto">
+        <button
+          type="button"
+          onClick={handleReload}
+          disabled={loading || saving}
+          className="btn-secondary self-start disabled:cursor-not-allowed disabled:opacity-60 lg:self-auto"
+        >
           Làm mới
         </button>
       </div>
@@ -150,9 +164,15 @@ export default function CenterSettingsPage() {
             </div>
           </div>
           <div className="card-footer flex justify-end">
-            <button className="btn-primary" disabled={saving || loading}>
-              {saving ? "Đang lưu..." : "Lưu cài đặt"}
-            </button>
+            <ActionProgressButton
+              type="submit"
+              loading={saving}
+              disabled={loading}
+              loadingLabel="Đang lưu..."
+              className="btn-primary"
+            >
+              Lưu cài đặt
+            </ActionProgressButton>
           </div>
         </form>
 

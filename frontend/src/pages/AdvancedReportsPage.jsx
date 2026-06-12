@@ -12,6 +12,7 @@ import {
 import { reportsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { exportAdvancedReport } from "../utils/excelExport";
+import { ChartFrame, SAFE_RECHARTS_CONTAINER_PROPS } from "../components/ui/LoadingStates";
 
 function dateOnly(date) {
   return date.toISOString().split("T")[0];
@@ -150,7 +151,7 @@ export default function AdvancedReportsPage() {
         {summaryCard("Lớp đang hoạt động", summary.active_class_count || 0)}
       </div>
 
-      <div className="card" data-testid="advanced-revenue-line-chart">
+      <div className="card min-w-0" data-testid="advanced-revenue-line-chart">
         <div className="card-header flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Xu hướng doanh thu</h2>
@@ -162,8 +163,8 @@ export default function AdvancedReportsPage() {
           {loading && !revenueTrend.length ? (
             <div className="mb-6 h-72 animate-pulse rounded-2xl bg-gray-100" />
           ) : revenueTrend.length ? (
-            <div className="mb-6 h-72">
-              <ResponsiveContainer width="100%" height="100%">
+            <ChartFrame className="mb-6" height={288}>
+              <ResponsiveContainer {...SAFE_RECHARTS_CONTAINER_PROPS} width="100%" height="100%">
                 <LineChart data={revenueTrend} margin={{ top: 12, right: 20, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis dataKey="period" stroke="#6b7280" fontSize={12} tickLine={false} axisLine={false} />
@@ -181,7 +182,7 @@ export default function AdvancedReportsPage() {
                   <Line type="monotone" dataKey="net_revenue" name="Ròng" stroke="#2563eb" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </ChartFrame>
           ) : null}
 
           {revenueTrend.length ? (

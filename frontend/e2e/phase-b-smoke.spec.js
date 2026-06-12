@@ -153,6 +153,16 @@ test("reports page and financial API contract are available", async ({ page, req
   expect(Array.isArray(body.data?.payments)).toBeTruthy();
   expect(body.data?.paymentsByCategory).toBeTruthy();
   expect(body.data?.summary).toBeTruthy();
+
+  const biResponse = await request.get("/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50", {
+    headers: { Authorization: `Bearer ${authToken}` },
+  });
+  expect(biResponse.ok()).toBeTruthy();
+  const biBody = await biResponse.json();
+  expect(biBody.data?.summary).toBeTruthy();
+  expect(Array.isArray(biBody.data?.charts?.monthly)).toBeTruthy();
+  expect(Array.isArray(biBody.data?.students)).toBeTruthy();
+  expect(biBody.data?.pagination).toBeTruthy();
 });
 
 test("audit log page and API contract are available", async ({ page, request }) => {

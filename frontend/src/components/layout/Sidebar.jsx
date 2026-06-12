@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import {
   Home, Users, UsersRound, School, GraduationCap,
@@ -9,6 +9,7 @@ import {
   Settings, UploadCloud, Bell, DatabaseBackup, Trash2,
   ChevronDown, X, Sparkles
 } from "lucide-react";
+import { getMotionTransition } from "../../design/motion";
 
 const iconsMap = {
   home: Home,
@@ -66,7 +67,8 @@ const menuGroups = [
       {
         title: "Báo cáo",
         items: [
-          { title: "Báo cáo", icon: "report", path: "/reports", adminOnly: true },
+          { title: "Trung tâm phân tích", icon: "report", path: "/reports", adminOnly: true },
+          { title: "Tiến bộ học viên", icon: "teacher", path: "/student-progress", adminOnly: true },
           { title: "Báo cáo nâng cao", icon: "chart", path: "/advanced-reports", adminOnly: true },
           { title: "Nhật ký", icon: "audit", path: "/audit-logs", adminOnly: true },
         ],
@@ -95,6 +97,7 @@ function isActivePath(pathname, path) {
 export default function Sidebar({ isOpen, onClose }) {
   const { isAdmin } = useAuth();
   const { pathname } = useLocation();
+  const reducedMotion = useReducedMotion();
   const visibleGroups = useMemo(
     () =>
       menuGroups
@@ -143,7 +146,7 @@ export default function Sidebar({ isOpen, onClose }) {
       </AnimatePresence>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] xl:w-[300px] transform flex-col border-r border-slate-200/60 bg-white/95 shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:static lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] xl:w-[300px] transform flex-col border-r border-slate-200/70 bg-white shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:translate-x-0 lg:shadow-none ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -180,27 +183,27 @@ export default function Sidebar({ isOpen, onClose }) {
                   const isClosed = closedSections.has(section.title) && !hasActive;
 
                   return (
-                    <div key={section.title} className="rounded-2xl border border-slate-200/60 bg-white/40 shadow-sm overflow-hidden transition-all duration-300">
+                    <div key={section.title} className="rounded-[18px] border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all duration-300 motion-reduce:transition-none">
                       <button
                         type="button"
                         aria-expanded={!isClosed}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-slate-50/50"
+                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-slate-50"
                         onClick={() => toggleSection(section.title)}
                       >
                         <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{section.title}</span>
                         <ChevronDown
                           size={14}
-                          className={`text-slate-400 transition-transform duration-300 ${isClosed ? "" : "rotate-180"}`}
+                          className={`text-slate-400 transition-transform duration-300 motion-reduce:transition-none ${isClosed ? "" : "rotate-180"}`}
                         />
                       </button>
 
                       <AnimatePresence initial={false}>
                         {!isClosed && (
                           <Motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2, ease: "easeInOut" }}
+                            initial={reducedMotion ? false : { height: 0, opacity: 0 }}
+                            animate={reducedMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                            exit={reducedMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                            transition={getMotionTransition({ reduced: reducedMotion, duration: "fast" })}
                             className="overflow-hidden"
                           >
                             <div className="space-y-0.5 px-2 pb-2">
@@ -215,7 +218,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                     className={({ isActive }) =>
                                       `group relative flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200 ${
                                         isActive
-                                          ? "bg-primary-50 text-primary-700"
+                                          ? "bg-primary-50 text-primary-700 shadow-sm"
                                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                       }`
                                     }
@@ -225,12 +228,12 @@ export default function Sidebar({ isOpen, onClose }) {
                                         {isActive && (
                                           <Motion.div
                                             layoutId="activeNavBubble"
-                                            className="absolute inset-0 rounded-xl border border-primary-100/70 bg-gradient-to-r from-primary-50 to-violet-50"
+                                            className="absolute inset-0 rounded-xl border border-primary-100 bg-primary-50"
                                             initial={false}
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                            transition={getMotionTransition({ reduced: reducedMotion, duration: "fast" })}
                                           />
                                         )}
-                                        <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isActive ? 'bg-white text-primary-600 shadow-sm' : 'bg-slate-100/80 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
+                                        <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isActive ? 'bg-white text-primary-600 shadow-sm' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
                                           <IconComp size={16} strokeWidth={isActive ? 2.5 : 2} />
                                         </div>
                                         <span className="relative z-10 truncate tracking-tight">{item.title}</span>
@@ -258,7 +261,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <span className="text-xs font-bold text-slate-700">2.0.1 PRO</span>
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-100/50 text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse motion-reduce:animate-none" />
               <span className="text-[10px] font-bold uppercase tracking-widest">Stable</span>
             </div>
           </div>

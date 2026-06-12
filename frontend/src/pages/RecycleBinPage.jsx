@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { recycleBinService } from "../services/api";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
+import { ConfirmModal } from "../components/ui/Modal";
 
 const resources = [
   { value: "", label: "All" },
@@ -34,6 +36,8 @@ export default function RecycleBinPage() {
   const [resource, setResource] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState("");
+  const [purgeTarget, setPurgeTarget] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -59,9 +63,8 @@ export default function RecycleBinPage() {
   const items = useMemo(() => data?.items || [], [data]);
 
   async function runAction(action, item) {
-    if (action === "purge" && !window.confirm(`Permanently purge ${item.label}?`)) {
-      return;
-    }
+    const actionKey = `${action}:${item.resource}:${item.id}`;
+    setActionBusy(actionKey);
     setLoading(true);
     setError("");
     setMessage("");
@@ -75,9 +78,11 @@ export default function RecycleBinPage() {
         return;
       }
       setMessage(`${action} completed`);
+      setPurgeTarget(null);
       await loadItems(resource);
     } finally {
       setLoading(false);
+      setActionBusy("");
     }
   }
 
@@ -146,20 +151,24 @@ export default function RecycleBinPage() {
                   <td className="py-2 pr-4">{item.deleted_at ? new Date(item.deleted_at).toLocaleString() : "-"}</td>
                   <td className="py-2 pl-4">
                     <div className="flex justify-end gap-2">
-                      <button
+                      <ActionProgressButton
                         onClick={() => runAction("restore", item)}
+                        loading={actionBusy === `restore:${item.resource}:${item.id}`}
                         disabled={loading}
                         className="btn-secondary text-xs disabled:opacity-50"
+                        loadingLabel="Restoring..."
                       >
                         Restore
-                      </button>
-                      <button
-                        onClick={() => runAction("purge", item)}
+                      </ActionProgressButton>
+                      <ActionProgressButton
+                        onClick={() => setPurgeTarget(item)}
+                        loading={actionBusy === `purge:${item.resource}:${item.id}`}
                         disabled={loading}
                         className="btn-danger text-xs disabled:opacity-50"
+                        loadingLabel="Purging..."
                       >
                         Purge
-                      </button>
+                      </ActionProgressButton>
                     </div>
                   </td>
                 </tr>
@@ -175,6 +184,16 @@ export default function RecycleBinPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(purgeTarget)}
+        onClose={() => setPurgeTarget(null)}
+        onConfirm={() => runAction("purge", purgeTarget)}
+        title="Xóa vĩnh viễn"
+        message={`Xóa vĩnh viễn "${purgeTarget?.label || ""}" khỏi thùng rác? Thao tác này không thể khôi phục.`}
+        confirmText="Xóa vĩnh viễn"
+        cancelText="Hủy"
+      />
     </div>
   );
 }

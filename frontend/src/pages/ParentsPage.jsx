@@ -1,9 +1,17 @@
 import { useState, useEffect } from "react";
+import { Plus, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { bulkActionsService, parentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import BulkActionBar from "../components/ui/BulkActionBar";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
+import PageState from "../components/ui/PageState";
+import {
+  ListPanel,
+  MetricGrid,
+  OperationalPage,
+  PageIntro,
+} from "../components/ui/OperationalPage";
 
 // VI: Trang danh sách phụ huynh - Premium Design
 export default function ParentsPage() {
@@ -14,6 +22,7 @@ export default function ParentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingParent, setEditingParent] = useState(null);
   const [selectedParentIds, setSelectedParentIds] = useState([]);
+  const [error, setError] = useState("");
   const toast = useToast();
 
   useEffect(() => {
@@ -22,11 +31,14 @@ export default function ParentsPage() {
 
   const loadParents = async () => {
     setLoading(true);
+    setError("");
     const response = await parentsService.getAll();
     if (response.success) {
       setParents(response.data.parents);
       const currentIds = new Set((response.data.parents || []).map((parent) => parent.id));
       setSelectedParentIds((ids) => ids.filter((id) => currentIds.has(id)));
+    } else {
+      setError(response.error?.message || "Không thể tải danh sách phụ huynh");
     }
     setLoading(false);
   };
@@ -198,8 +210,75 @@ export default function ParentsPage() {
     },
   ];
 
+  const fatherCount = parents.filter((p) => p.relationship === "father").length;
+  const motherCount = parents.filter((p) => p.relationship === "mother").length;
+  const guardianCount = parents.filter((p) => p.relationship === "guardian").length;
+  const linkedChildren = parents.reduce((sum, parent) => sum + Number(parent.children_count || 0), 0);
+  const summaryMetrics = [
+    {
+      label: "Phụ huynh",
+      value: parents.length,
+      helper: `${linkedChildren} học viên liên kết`,
+      icon: UsersRound,
+      tone: "indigo",
+    },
+    {
+      label: "Bố",
+      value: fatherCount,
+      helper: "Vai trò liên hệ",
+      icon: UserRound,
+      tone: "sky",
+    },
+    {
+      label: "Mẹ",
+      value: motherCount,
+      helper: "Vai trò liên hệ",
+      icon: UserRound,
+      tone: "rose",
+    },
+  ];
+  const metrics = [
+    ...summaryMetrics,
+    {
+      label: "Giám hộ",
+      value: guardianCount,
+      helper: "Người liên hệ khác",
+      icon: ShieldCheck,
+      tone: "amber",
+    },
+  ];
+
+  if (error && !loading) {
+    return (
+      <PageState
+        title="Chưa tải được phụ huynh"
+        message={error}
+        tone="red"
+        action={loadParents}
+        actionLabel="Tải lại"
+      />
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <OperationalPage>
+      <PageIntro
+        eyebrow="Liên hệ gia đình"
+        title="Phụ huynh"
+        description="Quản lý người liên hệ, số điện thoại và mối liên kết với học viên để hỗ trợ vận hành thu phí và chăm sóc."
+        status={`${parents.length} hồ sơ`}
+        metrics={summaryMetrics}
+        actions={
+          <button onClick={handleAdd} className="btn-primary">
+            <Plus size={18} aria-hidden="true" />
+            Thêm phụ huynh
+          </button>
+        }
+      />
+
+      <MetricGrid metrics={metrics} />
+
+      <div className="hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -287,7 +366,14 @@ export default function ParentsPage() {
         </div>
       </div>
 
+      </div>
+
       {/* Data Table */}
+      <ListPanel
+        title="Danh sách phụ huynh"
+        description="Nhấn vào dòng để xem hoặc sửa thông tin liên hệ."
+        countLabel={`${parents.length} hồ sơ`}
+      >
       <BulkActionBar
         count={selectedParentIds.length}
         onClear={() => setSelectedParentIds([])}
@@ -309,6 +395,7 @@ export default function ParentsPage() {
         onSelectionChange={setSelectedParentIds}
         emptyMessage="Chưa có phụ huynh nào"
       />
+      </ListPanel>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -321,6 +408,8 @@ export default function ParentsPage() {
       <Modal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
+        confirmOnClose
+        confirmCloseMessage="Ban co thay doi chua luu trong ho so phu huynh. Dong hop thoai se bo cac thay doi nay."
         title={editingParent ? "Sửa phụ huynh" : "Thêm phụ huynh mới"}
       >
         <ParentForm
@@ -332,7 +421,7 @@ export default function ParentsPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </div>
+    </OperationalPage>
   );
 }
 
@@ -545,8 +634,8 @@ function ParentForm({ parent, onSuccess, onCancel }) {
         />
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4 shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)] backdrop-blur md:-mx-8 md:-mb-6 md:px-8">
+        <button type="button" onClick={onCancel} data-modal-close className="btn-secondary">
           Hủy
         </button>
         <button type="submit" disabled={loading} className="btn-primary">

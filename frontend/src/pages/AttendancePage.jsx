@@ -7,6 +7,8 @@ import {
 } from "../services/api";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
+import LongOperationStatus from "../components/ui/LongOperationStatus";
 import {
   countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
@@ -48,6 +50,8 @@ const STATUS_LABELS = {
 };
 
 const MAKE_UP_REASON = "Hoc bu ngoai lich";
+const buildWeekKey = (classId, week) =>
+  classId && week ? `${classId}:${toDateKey(week.start)}:${toDateKey(week.end)}` : "";
 
 function getAttendanceWeekRange(date) {
   const start = new Date(date);
@@ -79,6 +83,10 @@ export default function AttendancePage() {
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [weekLoading, setWeekLoading] = useState(false);
+  const [weekError, setWeekError] = useState(null);
+  const [loadedWeekKey, setLoadedWeekKey] = useState("");
   const [saving, setSaving] = useState(false);
   const classDataRequestRef = useRef(0);
   const weekAttendanceRequestRef = useRef(0);
@@ -224,6 +232,29 @@ export default function AttendancePage() {
     [weekDates],
   );
 
+  const selectedWeekKey = useMemo(
+    () => buildWeekKey(selectedClass, selectedWeek),
+    [selectedClass, selectedWeek],
+  );
+
+  const isWeekReady = Boolean(
+    selectedWeek && selectedWeekKey && loadedWeekKey === selectedWeekKey && !weekLoading && !weekError,
+  );
+
+  const lockedSelectedMonth = useMemo(
+    () => selectedWeekMonthKeys.find((monthKey) => periods[monthKey]?.status === "locked"),
+    [periods, selectedWeekMonthKeys],
+  );
+
+  const selectedWeekPeriodLabels = useMemo(
+    () =>
+      selectedWeekMonthKeys.map((monthKey) => {
+        const status = periods[monthKey]?.status || "open";
+        return `${monthKey}: ${PERIOD_STATUS[status]?.label || "Dang mo"}`;
+      }),
+    [periods, selectedWeekMonthKeys],
+  );
+
   const weekSessionLimit = useMemo(() => {
     if (!selectedWeek || !classSchedule) return sessionsPerWeek;
     const sessions = Number(classSchedule.sessions_per_week || 0);
@@ -297,11 +328,17 @@ export default function AttendancePage() {
       setPeriods({});
       setClassSchedule(null);
       setLoading(false);
+      setLoadError(null);
+      setWeekLoading(false);
+      setWeekError(null);
+      setLoadedWeekKey("");
       return;
     }
 
     setSelectedWeek(null);
     setAttendance({});
+    setWeekError(null);
+    setLoadedWeekKey("");
     loadClassData(selectedClass, threeMonths);
   }, [selectedClass, visibleMonthKey]);
 
@@ -312,9 +349,13 @@ export default function AttendancePage() {
   }, [selectedClass, selectedWeek]);
 
   const loadClasses = async () => {
-    const response = await classesService.getAll();
-    if (response.success) {
-      setClasses(response.data.classes || []);
+    try {
+      const response = await classesService.getAll();
+      if (response.success) {
+        setClasses(response.data.classes || []);
+      }
+    } catch (error) {
+      toast.error(error?.message || "Khong the tai danh sach lop");
     }
   };
 
@@ -324,6 +365,7 @@ export default function AttendancePage() {
     const requestId = classDataRequestRef.current + 1;
     classDataRequestRef.current = requestId;
     setLoading(true);
+    setLoadError(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -375,6 +417,7 @@ export default function AttendancePage() {
         setStudents([]);
         setPeriods({});
         setCalendarAttendance({});
+        setLoadError(classRes.error?.message || "Khong the tai du lieu diem danh cua lop");
         return;
       }
 
@@ -406,6 +449,10 @@ export default function AttendancePage() {
         calendarData[dateKey].total++;
       });
       setCalendarAttendance(calendarData);
+    } catch (error) {
+      if (classDataRequestRef.current === requestId) {
+        setLoadError(error?.message || "Khong the tai du lieu diem danh");
+      }
     } finally {
       if (classDataRequestRef.current === requestId) {
         setLoading(false);
@@ -422,6 +469,10 @@ export default function AttendancePage() {
 
     const requestId = weekAttendanceRequestRef.current + 1;
     weekAttendanceRequestRef.current = requestId;
+    const nextWeekKey = buildWeekKey(classId, week);
+    setWeekLoading(true);
+    setWeekError(null);
+    setLoadedWeekKey("");
 
     const allAttendance = {};
     studentList.forEach((s) => {
@@ -437,40 +488,69 @@ export default function AttendancePage() {
     }
 
     const token = localStorage.getItem("token");
-    const monthResults = await Promise.all(
-      months.map(async (month) => {
-        try {
-          const res = await fetch(
-            `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${month}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
+    try {
+      const monthResults = await Promise.all(
+        months.map(async (month) => {
+          try {
+            const res = await fetch(
+              `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${month}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
               },
-            },
-          );
-          if (!res.ok) return [];
-          const data = await res.json();
-          return data.success ? data.data.attendance || [] : [];
-        } catch (e) {
-          console.error("Error loading attendance for month", month, e);
-          return [];
-        }
-      }),
-    );
+            );
+            if (!res.ok) {
+              return { month, error: `HTTP ${res.status}`, attendance: [] };
+            }
+            const data = await res.json();
+            if (!data.success) {
+              return {
+                month,
+                error: data.error?.message || "API khong tra ve du lieu diem danh",
+                attendance: [],
+              };
+            }
+            return { month, error: null, attendance: data.data.attendance || [] };
+          } catch (e) {
+            console.error("Error loading attendance for month", month, e);
+            return { month, error: e?.message || "Network error", attendance: [] };
+          }
+        }),
+      );
 
-    if (weekAttendanceRequestRef.current !== requestId) return;
+      if (weekAttendanceRequestRef.current !== requestId) return;
 
-    monthResults.flat().forEach((a) => {
-      if (!allAttendance[a.student_id]) {
-        allAttendance[a.student_id] = {};
+      const failedMonths = monthResults.filter((result) => result.error);
+      if (failedMonths.length) {
+        setWeekError(
+          `Khong the tai diem danh thang ${failedMonths
+            .map((item) => item.month)
+            .join(", ")}. Vui long thu lai truoc khi luu.`,
+        );
+        return;
       }
-      allAttendance[a.student_id][a.attendance_date] = a.status;
-    });
 
-    setAttendance(allAttendance);
+      monthResults.flatMap((result) => result.attendance).forEach((a) => {
+        if (!allAttendance[a.student_id]) {
+          allAttendance[a.student_id] = {};
+        }
+        allAttendance[a.student_id][a.attendance_date] = a.status;
+      });
+
+      setAttendance(allAttendance);
+      setLoadedWeekKey(nextWeekKey);
+    } finally {
+      if (weekAttendanceRequestRef.current === requestId) {
+        setWeekLoading(false);
+      }
+    }
   };
 
   const handleWeekClick = (weekStart) => {
+    setAttendance({});
+    setWeekError(null);
+    setLoadedWeekKey("");
     setSelectedWeek({
       ...getAttendanceWeekRange(weekStart),
       anchor: new Date(weekStart),
@@ -478,6 +558,10 @@ export default function AttendancePage() {
   };
 
   const handleCellClick = (studentId, dateStr) => {
+    if (!isWeekReady) {
+      toast.error("Vui long doi tai xong tuan diem danh truoc khi sua");
+      return;
+    }
     const monthKey = dateStr.slice(0, 7);
     const period = periods[monthKey];
     if (period?.status === "locked") {
@@ -509,10 +593,12 @@ export default function AttendancePage() {
       return;
     }
 
-    const lockedMonth = selectedWeekMonthKeys.find(
-      (monthKey) => periods[monthKey]?.status === "locked",
-    );
-    if (lockedMonth) {
+    if (!isWeekReady) {
+      toast.error("Vui long tai xong du lieu tuan truoc khi luu");
+      return;
+    }
+
+    if (lockedSelectedMonth) {
       toast.error("Không thể sửa điểm danh đã chốt");
       return;
     }
@@ -688,6 +774,9 @@ export default function AttendancePage() {
     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
+  const initialClassLoading = loading && selectedClass && students.length === 0;
+  const isCalendarRefreshing = loading && selectedClass && students.length > 0;
+
   return (
     <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
       {/* Header */}
@@ -757,11 +846,23 @@ export default function AttendancePage() {
         </div>
       </Motion.div>
 
-      {loading ? (
+      {initialClassLoading ? (
         <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
           <div className="card-body text-center py-12">
             <div className="spinner w-8 h-8 mx-auto mb-4"></div>
             <p className="text-gray-500">Đang tải...</p>
+          </div>
+        </Motion.div>
+      ) : loadError && selectedClass && students.length === 0 ? (
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-rose-800">Khong the tai du lieu diem danh</p>
+              <p className="mt-1 text-sm font-semibold text-rose-700">{loadError}</p>
+            </div>
+            <button type="button" onClick={() => loadClassData()} className="btn-secondary">
+              Thu lai
+            </button>
           </div>
         </Motion.div>
       ) : !selectedClass ? (
@@ -772,6 +873,15 @@ export default function AttendancePage() {
         </Motion.div>
       ) : (
         <>
+          {isCalendarRefreshing && (
+            <LongOperationStatus
+              title="Dang cap nhat lich diem danh"
+              message="He thong dang tai lai hoc vien, trang thai ky va dau cham diem danh. Cac thao tac tuan se tam khoa den khi dong bo xong."
+              steps={["Tai hoc vien", "Tai ky diem danh", "Dong bo lich thang"]}
+              activeStep={1}
+            />
+          )}
+
           {/* 3-Month Calendar Grid - SAP Style */}
           <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
             <div className="card-body">
@@ -1029,15 +1139,50 @@ export default function AttendancePage() {
                         </span>
                       ))}
                     </div>
-                    <button
+                    <ActionProgressButton
                       onClick={handleSave}
-                      disabled={saving || students.length === 0}
+                      loading={saving}
+                      loadingLabel="Dang luu diem danh..."
+                      disabled={!isWeekReady || Boolean(lockedSelectedMonth) || students.length === 0}
                       className="btn-primary"
                     >
-                      {saving ? "Đang lưu..." : "💾 Lưu điểm danh"}
-                    </button>
+                      Luu diem danh
+                    </ActionProgressButton>
                   </div>
                 </div>
+
+                {weekLoading && (
+                  <LongOperationStatus
+                    title="Dang tai diem danh cua tuan"
+                    message="Dang lay du lieu theo tung thang trong tuan duoc chon. Nut luu va cac o diem danh tam khoa de tranh ghi de du lieu cu."
+                    steps={selectedWeekMonthKeys.length > 1 ? ["Tai thang dau", "Tai thang tiep noi", "San sang sua"] : ["Tai diem danh", "Kiem tra ky", "San sang sua"]}
+                    activeStep={selectedWeekMonthKeys.length > 1 ? 1 : 0}
+                  />
+                )}
+
+                {weekError && (
+                  <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800" role="alert">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <span>{weekError}</span>
+                      <button type="button" onClick={() => loadWeekAttendance()} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-700 shadow-sm">
+                        Thu lai tuan nay
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedWeek && (
+                  <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                      <span>
+                        Trang thai ky: {selectedWeekPeriodLabels.join(" | ")}
+                      </span>
+                      <span className={lockedSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
+                        {lockedSelectedMonth ? `Thang ${lockedSelectedMonth} da chot - chi xem` : isWeekReady ? "Da tai xong - co the thao tac" : "Dang cho du lieu tuan"}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {weekDates.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
@@ -1081,6 +1226,10 @@ export default function AttendancePage() {
                                 <div className="mt-1">
                                   <button
                                     onClick={() => {
+                                      if (!isWeekReady) {
+                                        toast.error("Vui long doi tai xong tuan diem danh truoc khi sua");
+                                        return;
+                                      }
                                       if (isDateLocked) {
                                         toast.error("Khong the sua diem danh da chot");
                                         return;
@@ -1102,11 +1251,11 @@ export default function AttendancePage() {
                                         return updated;
                                       });
                                     }}
-                                    disabled={isDateLocked}
+                                    disabled={!isWeekReady || isDateLocked}
                                     className={`px-2 py-1 text-[10px] rounded font-medium transition-colors ${
                                       allPresent
                                         ? "bg-green-500 text-white"
-                                        : isDateLocked
+                                        : !isWeekReady || isDateLocked
                                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                                           : anyMarked
                                           ? "bg-yellow-200 text-yellow-800"
@@ -1157,6 +1306,9 @@ export default function AttendancePage() {
                               {weekDates.map(({ dateStr, isMakeUpDate }) => {
                                 const status =
                                   attendance[student.id]?.[dateStr];
+                                const isDateLocked =
+                                  periods[dateStr.slice(0, 7)]?.status === "locked";
+                                const isCellDisabled = !isWeekReady || isDateLocked;
                                 return (
                                   <td
                                     key={dateStr}
@@ -1166,6 +1318,7 @@ export default function AttendancePage() {
                                       onClick={() =>
                                         handleCellClick(student.id, dateStr)
                                       }
+                                      disabled={isCellDisabled}
                                       className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all cursor-pointer
                                         ${
                                           status === "present"
@@ -1177,6 +1330,7 @@ export default function AttendancePage() {
                                                 : "bg-gray-100 hover:bg-gray-200"
                                         }
                                         ${isMakeUpDate ? "ring-2 ring-orange-300" : ""}
+                                        ${isCellDisabled ? "cursor-not-allowed opacity-60 hover:bg-gray-100" : ""}
                                       `}
                                       title={
                                         status

@@ -1,19 +1,19 @@
-import { motion as Motion } from "framer-motion";
+import { motion as Motion, useReducedMotion } from "framer-motion";
 import { useLocation } from "react-router-dom";
+import { getPageMotion } from "../../design/motion";
 
 export default function PageTransition({ children }) {
   const location = useLocation();
+  const reduceMotion = useReducedMotion();
+  const pageMotion = getPageMotion(reduceMotion);
 
   return (
     <Motion.div
       key={location.pathname}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{
-        duration: 0.1,
-        ease: [0.22, 1, 0.36, 1],
-      }}
-      className="w-full h-full"
+      initial={pageMotion.initial}
+      animate={pageMotion.animate}
+      transition={pageMotion.transition}
+      className="h-full w-full will-change-[opacity,transform]"
     >
       {children}
     </Motion.div>

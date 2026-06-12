@@ -1,8 +1,10 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { Wallet, Printer, Calculator, Banknote, CreditCard, CheckCircle2 } from 'lucide-react';
-import { studentsService, classesService, monthlyFeesService } from '../services/api';
+import { Wallet, Printer, Calculator, Banknote, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
+import { classesService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
+import ActionProgressButton from '../components/ui/ActionProgressButton';
+import LongOperationStatus from '../components/ui/LongOperationStatus';
 import { useToast } from '../components/ui/Toast';
 import { openAuthenticatedPdf, openAuthenticatedPdfs } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
@@ -21,11 +23,22 @@ const PAYMENT_LABEL = {
 
 const formatMoney = (value = 0) => `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
 
-const isCollectableFeeRow = (student) =>
+const getRowMonth = (row) => row?.month || row?.fee?.month || row?.billing_month || row?.fee?.billing_month;
+
+const isCurrentMonthFeeRow = (student, selectedMonth) =>
+  !selectedMonth || !getRowMonth(student) || getRowMonth(student) === selectedMonth;
+
+const isCollectableFeeRow = (student, selectedMonth) =>
   student?.feeStatus !== 'paid' &&
   !student?.fee?.needs_admin_review &&
+  isCurrentMonthFeeRow(student, selectedMonth) &&
   Number(student?.feeAmount || 0) > 0 &&
   Boolean(student?.fee?.line_id);
+
+const isCalculableFeeRow = (student, selectedMonth) =>
+  student?.feeStatus !== 'paid' &&
+  !student?.fee?.needs_admin_review &&
+  isCurrentMonthFeeRow(student, selectedMonth);
 
 const normalizeWorkbenchRow = (row) => {
   const rowId =
@@ -48,11 +61,13 @@ const normalizeWorkbenchRow = (row) => {
     parent_name: row.parent_name || row.parentName,
     parent_phone: row.parent_phone || row.parentPhone,
     class_names: className,
+    month: row.month || row.billing_month,
     fee: {
       ...row,
       id: feeId,
       line_id: row.line_id || null,
       receipt_id: row.receipt_id || row.receiptId || null,
+      month: row.month || row.billing_month,
       needs_admin_review: Boolean(row.needs_admin_review),
       total_days: totalDays,
       total_amount: totalAmount,
@@ -69,6 +84,7 @@ export default function FeeCollectionPage() {
   const [students, setStudents] = useState([]);
   const [feeData, setFeeData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthKey(new Date()));
   const [selectedClass, setSelectedClass] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,6 +93,8 @@ export default function FeeCollectionPage() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [processing, setProcessing] = useState(false);
+  const [printingReceiptIds, setPrintingReceiptIds] = useState([]);
+  const [printingAll, setPrintingAll] = useState(false);
   const [printQueue, setPrintQueue] = useState([]);
   const [showPrintQueue, setShowPrintQueue] = useState(false);
   const loadRequestRef = useRef(0);
@@ -109,6 +127,7 @@ export default function FeeCollectionPage() {
     const isCurrentRequest = () => loadRequestRef.current === requestId;
 
     setLoading(true);
+    setLoadError(null);
     const workbenchRes = await monthlyFeesService.getWorkbench({
       month: selectedMonth,
       limit: 500,
@@ -124,33 +143,16 @@ export default function FeeCollectionPage() {
       const rows = workbenchRes.data.rows || [];
       setStudents(rows.length ? rows.map(normalizeWorkbenchRow) : workbenchRes.data.students || []);
       setFeeData(feeMap);
+      setLoadError(null);
       setLoading(false);
       return;
     }
 
-    const [studentsRes, feesRes] = await Promise.all([
-      studentsService.getAll({ status: 'active', limit: 500, ...classFilterParams }),
-      monthlyFeesService.getAll({ month: selectedMonth, ...classFilterParams }),
-    ]);
-
     if (!isCurrentRequest()) return;
 
-    if (studentsRes.success) {
-      setStudents(studentsRes.data.students || []);
-    } else {
-      toast.error(studentsRes.error?.message || 'Không thể tải học viên');
-    }
-
-    if (feesRes.success) {
-      const feeMap = {};
-      (feesRes.data.fees || []).forEach((fee) => {
-        feeMap[fee.student_id] = fee;
-      });
-      setFeeData(feeMap);
-    } else {
-      toast.error(feesRes.error?.message || 'Không thể tải học phí');
-    }
-
+    const message = workbenchRes.error?.message || 'Khong the tai bang hoc phi theo lop/thang';
+    setLoadError(message);
+    toast.error(message);
     setLoading(false);
   };
 
@@ -180,8 +182,14 @@ export default function FeeCollectionPage() {
 
   const payableRows = useMemo(
     () =>
-      selectedRows.filter(isCollectableFeeRow),
-    [selectedRows]
+      selectedRows.filter((student) => isCollectableFeeRow(student, selectedMonth)),
+    [selectedRows, selectedMonth]
+  );
+
+  const calculableRows = useMemo(
+    () =>
+      selectedRows.filter((student) => isCalculableFeeRow(student, selectedMonth)),
+    [selectedRows, selectedMonth]
   );
 
   const summary = useMemo(() => {
@@ -199,6 +207,8 @@ export default function FeeCollectionPage() {
     return { total, pending, ready, confirmed, paid, totalAmount, paidAmount, selectedAmount };
   }, [studentFees, payableRows]);
   const initialLoading = loading && studentFees.length === 0;
+  const isRefreshing = loading && studentFees.length > 0;
+  const actionDisabled = processing || loading;
   const displayMetric = (value) => (initialLoading ? "..." : value);
 
   const navigateMonth = (delta) => {
@@ -222,16 +232,15 @@ export default function FeeCollectionPage() {
   };
 
   const handleCalculateSelected = async () => {
-    const rows = selectedRows.filter(
-      (student) => student.feeStatus !== 'paid' && !student.fee?.needs_admin_review
-    );
+    const rows = calculableRows;
     if (!rows.length) {
       toast.error('Chọn ít nhất một học viên chưa thu');
       return;
     }
 
     setProcessing(true);
-    const studentIds = [
+    try {
+      const studentIds = [
       ...new Set(rows.map((student) => student.student_id || student.studentId || student.id)),
     ];
     const results = await Promise.all(
@@ -240,19 +249,28 @@ export default function FeeCollectionPage() {
     const failed = results.filter((result) => !result.success).length;
     toast.success(`Đã tính ${studentIds.length - failed}/${studentIds.length} học viên`);
     if (failed) toast.error(`${failed} học viên không thể tính phí`);
-    await loadData();
-    setProcessing(false);
+      await loadData();
+    } catch (error) {
+      toast.error(error?.message || 'KhÃ´ng thá»ƒ tÃ­nh phÃ­ cho dÃ²ng Ä‘Ã£ chá»n');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const collectRows = async (rows, method) => {
-    const targetRows = rows.filter(isCollectableFeeRow);
+    if (loading) {
+      toast.error('Bang hoc phi dang dong bo, vui long doi xong roi thu lai');
+      return;
+    }
+    const targetRows = rows.filter((student) => isCollectableFeeRow(student, selectedMonth));
     if (!targetRows.length) {
       toast.error('Không có học viên cần thu trong lựa chọn hiện tại');
       return;
     }
 
     setProcessing(true);
-    const lineIds = targetRows.map((student) => student.fee?.line_id).filter(Boolean);
+    try {
+      const lineIds = targetRows.map((student) => student.fee?.line_id).filter(Boolean);
 
     const res = await monthlyFeesService.bulkPay({
       month: selectedMonth,
@@ -277,7 +295,11 @@ export default function FeeCollectionPage() {
     } else {
       toast.error(res.error?.message || 'Không thể thu tiền');
     }
-    setProcessing(false);
+    } catch (error) {
+      toast.error(error?.message || 'KhÃ´ng thá»ƒ thu tiá»n');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handlePay = (student) => {
@@ -292,10 +314,13 @@ export default function FeeCollectionPage() {
   };
 
   const handlePrintReceipt = async (receiptId) => {
+    setPrintingReceiptIds((prev) => (prev.includes(receiptId) ? prev : [...prev, receiptId]));
     try {
       await openAuthenticatedPdf(`/api/receipts/${receiptId}/pdf`);
     } catch (error) {
       toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
+    } finally {
+      setPrintingReceiptIds((prev) => prev.filter((id) => id !== receiptId));
     }
   };
 
@@ -308,12 +333,15 @@ export default function FeeCollectionPage() {
   };
 
   const handlePrintAll = async () => {
+    setPrintingAll(true);
     try {
       await openAuthenticatedPdfs(
         printQueue.map((item) => `/api/receipts/${item.receipt_id}/pdf`)
       );
     } catch (error) {
       toast.error(error?.message || 'Không thể tạo PDF. Vui lòng thử lại.');
+    } finally {
+      setPrintingAll(false);
     }
   };
 
@@ -387,18 +415,21 @@ export default function FeeCollectionPage() {
       title: 'Thao tác',
       sortable: false,
       render: (_, row) => {
-        const canCollectRow = isCollectableFeeRow(row);
+        const canCollectRow = !loading && isCollectableFeeRow(row, selectedMonth);
+        const canPrintRow = !loading && isCurrentMonthFeeRow(row, selectedMonth);
+        const isPrinting = printingReceiptIds.includes(row.fee?.receipt_id);
 
         return (
           <div className="flex flex-wrap items-center gap-2">
             {row.feeStatus === 'pending' && (
               <button
                 type="button"
+                disabled={actionDisabled || !isCurrentMonthFeeRow(row, selectedMonth)}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCalculateFee(row);
                 }}
-                className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+                className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Tính phí
               </button>
@@ -423,13 +454,14 @@ export default function FeeCollectionPage() {
             {row.feeStatus === 'paid' && row.fee?.receipt_id && (
               <button
                 type="button"
+                disabled={!canPrintRow || isPrinting}
                 onClick={(e) => {
                   e.stopPropagation();
                   handlePrintStudent(row);
                 }}
-                className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-200"
+                className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                In lại
+                {isPrinting ? 'Dang mo...' : 'In lai'}
               </button>
             )}
           </div>
@@ -440,22 +472,22 @@ export default function FeeCollectionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="eduflow-page-intro flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-500">
+          <p className="eduflow-eyebrow w-fit">
             Tài chính · Fee Workbench
           </p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900">
+          <h1 className="eduflow-title mt-4 text-3xl font-black tracking-tight text-slate-950">
             Thu tiền học phí
           </h1>
-          <p className="text-slate-500">
-            Lọc theo lớp/tháng, tick nhiều học viên và thu một lần như bảng vận hành.
+          <p className="eduflow-muted mt-2 max-w-3xl">
+            Mỗi dòng là một học viên - một lớp - một tháng. Không gộp nhiều lớp vào một phiếu thu, phụ huynh có thể đóng từng lớp theo ngày khác nhau.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={processing || !payableRows.length}
+            disabled={actionDisabled || !calculableRows.length}
             onClick={handleCalculateSelected}
             className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 disabled:opacity-50"
           >
@@ -463,7 +495,7 @@ export default function FeeCollectionPage() {
           </button>
           <button
             type="button"
-            disabled={processing || !payableRows.length}
+            disabled={actionDisabled || !payableRows.length}
             onClick={() => collectRows(payableRows, 'cash')}
             className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:-translate-y-0.5 disabled:opacity-50"
           >
@@ -471,7 +503,7 @@ export default function FeeCollectionPage() {
           </button>
           <button
             type="button"
-            disabled={processing || !payableRows.length}
+            disabled={actionDisabled || !payableRows.length}
             onClick={() => collectRows(payableRows, 'transfer')}
             className="inline-flex items-center gap-2 rounded-2xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 disabled:opacity-50"
           >
@@ -481,7 +513,7 @@ export default function FeeCollectionPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_repeat(4,1fr)]">
-        <div className="rounded-3xl border border-slate-200/70 bg-white/95 p-4 shadow-sm">
+        <div className="eduflow-card p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -530,7 +562,7 @@ export default function FeeCollectionPage() {
         ].map((metric) => {
           const Icon = metric.icon;
           return (
-            <div key={metric.label} className="rounded-3xl border border-slate-200/70 bg-white/95 p-4 shadow-sm">
+            <div key={metric.label} className="eduflow-metric p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
                 <div className="rounded-2xl bg-slate-100 p-2 text-slate-500">
@@ -570,6 +602,32 @@ export default function FeeCollectionPage() {
         ))}
       </div>
 
+      {isRefreshing && (
+        <LongOperationStatus
+          title="Dang dong bo bang thu tien"
+          message="He thong dang tai lai du lieu theo lop, thang va tung dong hoc phi. Cac nut thu/in tam khoa de tranh thao tac tren du lieu cu."
+          steps={["Tai dong hoc phi", "Doi soat trang thai", "San sang thao tac"]}
+          activeStep={1}
+        />
+      )}
+
+      {loadError && (
+        <div className="rounded-3xl border border-rose-100 bg-rose-50 p-4 text-rose-800 shadow-sm" role="alert">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="font-black">Khong the tai bang hoc phi theo lop/thang</p>
+                <p className="mt-1 text-sm font-semibold opacity-80">{loadError}</p>
+              </div>
+            </div>
+            <button type="button" onClick={loadData} className="btn-secondary">
+              Thu lai
+            </button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={filteredStudents}
@@ -579,7 +637,10 @@ export default function FeeCollectionPage() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         getRowId={(row) => row.id}
-        isRowSelectable={isCollectableFeeRow}
+        isRowSelectable={(row) =>
+          !loading &&
+          (isCalculableFeeRow(row, selectedMonth) || isCollectableFeeRow(row, selectedMonth))
+        }
         searchKeys={["full_name", "parent_name", "parent_phone", "class_names", "feeStatus", "attendanceSummary"]}
       />
 
@@ -678,13 +739,15 @@ export default function FeeCollectionPage() {
                     {item.class_name ? `${item.class_name} · ` : ''}{item.total_days} buổi · {formatMoney(item.total_amount)}
                   </p>
                 </div>
-                <button
+                <ActionProgressButton
                   type="button"
+                  loading={printingReceiptIds.includes(item.receipt_id)}
+                  loadingLabel="Dang mo..."
                   onClick={() => handlePrintReceipt(item.receipt_id)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700"
+                  className="rounded-xl bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700"
                 >
                   <Printer size={16} /> In
-                </button>
+                </ActionProgressButton>
               </div>
             ))}
           </div>
@@ -692,9 +755,9 @@ export default function FeeCollectionPage() {
             <button type="button" onClick={() => setShowPrintQueue(false)} className="btn-secondary">
               Đóng
             </button>
-            <button type="button" onClick={handlePrintAll} className="btn-primary">
+            <ActionProgressButton type="button" onClick={handlePrintAll} loading={printingAll} loadingLabel="Dang mo tat ca..." className="btn-primary">
               In tất cả
-            </button>
+            </ActionProgressButton>
           </div>
         </div>
       </Modal>

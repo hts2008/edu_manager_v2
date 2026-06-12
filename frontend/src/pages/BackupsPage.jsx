@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { backupsService } from "../services/api";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
+import LongOperationStatus from "../components/ui/LongOperationStatus";
 
 export default function BackupsPage() {
   const [backup, setBackup] = useState(null);
   const [verifyUrl, setVerifyUrl] = useState("");
   const [verifyResult, setVerifyResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [operation, setOperation] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function runBackup(dryRun) {
     setLoading(true);
+    setOperation(dryRun ? "dry-run" : "backup");
     setError("");
     setMessage("");
     try {
@@ -24,11 +28,13 @@ export default function BackupsPage() {
       setMessage(dryRun ? "Backup dry-run complete" : "Encrypted backup uploaded");
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
   async function verifyBackup() {
     setLoading(true);
+    setOperation("verify");
     setError("");
     setMessage("");
     try {
@@ -41,6 +47,7 @@ export default function BackupsPage() {
       setMessage("Restore drill verified");
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
@@ -54,17 +61,37 @@ export default function BackupsPage() {
           <p className="text-gray-500">Encrypted JSON backup and restore-drill validation.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => runBackup(true)} disabled={loading} className="btn-secondary disabled:opacity-50">
+          <ActionProgressButton
+            onClick={() => runBackup(true)}
+            loading={operation === "dry-run"}
+            disabled={loading}
+            className="btn-secondary"
+            loadingLabel="Checking..."
+          >
             Dry run
-          </button>
-          <button onClick={() => runBackup(false)} disabled={loading} className="btn-primary disabled:opacity-50">
+          </ActionProgressButton>
+          <ActionProgressButton
+            onClick={() => runBackup(false)}
+            loading={operation === "backup"}
+            disabled={loading}
+            className="btn-primary"
+            loadingLabel="Uploading..."
+          >
             Run backup
-          </button>
+          </ActionProgressButton>
         </div>
       </div>
 
       {message && <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
       {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loading && (
+        <LongOperationStatus
+          title={operation === "verify" ? "Verifying restore drill" : "Preparing encrypted backup"}
+          message={operation === "dry-run" ? "Dry-run is checking export readiness without uploading." : "The system is processing data and will update the result when finished."}
+          steps={operation === "verify" ? ["Read URL", "Validate payload", "Compare counts"] : ["Collect data", "Encrypt payload", "Upload result"]}
+          activeStep={1}
+        />
+      )}
 
       <div className="card">
         <div className="card-header">
@@ -95,9 +122,15 @@ export default function BackupsPage() {
               placeholder="Encrypted backup URL"
               aria-label="Verify backup URL"
             />
-            <button onClick={verifyBackup} disabled={!verifyUrl || loading} className="btn-secondary disabled:opacity-50">
+            <ActionProgressButton
+              onClick={verifyBackup}
+              loading={operation === "verify"}
+              disabled={!verifyUrl || loading}
+              className="btn-secondary"
+              loadingLabel="Verifying..."
+            >
               Verify
-            </button>
+            </ActionProgressButton>
           </div>
           {verifyResult && <p className="text-sm text-emerald-700">Valid backup from {verifyResult.created_at}</p>}
         </div>

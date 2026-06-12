@@ -1,14 +1,27 @@
-import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { getMotionTransition } from '../../design/motion';
 
 export default function BulkActionBar({ count, actions = [], onClear }) {
+  const reducedMotion = useReducedMotion();
+  const motionProps = reducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: getMotionTransition({ reduced: true }),
+      }
+    : {
+        initial: { opacity: 0, y: -8, height: 0 },
+        animate: { opacity: 1, y: 0, height: 'auto' },
+        exit: { opacity: 0, y: -8, height: 0 },
+        transition: getMotionTransition({ duration: 'standard' }),
+      };
+
   return (
     <AnimatePresence>
       {count > 0 && (
         <Motion.div
-          initial={{ opacity: 0, y: -20, height: 0 }}
-          animate={{ opacity: 1, y: 0, height: 'auto' }}
-          exit={{ opacity: 0, y: -20, height: 0 }}
-          transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
+          {...motionProps}
           data-testid="bulk-action-bar"
           className="overflow-hidden"
         >
@@ -29,7 +42,7 @@ export default function BulkActionBar({ count, actions = [], onClear }) {
                   type="button"
                   onClick={action.onClick}
                   disabled={action.disabled}
-                  className={`${action.className || "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"} rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5`}
+                  className={`${action.className || "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"} rounded-xl px-4 py-2 text-sm font-semibold shadow-sm transition-all motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none`}
                 >
                   {action.label}
                 </button>

@@ -139,9 +139,6 @@ const getPersistedPaperSize = (paperConfig, fallback = DEFAULT_PAPER_KEY) => {
   return DB_PAPER_SIZES.has(fallback) ? fallback : DEFAULT_PAPER_KEY;
 };
 
-const countExportableObjects = (canvas) =>
-  canvas?.getObjects().filter((object) => !object.excludeFromExport).length || 0;
-
 const getTemplateFromResponse = (response) =>
   response?.data?.template || response?.data || null;
 
@@ -253,13 +250,20 @@ export default function TemplateDesignerPage() {
   const [canvasReady, setCanvasReady] = useState(false);
   const [canvasError, setCanvasError] = useState("");
   const [canvasObjectCount, setCanvasObjectCount] = useState(0);
+  const [objectLayers, setObjectLayers] = useState([]);
   const [uploadState, setUploadState] = useState({
     status: "idle",
     message: "",
   });
   const [designerNotice, setDesignerNotice] = useState("");
+  const [designerNoticeType, setDesignerNoticeType] = useState("idle");
   const [zoom, setZoom] = useState(1);
   const [, setSelectionVersion] = useState(0);
+
+  const showDesignerNotice = (message, type = "success") => {
+    setDesignerNotice(message);
+    setDesignerNoticeType(type);
+  };
 
   useEffect(() => {
     if (id) {
@@ -281,6 +285,7 @@ export default function TemplateDesignerPage() {
     setCanvasReady(false);
     setCanvasError("");
     setCanvasObjectCount(0);
+    setObjectLayers([]);
     historyRef.current = [];
     redoRef.current = [];
     newObjectOffsetRef.current = 0;
@@ -305,8 +310,10 @@ export default function TemplateDesignerPage() {
   const refreshSelection = () => {
     const canvas = canvasRef.current;
     if (!canvas || canvasIsDisposed(canvas)) return;
+    const objects = canvas.getObjects().filter((object) => !object.excludeFromExport);
     setSelectedObject(canvas?.getActiveObject() || null);
-    setCanvasObjectCount(countExportableObjects(canvas));
+    setCanvasObjectCount(objects.length);
+    setObjectLayers(objects.map((object, index) => ({ object, index, label: getObjectLabel(object) })));
     setSelectionVersion((value) => value + 1);
   };
 
@@ -318,7 +325,7 @@ export default function TemplateDesignerPage() {
       canvasIsDisposed(canvas) ||
       (canvas.lowerCanvasEl && !canvas.lowerCanvasEl.isConnected)
     ) {
-      setDesignerNotice("Canvas chua san sang.");
+      showDesignerNotice("Canvas chua san sang.", "warning");
       return null;
     }
     return canvas;
@@ -339,7 +346,7 @@ export default function TemplateDesignerPage() {
     }
     } catch (error) {
       const message = error?.message || "Khong tai duoc mau in.";
-      setDesignerNotice(message);
+      showDesignerNotice(message, "error");
       toast.error(message);
     } finally {
       setLoading(false);
@@ -378,7 +385,7 @@ export default function TemplateDesignerPage() {
     const FabricCanvas = fabric.Canvas || fabric.default?.Canvas;
     if (!FabricCanvas || !canvasElRef.current) {
       setCanvasError("Khong khoi tao duoc canvas.");
-      setDesignerNotice("Khong khoi tao duoc canvas.");
+      showDesignerNotice("Khong khoi tao duoc canvas.", "error");
       toast.error("Không khởi tạo được Fabric canvas.");
       return;
     }
@@ -419,11 +426,11 @@ export default function TemplateDesignerPage() {
           applyLoadedCanvasAlignment(canvas, width, height, sourceSize);
           canvas.backgroundColor = "#ffffff";
         } else {
-          setDesignerNotice("Canvas san sang. JSON mau in cu da duoc scaffold mac dinh.");
+          showDesignerNotice("Canvas san sang. JSON mau in cu da duoc scaffold mac dinh.", "success");
         }
       } catch {
         if (!isActiveCanvasInit(initId, canvas)) return;
-        setDesignerNotice("JSON mau in loi, da mo scaffold mac dinh.");
+        showDesignerNotice("JSON mau in loi, da mo scaffold mac dinh.", "warning");
         toast.error("JSON mẫu in lỗi, đã mở canvas trống.");
       }
     }
@@ -442,11 +449,11 @@ export default function TemplateDesignerPage() {
       if (!isActiveCanvasInit(initId, canvas)) return;
       const message = error?.message || "Khong khoi tao duoc canvas.";
       setCanvasError(message);
-      setDesignerNotice(message);
+      showDesignerNotice(message, "error");
       return;
     }
     setCanvasReady(true);
-    setDesignerNotice((current) => current || "Canvas san sang.");
+    if (!designerNotice) showDesignerNotice("Canvas san sang.", "success");
     refreshSelection();
     captureHistory();
 
@@ -712,7 +719,7 @@ export default function TemplateDesignerPage() {
     canvas.setActiveObject(object);
     if (typeof canvas.requestRenderAll === "function") canvas.requestRenderAll();
     else canvas.renderAll();
-    setDesignerNotice(`Da them ${label}.`);
+    showDesignerNotice(`Da them ${label}.`, "success");
     refreshSelection();
   };
 
@@ -844,6 +851,7 @@ export default function TemplateDesignerPage() {
     if (!file.type.startsWith("image/")) {
       const message = "Chi chap nhan file anh.";
       setUploadState({ status: "error", message });
+      showDesignerNotice(message, "error");
       toast.error(message);
       return;
     }
@@ -858,9 +866,10 @@ export default function TemplateDesignerPage() {
       if (!response.success) {
         const message = response.error?.message || "Upload anh that bai.";
         setUploadState({ status: "error", message });
-      toast.error(response.error?.message || "Upload ảnh thất bại.");
-      return;
-    }
+        showDesignerNotice(message, "error");
+        toast.error(response.error?.message || "Upload ảnh thất bại.");
+        return;
+      }
 
       const imageUrl = response.data?.url || response.data?.path;
       if (!imageUrl) throw new Error("Upload khong tra ve URL anh.");
@@ -870,10 +879,12 @@ export default function TemplateDesignerPage() {
         status: "success",
         message: mode === "background" ? "Da them anh nen." : "Da them anh.",
       });
-    toast.success("Đã thêm ảnh vào mẫu.");
+      showDesignerNotice(mode === "background" ? "Da them anh nen." : "Da them anh.", "success");
+      toast.success("Đã thêm ảnh vào mẫu.");
     } catch (error) {
       const message = error?.message || "Upload anh that bai.";
       setUploadState({ status: "error", message });
+      showDesignerNotice(message, "error");
       toast.error(message);
     }
   };
@@ -937,6 +948,16 @@ export default function TemplateDesignerPage() {
     if (direction === "backward") moveBackward(canvas, activeObject);
     if (direction === "back") moveToBack(canvas, activeObject);
     canvas.renderAll();
+    refreshSelection();
+  };
+
+  const selectLayerObject = (object) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !object || canvasIsDisposed(canvas)) return;
+    canvas.setActiveObject(object);
+    if (typeof object.setCoords === "function") object.setCoords();
+    if (typeof canvas.requestRenderAll === "function") canvas.requestRenderAll();
+    else canvas.renderAll();
     refreshSelection();
   };
 
@@ -1084,7 +1105,7 @@ export default function TemplateDesignerPage() {
     else canvas.renderAll();
     refreshSelection();
     captureHistory(normalizedPaper, nextOrientation);
-    setDesignerNotice(`Da cap nhat kho giay ${normalizedPaper.label}.`);
+    showDesignerNotice(`Da cap nhat kho giay ${normalizedPaper.label}.`, "success");
   };
 
   const handlePaperPresetChange = (value) => {
@@ -1117,36 +1138,45 @@ export default function TemplateDesignerPage() {
   const handleSave = async () => {
     if (!canvasRef.current || !template) return;
     setSaving(true);
-    setDesignerNotice("Dang luu mau...");
+    showDesignerNotice("Dang luu mau...", "loading");
 
-    const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
-    json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
-    json.paper = serializePaperConfig(paperConfig);
-    json.canvas = {
-      width: canvasRef.current.getWidth(),
-      height: canvasRef.current.getHeight(),
-      unit: "px",
-      mm_to_px: 3.7795275591,
-    };
-    json.orientation = template?.orientation || "portrait";
+    try {
+      const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
+      json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
+      json.paper = serializePaperConfig(paperConfig);
+      json.canvas = {
+        width: canvasRef.current.getWidth(),
+        height: canvasRef.current.getHeight(),
+        unit: "px",
+        mm_to_px: 3.7795275591,
+      };
+      json.orientation = template?.orientation || "portrait";
 
-    const response = await templatesService.update(template.id, {
-      ...template,
-      paper_size: getPersistedPaperSize(paperConfig, template?.paper_size),
-      orientation: template?.orientation || "portrait",
-      json_config: JSON.stringify(json),
-    });
+      const response = await templatesService.update(template.id, {
+        ...template,
+        paper_size: getPersistedPaperSize(paperConfig, template?.paper_size),
+        orientation: template?.orientation || "portrait",
+        json_config: JSON.stringify(json),
+      });
 
-    setSaving(false);
-    if (response.success) {
-      const savedTemplate = getTemplateFromResponse(response);
-      if (savedTemplate) {
-        setTemplate((current) => ({ ...current, ...savedTemplate }));
+      if (response.success) {
+        const savedTemplate = getTemplateFromResponse(response);
+        if (savedTemplate) {
+          setTemplate((current) => ({ ...current, ...savedTemplate }));
+        }
+        showDesignerNotice("Da luu mau.", "success");
+        toast.success("Đã lưu mẫu thành công.");
+      } else {
+        const message = response.error?.message || "Không thể lưu mẫu.";
+        showDesignerNotice(message, "error");
+        toast.error(message);
       }
-      setDesignerNotice("Da luu mau.");
-      toast.success("Đã lưu mẫu thành công.");
-    } else {
-      toast.error(response.error?.message || "Không thể lưu mẫu.");
+    } catch (error) {
+      const message = error?.message || "Không thể lưu mẫu.";
+      showDesignerNotice(message, "error");
+      toast.error(message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1173,7 +1203,7 @@ export default function TemplateDesignerPage() {
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
   const selectedLabel = getObjectLabel(selectedObject);
   const uploadBusy = uploadState.status === "loading";
-  const controlsDisabled = !canvasReady || Boolean(canvasError);
+  const controlsDisabled = !canvasReady || Boolean(canvasError) || uploadBusy || saving;
   const statusMessage =
     (uploadBusy ? uploadState.message : "") ||
     designerNotice ||
@@ -1185,7 +1215,7 @@ export default function TemplateDesignerPage() {
       : canvasError
         ? "error"
         : designerNotice
-          ? "success"
+          ? designerNoticeType
           : uploadState.status;
 
   return (
@@ -1212,27 +1242,28 @@ export default function TemplateDesignerPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <button type="button" onClick={undo} className="btn-secondary px-3 py-2">
+          <button type="button" onClick={undo} className="btn-secondary px-3 py-2" title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác Ctrl Z">
             Undo
           </button>
-          <button type="button" onClick={redo} className="btn-secondary px-3 py-2">
+          <button type="button" onClick={redo} className="btn-secondary px-3 py-2" title="Làm lại (Ctrl+Y)" aria-label="Làm lại Ctrl Y">
             Redo
           </button>
-          <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary px-3 py-2">
+          <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary px-3 py-2" title="Thu nhỏ canvas" aria-label="Thu nhỏ canvas">
             -
           </button>
-          <button type="button" onClick={resetView} className="btn-secondary px-3 py-2">
+          <button type="button" onClick={resetView} className="btn-secondary px-3 py-2" title="Đặt zoom về 100%" aria-label="Đặt zoom về 100%">
             {Math.round(zoom * 100)}%
           </button>
-          <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary px-3 py-2">
+          <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary px-3 py-2" title="Phóng to canvas" aria-label="Phóng to canvas">
             +
           </button>
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !template || !canvasReady}
+            disabled={controlsDisabled || !template}
             className="btn-primary disabled:opacity-50"
             data-testid="save-template"
+            title="Lưu mẫu in hiện tại"
           >
             {saving ? "Đang lưu..." : "Lưu mẫu"}
           </button>
@@ -1247,7 +1278,10 @@ export default function TemplateDesignerPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span>{statusMessage}</span>
-          <span data-testid="canvas-object-count">{canvasObjectCount} object(s)</span>
+          <span className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-bold text-slate-500">Phím tắt: Ctrl+Z, Ctrl+Y, Ctrl+D, Del</span>
+            <span data-testid="canvas-object-count">{canvasObjectCount} object(s)</span>
+          </span>
         </div>
       </div>
 
@@ -1421,6 +1455,38 @@ export default function TemplateDesignerPage() {
           >
             Dang chon: {selectedObject ? selectedLabel : "Chua co object"}
           </div>
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-3" data-testid="layer-list">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Layers</p>
+              <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-500 shadow-sm">
+                {objectLayers.length}
+              </span>
+            </div>
+            <div className="mt-3 max-h-48 space-y-1 overflow-y-auto">
+              {objectLayers.length ? (
+                objectLayers.map((layer) => (
+                  <button
+                    key={`${layer.label}-${layer.index}`}
+                    type="button"
+                    onClick={() => selectLayerObject(layer.object)}
+                    disabled={controlsDisabled}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs font-bold transition ${
+                      selectedObject === layer.object
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-white text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    <span className="truncate">{layer.label}</span>
+                    <span className="text-[10px] opacity-70">#{layer.index + 1}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                  Chua co layer nao.
+                </p>
+              )}
+            </div>
+          </div>
           {selectedObject ? (
             <div className="space-y-5">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -1521,14 +1587,14 @@ export default function TemplateDesignerPage() {
               )}
 
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={duplicateSelected} className="btn-secondary px-3">
+                <button type="button" onClick={duplicateSelected} className="btn-secondary px-3" title="Nhân bản phần tử đã chọn (Ctrl+D)">
                   Duplicate
                 </button>
                 <button type="button" onClick={toggleLock} className="btn-secondary px-3">
                   {selectedObject.lockMovementX ? "Unlock" : "Lock"}
                 </button>
               </div>
-              <button type="button" onClick={deleteSelected} className="btn-danger w-full">
+              <button type="button" onClick={deleteSelected} className="btn-danger w-full" title="Xóa phần tử đã chọn (Del)">
                 Xóa phần tử
               </button>
             </div>

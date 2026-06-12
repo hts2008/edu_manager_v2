@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion as Motion } from "framer-motion";
+import { CalendarDays, GraduationCap, Plus, School, Users } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { classesService, studentsService, teachersService } from "../services/api";
@@ -7,6 +7,12 @@ import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { classFormSchema } from "../utils/formValidation";
+import {
+  ListPanel,
+  MetricGrid,
+  OperationalPage,
+  PageIntro,
+} from "../components/ui/OperationalPage";
 
 // VI: Trang quản lý lớp học
 export default function ClassesPage() {
@@ -251,22 +257,70 @@ export default function ClassesPage() {
     },
   ];
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
+  const summaryMetrics = [
+    {
+      label: "Lớp đang mở",
+      value: activeClasses,
+      helper: `${classes.length} lớp`,
+      icon: School,
+      tone: "sky",
+    },
+    {
+      label: "Học viên",
+      value: totalStudents,
+      helper: "Lượt ghi danh",
+      icon: Users,
+      tone: "emerald",
+    },
+    {
+      label: "Buổi/tuần",
+      value: totalWeeklySessions,
+      helper: "Theo lịch hiện tại",
+      icon: CalendarDays,
+      tone: "indigo",
+    },
+  ];
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+  const metrics = [
+    ...summaryMetrics,
+    {
+      label: "Học phí TB/tháng",
+      value: new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        maximumFractionDigits: 0,
+      }).format(averageFee),
+      helper: "Theo biểu phí lớp",
+      icon: GraduationCap,
+      tone: "amber",
+    },
+  ];
 
   return (
-    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+    <OperationalPage>
+      <PageIntro
+        eyebrow="Academic operations"
+        title="Lớp học"
+        description="Điều phối lớp, giáo viên, lịch học và biểu phí trong một không gian vận hành thống nhất cho trung tâm."
+        status={`${classes.length} lớp`}
+        metrics={summaryMetrics}
+        actions={
+          <button
+            onClick={() => {
+              setEditingClass(null);
+              setShowForm(true);
+            }}
+            className="btn-primary"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Thêm lớp học
+          </button>
+        }
+      />
+
+      <MetricGrid metrics={metrics} />
+
+      <section className="hidden">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
         <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -296,12 +350,11 @@ export default function ClassesPage() {
             Thêm lớp học
           </button>
         </div>
-      </Motion.section>
+      </section>
 
-      <Motion.section variants={containerVariants} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="hidden">
         {statCards.map((card) => (
-          <Motion.div
-            variants={itemVariants}
+          <div
             key={card.label}
             className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
           >
@@ -318,12 +371,16 @@ export default function ClassesPage() {
                 {card.icon}
               </div>
             </div>
-          </Motion.div>
+          </div>
         ))}
-      </Motion.section>
+      </section>
 
-      <Motion.section variants={itemVariants} className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 p-4 shadow-xl shadow-slate-200/60 backdrop-blur md:p-5">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <ListPanel
+        title="Danh sách lớp học"
+        description="Nhấn vào một dòng để chỉnh sửa nhanh thông tin lớp."
+        countLabel={`${classes.length} records`}
+      >
+        <div className="hidden">
           <div>
             <h2 className="text-lg font-bold text-slate-950">Danh sách lớp học</h2>
             <p className="text-sm text-slate-500">Nhấn vào một dòng để chỉnh sửa nhanh thông tin lớp.</p>
@@ -342,7 +399,7 @@ export default function ClassesPage() {
           }}
           emptyMessage="Chưa có lớp học nào"
         />
-      </Motion.section>
+      </ListPanel>
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -357,6 +414,8 @@ export default function ClassesPage() {
         onClose={() => setShowForm(false)}
         title={editingClass ? "Sửa lớp học" : "Thêm lớp học mới"}
         size="lg"
+        confirmOnClose
+        confirmCloseMessage="Ban co thay doi chua luu trong lop hoc. Dong hop thoai se bo cac thay doi nay."
       >
         <ClassForm
           classData={editingClass}
@@ -371,7 +430,7 @@ export default function ClassesPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
-    </Motion.div>
+    </OperationalPage>
   );
 }
 
@@ -848,8 +907,8 @@ function ClassForm({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="btn-secondary">
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4 shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)] backdrop-blur md:-mx-8 md:-mb-6 md:px-8">
+        <button type="button" onClick={onCancel} data-modal-close className="btn-secondary">
           Hủy
         </button>
         <button type="submit" disabled={loading} className="btn-primary">

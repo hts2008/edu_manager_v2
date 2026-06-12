@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { AuthLoading } from '../ui/LoadingStates';
 
 // VI: Protected route component - chuyển hướng nếu chưa đăng nhập
 export default function ProtectedRoute({ children, requiredRole }) {
@@ -8,20 +9,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
   // Show loading while checking auth
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-start justify-center bg-[#f3f4f6] px-4 pt-24">
-        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm">
-          <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary-500" />
-          </div>
-          <div className="space-y-3">
-            <div className="h-5 w-40 animate-pulse rounded-lg bg-slate-200" />
-            <div className="h-4 w-full animate-pulse rounded-lg bg-slate-100" />
-            <div className="h-4 w-2/3 animate-pulse rounded-lg bg-slate-100" />
-          </div>
-        </div>
-      </div>
-    );
+    return <AuthLoading />;
   }
 
   // Redirect to login if not authenticated

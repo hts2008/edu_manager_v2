@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+import { RouteLoading } from './components/ui/LoadingStates';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -25,6 +26,7 @@ const FeeCollectionPage = lazy(() => import('./pages/FeeCollectionPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const AdvancedReportsPage = lazy(() => import('./pages/AdvancedReportsPage'));
+const StudentProgressReportPage = lazy(() => import('./pages/StudentProgressReportPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const TemplateDesignerPage = lazy(() => import('./pages/TemplateDesignerPage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
@@ -48,12 +50,6 @@ const PlaceholderPage = ({ title }) => (
 
 const AdminOnly = ({ children }) => (
   <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>
-);
-
-const RouteLoading = () => (
-  <div className="flex min-h-[240px] items-center justify-center text-sm text-gray-500">
-    Dang tai...
-  </div>
 );
 
 const withSuspense = (element) => (
@@ -93,6 +89,7 @@ export default function App() {
               <Route path="history" element={withSuspense(<HistoryPage />)} />
               <Route path="templates" element={withSuspense(<AdminOnly><TemplatesPage /></AdminOnly>)} />
               <Route path="reports" element={withSuspense(<AdminOnly><ReportsPage /></AdminOnly>)} />
+              <Route path="student-progress" element={withSuspense(<AdminOnly><StudentProgressReportPage /></AdminOnly>)} />
               <Route path="advanced-reports" element={withSuspense(<AdminOnly><AdvancedReportsPage /></AdminOnly>)} />
               <Route path="audit-logs" element={withSuspense(<AdminOnly><AuditLogsPage /></AdminOnly>)} />
               <Route path="settings" element={withSuspense(<AdminOnly><CenterSettingsPage /></AdminOnly>)} />

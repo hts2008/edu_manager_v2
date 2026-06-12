@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useId, useDeferredValue } from 'react';
+import { TableSkeletonRows } from './Skeletons';
 
 const PAGE_SIZE_ALL = 'all';
 const DEFAULT_PAGE_SIZE_OPTIONS = [PAGE_SIZE_ALL, 500, 100, 50];
@@ -31,6 +32,7 @@ export default function DataTable({
   isRowSelectable = () => true,
   searchKeys,
   getSearchText,
+  loadingLabel,
 }) {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,15 +46,13 @@ export default function DataTable({
     () =>
       data.map((row) => ({
         row,
-        searchText: (
+        searchText: String(
           getSearchText
-            ? getSearchText(row)
+            ? (getSearchText(row) ?? "")
             : (searchKeys && searchKeys.length
-                ? searchKeys.map((key) => row[key]).join(" ")
-                : columns.map((column) => row[column.key]).join(" "))
-        )
-          .toString()
-          .toLowerCase(),
+                ? searchKeys.map((key) => row[key] ?? "").join(" ")
+                : columns.map((column) => row[column.key] ?? "").join(" "))
+        ).toLowerCase(),
       })),
     [columns, data, getSearchText, searchKeys]
   );
@@ -166,10 +166,23 @@ export default function DataTable({
     setCurrentPage((page) => Math.min(page, safeTotalPages));
   }, [totalPages]);
 
+  const getSortDirection = (columnKey) => {
+    if (sortConfig.key !== columnKey) return 'none';
+    return sortConfig.direction === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const getSortLabel = (column) => {
+    const title = typeof column.title === 'string' ? column.title : column.key;
+    return `Sort by ${title}`;
+  };
+
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-slate-200/60 bg-white/95 shadow-sm">
+    <div
+      className="eduflow-table-shell w-full overflow-hidden rounded-[22px]"
+      aria-busy={loading || undefined}
+    >
       {/* Search */}
-      <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-transparent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-slate-200/70 bg-white/75 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
           <label htmlFor={searchId} className="sr-only">
             Tìm kiếm trong bảng
@@ -193,22 +206,22 @@ export default function DataTable({
             placeholder="Tìm kiếm..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-xl border border-slate-200/60 bg-white/80 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+            className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-10 pr-4 text-sm outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-          <span className="text-sm text-gray-500 sm:whitespace-nowrap">
+          <span className="text-sm font-medium text-slate-500 sm:whitespace-nowrap">
             {processedData.length} kết quả
           </span>
           <div className="flex items-center gap-2">
-            <label htmlFor={pageSizeId} className="text-sm text-gray-500">
+            <label htmlFor={pageSizeId} className="text-sm font-medium text-slate-500">
               Hiển thị
             </label>
             <select
               id={pageSizeId}
               value={rowsPerPage}
               onChange={handlePageSizeChange}
-              className="rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2 text-sm text-slate-700 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+              className="rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
               {pageSizeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -238,19 +251,13 @@ export default function DataTable({
                 </th>
               )}
               {columns.map((col) => (
-                <th key={col.key}>
+                <th key={col.key} aria-sort={col.sortable !== false ? getSortDirection(col.key) : undefined}>
                   {col.sortable !== false ? (
                     <button
                       type="button"
                       onClick={() => handleSort(col.key)}
                       className="flex items-center gap-2 text-left font-bold"
-                      aria-sort={
-                        sortConfig.key === col.key
-                          ? sortConfig.direction === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
+                      aria-label={getSortLabel(col)}
                     >
                       {col.title}
                       {sortConfig.key === col.key && (
@@ -268,14 +275,14 @@ export default function DataTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0)} className="text-center py-8">
-                  <div className="spinner w-6 h-6 mx-auto"></div>
-                </td>
-              </tr>
+              <TableSkeletonRows
+                columnCount={columns.length}
+                selectable={selectable}
+                label={loadingLabel}
+              />
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0)} className="text-center py-8 text-gray-500">
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-10 text-center text-sm font-semibold text-slate-500">
                   {emptyMessage}
                 </td>
               </tr>
@@ -285,9 +292,17 @@ export default function DataTable({
                 const rowSelectable = isRowSelectable(row);
                 return (
                   <tr
-                    key={row.id || i}
+                    key={rowId || row.id || i}
                     onClick={() => onRowClick?.(row)}
-                    className={onRowClick ? 'cursor-pointer' : ''}
+                    onKeyDown={(event) => {
+                      if (!onRowClick) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    }}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    className={onRowClick ? 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2' : ''}
                   >
                     {selectable && (
                       <td onClick={(event) => event.stopPropagation()}>
@@ -317,22 +332,22 @@ export default function DataTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-200/60 bg-slate-50/80 px-4 py-3">
-          <span className="text-sm text-gray-500">
+        <div className="flex items-center justify-between border-t border-slate-200/70 bg-slate-50/90 px-4 py-3">
+          <span className="text-sm font-medium text-slate-500">
             Trang {currentPage} / {totalPages}
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+              className="rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-slate-600 shadow-sm transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               ←
             </button>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-lg border border-slate-200/60 bg-white px-3 py-1.5 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+              className="rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-slate-600 shadow-sm transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               →
             </button>

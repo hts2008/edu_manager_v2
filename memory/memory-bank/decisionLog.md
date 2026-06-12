@@ -249,3 +249,52 @@
 **Decision**: Treat `docs/API.md` plus `api/router.ts` as the production API documentation source of truth, with `tests/api-docs.test.ts` enforcing route coverage. GitHub Actions E2E must run deterministic mocked browser smoke specs against a frontend preview for the optional UI closeout; broader DB/serverless E2E remains a separate production-hardening track.
 **Rationale**: Router-backed docs prevent stale API claims, and mocked CI browser smoke verifies the changed chart/designer surfaces without mutating Neon, requiring live secrets, or making the optional closeout depend on full seed/serverless setup.
 **Status**: IMPLEMENTED with unit 50/50, typecheck, lint, build, focused Playwright 2/2, diff-check, production Advanced Reports smoke 1/1, production Template Designer thermal smoke, and Vercel deployment `dpl_57m2wBJuvyWonYWqL98Q92BCudfC` on 2026-06-08.
+
+### ADR-36: Report BI Uses Student-Class-Month Grain And Evidence-Based Historical Enrollments
+**Date**: 2026-06-09
+**Context**: The user needs a report center strong enough for finance/attendance analysis. Fee Workbench already collects class-level tuition lines, but reports could still hide multi-class details, overstate legacy aggregate fees after a class filter, or lose historical rows when a student-class link became inactive.
+**Decision**: Treat `student_class_month` as the report grain for `/api/reports/bi` and `/reports`. Build the cube from all relevant class enrollments before applying class/search/risk filters, prefer `MonthlyFeeLine` for class revenue, never spread or promote aggregate `MonthlyFee` amounts across class rows, and include inactive enrollments only when attendance or fee-line evidence exists in the requested range. First enrollment month expected sessions start at the enrollment date. Frontend search is server-side through `q`, and report tabs must render distinct analytical content rather than only changing highlight state.
+**Rationale**: Finance reporting must not merge classes or invent revenue attribution. Evidence-based inactive enrollment inclusion preserves history without adding a schema migration, while explicit risk flags make rows needing review visible instead of silently wrong.
+**Status**: IMPLEMENTED with unit 58/58, typecheck, lint, local E2E 3/3, build, production API/search smoke, production Phase-B reports smoke 2/2, production perf-lab, browser probe, and Vercel deployment `dpl_FiyiYAoozRGsZgdhk2PwCmNP6DPV`.
+
+### ADR-37: Report BI Tabs Are Server-Side Modes
+**Date**: 2026-06-09
+**Context**: The user observed that the Report BI filter tabs appeared inert. Client-only tab highlighting and local row fallback were not strong enough for a BA/PI dashboard, because pagination, search, counts, and charts must all agree with the selected analytical mode.
+**Decision**: Treat `overview`, `attendance`, `tuition`, and `risk` as server-side report modes on `/api/reports/bi`. Apply the mode before search and pagination, echo it in `meta.filters.mode`, and return full-cube `meta.classes` so class selectors remain stable even when the current mode narrows rows. Frontend charts must not mix VND and counts/risk on a single axis.
+**Rationale**: A BI dashboard needs trustworthy slices, stable filter controls, and chart scales that match the metric type. Moving mode to the API makes browser tabs, table totals, summary cards, exports, and regression tests observe the same dataset.
+**Status**: IMPLEMENTED with focused unit 18/18, full unit 59/59, typecheck, lint, build, local Report BI E2E 3/3, production API mode smoke, production browser proof, and Vercel inspect URL `https://vercel.com/hts2008s-projects/edu-manager/3e6ZCdUNAQrEg7bTeDJ7tKV2raFE`.
+
+### ADR-38: Platform UX Redesign Uses Stitch Then Figma Then Code
+**Date**: 2026-06-09
+**Context**: EDU_MANAGER_V2 has broad functional coverage, but its pages, motion, loading feedback, navigation and component styling were produced across multiple hardening passes and are not fully consistent. Direct code-only restyling would risk repeating design drift and reintroducing performance lag.
+**Decision**: Run the redesign as a staged track: inspect real workflows in Chrome; generate concepts in Google Stitch with `GEMINI_3_1_PRO`; normalize the selected direction into Figma tokens/components/frames; inspect exact Figma nodes with `get_design_context`; implement through the existing React/Vite/Tailwind/Framer Motion stack; then verify desktop/mobile/reduced-motion/performance behavior before production deploy.
+**Rationale**: Stitch is suitable for fast concept exploration, Figma provides a persistent reviewable source of truth, and code remains constrained by existing architecture and functional tests. The staged approach protects attendance, finance, reports and Template Designer workflows from visual-only regressions.
+**Status**: PLANNED in `plans/2026-06-09-eduflow-motion-ux-stitch-figma/plan.md`. No implementation has started.
+
+### ADR-39: Production Closeout Requires Browser Baseline Plus Perf-Lab Evidence
+**Date**: 2026-06-10
+**Context**: The EduFlow Motion redesign touched the shell, dashboard, master data, attendance, finance, reports, template designer, admin secondary screens, loading states, reduced motion, and responsive behavior. A successful deploy alone would not prove the platform was ready because earlier issues were visible only in Chrome, canvas pixels, route latency, or responsive/modal behavior.
+**Decision**: Treat Phase 8 closeout as evidence-driven: deploy to Vercel production only after local gates pass, then verify the production alias with authenticated Playwright, a multi-route UX baseline across mobile/tablet/desktop/wide and reduced-motion, targeted Template Designer and Report BI suites, production perf-lab, asset-version probe, and Vercel inspect.
+**Rationale**: The user needs production-live confidence, not code-only claims. Combining route-level browser proof with read-only perf-lab separates functional UI regressions from serverless/DB latency and keeps production data safe.
+**Status**: IMPLEMENTED with Vercel deployment `dpl_FMemytCK71osPxvskCWb4o2qt2B5`, production UX baseline 150/150, production responsive/a11y Playwright 2/2, Template Designer 1/1, Report BI 3/3, perf-lab 0/15 direct API failures and 0/10 route failures, and evidence in `receipts/2026-06-10-eduflow-motion-phase8-production-closeout.md`.
+
+### ADR-40: Figma Source-Of-Truth Closeout Does Not Require A Runtime Redeploy
+**Date**: 2026-06-11
+**Context**: UXM-02 remained open after runtime UX/UI had already been deployed and production-smoked. The final work was Figma source-of-truth evidence: native components and linked implementation frames authored through Figma Desktop/plugin and verified by Figma MCP.
+**Decision**: Accept Figma nodes `49:436`, `49:438`, `49:440`, `49:442`, `49:444`, `49:447`, and `49:472` as the Phase 2 source-of-truth for the already-deployed EduFlow Motion UI. Do not run a new production deploy when the closeout changes only Figma/project-control evidence and no React/Tailwind runtime source.
+**Rationale**: A deploy without runtime source changes would add release noise and no user-visible UX delta. The correct closeout evidence is Figma MCP verification, implementation mapping, and board/memory synchronization.
+**Status**: IMPLEMENTED with `get_design_context(49:447)`, `get_design_context(49:472)`, `get_variable_defs(49:447)`, `get_metadata(49:447)`, screenshots for `49:447`/`49:472`, and receipt `receipts/2026-06-11-uxm02-figma-source-final-closeout.md`.
+
+### ADR-41: Accepted Figma Direction Must Become Runtime Code Before PROD UX Claims
+**Date**: 2026-06-12
+**Context**: The final UXM-02 Figma closeout proved source-of-truth frames/components, but the user clarified that "thiet ke Figma moi hon, dep hon" must be visibly applied on `https://edu-manager-gules.vercel.app`.
+**Decision**: Treat Figma source-of-truth acceptance as necessary but not sufficient for user-visible UX completion. A production UX claim requires a runtime implementation pass: Figma inspect -> React/Tailwind mapping -> local gates -> browser smoke -> Vercel PROD deploy -> production browser/perf evidence.
+**Rationale**: This prevents a Figma-only closeout from being mistaken for a deployed UX change and keeps future design work tied to production behavior.
+**Status**: IMPLEMENTED with runtime apply deployed as `dpl_4LemiLebU9nYNmDq6YAmdUyGiQn4`; production Playwright 6/6; production UX baseline 150/150; production perf-lab pass; receipt `receipts/2026-06-12-figma-runtime-prod-apply.md`.
+
+### ADR-42: Student Progress Reports Must Separate Operational Evidence From Academic Scores
+**Date**: 2026-06-12
+**Context**: The user requested a monthly parent-facing progress report for English students, initially around Starters, Movers, Flyers, KET, and PET. The current production schema has real attendance/class/fee evidence but no assessment/rubric tables for Listening, Reading/Writing, Speaking, vocabulary/grammar, CEFR descriptors, or Cambridge scale/shield results.
+**Decision**: Phase 1 student progress reporting must be evidence-first and honest: compute operational progress/readiness from real student-class-month attendance and class data, map class names to Cambridge tracks where possible, and explicitly mark skill scores as `missing_input` until a real assessment input workflow/schema exists. Do not infer or fabricate Cambridge shields, CEFR levels, or Cambridge English Scale scores from attendance alone.
+**Rationale**: Parent reports must be useful immediately without corrupting academic meaning. Attendance and consistency are valid progress signals, but they are not equivalent to Cambridge exam results. Separating proxy metrics from missing academic inputs keeps the product trustworthy and gives Phase 2 a clean path for assessment rubrics.
+**Status**: IMPLEMENTED in `lib/student-progress-report.ts`, `/api/reports/student-progress`, `/student-progress`, and receipt `receipts/2026-06-12-student-progress-parent-report.md`; verified by focused unit 4/4, full unit 65/65, typecheck, lint, build, local Playwright smoke, Vercel production deploy `dpl_5NZEpgh9xKWqCyp99rt5GxWTLoYs`, and production Playwright route/API smoke.

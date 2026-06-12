@@ -44,6 +44,11 @@ frontend/test-results*/
 playwright-report/
 frontend/playwright-report/
 frontend/output/
+**/.last-run.json
+
+# Large generated browser evidence retained locally; receipts reference the paths.
+docs/artifacts/ux-baseline/
+docs/artifacts/playwright/
 
 # Temp
 .tmp/

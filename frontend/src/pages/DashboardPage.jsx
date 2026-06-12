@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import PageState from "../components/ui/PageState";
+import { ChartFrame, SAFE_RECHARTS_CONTAINER_PROPS } from "../components/ui/LoadingStates";
 import { reportsService } from "../services/api";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
@@ -56,7 +57,7 @@ function MetricCard({ title, value, note, icon, tone = "indigo", loading }) {
   };
 
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${tones[tone]} p-5 shadow-sm ring-1`}>
+    <div className={`eduflow-metric bg-gradient-to-br ${tones[tone]} p-5 ring-1`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-500">{title}</p>
@@ -93,12 +94,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [detailError, setDetailError] = useState(null);
 
   const loadDashboard = async () => {
     const initialLoad = !data;
     setLoading(initialLoad);
     setRefreshing(!initialLoad);
     setError(null);
+    setDetailError(null);
 
     const summaryResponse = await reportsService.getDashboard({ mode: "summary" });
     if (!summaryResponse.success) {
@@ -114,6 +117,8 @@ export default function DashboardPage() {
     const detailResponse = await reportsService.getDashboard({ mode: "full" });
     if (detailResponse.success) {
       setData(detailResponse.data);
+    } else {
+      setDetailError(detailResponse.error?.message || "Khong the tai du lieu chi tiet");
     }
     setRefreshing(false);
   };
@@ -157,22 +162,22 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
+      <section className="eduflow-page-intro overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-100">
+                <span className="eduflow-eyebrow">
                   {todayLabel}
                 </span>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-100">
                   {refreshing ? "Đang cập nhật" : "Production online"}
                 </span>
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="eduflow-title text-3xl font-black tracking-tight sm:text-4xl">
                 Tổng quan vận hành
               </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+              <p className="eduflow-muted mt-3 max-w-2xl text-base leading-7">
                 Theo dõi điểm danh, học phí, dòng tiền và các việc cần xử lý trong ngày từ dữ liệu thật của hệ thống.
               </p>
             </div>
@@ -187,6 +192,20 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {detailError && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} aria-hidden="true" />
+            <p className="font-semibold">
+              Du lieu tong quan da tai, nhung du lieu chi tiet dang thieu: {detailError}
+            </p>
+          </div>
+          <button type="button" onClick={loadDashboard} className="btn-secondary w-fit px-3 py-2 text-xs">
+            Tai lai chi tiet
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -219,7 +238,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <section className="rounded-3xl border border-slate-200/70 bg-white/95 p-5 shadow-sm sm:p-6">
+        <section className="eduflow-panel min-w-0 p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-950">Dòng tiền tháng hiện tại</h2>
@@ -229,9 +248,9 @@ export default function DashboardPage() {
               Báo cáo
             </Link>
           </div>
-          <div className="mt-5 h-72">
+          <ChartFrame className="mt-5" height={288}>
             {hasFinancialData ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer {...SAFE_RECHARTS_CONTAINER_PROPS} width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
@@ -254,10 +273,10 @@ export default function DashboardPage() {
                 <p className="mt-1 text-sm text-slate-500">Khi có phiếu thu hoặc phiếu chi, biểu đồ sẽ tự cập nhật.</p>
               </div>
             )}
-          </div>
+          </ChartFrame>
         </section>
 
-        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
+        <section className="eduflow-panel">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Việc cần xử lý</h2>
@@ -286,7 +305,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
+        <section className="eduflow-panel">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Giao dịch gần đây</h2>
@@ -317,7 +336,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm">
+        <section className="eduflow-panel">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Học phí cần thu</h2>

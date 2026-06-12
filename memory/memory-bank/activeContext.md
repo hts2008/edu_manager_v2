@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: `admin / admin123`
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: `dpl_7vvKWQfjvgTJXQCSpMM52D2AtoYH` on `https://edu-manager-gules.vercel.app` after the 2026-06-06 Template Designer paper-size/custom canvas alignment fix.
+- **Latest production deployment observed in Codex session**: Vercel inspect URL `https://vercel.com/hts2008s-projects/edu-manager/4LemiLebU9nYNmDq6YAmdUyGiQn4`; production URL `https://edu-manager-p01b3s0mp-hts2008s-projects.vercel.app`, aliased to `https://edu-manager-gules.vercel.app`, after the 2026-06-12 Figma runtime UX/UI apply.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Phase A Production Closeout (2026-05-15)
@@ -45,11 +45,16 @@
 - **Verification**: `git diff --check`, `npx tsc --noEmit`, `npm run test:unit` 28/28, frontend lint, `npm run build`, root/frontend audits, and production Playwright 6/6 all passed after cleanup.
 
 ## Current Sprint Focus
-1. **Template Designer Paper Size + Canvas Alignment Fix** - Template Designer now supports A4/A5/A6/custom paper dimensions from the designer itself. Effective paper metadata is stored in `json_config.paper`/`json_config.canvas` so custom sizes do not require a Prisma enum migration; existing Fabric objects are scaled/fitted when paper changes, PDF generation honors the JSON paper metadata, and production Chrome smoke passed on 2026-06-06 without saving/mutating the production template.
-2. **Template Designer Visible Render + Upload Fix** - Template Designer now visibly renders newly added Text/Field/Rect/image/background objects. RCA found Fabric copied `bg-white` from the source canvas to the generated `upper-canvas`, visually covering the lower render canvas. The source canvas no longer carries `bg-white`, canvas controls are disabled until ready, background uploads fit the page with stronger opacity, and production Chrome smoke passed on 2026-06-05.
-3. **Template Designer Legacy Canvas Fix** - default receipt templates with legacy `{ elements: [] }` config no longer keep the designer stuck at `Dang khoi tao canvas...`; the canvas scaffolds safely, tools work, save is enabled, and production smoke passed on 2026-06-04.
-4. **Fee Workbench Class-Line Split Patch** - multi-class students now render and collect as one Fee Workbench row per class line; aggregate legacy rows are not collectable. Deployed and production-smoked on 2026-06-03.
-5. **No-Blocking Flows + Line Fee Ledger Closeout** - attendance make-up/cross-month period handling, class bulk student loading, per-class fee lines, receipt line printing, finance dashboard data, and Template Designer interactions are implemented, deployed, and production-smoked on 2026-06-02.
+0. **Working tree hygiene closeout (IMPLEMENTED)** - Remaining UX/report/template drift has been classified into intentional source/docs/evidence versus generated browser traces. The large browser-evidence directories `docs/artifacts/ux-baseline/` and `docs/artifacts/playwright/` are now ignored locally, while source, tests, receipts, plans, and compact screenshots remain tracked for explicit commit/push. Student Monthly Progress Parent Report remains implemented and production-smoked.
+0. **Student Monthly Progress Parent Report (IMPLEMENTED + PROD 2026-06-12)** - Added `/api/reports/student-progress` and `/student-progress` for parent-facing monthly student progress reporting. Phase 1 is evidence-first: it uses real student-class-month operational data (attendance, class, tuition/fee state), maps English class names to Cambridge tracks where possible (Pre A1 Starters, A1 Movers, A2 Flyers, A2 Key/KET, B1 Preliminary/PET), computes an operational progress/readiness proxy, and explicitly marks academic skill scores as missing input instead of fabricating Listening/Reading-Writing/Speaking/Vocabulary-Grammar results. Plan: `plans/2026-06-12-student-progress-parent-report/plan.md`. Production: Vercel deployment `dpl_5NZEpgh9xKWqCyp99rt5GxWTLoYs`, aliased to `https://edu-manager-gules.vercel.app`. Evidence: `receipts/2026-06-12-student-progress-parent-report.md`; screenshots `receipts/artifacts/student-progress-local-smoke.png` and `receipts/artifacts/student-progress-production-smoke.png`. Verification: focused unit 4/4, typecheck, frontend lint, full unit 65/65, build, feature diff-check, local Playwright route/API smoke, and production Playwright route/API smoke.
+0. **EduFlow Motion UX/UI Production Track (IMPLEMENTED)** - Platform-wide UX track documented at `plans/2026-06-09-eduflow-motion-ux-stitch-figma/plan.md`. Phase 0 production browser baseline is implemented, Phase 1 Stitch concept set was generated with `GEMINI_3_1_PRO` and accepted at 95/100, Phase 2 Figma source-of-truth is implemented, and Phases 3-8 code/deploy/browser verification are implemented. Figma Desktop/Computer Use created nodes `31:2`, `35:128`, coarse component definition `37:415`, token-bound native component probe `47:421`, and the final plugin-authored native source nodes `49:436`, `49:438`, `49:440`, `49:442`, `49:444`, desktop frame `49:447`, and mobile frame `49:472`. The accepted Figma direction was applied to runtime React/Tailwind and deployed to production on 2026-06-12 as `dpl_4LemiLebU9nYNmDq6YAmdUyGiQn4`.
+   - **2026-06-11 final Figma source closeout**: the local plugin `tools/figma-eduflow-source-plugin` was imported/run from Figma Desktop Quick Actions after RCA found the Figma window was on an offscreen monitor (`x=-2060`). Figma MCP verified variable bindings for `49:447`, `49:436`, and `49:444`; `get_design_context` succeeded for `49:447`, `49:436`, and `49:472`; screenshots rendered for `49:447` and `49:472`; `get_metadata(49:447)` confirmed component instances inside the desktop frame. Final design acceptance and implementation/deploy mapping are recorded in `receipts/2026-06-11-uxm02-figma-source-final-closeout.md`. No new PROD deploy was run because the final pass changed only Figma/project-control evidence, not runtime app code.
+   - **2026-06-12 Figma runtime PROD apply**: the accepted Figma nodes were mapped into `frontend/src/design/tokens.js`, `frontend/src/index.css`, shell/layout primitives, `OperationalPage`, `DataTable`, `LoadingStates`, Dashboard, Fee Workbench, and Reports. QA also hardened Fee Workbench bulk calculate/pay state and DataTable null search. Gates passed: lint, typecheck, unit 61/61, build, local Playwright 6/6, local UX baseline, local perf-lab, production Playwright 6/6, production UX baseline 150/150, production perf-lab. Evidence: `receipts/2026-06-12-figma-runtime-prod-apply.md`.
+1. **Report BI Tab-Mode + Dashboard Patch** - `/reports` now sends server-side `mode=overview|attendance|tuition|risk`, filters before pagination, keeps stable `meta.classes`, and renders a richer BA/PI dashboard with funnel, attendance distribution, risk mix, action list, and risk heatmap panels. Production smoke on 2026-06-09 confirmed mode totals (`overview=118`, `attendance=111`, `tuition=118`, `risk=114` current rows), 5 chart panels, no horizontal overflow, and no console errors. The base Report Intelligence Center remains a student-class-month report center with admin-only `/api/reports/bi`, server-side search, CSV export, drilldown, loading/error states, inactive historical enrollment evidence handling, and aggregate multi-class fee safeguards.
+2. **Template Designer Paper Size + Canvas Alignment Fix** - Template Designer now supports A4/A5/A6/custom paper dimensions from the designer itself. Effective paper metadata is stored in `json_config.paper`/`json_config.canvas` so custom sizes do not require a Prisma enum migration; existing Fabric objects are scaled/fitted when paper changes, PDF generation honors the JSON paper metadata, and production Chrome smoke passed on 2026-06-06 without saving/mutating the production template.
+3. **Template Designer Visible Render + Upload Fix** - Template Designer now visibly renders newly added Text/Field/Rect/image/background objects. RCA found Fabric copied `bg-white` from the source canvas to the generated `upper-canvas`, visually covering the lower render canvas. The source canvas no longer carries `bg-white`, canvas controls are disabled until ready, background uploads fit the page with stronger opacity, and production Chrome smoke passed on 2026-06-05.
+4. **Template Designer Legacy Canvas Fix** - default receipt templates with legacy `{ elements: [] }` config no longer keep the designer stuck at `Dang khoi tao canvas...`; the canvas scaffolds safely, tools work, save is enabled, and production smoke passed on 2026-06-04.
+5. **Fee Workbench Class-Line Split Patch** - multi-class students now render and collect as one Fee Workbench row per class line; aggregate legacy rows are not collectable. Deployed and production-smoked on 2026-06-03.
 6. **Financial Correction Policy Closeout** - explicit admin correction is implemented for historical paid receipt/monthly-fee anomalies (`days_count=0` with non-zero amount); Reports/Receipts surface anomaly metadata and Fee Workbench blocks unsafe collection rows. Deployed and production-smoked on 2026-06-01.
 7. **Performance Lag RCA Closeout** - latest pass reduced large motion/blur surfaces, made table/search/loading states lighter, guarded Fee Workbench and Attendance stale async responses, parallelized Attendance month fetches, narrowed report selects, added read-only `perf-lab`, and passed local + production browser/API smoke on 2026-05-28.
 8. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
@@ -122,6 +127,28 @@
 - `receipts/2026-05-14-phase-a-api-parity-static.md`
 - `receipts/2026-05-14-phase-a-closeout-attempt.md`
 
+## 2026-06-09 Active Context - EduFlow Motion Phase 4 Dashboard/Login/Modal
+
+- **Scope**: Continue approved EduFlow Motion UX/UI Phase 4 after the shell/master-data slice.
+- **Implemented locally**:
+  - `LoginPage.jsx` rebuilt as a production-style EduFlow operational login screen with action progress and no visible demo credential block.
+  - `DashboardPage.jsx` now surfaces partial detail-load failure through a retryable warning banner instead of silently swallowing errors.
+  - `Modal.jsx` now supports opt-in unsaved-change protection, form snapshot tracking, guarded child cancel buttons, keyboard focus loop, close guard, and focus restoration.
+  - Students, Parents, Classes, and Teachers long edit forms now use `confirmOnClose` and sticky action footers.
+- **Evidence**:
+  - `receipts/2026-06-09-eduflow-motion-phase4-dashboard-login-modal.md`
+  - `docs/artifacts/ux-baseline/local-phase4-dashboard-login-modal-guarded/2026-06-09T16-57-29-699Z/`
+  - `docs/artifacts/ux-baseline/local-phase4-dashboard-login-modal-guarded-reduced/2026-06-09T16-58-10-058Z/`
+  - `docs/artifacts/playwright/modal-guard-phase4/`
+- **Verification**: lint zero warnings, `npx tsc --noEmit`, unit 61/61, build, targeted local `modal-guard.spec.js` 3/3, local browser baseline 12/12, local reduced-motion baseline 24/24, local mobile drawer/back-forward pass, Vercel deploy `dpl_9qWTHirrZpVktfNh5W3wcaHRZX5V` Ready, production `modal-guard.spec.js` 3/3, production browser baseline 12/12, production reduced-motion baseline 24/24, and production mobile drawer/back-forward pass.
+- **Production evidence**:
+  - `docs/artifacts/playwright/modal-guard-phase4-production/`
+  - `docs/artifacts/ux-baseline/production-phase4-dashboard-login-modal-guarded/2026-06-09T17-11-14-311Z/`
+  - `docs/artifacts/ux-baseline/production-phase4-dashboard-login-modal-guarded-reduced/2026-06-09T17-12-28-101Z/`
+  - `docs/artifacts/ux-baseline/production-phase4-mobile-drawer-back-forward.png`
+- **Status**: `UXM-2026-06-09-04` is `IMPLEMENTED`. Next UXM work is Phase 5 attendance/finance/reports visual normalization.
+- **Tooling note**: Context+/Neural Memory direct tools were not exposed in this Codex turn, so write-back is markdown/manual only.
+
 ## Just Completed
 Phase B foundation hardening baseline: removed tracked `.backup` files, added `VITE_API_BASE`/retry/401 handling to the API client, added ErrorBoundary, added login rate-limit, added unit tests and CI, recorded backend strategy, and brought frontend lint to zero warnings.
 
@@ -160,6 +187,8 @@ MOT-UX-002 Dashboard Glassmorphic Redesign: refactored `DashboardPage.jsx` using
 Production deploy/env closeout: deployed the 2026-05-18/2026-05-19 hardening and EduFlow UI pass to `https://edu-manager-gules.vercel.app`. Fixed Vercel env drift (`DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`), linked Vercel Blob store `edu-manager-live-blob`, added `.vercelignore`, corrected an unanchored ignore bug that excluded `server/api/receipts` and `server/api/reports`, closed the frontend `ws` audit advisory, and verified production with login 200, upload-image 201, auth no-token 401, cron no-token 403, and Playwright 6/6.
 
 ## Now Doing
+2026-06-09 Report BI tab-mode + dashboard patch: fixed the issue where `Tong quan` / `Chuyen can` / `Hoc phi` / `Rui ro` looked inert by adding a backend `mode` filter and making the frontend request/tab state drive the API. Added additional chart panels for BA/PI-style analysis, stabilized class filter options from `meta.classes`, separated mixed VND/count chart axes, deferred search input, and removed duplicate initial error rendering. Local gates passed: focused unit 18/18, full unit 59/59, typecheck, frontend lint zero warnings, build, local Report BI E2E 3/3, and browser probe. Production deploy/smoke passed on `https://edu-manager-gules.vercel.app` with API mode totals and screenshot evidence in `receipts/artifacts/report-bi-tabs-dashboard-production.png`.
+
 Production-live optional closeout is implemented and deployed on 2026-06-08: API documentation now lives in `docs/API.md` with a unit drift test against `api/router.ts`; Advanced Reports has a Recharts revenue line chart plus mocked/prod E2E coverage; Template Designer exposes Thermal 80mm in the paper-size picker and PDF tests verify the 80x200mm MediaBox; GitHub Actions now has a separate Playwright E2E job that runs deterministic mocked browser smoke specs against frontend preview. Local gates passed: `npm run test:unit` 50/50, `npx tsc --noEmit`, `npm --prefix frontend run lint -- --max-warnings=0`, `npm run build`, focused Playwright 2/2, CI-equivalent frontend preview Playwright 2/2, and `git diff --check`. Production deployment `dpl_57m2wBJuvyWonYWqL98Q92BCudfC` is Ready; production Advanced Reports smoke passed 1/1 and Template Designer thermal smoke verified canvas `302x756` without saving.
 
 Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05 Template Designer visible render/upload fix deployed and production-smoked. Existing paid anomalous receipts are intentionally not auto-mutated; admins should use Reports/Receipts anomaly actions to void/recalculate one record at a time with an operator reason.
@@ -188,3 +217,105 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
 5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.
+
+## 2026-06-10 Current Context - EduFlow Motion Phase 5 Attendance/Finance/Reports
+
+- **Active task closed**: `UXM-2026-06-09-05` is `IMPLEMENTED` locally with browser/test evidence.
+- **Scope completed**:
+  - Attendance: added week-level loading/error/readiness guards, blocked edit/save/select-all while selected week data is not loaded, and surfaced retry/status messaging for week fetches.
+  - Fee Workbench: removed unsafe aggregate fallback when `/api/monthly-fees/workbench` fails, added error/retry and refresh status, locked stale actions while loading, required row month to match selected month before collect/print, and added print progress states.
+  - Reports: guarded against stale BI data after tab/filter request failure, added backend pagination clamping, added drawer audit context, and restored visible `Theo dõi học phí theo học viên` matrix heading.
+  - Design workflow: Stitch generated a `GEMINI_3_1_PRO` operations concept in project `5084496326021058210`; Figma Desktop node `3:36` was inspected/screenshot-captured, but no writable Figma sync tool was available in this Codex run.
+- **Evidence**:
+  - `receipts/2026-06-10-eduflow-motion-phase5-attendance-finance-reports.md`
+  - `docs/artifacts/ux-baseline/2026-06-09T18-31-42-820Z/`
+- **Verification**: frontend lint zero warnings, `npx tsc --noEmit`, `npm run test:unit` 61/61, `npm run build`, local Playwright Phase 5 7/7, local template/UX smoke 12/12, and local UX baseline desktop/mobile 16/16.
+- **Operational note**: Local smoke server must be started with `npm.cmd`; plain `Start-Process npm` opened Notepad through Windows file association. Prisma generate initially hit EPERM because the local smoke server held Prisma Client DLL; stopping the port-3000 child process fixed the build.
+
+## 2026-06-10 Current Context - EduFlow Motion Phase 6 Template/Admin/Parent
+
+- **Active task closed**: `UXM-2026-06-09-06` is `IMPLEMENTED` locally with browser/test evidence.
+- **Scope completed**:
+  - Template Designer: typed status notices, save recovery, disabled controls during save/upload, discoverable shortcut hint, layer list, and stronger E2E assertions.
+  - Templates library: operational layout, loading/error/retry states, action progress, and paper labels from `json_config.paper`.
+  - Admin secondary surfaces: users retry/shared confirm, import progress/confirm, recycle-bin purge confirm/progress, fee reminder progress/live-send confirmation.
+  - Parent portal: mobile-first read-only login/portal with progress, loading scene, error retry, and no admin navigation.
+- **Evidence**:
+  - `receipts/2026-06-10-eduflow-motion-phase6-template-admin-parent.md`
+  - `docs/artifacts/ux-baseline/local-phase6-template-admin-parent-reduced/2026-06-10T05-54-51-997Z/`
+  - `docs/artifacts/playwright/phase6-admin-secondary-local/`
+  - `docs/artifacts/playwright/phase6-template-local/`
+- **Verification**: frontend lint zero warnings, `npx tsc --noEmit`, `npm run test:unit` 61/61, `npm run build`, Playwright admin/parent 2/2, Playwright Template Designer 1/1, UX baseline 100/100 across mobile/tablet/desktop/wide and default/reduced-motion.
+- **Operational note**: Phase 6 was not production-deployed in this turn. Stop local smoke server before build if Prisma Client DLL `EPERM` appears on Windows.
+- **Next unchecked item**: `UXM-2026-06-09-07` responsive/accessibility/performance hardening, then `UXM-2026-06-09-08` production deploy/smoke/closeout.
+
+## 2026-06-10 Current Context - EduFlow Motion Phase 7 Responsive/A11y/Performance
+
+- **Active task closed**: `UXM-2026-06-09-07` is `IMPLEMENTED` locally with browser/test/perf evidence.
+- **Scope completed**:
+  - Added a stable layout-level screen-reader live/status region so settled protected routes keep an async status target after loading scenes disappear.
+  - Added accessible names/titles for Template Library icon-only edit, set-default, and delete actions.
+  - Added `frontend/e2e/responsive-accessibility-phase7.spec.js` to guard mobile/desktop protected routes, main landmarks, headings, focusable controls, live regions, unnamed icon buttons, horizontal overflow, runtime/API errors, and reduced-motion infinite animation.
+- **Evidence**:
+  - `receipts/2026-06-10-eduflow-motion-phase7-responsive-a11y-performance.md`
+  - `docs/artifacts/playwright/phase7-responsive-a11y-local/`
+  - `docs/artifacts/ux-baseline/local-phase7-responsive-a11y-performance/2026-06-10T06-29-24-670Z/`
+  - `receipts/perf/perf-lab-2026-06-10T06-33-58-416Z.md`
+- **Verification**: frontend lint zero warnings, `npx tsc --noEmit`, `npm run test:unit` 61/61, `npm run build`, `git diff --check`, Playwright Phase 7 2/2, UX baseline 150/150, and local perf-lab pass.
+- **Operational note**: Phase 7 was not production-deployed in this turn. The UX baseline does not yet emit numeric CLS from browser layout-shift entries; it does enforce zero overflow, zero blank pages, zero console/API/page findings, and reduced-motion coverage.
+- **Next unchecked item**: `UXM-2026-06-09-08` production verification and closeout.
+
+## 2026-06-10 Current Context - EduFlow Motion Phase 8 Production Verification
+
+- **Active task closed**: `UXM-2026-06-09-08` is `IMPLEMENTED` with production deployment/browser/perf evidence.
+- **Production**: `https://edu-manager-gules.vercel.app` is on Vercel deployment `dpl_FMemytCK71osPxvskCWb4o2qt2B5`; inspect reported Ready; root HTML references `index-DrLVhz64.js`; production login probe returned HTTP 200.
+- **Evidence**:
+  - `receipts/2026-06-10-eduflow-motion-phase8-production-closeout.md`
+  - `docs/artifacts/ux-baseline/production-phase8-responsive-a11y-performance/2026-06-10T06-45-34-107Z/`
+  - `docs/artifacts/playwright/phase7-responsive-a11y-production/`
+  - `docs/artifacts/playwright/phase8-template-production/`
+  - `docs/artifacts/playwright/phase8-report-bi-production/`
+  - `receipts/perf/perf-lab-2026-06-10T06-59-13-443Z.md`
+- **Verification**: Production responsive/a11y Playwright 2/2, production Template Designer 1/1, production Report BI 3/3, production UX baseline 150/150, production perf-lab pass, and `git diff --check` passed with only existing CRLF warnings.
+- **Operational note**: Figma MCP write remains unavailable, but Figma Desktop/Computer Use plus the local plugin path now provided enough verified authoring evidence to close UXM-02. Production latency still shows serverless/DB cold-start sensitivity; perf-lab route p95 was 6372.1 ms, but no failures or severe browser API errors were observed.
+- **Next recommended**: Continue product feature work or deeper performance optimization only after reviewing whether DB/serverless latency is acceptable for live operators.
+
+## 2026-06-10 Current Context - EduFlow Motion Phase 1 Selection Closeout
+
+- **Active task closed**: `UXM-2026-06-09-01` is `IMPLEMENTED`.
+- **Decision**: accepted the Stitch direction `Calm Operations + Motion Data Command` at 95/100 instead of running another detached variant loop, because the direction has already been implemented and production-verified through Phase 3-8.
+- **Evidence**:
+  - `receipts/2026-06-10-eduflow-motion-phase1-selection-closeout.md`
+  - `receipts/2026-06-10-eduflow-motion-phase8-production-closeout.md`
+  - `docs/artifacts/ux-baseline/production-phase8-responsive-a11y-performance/2026-06-10T06-45-34-107Z/`
+- **Superseded blocker note**: `UXM-2026-06-09-02` later closed after the plugin-authored native components/frames `49:436`, `49:438`, `49:440`, `49:442`, `49:444`, `49:447`, and `49:472` were verified and accepted.
+
+## 2026-06-10 Current Context - Figma Offline Handoff Package
+
+- **Actionable fallback completed**: prepared `docs/artifacts/figma-handoff/eduflow-motion-v3-source-of-truth-spec.md`.
+- **Content**: implementation-aligned Figma variables, components, desktop/mobile frames, prototype flows, code mapping and write checklist.
+- **Boundary**: this does not complete Figma Phase 2. It is a local handoff package only; actual Figma source-of-truth sync still requires a write-capable Figma MCP/plugin.
+
+## 2026-06-10 Current Context - Figma Desktop Write Path Verified
+
+- **User-directed approach**: switched from waiting on write-capable Figma MCP to using `@figma` read tools plus Computer Use against Figma Desktop.
+- **Figma MCP state**: read/inspect tools work (`get_metadata`, `get_screenshot`) but write/create/update tools such as `use_figma` remain unavailable in this Codex session.
+- **Desktop evidence**: Computer Use located `EDUMANAGER - Figma`, switched Figma from Inspect/Dev Mode to Design mode, and pasted a source-of-truth SVG board into the active `EDU_MANAGER_V2 Production UX` page.
+- **Created Figma node**: `31:2` (`Frame`, `1440 x 1080`, `x=1679`, `y=914`) with readable children for `EDU_MANAGER_V2 / EDUFLOW MOTION V3`, `FEE WORKBENCH`, `TEMPLATE DESIGNER`, `REPORT INTELLIGENCE`, and `VALIDATION`.
+- **Evidence**: `receipts/2026-06-10-figma-desktop-write-path-unblocked.md`.
+- **Boundary superseded**: This 2026-06-10 boundary is historical. `UXM-2026-06-09-02` is now `IMPLEMENTED` through the 2026-06-11 native source closeout receipt.
+
+## 2026-06-10 Current Context - Figma Source Pack Expanded
+
+- **Active task status superseded**: `UXM-2026-06-09-02` is now `IMPLEMENTED`; this section is retained as historical source-pack evidence.
+- **Primary Figma node**: `35:128` named `EDU_MANAGER_V2 / EduFlow Motion V3 Source Pack`.
+- **Native component evidence**: `37:415` is a coarse native component definition wrapping the source pack.
+- **Completed**:
+  - Pasted a larger source-pack SVG into Figma Desktop after the first proof node.
+  - Renamed the imported frame through Figma Desktop.
+  - Verified the node through Figma MCP `get_metadata`, `get_design_context`, and `get_screenshot`.
+  - Converted the selected source pack to a native Figma component definition with Desktop shortcut `Ctrl+Alt+K`.
+  - Verified `37:415` through Figma MCP `get_metadata`, `get_design_context`, and `get_screenshot`.
+  - Source pack includes sections for design direction, tokens, component library, navigation, loading/motion, dashboard, fee workbench, report intelligence, attendance, template designer, mobile, and implementation map.
+- **Evidence**: `receipts/2026-06-10-figma-desktop-write-path-unblocked.md`; Figma nodes `35:128` and `37:415`.
+- **Boundary**: This is still not a complete native Figma design-system implementation. `37:415` is one coarse source-pack component wrapper; remaining review work is granular native variables/components/variants plus stale frame replacement for `3:36` and `3:142`.

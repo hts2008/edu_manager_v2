@@ -110,6 +110,18 @@ test("student fee report flags paid receipt anomalies even without monthly fee r
   assert.match(code, /anomaly_detail/);
 });
 
+test("BI report is admin-only and exposed by the production router", () => {
+  const report = source("server/api/reports/bi.ts");
+  const router = source("api/router.ts");
+
+  assert.match(report, /export default requireAuth\(handler,\s*\["admin"\]\)/);
+  assert.doesNotMatch(report, /enrollmentWhere\.classId/);
+  assert.match(report, /filterReportRows\(cube\.students,\s*query\)/);
+  assert.match(report, /evidenceByEnrollment/);
+  assert.match(router, /reportsBi/);
+  assert.match(router, /exact\(parts, \["reports", "bi"\], routes\.reportsBi\)/);
+});
+
 test("workbench never downgrades confirmed legacy fees during read-only listing", () => {
   const code = source("server/api/monthly-fees/workbench.ts");
 

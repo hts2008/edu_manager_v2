@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { feeRemindersService } from "../services/api";
 import { toMonthKey } from "../utils/dateKeys";
+import ActionProgressButton from "../components/ui/ActionProgressButton";
+import LongOperationStatus from "../components/ui/LongOperationStatus";
+import { ConfirmModal } from "../components/ui/Modal";
 
 function currentMonth() {
   return toMonthKey(new Date());
@@ -18,11 +21,14 @@ export default function FeeRemindersPage() {
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [operation, setOperation] = useState("");
+  const [confirmSendOpen, setConfirmSendOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
   async function runPreview() {
     setLoading(true);
+    setOperation("preview");
     setError("");
     setMessage("");
     try {
@@ -35,11 +41,13 @@ export default function FeeRemindersPage() {
       setMessage("Reminder preview ready");
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
   async function runSend(dryRun) {
     setLoading(true);
+    setOperation(dryRun ? "dry-run" : "send");
     setError("");
     setMessage("");
     try {
@@ -50,8 +58,10 @@ export default function FeeRemindersPage() {
       }
       setData(response.data);
       setMessage(dryRun ? "Dry-run complete" : "Send run complete");
+      if (!dryRun) setConfirmSendOpen(false);
     } finally {
       setLoading(false);
+      setOperation("");
     }
   }
 
@@ -72,17 +82,26 @@ export default function FeeRemindersPage() {
             className="input w-40"
             aria-label="Reminder month"
           />
-          <button onClick={runPreview} disabled={loading} className="btn-secondary disabled:opacity-50">
+          <ActionProgressButton onClick={runPreview} loading={operation === "preview"} disabled={loading} className="btn-secondary" loadingLabel="Previewing...">
             Preview
-          </button>
-          <button onClick={() => runSend(true)} disabled={loading} className="btn-secondary disabled:opacity-50">
+          </ActionProgressButton>
+          <ActionProgressButton onClick={() => runSend(true)} loading={operation === "dry-run"} disabled={loading} className="btn-secondary" loadingLabel="Checking...">
             Dry run
-          </button>
-          <button onClick={() => runSend(false)} disabled={loading} className="btn-primary disabled:opacity-50">
+          </ActionProgressButton>
+          <ActionProgressButton onClick={() => setConfirmSendOpen(true)} loading={operation === "send"} disabled={loading} className="btn-primary" loadingLabel="Sending...">
             Send
-          </button>
+          </ActionProgressButton>
         </div>
       </div>
+
+      {loading && (
+        <LongOperationStatus
+          title={operation === "send" ? "Đang chạy gửi nhắc phí" : operation === "dry-run" ? "Đang chạy dry-run" : "Đang tạo preview"}
+          message={operation === "send" ? "Hệ thống chỉ gửi thật khi provider và policy opt-in đã được bật trong backend." : "Hệ thống đang rà soát học phí quá hạn, phụ huynh và số tiền cần nhắc."}
+          steps={["Lọc học phí quá hạn", "Kiểm tra phụ huynh/opt-in", "Tổng hợp kết quả"]}
+          activeStep={1}
+        />
+      )}
 
       {message && (
         <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -134,6 +153,17 @@ export default function FeeRemindersPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmSendOpen}
+        onClose={() => setConfirmSendOpen(false)}
+        onConfirm={() => runSend(false)}
+        title="Xác nhận gửi nhắc phí"
+        message="Bạn đang yêu cầu chạy nhắc phí thật. Hệ thống chỉ gửi khi provider và opt-in policy đã được cấu hình; nếu chưa bật, backend sẽ trả về dry-run/blocked result."
+        confirmText="Chạy gửi"
+        cancelText="Hủy"
+        variant="primary"
+      />
     </div>
   );
 }

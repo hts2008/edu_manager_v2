@@ -336,6 +336,7 @@ function defaultApiPaths(month) {
     "/api/parents",
     `/api/monthly-fees/workbench?month=${month}&limit=500`,
     `/api/reports/financial?from=${start}&to=${end}&type=monthly`,
+    `/api/reports/bi?from=${month.slice(0, 4)}-01&to=${month}&page=1&page_size=50`,
     `/api/reports/student-fees?from=${month}&to=${month}`,
     `/api/reports/advanced?from=${oneYearBefore(end)}&to=${end}&group_by=month`,
     "/api/templates",

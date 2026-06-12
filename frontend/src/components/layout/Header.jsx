@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Menu, User, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ChangePasswordModal from "../auth/ChangePasswordModal";
+import { getMotionTransition } from "../../design/motion";
 
 const routeMeta = [
   { path: "/", title: "Tổng quan", group: "Vận hành" },
@@ -18,7 +19,7 @@ const routeMeta = [
   { path: "/fee-collection", title: "Thu tiền", group: "Tài chính" },
   { path: "/payments", title: "Chi tiền", group: "Tài chính" },
   { path: "/history", title: "Lịch sử giao dịch", group: "Tài chính" },
-  { path: "/reports", title: "Báo cáo", group: "Báo cáo" },
+  { path: "/reports", title: "Trung tâm phân tích", group: "Báo cáo" },
   { path: "/advanced-reports", title: "Báo cáo nâng cao", group: "Báo cáo" },
   { path: "/audit-logs", title: "Nhật ký hệ thống", group: "Báo cáo" },
   { path: "/templates", title: "Mẫu in", group: "Quản trị" },
@@ -46,9 +47,26 @@ export default function Header({ onMenuClick }) {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const currentRoute = useMemo(() => getRouteMeta(pathname), [pathname]);
   const roleLabel = user?.role === "admin" ? "Admin" : "Lễ tân";
+  const reducedMotion = useReducedMotion();
+  const routeMotion = reducedMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    : { initial: { opacity: 0, y: -6 }, animate: { opacity: 1, y: 0 } };
+  const menuMotion = reducedMotion
+    ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: getMotionTransition({ reduced: true }),
+      }
+    : {
+        initial: { opacity: 0, y: 8, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: 8, scale: 0.98 },
+        transition: getMotionTransition({ duration: "fast" }),
+      };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/60 bg-white/95 px-4 shadow-sm lg:px-8">
+    <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/95 px-4 shadow-sm supports-[backdrop-filter]:bg-white/88 supports-[backdrop-filter]:backdrop-blur-xl lg:px-8">
       <div className="flex h-[72px] items-center justify-between gap-4">
         {/* Left Side: Mobile Menu Toggle & Title */}
         <div className="flex min-w-0 items-center gap-4">
@@ -63,16 +81,17 @@ export default function Header({ onMenuClick }) {
 
           <Motion.div
             key={currentRoute.path}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={routeMotion.initial}
+            animate={routeMotion.animate}
+            transition={getMotionTransition({ reduced: reducedMotion, duration: "fast" })}
             className="min-w-0"
           >
-            <div className="mb-0.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary-500/80">
+            <div className="mb-0.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-primary-600">
               <span>{currentRoute.group}</span>
               <span className="hidden h-1 w-1 rounded-full bg-cyan-400 sm:block" />
               <span className="hidden sm:inline tracking-widest text-slate-400">EduManager V2</span>
             </div>
-            <h1 className="truncate text-xl font-extrabold text-slate-900 tracking-tight sm:text-2xl">
+            <h1 className="truncate text-xl font-black text-slate-950 tracking-tight sm:text-2xl">
               {currentRoute.title}
             </h1>
           </Motion.div>
@@ -81,9 +100,9 @@ export default function Header({ onMenuClick }) {
         {/* Right Side: Actions & Profile */}
         <div className="flex min-w-0 items-center gap-4">
           {/* Status Badge */}
-          <div className="hidden items-center gap-2 rounded-full border border-emerald-200/60 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold tracking-wide text-emerald-700 md:flex shadow-sm">
+          <div className="hidden items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1.5 text-xs font-black tracking-wide text-emerald-700 md:flex shadow-sm">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="motion-safe:animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
             SYSTEM ONLINE
@@ -105,7 +124,7 @@ export default function Header({ onMenuClick }) {
             <button
               type="button"
               onClick={() => setShowUserMenu((value) => !value)}
-              className="flex items-center gap-3 rounded-2xl border border-slate-200/60 bg-white/50 px-2 py-1.5 text-left shadow-[0_2px_10px_-3px_rgba(79,70,229,0.14)] transition-all hover:border-primary-200 hover:bg-white hover:shadow-md sm:px-3"
+              className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:border-primary-200 hover:bg-primary-50/40 hover:shadow-md sm:px-3"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 via-violet-500 to-cyan-500 text-sm font-bold text-white shadow-inner">
                 {user?.full_name?.charAt(0) || user?.username?.charAt(0) || "U"}
@@ -128,10 +147,7 @@ export default function Header({ onMenuClick }) {
                     onClick={() => setShowUserMenu(false)}
                   />
                   <Motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
+                    {...menuMotion}
                     className="absolute right-0 z-50 mt-3 w-64 overflow-hidden rounded-2xl border border-slate-200/60 bg-white/95 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)]"
                   >
                     <div className="border-b border-slate-100/80 px-5 py-4 bg-slate-50/50">

@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "started_at": "2026-06-09T06:29:46.122Z",
+  "finished_at": "2026-06-09T06:29:58.409Z",
+  "base_url": "https://edu-manager-gules.vercel.app",
+  "username": "admin",
+  "month": "2026-06",
+  "output_dir": "C:\\Users\\haitr\\OneDrive\\0. GAU DATA\\0.APP\\EDU_MANAGER_V2\\receipts\\perf",
+  "auth_login": {
+    "path": "/api/auth/login",
+    "method": "POST",
+    "status": 200,
+    "duration_ms": 3231.6,
+    "ok": true,
+    "error": null
+  },
+  "browser": {
+    "enabled": false,
+    "engine": "chromium",
+    "channel": "chrome",
+    "headless": true
+  },
+  "thresholds": {
+    "route_severe_ms": 15000,
+    "api_severe_ms": 7000,
+    "route_timeout_ms": 45000,
+    "api_timeout_ms": 30000,
+    "network_idle_ms": 20000
+  },
+  "selected_routes": [
+    "/",
+    "/students",
+    "/classes",
+    "/attendance",
+    "/fee-collection",
+    "/reports",
+    "/advanced-reports",
+    "/templates",
+    "/payments",
+    "/history"
+  ],
+  "selected_api_paths": [
+    "/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50"
+  ],
+  "direct_api_checks": [
+    {
+      "path": "/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50",
+      "method": "GET",
+      "sample": 1,
+      "status": 200,
+      "duration_ms": 3967.8,
+      "response_bytes": 40302,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50",
+      "method": "GET",
+      "sample": 2,
+      "status": 200,
+      "duration_ms": 3303.9,
+      "response_bytes": 40302,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    },
+    {
+      "path": "/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50",
+      "method": "GET",
+      "sample": 3,
+      "status": 200,
+      "duration_ms": 1782.2,
+      "response_bytes": 40302,
+      "content_type": "application/json; charset=utf-8",
+      "success_field": true,
+      "severe": false,
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "routes": [],
+  "browser_api_requests": [],
+  "read_only_violations": [],
+  "warnings": [],
+  "trace_path": null,
+  "summary": {
+    "auth_login_ok": true,
+    "direct_api_total": 3,
+    "direct_api_failed": 0,
+    "direct_api_p95_ms": 3967.8,
+    "route_total": 0,
+    "route_failed": 0,
+    "route_p95_ms": 0,
+    "browser_api_total": 0,
+    "browser_api_failed_or_severe": 0,
+    "browser_api_p95_ms": 0,
+    "read_only_violations": 0
+  }
+}
