@@ -101,6 +101,7 @@ Result:
 
 - Production Playwright: 1/1 passed.
 - Verified login, report fetch, filters, teacher save to `/api/student-progress`, reload from API, and parent print popup.
+- Post-push recheck on 2026-06-25: `npm --prefix frontend run test:e2e -- student-progress-assessment.spec.js` with `E2E_BASE_URL=https://edu-manager-gules.vercel.app` passed 1/1 after one transient `net::ERR_NETWORK_CHANGED` retry.
 
 Artifacts:
 
