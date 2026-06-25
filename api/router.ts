@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "../lib/vercel-types.js";
 import { errorResponse, handleCors, verifyAuth } from "../lib/auth.js";
-import { logActivity } from "../lib/api-utils.js";
+import { logActivity, sendApiError } from "../lib/api-utils.js";
 import {
   getRequestId,
   logApiError,
@@ -71,6 +71,7 @@ const routes = {
   reportsStudentFees: () => import("../server/api/reports/student-fees.js"),
   reportsStudentProgress: () => import("../server/api/reports/student-progress.js"),
   reportsUnpaidStudents: () => import("../server/api/reports/unpaid-students.js"),
+  studentProgressIndex: () => import("../server/api/student-progress/index.js"),
   studentsIndex: () => import("../server/api/students/index.js"),
   teachersIndex: () => import("../server/api/teachers/index.js"),
   templateById: () => import("../server/api/templates/[id]/index.js"),
@@ -132,6 +133,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["reports", "student-fees"], routes.reportsStudentFees) ||
     exact(parts, ["reports", "student-progress"], routes.reportsStudentProgress) ||
     exact(parts, ["reports", "unpaid-students"], routes.reportsUnpaidStudents) ||
+    exact(parts, ["student-progress"], routes.studentProgressIndex) ||
     exact(parts, ["receipts"], routes.receiptsIndex) ||
     (resource === "receipts" && parts.length === 2
       ? { load: routes.receiptById, params: { id } }
@@ -257,6 +259,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       path: routePath,
       durationMs: Date.now() - startedAt,
     });
-    return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    return sendApiError(res, error);
   }
 }

@@ -578,6 +578,19 @@ export const reportsService = {
     request(`/reports/unpaid-students${month ? `?month=${month}` : ""}`),
 };
 
+// Student Progress Assessment API
+export const studentProgressService = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/student-progress${query ? `?${query}` : ""}`);
+  },
+  saveMonth: (data) =>
+    request("/student-progress", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
 // Activity Logs API
 export const activityLogsService = {
   getAll: (params = {}) => {

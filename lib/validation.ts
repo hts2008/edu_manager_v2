@@ -156,3 +156,68 @@ export const recycleBinActionSchema = z.object({
   action: z.enum(["restore", "purge"]),
   id: z.string().trim().min(1, "id is required"),
 });
+
+const progressSkillKeySchema = z.enum([
+  "listening",
+  "speaking",
+  "reading",
+  "writing",
+  "homework",
+  "daily_practice",
+  "mock_test",
+]);
+
+const progressScoreSchema = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? null : value),
+  z.coerce.number().min(0).max(100).nullable().optional()
+);
+
+const progressMaxScoreSchema = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? 100 : value),
+  z.coerce.number().min(1).max(1000).optional()
+);
+
+export const studentProgressUpsertSchema = z.object({
+  student_id: z.string().trim().min(1, "student_id is required"),
+  class_id: z.string().trim().min(1, "class_id is required"),
+  month: z.string().regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM"),
+  track_key: z
+    .enum(["starters", "movers", "flyers", "ket", "pet", "unknown"])
+    .optional(),
+  class_type: z.enum(["communicative", "exam_prep", "mixed"]).optional(),
+  focus_skill_key: progressSkillKeySchema.nullable().optional(),
+  focus_skill_label: optionalNullableText,
+  teacher_note: optionalNullableText,
+  parent_summary: optionalNullableText,
+  mock_test_score: progressScoreSchema,
+  finalized: z.coerce.boolean().optional().default(false),
+  skills: z
+    .array(
+      z.object({
+        skill_key: progressSkillKeySchema,
+        skill_label: optionalNullableText,
+        score: progressScoreSchema,
+        max_score: progressMaxScoreSchema.default(100),
+        weight: optionalNumber.optional(),
+        status: z.enum(["missing_input", "available"]).optional(),
+        note: optionalNullableText,
+        source: optionalNullableText,
+        sort_order: z.coerce.number().int().optional(),
+      })
+    )
+    .optional()
+    .default([]),
+  daily_entries: z
+    .array(
+      z.object({
+        entry_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "entry_date must be YYYY-MM-DD"),
+        entry_type: z.enum(["homework", "daily_practice", "mock_test", "shield", "note"]),
+        skill_key: progressSkillKeySchema.nullable().optional(),
+        score: progressScoreSchema,
+        shield_count: z.coerce.number().int().min(0).optional().default(0),
+        note: optionalNullableText,
+      })
+    )
+    .optional()
+    .default([]),
+});

@@ -416,3 +416,12 @@
 - **Created nodes**: native reusable components `49:436`, `49:438`, `49:440`, `49:442`, `49:444`; desktop frame `49:447`; mobile frame `49:472`; implementation note `49:483`.
 - **MCP verification**: `get_variable_defs(49:447)` returned brand/surface/border/status token bindings; `get_variable_defs(49:436)` returned `color/brand/primary`; `get_variable_defs(49:444)` returned `color/brand/primary` and `color/brand/primarySoft`. `get_design_context` succeeded for `49:447`, `49:436`, and `49:472`; screenshots rendered for `49:447` and `49:472`.
 - **Status**: UXM-02 remains `REVIEW` pending final design acceptance and deployment mapping. This pass did not run a new production deploy.
+
+## 2026-06-14 Handoff - Student Progress Assessment Expansion
+
+- **Completed**: `SPRX-2026-06-12-01..07` is implemented and deployed.
+- **Production**: `https://edu-manager-gules.vercel.app`; Vercel inspect `https://vercel.com/hts2008s-projects/edu-manager/2ZxVKk5NGPq64xhe7H2zokBurm3C`.
+- **Key changes**: Prisma progress models, `/api/student-progress`, assessment scoring engine, parent report merge, teacher input panel, analytics, and production print smoke.
+- **Gates passed**: unit 78/78, typecheck, lint zero warnings, build, diff-check, Prisma validate, Prisma db push in sync, local Playwright 1/1, production Playwright 1/1.
+- **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
+- **Known follow-up**: add dedicated class-wide bulk/copy-last-month input grid; run dependency-security pass for npm audit warnings. Do not claim official Cambridge certificate scoring until the center approves formal grading policy.

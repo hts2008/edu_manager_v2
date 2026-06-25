@@ -763,4 +763,26 @@ stop.bat
 
 ---
 
-**Last Updated:** 2026-06-12
+## IMPLEMENTED - STUDENT PROGRESS ASSESSMENT EXPANSION (2026-06-14)
+
+**Objective:** extend the implemented monthly student progress report into a teacher-entered assessment workflow for English-center classes, so the system can capture real monthly skill growth, Cambridge-style track readiness, and focus areas without fabricating scores.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| SPRX-2026-06-12-01 | Research rubric and weighting for Listening, Speaking, Reading, Writing, Homework, Daily Practice, and mock tests | Cambridge/CEFR/English-center scoring | product-manager + research | Existing student-progress report | IMPLEMENTED | Rubric and track/class-type matrix in `plans/2026-06-12-student-progress-assessment-expansion/plan.md`; engine constants in `lib/student-progress-assessment.ts` |
+| SPRX-2026-06-12-02 | Add schema and persistence for monthly progress inputs, daily practice, and focus notes | Prisma + API storage | database-architect | SPRX-01 | IMPLEMENTED | `StudentProgressMonth`, `StudentProgressSkill`, `StudentProgressDailyEntry`; `npx prisma validate`; `npx prisma db push --skip-generate` already in sync |
+| SPRX-2026-06-12-03 | Build scoring engine for track-aware monthly progress, shields/points, and focus-skill detection | lib progress engine | backend-specialist | SPRX-01..02 | IMPLEMENTED | Unit coverage in `tests/student-progress-report.test.ts`; missing scores remain `missing_input`, not zero |
+| SPRX-2026-06-12-04 | Add teacher update workflow with monthly entry and draft/finalized save | UI + API CRUD | frontend + backend | SPRX-02..03 | IMPLEMENTED | `server/api/student-progress/index.ts`, `ProgressInputPanel`, production E2E teacher save; bulk grid copy-forward remains a future optimization |
+| SPRX-2026-06-12-05 | Extend parent report and printable summary with real skill breakdown and recommendation text | `/student-progress` | frontend-specialist | SPRX-03..04 | IMPLEMENTED | Report merge in `lib/student-progress-report.ts`; production print popup E2E passed |
+| SPRX-2026-06-12-06 | Expand BA/PI dashboard charts and filters for class/track/skill risk analytics | `/student-progress` analytics | frontend-specialist | SPRX-03..05 | IMPLEMENTED | Skill averages, teacher-input coverage, focus-area analytics, server filters and E2E filter checks |
+| SPRX-2026-06-12-07 | Add unit/integration/browser verification and rollout evidence | test + release | qa/release-manager | SPRX-01..06 | IMPLEMENTED | Unit 78/78, typecheck, lint, build, local E2E 1/1, production E2E 1/1, Vercel production deploy |
+
+**Plan file:** `plans/2026-06-12-student-progress-assessment-expansion/plan.md`.
+
+**Production:** deployed with Vercel inspect `https://vercel.com/hts2008s-projects/edu-manager/2ZxVKk5NGPq64xhe7H2zokBurm3C`; alias `https://edu-manager-gules.vercel.app`; production Playwright assessment smoke passed.
+
+**Evidence:** `receipts/2026-06-14-student-progress-assessment-expansion.md`, `receipts/artifacts/student-progress-assessment-e2e.png`, `receipts/artifacts/student-progress-assessment-print-e2e.png`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
+
+**Key note:** the existing `/student-progress` Phase 1 report stays intact. This phase adds the missing teacher update path and rubric-backed academic input model. It intentionally does not fabricate Cambridge certificate results; empty academic inputs remain explicit `missing_input`.
+
+**Last Updated:** 2026-06-14

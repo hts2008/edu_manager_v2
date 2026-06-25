@@ -1,4 +1,10 @@
 import type { ReportCubeRow } from "./report-cube.js";
+import {
+  buildProgressAssessment,
+  buildProgressFramework,
+  type ProgressAssessmentResult,
+  type ProgressMonthSnapshot,
+} from "./student-progress-assessment.js";
 
 export type EnglishTrackKey =
   | "starters"
@@ -35,6 +41,10 @@ export type ProgressReportRow = ReportCubeRow & {
   parent_summary: string;
   next_actions: string[];
   evidence_notes: string[];
+  progress_month_id: string | null;
+  academic_input_status: "missing_input" | "partial" | "complete";
+  has_teacher_input: boolean;
+  progress_assessment: ProgressAssessmentResult;
 };
 
 export type StudentProgressSummary = {
@@ -115,6 +125,10 @@ function average(values: number[]) {
 
 function keyFor(row: Pick<ReportCubeRow, "student_id" | "class_id">) {
   return `${row.student_id}\u0000${row.class_id}`;
+}
+
+function progressKeyFor(row: Pick<ReportCubeRow, "student_id" | "class_id" | "month">) {
+  return `${row.student_id}\u0000${row.class_id}\u0000${row.month}`;
 }
 
 export function detectEnglishTrack(className: string | null | undefined): EnglishTrackKey {
@@ -225,6 +239,7 @@ function parentSummary(
 export function buildStudentProgressReport(input: {
   rows: ReportCubeRow[];
   parentsByStudentId?: Map<string, { name: string | null; phone: string | null }>;
+  progressMonthsByKey?: Map<string, ProgressMonthSnapshot>;
 }) {
   const sorted = [...input.rows].sort(
     (a, b) =>
@@ -247,25 +262,49 @@ export function buildStudentProgressReport(input: {
     const track = TRACKS[englishTrack];
     const band = readinessBand(row, progressScore);
     const parent = input.parentsByStudentId?.get(row.student_id);
+    const progressMonth = input.progressMonthsByKey?.get(progressKeyFor(row)) || null;
+    const assessment = buildProgressAssessment({
+      row,
+      progressMonth,
+      parentName: parent?.name || null,
+      previousScore: previousScore === undefined ? null : previousScore,
+    });
+    const useAssessment = assessment.hasTeacherInput;
 
     reportRows.push({
       ...row,
       parent_name: parent?.name || null,
       parent_phone: parent?.phone || null,
-      english_track: englishTrack,
-      track_label: track.label,
-      cefr_level: track.cefr,
-      progress_score: progressScore,
-      attendance_score: attendanceScore,
-      consistency_score: consistencyScore,
-      learning_evidence_coverage: evidenceCoverage(row),
-      trend_delta: trendDelta,
-      trend_label: trendLabel(trendDelta),
-      readiness_band: band,
-      skill_scores: buildMissingSkillScores(),
-      parent_summary: parentSummary(row, track, progressScore, band),
-      next_actions: nextActions(row, englishTrack),
-      evidence_notes: evidenceNotes(row),
+      english_track: useAssessment ? assessment.trackKey : englishTrack,
+      track_label: useAssessment ? assessment.trackLabel : track.label,
+      cefr_level: useAssessment ? assessment.cefrLevel : track.cefr,
+      progress_score: useAssessment ? assessment.progressScore : progressScore,
+      attendance_score: useAssessment ? assessment.attendanceScore : attendanceScore,
+      consistency_score: useAssessment ? assessment.consistencyScore : consistencyScore,
+      learning_evidence_coverage: useAssessment
+        ? assessment.learningEvidenceCoverage
+        : evidenceCoverage(row),
+      trend_delta: useAssessment
+        ? previousScore === undefined
+          ? null
+          : round1(assessment.progressScore - previousScore)
+        : trendDelta,
+      trend_label: useAssessment
+        ? trendLabel(
+            previousScore === undefined ? null : round1(assessment.progressScore - previousScore)
+          )
+        : trendLabel(trendDelta),
+      readiness_band: useAssessment ? assessment.readinessBand : band,
+      skill_scores: useAssessment ? assessment.skillScores : buildMissingSkillScores(),
+      parent_summary: useAssessment
+        ? assessment.parentSummary
+        : parentSummary(row, track, progressScore, band),
+      next_actions: useAssessment ? assessment.nextActions : nextActions(row, englishTrack),
+      evidence_notes: useAssessment ? assessment.evidenceNotes : evidenceNotes(row),
+      progress_month_id: progressMonth?.id || null,
+      academic_input_status: assessment.academicInputStatus,
+      has_teacher_input: assessment.hasTeacherInput,
+      progress_assessment: assessment,
     });
   }
 
@@ -290,9 +329,9 @@ export function buildStudentProgressReport(input: {
           },
         ])
       ),
-      skill_domains: SKILL_TEMPLATE.map(([key, label]) => ({ key, label })),
+      skill_domains: buildProgressFramework().skill_domains,
       score_note:
-        "progress_score phase 1 is an operational progress proxy from attendance/record completeness, not a formal Cambridge score.",
+        "progress_score blends teacher-entered academic evidence with operational attendance/consistency data; missing inputs remain explicit.",
     },
   };
 }
@@ -323,6 +362,12 @@ export function buildStudentProgressCharts(rows: ProgressReportRow[]) {
   const monthly = new Map<string, ProgressReportRow[]>();
   const tracks = new Map<string, number>();
   const readiness = new Map<string, number>();
+  const academicInput = new Map<string, number>();
+  const focusAreas = new Map<string, number>();
+  const skillAnalytics = new Map<
+    string,
+    { label: string; scores: number[]; inputCount: number; missingCount: number }
+  >();
 
   for (const row of rows) {
     const monthRows = monthly.get(row.month) || [];
@@ -330,6 +375,31 @@ export function buildStudentProgressCharts(rows: ProgressReportRow[]) {
     monthly.set(row.month, monthRows);
     tracks.set(row.track_label, (tracks.get(row.track_label) || 0) + 1);
     readiness.set(row.readiness_band, (readiness.get(row.readiness_band) || 0) + 1);
+    academicInput.set(
+      row.academic_input_status,
+      (academicInput.get(row.academic_input_status) || 0) + 1
+    );
+    if (row.progress_assessment.focusSkillLabel) {
+      focusAreas.set(
+        row.progress_assessment.focusSkillLabel,
+        (focusAreas.get(row.progress_assessment.focusSkillLabel) || 0) + 1
+      );
+    }
+    for (const skill of row.skill_scores) {
+      const current = skillAnalytics.get(skill.key) || {
+        label: skill.label,
+        scores: [],
+        inputCount: 0,
+        missingCount: 0,
+      };
+      if (skill.status === "available" && skill.score !== null) {
+        current.scores.push(skill.score);
+        current.inputCount += 1;
+      } else {
+        current.missingCount += 1;
+      }
+      skillAnalytics.set(skill.key, current);
+    }
   }
 
   return {
@@ -344,5 +414,19 @@ export function buildStudentProgressCharts(rows: ProgressReportRow[]) {
       .sort((a, b) => a.month.localeCompare(b.month)),
     tracks: Array.from(tracks.entries()).map(([label, count]) => ({ label, count })),
     readiness: Array.from(readiness.entries()).map(([label, count]) => ({ label, count })),
+    academic_input: Array.from(academicInput.entries()).map(([label, count]) => ({
+      label,
+      count,
+    })),
+    focus_areas: Array.from(focusAreas.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count),
+    skill_averages: Array.from(skillAnalytics.entries()).map(([key, item]) => ({
+      key,
+      label: item.label,
+      average_score: item.inputCount ? average(item.scores) : null,
+      input_count: item.inputCount,
+      missing_count: item.missingCount,
+    })),
   };
 }

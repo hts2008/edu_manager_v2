@@ -52,7 +52,7 @@ export function useOperationalMotion() {
   };
 }
 
-export function OperationalPage({ children, className = "" }) {
+export function OperationalPage({ children, className = "", ...props }) {
   const motion = useOperationalMotion();
 
   return (
@@ -61,6 +61,7 @@ export function OperationalPage({ children, className = "" }) {
       initial="hidden"
       animate="visible"
       className={`space-y-6 ${className}`}
+      {...props}
     >
       {children}
     </Motion.div>

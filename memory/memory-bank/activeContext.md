@@ -217,6 +217,7 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo webhook, opt-in policy, and approved message templates are ready.
 5. Preserve commit hygiene: stage only explicit app/docs files and leave unrelated framework drift out of product commits.
+6. Plan the next Student Progress Assessment Expansion phase so teachers can enter real Listening/Speaking/Reading/Writing/Homework/daily-practice evidence and the report can stop depending only on the Phase 1 proxy.
 
 ## 2026-06-10 Current Context - EduFlow Motion Phase 5 Attendance/Finance/Reports
 
@@ -319,3 +320,17 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
   - Source pack includes sections for design direction, tokens, component library, navigation, loading/motion, dashboard, fee workbench, report intelligence, attendance, template designer, mobile, and implementation map.
 - **Evidence**: `receipts/2026-06-10-figma-desktop-write-path-unblocked.md`; Figma nodes `35:128` and `37:415`.
 - **Boundary**: This is still not a complete native Figma design-system implementation. `37:415` is one coarse source-pack component wrapper; remaining review work is granular native variables/components/variants plus stale frame replacement for `3:36` and `3:142`.
+
+## 2026-06-14 Current Context - Student Progress Assessment Expansion
+
+- **Active task closed**: `SPRX-2026-06-12-01..07` are `IMPLEMENTED`.
+- **Scope completed**:
+  - Added Prisma persistence for monthly student progress, per-skill scores, daily practice/mock-test entries, focus notes, teacher notes, and draft/finalized status.
+  - Added `/api/student-progress` for authenticated admin list/upsert and wired it through the production router.
+  - Added `lib/student-progress-assessment.ts` scoring/rubric logic for Listening, Speaking, Reading, Writing, Homework, Daily Practice, and Mock Test across Starters/Movers/Flyers/KET/PET-oriented tracks and communicative/exam-prep/mixed class types.
+  - Extended `/api/reports/student-progress` and `/student-progress` so teacher-entered academic input appears in analytics, table rows, focus areas, and parent print output.
+  - Fixed two regressions during verification: invalid API body now returns `VALIDATION_ERROR` instead of generic server error, and empty skill scores remain `missing_input` instead of being coerced to zero.
+- **Production**: deployed to `https://edu-manager-gules.vercel.app`; Vercel inspect `https://vercel.com/hts2008s-projects/edu-manager/2ZxVKk5NGPq64xhe7H2zokBurm3C`.
+- **Verification**: `npm run test:unit` 78/78, `npx tsc --noEmit`, frontend lint zero warnings, `npm run build`, `git diff --check`, `npx prisma validate`, `npx prisma db push --skip-generate` already in sync, local Playwright 1/1, production Playwright 1/1.
+- **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
+- **Residual risk**: class-wide bulk/copy-last-month entry is not yet a dedicated grid workflow; current production supports row-level monthly save/finalize. npm audit warnings remain and need a separate dependency-security pass.

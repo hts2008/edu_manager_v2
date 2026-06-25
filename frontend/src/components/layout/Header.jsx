@@ -7,6 +7,7 @@ import ChangePasswordModal from "../auth/ChangePasswordModal";
 import { getMotionTransition } from "../../design/motion";
 
 const routeMeta = [
+  { path: "/student-progress", title: "Tiến bộ học viên", group: "Báo cáo" },
   { path: "/", title: "Tổng quan", group: "Vận hành" },
   { path: "/students", title: "Học viên", group: "Vận hành" },
   { path: "/parents", title: "Phụ huynh", group: "Vận hành" },

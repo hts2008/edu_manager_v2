@@ -7,16 +7,74 @@ import {
   requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
-import { parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
+import { getString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
 import {
   buildReportCube,
   filterReportRows,
   parseReportBiQuery,
 } from "../../../lib/report-cube.js";
-import { buildStudentProgressReport } from "../../../lib/student-progress-report.js";
+import {
+  buildStudentProgressCharts,
+  buildStudentProgressReport,
+  summarizeStudentProgress,
+} from "../../../lib/student-progress-report.js";
+import type { ProgressMonthSnapshot } from "../../../lib/student-progress-assessment.js";
 
 function evidenceKey(studentId: string, classId: string) {
   return `${studentId}\u0000${classId}`;
+}
+
+function progressKey(studentId: string, classId: string, month: string) {
+  return `${studentId}\u0000${classId}\u0000${month}`;
+}
+
+function progressRecordToSnapshot(record: any): ProgressMonthSnapshot {
+  return {
+    id: record.id,
+    studentId: record.studentId,
+    classId: record.classId,
+    month: record.month,
+    trackKey: record.trackKey,
+    classType: record.classType,
+    progressScore: record.progressScore,
+    attendanceScore: record.attendanceScore,
+    consistencyScore: record.consistencyScore,
+    learningEvidenceCoverage: record.learningEvidenceCoverage,
+    trackReadiness: record.trackReadiness,
+    focusSkillKey: record.focusSkillKey,
+    focusSkillLabel: record.focusSkillLabel,
+    teacherNote: record.teacherNote,
+    parentSummary: record.parentSummary,
+    nextActions: record.nextActions,
+    evidenceNotes: record.evidenceNotes,
+    rubricSnapshot: record.rubricSnapshot,
+    academicInputStatus: record.academicInputStatus,
+    shieldTotal: record.shieldTotal,
+    pointsTotal: record.pointsTotal,
+    mockTestScore: record.mockTestScore,
+    finalizedAt: record.finalizedAt,
+    skills:
+      record.skills?.map((skill: any) => ({
+        skill_key: skill.skillKey,
+        skill_label: skill.skillLabel,
+        score: skill.score,
+        max_score: skill.maxScore,
+        weight: skill.weight,
+        status: skill.status,
+        note: skill.note,
+        source: skill.source,
+        sort_order: skill.sortOrder,
+      })) || [],
+    dailyEntries:
+      record.dailyEntries?.map((entry: any) => ({
+        entry_date: entry.entryDate,
+        entry_type: entry.entryType,
+        skill_key: entry.skillKey,
+        score: entry.score,
+        shield_count: entry.shieldCount,
+        note: entry.note,
+      })) || [],
+  };
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
@@ -68,7 +126,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const studentIds = [...new Set(enrollmentRows.map((row) => row.studentId))];
     const classIds = [...new Set(enrollmentRows.map((row) => row.classId))];
-    const [attendanceRows, feeLineRows, monthlyFeeRows] =
+    const [attendanceRows, feeLineRows, monthlyFeeRows, progressRows] =
       studentIds.length && classIds.length
         ? await Promise.all([
             prisma.attendance.findMany({
@@ -119,8 +177,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 paidAt: true,
               },
             }),
+            prisma.studentProgressMonth.findMany({
+              where: {
+                studentId: { in: studentIds },
+                classId: { in: classIds },
+                month: { in: query.months },
+              },
+              include: {
+                skills: { orderBy: { sortOrder: "asc" } },
+                dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+              },
+            }),
           ])
-        : [[], [], []];
+        : [[], [], [], []];
 
     const evidenceByEnrollment = new Set<string>();
     for (const record of attendanceRows) {
@@ -163,19 +232,50 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       ...query,
       mode: "overview",
     });
+    const progressMonthsByKey = new Map<string, ProgressMonthSnapshot>();
+    for (const record of progressRows) {
+      progressMonthsByKey.set(
+        progressKey(record.studentId, record.classId, record.month),
+        progressRecordToSnapshot(record)
+      );
+    }
     const report = buildStudentProgressReport({
       rows: filteredRows,
       parentsByStudentId: parentMap,
+      progressMonthsByKey,
     });
-    const totalItems = report.rows.length;
+    const track = getString(req.query.track);
+    const readiness = getString(req.query.readiness);
+    const academicStatus = getString(req.query.academic_status);
+    const reportRows = report.rows.filter((row) => {
+      if (track && track !== "all" && row.english_track !== track) return false;
+      if (readiness && readiness !== "all" && row.readiness_band !== readiness) return false;
+      if (
+        academicStatus &&
+        academicStatus !== "all" &&
+        row.academic_input_status !== academicStatus
+      ) {
+        return false;
+      }
+      return true;
+    });
+    const totalItems = reportRows.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / query.page_size));
     const page = Math.min(Math.max(1, query.page), totalPages);
     const offset = (page - 1) * query.page_size;
+    const classes = Array.from(
+      new Map(
+        enrollmentRows.map((row) => [
+          row.classId,
+          { id: row.classId, class_name: row.class.className },
+        ])
+      ).values()
+    ).sort((a, b) => a.class_name.localeCompare(b.class_name));
 
     return successResponse(res, {
-      summary: report.summary,
-      charts: report.charts,
-      students: report.rows.slice(offset, offset + query.page_size),
+      summary: summarizeStudentProgress(reportRows),
+      charts: buildStudentProgressCharts(reportRows),
+      students: reportRows.slice(offset, offset + query.page_size),
       framework: report.framework,
       pagination: {
         page,
@@ -190,12 +290,16 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         cube_grain: "student_class_month",
         report_type: "monthly_parent_progress",
         data_contract:
-          "Phase 1 uses real attendance/class/fee evidence and marks missing academic skill scores explicitly.",
+          "Uses real attendance/class/fee evidence. Teacher-entered academic inputs override proxy rows; missing skill scores remain explicit.",
         filters: {
           class_id: query.class_id,
           student_id: query.student_id,
           q: query.q,
+          track: track || "all",
+          readiness: readiness || "all",
+          academic_status: academicStatus || "all",
         },
+        classes,
         generated_at: new Date().toISOString(),
       },
     });

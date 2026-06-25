@@ -4,6 +4,7 @@ import {
   buildStudentProgressReport,
   detectEnglishTrack,
 } from "../lib/student-progress-report.js";
+import { buildProgressFramework } from "../lib/student-progress-assessment.js";
 import type { ReportCubeRow } from "../lib/report-cube.js";
 
 function row(overrides: Partial<ReportCubeRow> = {}): ReportCubeRow {
@@ -129,5 +130,169 @@ describe("student progress parent report", () => {
     assert.equal(result.rows[0].english_track, "unknown");
     assert.ok(result.rows[0].next_actions.some((item) => item.includes("lich hoc")));
     assert.equal(result.summary.insufficient_data_count, 1);
+  });
+
+  it("merges teacher-entered progress into the parent report", () => {
+    const result = buildStudentProgressReport({
+      rows: [row()],
+      progressMonthsByKey: new Map([
+        [
+          "student-1\u0000class-1\u00002026-06",
+          {
+            id: "progress-1",
+            studentId: "student-1",
+            classId: "class-1",
+            month: "2026-06",
+            trackKey: "movers",
+            classType: "communicative",
+            progressScore: 88,
+            attendanceScore: 92,
+            consistencyScore: 84,
+            learningEvidenceCoverage: 96,
+            trackReadiness: "on_track",
+            focusSkillKey: "speaking",
+            focusSkillLabel: "Speaking",
+            teacherNote: "Need more speaking practice",
+            parentSummary: "Teacher summary overrides proxy row.",
+            nextActions: ["Practice speaking daily"],
+            evidenceNotes: ["Teacher-entered notes"],
+            rubricSnapshot: {},
+            academicInputStatus: "complete",
+            shieldTotal: 6,
+            pointsTotal: 42,
+            mockTestScore: 78,
+            finalizedAt: null,
+            skills: [
+              {
+                skill_key: "listening",
+                skill_label: "Listening",
+                score: 80,
+                max_score: 100,
+                weight: 25,
+                status: "available",
+                note: "Strong",
+                source: "teacher_input",
+                sort_order: 0,
+              },
+              {
+                skill_key: "speaking",
+                skill_label: "Speaking",
+                score: 75,
+                max_score: 100,
+                weight: 25,
+                status: "available",
+                note: "Needs fluency",
+                source: "teacher_input",
+                sort_order: 1,
+              },
+            ],
+            dailyEntries: [],
+          },
+        ],
+      ]),
+    });
+
+    const reportRow = result.rows[0];
+    assert.equal(reportRow.progress_score, 88);
+    assert.equal(reportRow.readiness_band, "on_track");
+    assert.equal(reportRow.progress_assessment.hasTeacherInput, true);
+    assert.equal(reportRow.skill_scores[0].status, "available");
+    assert.equal(reportRow.parent_summary, "Teacher summary overrides proxy row.");
+    assert.equal(reportRow.progress_month_id, "progress-1");
+  });
+
+  it("exposes the seven new progress skill domains in the framework", () => {
+    const framework = buildProgressFramework();
+    assert.equal(framework.skill_domains.length, 7);
+    assert.ok(framework.skill_domains.some((item) => item.key === "mock_test"));
+  });
+
+  it("keeps empty teacher skill scores as missing input instead of zero", () => {
+    const result = buildStudentProgressReport({
+      rows: [row()],
+      progressMonthsByKey: new Map([
+        [
+          "student-1\u0000class-1\u00002026-06",
+          {
+            id: "progress-empty-skills",
+            studentId: "student-1",
+            classId: "class-1",
+            month: "2026-06",
+            trackKey: "starters",
+            classType: "communicative",
+            teacherNote: "Teacher note without fabricated scores",
+            skills: [
+              {
+                skill_key: "listening",
+                skill_label: "Listening",
+                score: null,
+                max_score: 100,
+                status: "missing_input",
+              },
+            ],
+            dailyEntries: [],
+          },
+        ],
+      ]),
+    });
+
+    const listening = result.rows[0].skill_scores.find(
+      (skill) => skill.key === "listening"
+    );
+    assert.equal(listening?.score, null);
+    assert.equal(listening?.status, "missing_input");
+  });
+
+  it("builds skill and teacher-input analytics without counting missing scores as zero", () => {
+    const result = buildStudentProgressReport({
+      rows: [row()],
+      progressMonthsByKey: new Map([
+        [
+          "student-1\u0000class-1\u00002026-06",
+          {
+            id: "progress-chart",
+            studentId: "student-1",
+            classId: "class-1",
+            month: "2026-06",
+            trackKey: "movers",
+            classType: "communicative",
+            teacherNote: "Monthly input",
+            skills: [
+              {
+                skill_key: "listening",
+                skill_label: "Listening",
+                score: 80,
+                max_score: 100,
+                status: "available",
+              },
+              {
+                skill_key: "speaking",
+                skill_label: "Speaking",
+                score: null,
+                max_score: 100,
+                status: "missing_input",
+              },
+            ],
+            dailyEntries: [],
+          },
+        ],
+      ]),
+    });
+
+    const listening = result.charts.skill_averages.find(
+      (skill) => skill.key === "listening"
+    );
+    const speaking = result.charts.skill_averages.find(
+      (skill) => skill.key === "speaking"
+    );
+    assert.equal(listening?.average_score, 80);
+    assert.equal(listening?.input_count, 1);
+    assert.equal(speaking?.average_score, null);
+    assert.equal(speaking?.input_count, 0);
+    assert.ok(
+      result.charts.academic_input.some(
+        (item) => item.label === "partial" && item.count === 1
+      )
+    );
   });
 });

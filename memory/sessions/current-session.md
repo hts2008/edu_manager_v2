@@ -642,3 +642,28 @@
   - Split the coarse source-pack component into granular variables/components/variants.
   - Replace stale implementation frames `3:36` and `3:142`.
   - Record final implementation frame node IDs after native frame work is complete.
+
+## 2026-06-14 Session Update - Student Progress Assessment Expansion
+
+- **Task**: `SPRX-2026-06-12-01..07`
+- **Status**: `IMPLEMENTED`.
+- **Completed**:
+  - Added assessment persistence, scoring engine, admin API, report integration, teacher input panel, analytics, and parent print integration.
+  - Deployed the feature to production alias `https://edu-manager-gules.vercel.app`.
+- **Verification**:
+  - `npm run test:unit` passed 78/78.
+  - `npx tsc --noEmit` passed.
+  - `npm --prefix frontend run lint -- --max-warnings=0` passed.
+  - `npm run build` passed.
+  - `git diff --check` passed with existing CRLF warnings only.
+  - `npx prisma validate` passed.
+  - `npx prisma db push --skip-generate` reported Neon already in sync.
+  - Local Playwright `student-progress-assessment.spec.js` passed 1/1.
+  - Production Playwright `student-progress-assessment.spec.js` passed 1/1.
+- **Evidence**:
+  - `receipts/2026-06-14-student-progress-assessment-expansion.md`
+  - `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`
+  - `docs/artifacts/playwright/student-progress-assessment-production-20260614/`
+- **Residual risk**:
+  - No dedicated class-wide bulk/copy-last-month grid yet; row-level monthly save/finalize is live.
+  - Existing npm audit warnings should be handled in a separate dependency-security pass.

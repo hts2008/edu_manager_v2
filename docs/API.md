@@ -31,6 +31,7 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/fee-reminders` | Reminder preview/config; live send remains disabled until provider and opt-in approval. |
 | `/api/import/students` | Student CSV import preview/commit. |
 | `/api/students` | Student CRUD/list surface. |
+| `/api/student-progress` | Admin-only monthly progress assessment list/upsert. `GET` returns `progress_months`; `POST`/`PUT` replaces the submitted skill and daily-entry set for one student-class-month and recomputes the parent-report assessment. |
 | `/api/parents` | Parent CRUD/list surface. |
 | `/api/teachers` | Teacher CRUD/list surface. |
 | `/api/classes` | Class CRUD/list surface. |

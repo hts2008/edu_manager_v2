@@ -1,4 +1,4 @@
-import { createElement, useDeferredValue, useMemo, useState } from "react";
+import { createElement, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -27,8 +27,9 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { reportsService } from "../services/api";
+import { reportsService, studentProgressService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
+import ProgressInputPanel from "../components/student-progress/ProgressInputPanel";
 import {
   ChartFrame,
   LoadingProgress,
@@ -55,6 +56,20 @@ const READINESS_COLORS = {
   needs_support: "#ef4444",
   insufficient_data: "#94a3b8",
 };
+const ACADEMIC_INPUT_LABELS = {
+  complete: "Đủ điểm kỹ năng",
+  partial: "Nhập một phần",
+  missing_input: "Chưa nhập",
+};
+const PROGRESS_SKILL_FIELDS = [
+  { skill_key: "listening", skill_label: "Nghe" },
+  { skill_key: "speaking", skill_label: "Nói" },
+  { skill_key: "reading", skill_label: "Đọc" },
+  { skill_key: "writing", skill_label: "Viết" },
+  { skill_key: "homework", skill_label: "BTVN" },
+  { skill_key: "daily_practice", skill_label: "Luyện hằng ngày" },
+  { skill_key: "mock_test", skill_label: "Bài kiểm tra / đề" },
+];
 
 function currentBusinessMonth() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -70,6 +85,10 @@ function initialFilters() {
     from: `${month.slice(0, 4)}-01`,
     to: month,
     q: "",
+    class_id: "all",
+    track: "all",
+    readiness: "all",
+    academic_status: "all",
     page: 1,
     page_size: 50,
   };
@@ -77,6 +96,206 @@ function initialFilters() {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
+}
+
+function nullableNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function stringifyInput(value) {
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function defaultClassType(row) {
+  const track = row?.progress_assessment?.trackKey || row?.english_track;
+  if (["ket", "pet"].includes(track)) return "exam_prep";
+  if (["starters", "movers", "flyers"].includes(track)) return "communicative";
+  return "mixed";
+}
+
+function buildProgressForm(row, progressMonth) {
+  if (!row) return null;
+  const recordSkills = new Map(
+    (progressMonth?.skills || []).map((skill) => [skill.skill_key, skill])
+  );
+  const assessmentSkills = new Map(
+    (row.progress_assessment?.skillScores || []).map((skill) => [skill.key, skill])
+  );
+
+  return {
+    track_key:
+      progressMonth?.track_key ||
+      row.progress_assessment?.trackKey ||
+      row.english_track ||
+      "unknown",
+    class_type:
+      progressMonth?.class_type ||
+      row.progress_assessment?.classType ||
+      defaultClassType(row),
+    focus_skill_key:
+      progressMonth?.focus_skill_key ||
+      row.progress_assessment?.focusSkillKey ||
+      "",
+    focus_skill_label:
+      progressMonth?.focus_skill_label ||
+      row.progress_assessment?.focusSkillLabel ||
+      "",
+    teacher_note: progressMonth?.teacher_note || "",
+    parent_summary: progressMonth?.parent_summary || "",
+    finalized: Boolean(progressMonth?.finalized_at),
+    skills: PROGRESS_SKILL_FIELDS.map((skill, index) => {
+      const recordSkill = recordSkills.get(skill.skill_key);
+      const assessmentSkill = assessmentSkills.get(skill.skill_key);
+      const source = recordSkill || assessmentSkill || {};
+      const status = source.status || assessmentSkill?.status;
+      return {
+        skill_key: skill.skill_key,
+        skill_label: recordSkill?.skill_label || assessmentSkill?.label || skill.skill_label,
+        score: stringifyInput(source.score),
+        max_score: stringifyInput(recordSkill?.max_score || 100),
+        weight: recordSkill?.weight ?? null,
+        status: status || "missing_input",
+        note:
+          recordSkill?.note ||
+          (assessmentSkill?.status === "available" ? assessmentSkill.note || "" : ""),
+        source: recordSkill?.source || "teacher_input",
+        sort_order: recordSkill?.sort_order ?? index,
+      };
+    }),
+    daily_entries: (progressMonth?.daily_entries || progressMonth?.dailyEntries || []).map((entry) => ({
+      entry_date: entry.entry_date || "",
+      entry_type: entry.entry_type || "daily_practice",
+      skill_key: entry.skill_key || "",
+      score: stringifyInput(entry.score),
+      shield_count: stringifyInput(entry.shield_count || 0),
+      note: entry.note || "",
+    })),
+  };
+}
+
+function serializeProgressForm(row, form) {
+  return {
+    student_id: row.student_id,
+    class_id: row.class_id,
+    month: row.month,
+    track_key: form.track_key,
+    class_type: form.class_type,
+    focus_skill_key: form.focus_skill_key || null,
+    focus_skill_label: form.focus_skill_label || null,
+    teacher_note: form.teacher_note || null,
+    parent_summary: form.parent_summary || null,
+    finalized: Boolean(form.finalized),
+    skills: (form.skills || []).map((skill) => ({
+      skill_key: skill.skill_key,
+      skill_label: skill.skill_label,
+      score: nullableNumber(skill.score),
+      max_score: nullableNumber(skill.max_score) || 100,
+      weight: nullableNumber(skill.weight),
+      status: nullableNumber(skill.score) === null ? "missing_input" : "available",
+      note: skill.note || null,
+      source: skill.source || "teacher_input",
+      sort_order: skill.sort_order,
+    })),
+    daily_entries: (form.daily_entries || []).map((entry) => ({
+      entry_date: entry.entry_date,
+      entry_type: entry.entry_type,
+      skill_key: entry.skill_key || null,
+      score: nullableNumber(entry.score),
+      shield_count: nullableNumber(entry.shield_count) || 0,
+      note: entry.note || null,
+    })),
+  };
+}
+
+function rowKey(row) {
+  return row ? `${row.student_id}\u0000${row.class_id}\u0000${row.month}` : "";
+}
+
+function getAssessment(row) {
+  return row?.progress_assessment || null;
+}
+
+function getRowSkills(row) {
+  const assessmentSkills = getAssessment(row)?.skillScores;
+  if (Array.isArray(assessmentSkills) && assessmentSkills.length) {
+    return assessmentSkills.map((skill) => ({
+      key: skill.key,
+      label: skill.label,
+      score: skill.score,
+      status: skill.status,
+      note: skill.note,
+    }));
+  }
+  return (row?.skill_scores || []).map((skill) => ({
+    key: skill.key,
+    label: skill.label,
+    score: skill.score,
+    status:
+      skill.status ||
+      (skill.score === null || skill.score === undefined ? "missing_input" : "available"),
+    note: skill.note,
+  }));
+}
+
+function academicStatusLabel(row) {
+  const status = getAssessment(row)?.academicInputStatus || row?.academic_input_status;
+  if (status === "complete") return "Đã đủ điểm kỹ năng";
+  if (status === "partial") return "Đã nhập một phần";
+  return "Thiếu điểm kỹ năng";
+}
+
+function teacherInputLabel(row) {
+  return getAssessment(row)?.hasTeacherInput || row?.has_teacher_input
+    ? "Có input giáo viên"
+    : "Cần giáo viên nhập";
+}
+
+function buildPrintableRow(row, form) {
+  if (!row || !form) return row;
+  return {
+    ...row,
+    parent_summary: form.parent_summary || row.parent_summary,
+    skill_scores: (form.skills || []).map((skill) => ({
+      key: skill.skill_key,
+      label: skill.skill_label,
+      score: nullableNumber(skill.score),
+      status: nullableNumber(skill.score) === null ? "missing_input" : "available",
+      note: skill.note || "",
+    })),
+    progress_assessment: {
+      ...(row.progress_assessment || {}),
+      hasTeacherInput:
+        (form.skills || []).some((skill) => nullableNumber(skill.score) !== null) ||
+        (form.daily_entries || []).length > 0 ||
+        Boolean(form.teacher_note),
+      academicInputStatus: (form.skills || []).every(
+        (skill) => nullableNumber(skill.score) !== null
+      )
+        ? "complete"
+        : (form.skills || []).some((skill) => nullableNumber(skill.score) !== null)
+          ? "partial"
+          : "missing_input",
+      focusSkillLabel: form.focus_skill_label || row.progress_assessment?.focusSkillLabel || null,
+      skillScores: (form.skills || []).map((skill) => ({
+        key: skill.skill_key,
+        label: skill.skill_label,
+        score: nullableNumber(skill.score),
+        status: nullableNumber(skill.score) === null ? "missing_input" : "available",
+        note: skill.note || "",
+      })),
+    },
+  };
 }
 
 function monthLabel(month) {
@@ -91,6 +310,12 @@ function makeQuery(filters, deferredSearch, refreshNonce) {
     page: filters.page,
     page_size: filters.page_size,
     ...(deferredSearch.trim() ? { q: deferredSearch.trim() } : {}),
+    ...(filters.class_id !== "all" ? { class_id: filters.class_id } : {}),
+    ...(filters.track !== "all" ? { track: filters.track } : {}),
+    ...(filters.readiness !== "all" ? { readiness: filters.readiness } : {}),
+    ...(filters.academic_status !== "all"
+      ? { academic_status: filters.academic_status }
+      : {}),
     ...(refreshNonce ? { _refresh: refreshNonce } : {}),
   };
 }
@@ -145,21 +370,24 @@ function exportCsv(data) {
   URL.revokeObjectURL(url);
 }
 
-function printReport(row) {
+function printProgressReport(row) {
   if (!row) return;
-  const skills = (row.skill_scores || [])
+  const assessment = getAssessment(row);
+  const skills = getRowSkills(row)
     .map(
       (skill) =>
-        `<tr><td>${skill.label}</td><td>${skill.score ?? "Chưa nhập"}</td><td>${skill.note}</td></tr>`
+        `<tr><td>${escapeHtml(skill.label)}</td><td>${escapeHtml(skill.score ?? "Chua nhap")}</td><td>${escapeHtml(skill.note)}</td></tr>`
     )
     .join("");
-  const actions = (row.next_actions || []).map((item) => `<li>${item}</li>`).join("");
-  const evidence = (row.evidence_notes || []).map((item) => `<li>${item}</li>`).join("");
+  const actions = (row.next_actions || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const evidence = (row.evidence_notes || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const focusSkill = assessment?.focusSkillLabel || row.focus_skill_label || academicStatusLabel(row);
+  const teacherStatus = teacherInputLabel(row);
   const html = `<!doctype html>
   <html>
     <head>
       <meta charset="utf-8" />
-      <title>Báo cáo tiến bộ - ${row.student_name}</title>
+      <title>Bao cao tien bo - ${escapeHtml(row.student_name)}</title>
       <style>
         body { font-family: Arial, sans-serif; margin: 32px; color: #0f172a; }
         h1 { margin: 0; font-size: 28px; }
@@ -175,32 +403,34 @@ function printReport(row) {
       </style>
     </head>
     <body>
-      <button onclick="window.print()">In báo cáo</button>
-      <h1>Báo cáo tiến bộ học viên</h1>
-      <p class="muted">${row.month} · ${row.class_name} · ${row.track_label} (${row.cefr_level})</p>
-      <h2>${row.student_name}</h2>
-      <p>Phụ huynh: ${row.parent_name || "Chưa có"} · ${row.parent_phone || ""}</p>
+      <button onclick="window.print()">In bao cao</button>
+      <h1>Bao cao tien bo hoc vien</h1>
+      <p class="muted">${escapeHtml(row.month)} - ${escapeHtml(row.class_name)} - ${escapeHtml(row.track_label)} (${escapeHtml(row.cefr_level)})</p>
+      <h2>${escapeHtml(row.student_name)}</h2>
+      <p>Phu huynh: ${escapeHtml(row.parent_name || "Chua co")} - ${escapeHtml(row.parent_phone || "")}</p>
       <div class="grid">
-        <div class="card"><div>Điểm tiến bộ</div><div class="value">${row.progress_score}/100</div></div>
-        <div class="card"><div>Chuyên cần</div><div class="value">${row.actual_present_rate}%</div></div>
-        <div class="card"><div>Buổi học</div><div class="value">${row.recorded_sessions}/${row.expected_sessions}</div></div>
-        <div class="card"><div>Độ phủ dữ liệu</div><div class="value">${row.learning_evidence_coverage}%</div></div>
+        <div class="card"><div>Diem tien bo</div><div class="value">${escapeHtml(row.progress_score)}/100</div></div>
+        <div class="card"><div>Chuyen can</div><div class="value">${escapeHtml(row.actual_present_rate)}%</div></div>
+        <div class="card"><div>Buoi hoc</div><div class="value">${escapeHtml(row.recorded_sessions)}/${escapeHtml(row.expected_sessions)}</div></div>
+        <div class="card"><div>Do phu du lieu</div><div class="value">${escapeHtml(row.learning_evidence_coverage)}%</div></div>
       </div>
-      <h2>Nhận xét tháng</h2>
-      <p>${row.parent_summary}</p>
-      <h2>Kỹ năng Cambridge</h2>
+      <h2>Nhan xet thang</h2>
+      <p>${escapeHtml(row.parent_summary)}</p>
+      <p class="muted">Input hoc thuat: ${escapeHtml(teacherStatus)}. Trong tam thang toi: ${escapeHtml(focusSkill)}.</p>
+      <h2>Ky nang Cambridge</h2>
       <table>
-        <thead><tr><th>Kỹ năng</th><th>Điểm</th><th>Ghi chú</th></tr></thead>
+        <thead><tr><th>Ky nang</th><th>Diem</th><th>Ghi chu</th></tr></thead>
         <tbody>${skills}</tbody>
       </table>
-      <h2>Khuyến nghị tháng tới</h2>
+      <h2>Khuyen nghi thang toi</h2>
       <ul>${actions}</ul>
-      <h2>Ghi chú dữ liệu</h2>
+      <h2>Ghi chu du lieu</h2>
       <ul>${evidence}</ul>
     </body>
   </html>`;
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=980,height=720");
+  const printWindow = window.open("", "_blank", "width=980,height=720");
   if (!printWindow) return;
+  printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
@@ -210,6 +440,10 @@ export default function StudentProgressReportPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [progressForm, setProgressForm] = useState(null);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressSaving, setProgressSaving] = useState(false);
+  const [progressMessage, setProgressMessage] = useState(null);
   const deferredSearch = useDeferredValue(filters.q);
   const query = useMemo(
     () => makeQuery(filters, deferredSearch, refreshNonce),
@@ -226,6 +460,57 @@ export default function StudentProgressReportPage() {
   const charts = data?.charts || {};
   const isInitialLoading = progressState.loading && !data;
   const isRefreshing = progressState.loading && Boolean(data);
+  useEffect(() => {
+    if (!rows.length) {
+      setSelectedRow(null);
+      return;
+    }
+    if (!selectedRow) {
+      setSelectedRow(rows[0]);
+      return;
+    }
+    const latest = rows.find((row) => rowKey(row) === rowKey(selectedRow));
+    if (latest && latest !== selectedRow) setSelectedRow(latest);
+  }, [rows, selectedRow]);
+
+  useEffect(() => {
+    if (!selectedRow) {
+      setProgressForm(null);
+      setProgressMessage(null);
+      return;
+    }
+
+    let active = true;
+    setProgressLoading(true);
+    setProgressMessage(null);
+    studentProgressService
+      .getAll({
+        student_id: selectedRow.student_id,
+        class_id: selectedRow.class_id,
+        month: selectedRow.month,
+        limit: 1,
+      })
+      .then((response) => {
+        if (!active) return;
+        if (!response.success) {
+          setProgressForm(buildProgressForm(selectedRow, null));
+          setProgressMessage({
+            type: "error",
+            text: response.error?.message || "Không tải được bản ghi tiến độ.",
+          });
+          return;
+        }
+        const record = response.data?.progress_months?.[0] || null;
+        setProgressForm(buildProgressForm(selectedRow, record));
+      })
+      .finally(() => {
+        if (active) setProgressLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedRow?.student_id, selectedRow?.class_id, selectedRow?.month]);
 
   const metrics = [
     {
@@ -260,6 +545,37 @@ export default function StudentProgressReportPage() {
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? value : 1 }));
+  }
+
+  async function saveProgressForm() {
+    if (!selectedRow || !progressForm) return;
+    setProgressSaving(true);
+    setProgressMessage(null);
+
+    try {
+      const response = await studentProgressService.saveMonth(
+        serializeProgressForm(selectedRow, progressForm)
+      );
+      if (!response.success) {
+        setProgressMessage({
+          type: "error",
+          text: response.error?.message || "Khong luu duoc tien do.",
+        });
+        return;
+      }
+
+      const savedRecord = response.data?.progress_month || null;
+      setProgressForm(buildProgressForm(selectedRow, savedRecord));
+      setProgressMessage({ type: "success", text: "Da luu tien do hoc vien." });
+      setRefreshNonce((value) => value + 1);
+    } catch (error) {
+      setProgressMessage({
+        type: "error",
+        text: error?.message || "Khong luu duoc tien do.",
+      });
+    } finally {
+      setProgressSaving(false);
+    }
   }
 
   return (
@@ -335,6 +651,68 @@ export default function StudentProgressReportPage() {
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="text-sm font-bold text-slate-700">
+            Lớp học
+            <select
+              className="input mt-2"
+              value={filters.class_id}
+              onChange={(event) => updateFilter("class_id", event.target.value)}
+            >
+              <option value="all">Tất cả lớp</option>
+              {(data?.meta?.classes || []).map((classItem) => (
+                <option key={classItem.id} value={classItem.id}>
+                  {classItem.class_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-bold text-slate-700">
+            Track
+            <select
+              className="input mt-2"
+              value={filters.track}
+              onChange={(event) => updateFilter("track", event.target.value)}
+            >
+              <option value="all">Tất cả track</option>
+              {Object.entries(data?.framework?.tracks || {}).map(([key, track]) => (
+                <option key={key} value={key}>
+                  {track.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-bold text-slate-700">
+            Mức tiến độ
+            <select
+              className="input mt-2"
+              value={filters.readiness}
+              onChange={(event) => updateFilter("readiness", event.target.value)}
+            >
+              <option value="all">Tất cả trạng thái</option>
+              {Object.entries(READINESS_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-bold text-slate-700">
+            Input giáo viên
+            <select
+              className="input mt-2"
+              value={filters.academic_status}
+              onChange={(event) => updateFilter("academic_status", event.target.value)}
+            >
+              <option value="all">Tất cả mức nhập liệu</option>
+              {Object.entries(ACADEMIC_INPUT_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -424,6 +802,77 @@ export default function StudentProgressReportPage() {
             </ListPanel>
           </section>
 
+          <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+            <ListPanel
+              title="Năng lực theo kỹ năng"
+              description="Điểm trung bình chỉ tính trên các kỹ năng đã được giáo viên nhập."
+              className="min-h-[340px]"
+            >
+              <ChartFrame height={260}>
+                <ResponsiveContainer
+                  {...SAFE_RECHARTS_CONTAINER_PROPS}
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart
+                    data={charts.skill_averages || []}
+                    margin={{ top: 12, right: 18, bottom: 20, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" interval={0} angle={-12} textAnchor="end" height={58} />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        value === null ? "Chưa có dữ liệu" : value,
+                        name === "average_score" ? "Điểm trung bình" : name,
+                      ]}
+                    />
+                    <Bar dataKey="average_score" fill="#4f46e5" radius={[10, 10, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartFrame>
+            </ListPanel>
+
+            <ListPanel
+              title="Độ phủ input giáo viên"
+              description="Phân biệt đủ điểm, nhập một phần và chưa nhập."
+              className="min-h-[340px]"
+            >
+              <ChartFrame height={220}>
+                <ResponsiveContainer
+                  {...SAFE_RECHARTS_CONTAINER_PROPS}
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart
+                    data={(charts.academic_input || []).map((item) => ({
+                      ...item,
+                      display_label: ACADEMIC_INPUT_LABELS[item.label] || item.label,
+                    }))}
+                    layout="vertical"
+                    margin={{ top: 10, right: 18, bottom: 10, left: 28 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="display_label" width={110} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#14b8a6" radius={[0, 10, 10, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartFrame>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(charts.focus_areas || []).slice(0, 5).map((item) => (
+                  <span
+                    key={item.label}
+                    className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700"
+                  >
+                    Cần tập trung {item.label}: {item.count}
+                  </span>
+                ))}
+              </div>
+            </ListPanel>
+          </section>
+
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
             <ListPanel
               title="Danh sách tiến độ học viên"
@@ -471,7 +920,18 @@ export default function StudentProgressReportPage() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-800">{row.learning_evidence_coverage}%</div>
-                          <div className="text-xs text-amber-600">Thiếu điểm kỹ năng</div>
+                          <div
+                            className={`text-xs ${
+                              getAssessment(row)?.hasTeacherInput || row.has_teacher_input
+                                ? "text-emerald-600"
+                                : "text-amber-600"
+                            }`}
+                          >
+                            {academicStatusLabel(row)}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-400">
+                            {teacherInputLabel(row)}
+                          </div>
                         </td>
                         <td className="px-4 py-4">
                           <span
@@ -497,7 +957,7 @@ export default function StudentProgressReportPage() {
                             <button
                               type="button"
                               className="btn-primary inline-flex items-center gap-2 px-3 py-2 text-xs"
-                              onClick={() => printReport(row)}
+                              onClick={() => printProgressReport(row)}
                             >
                               <Printer size={14} />
                               In
@@ -571,10 +1031,20 @@ export default function StudentProgressReportPage() {
                       ))}
                     </ul>
                   </div>
+                  <ProgressInputPanel
+                    row={selectedRow}
+                    form={progressForm}
+                    loading={progressLoading}
+                    saving={progressSaving}
+                    message={progressMessage}
+                    onChange={setProgressForm}
+                    onSave={saveProgressForm}
+                  />
                   <button
                     type="button"
                     className="btn-primary w-full inline-flex items-center justify-center gap-2"
-                    onClick={() => printReport(selectedRow)}
+                    onClick={() => printProgressReport(buildPrintableRow(selectedRow, progressForm))}
+                    data-testid="print-selected-progress"
                   >
                     <Printer size={16} />
                     In báo cáo này

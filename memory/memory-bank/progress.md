@@ -1,5 +1,10 @@
 # Progress Log
 
+### 2026-06-12 - Student Progress Assessment Expansion Plan
+- **Scope**: Plan the next phase after the implemented evidence-first student progress report: add a teacher-entered monthly assessment/update workflow, Cambridge-track weighting, real skill inputs, daily practice/shield tracking, and stronger parent/BA analytics.
+- **Decision**: Keep the existing `/student-progress` report intact; do not replace the current operational proxy until rubric-backed teacher inputs exist.
+- **STATUS**: PLANNED
+
 ### 2026-06-11 - UXM-02 Native Figma Variable Probe
 - **Scope**: Continue the next unchecked `UXM-2026-06-09-02` item and use Figma Desktop through Computer Use to test whether native variables can be authored.
 - **Implementation/evidence**: Computer Use opened the Figma Variables panel, created one native color variable in `Collection 1`, renamed it through Figma slash grouping to `color/primary`, and set the value to `#4F46E5`.
@@ -865,3 +870,15 @@
 - **Production**: Deployed to Vercel production as `dpl_5NZEpgh9xKWqCyp99rt5GxWTLoYs`, aliased to `https://edu-manager-gules.vercel.app`; production smoke passed for root 200, no-token API 401, login, authenticated `/api/reports/student-progress`, `/student-progress` route render, view/print actions, no console/API errors, and screenshot `receipts/artifacts/student-progress-production-smoke.png`.
 - **Evidence**: `plans/2026-06-12-student-progress-parent-report/plan.md`; `receipts/2026-06-12-student-progress-parent-report.md`.
 - **Residual risk**: Phase 2 needs real academic assessment input tables/workflows before the report can show Cambridge skill scores or formal readiness.
+
+---
+
+## 2026-06-14 - Student Progress Assessment Expansion
+
+- **Task**: `SPRX-2026-06-12-01..07`
+- **Status**: `IMPLEMENTED` and deployed to production.
+- **Implementation**: added Prisma assessment persistence, `/api/student-progress`, track-aware scoring/honesty engine, report merge, teacher input panel, richer BA/PI analytics, and parent print integration.
+- **Verification**: `npm run test:unit` 78/78; `npx tsc --noEmit`; `npm --prefix frontend run lint -- --max-warnings=0`; `npm run build`; `git diff --check`; `npx prisma validate`; `npx prisma db push --skip-generate`; local Playwright 1/1; production Playwright 1/1.
+- **Production**: Vercel inspect `https://vercel.com/hts2008s-projects/edu-manager/2ZxVKk5NGPq64xhe7H2zokBurm3C`; alias `https://edu-manager-gules.vercel.app`.
+- **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
+- **Follow-up**: add a true class-wide bulk/copy-last-month grid and run a dependency-security pass for npm audit warnings.
