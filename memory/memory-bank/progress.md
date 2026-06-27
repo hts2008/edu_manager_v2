@@ -902,3 +902,11 @@
   - Local Chrome smoke rendered `/attendance`, `/classes`, `/parents`, `/teachers`, and `/student-progress`; focused progress smoke confirmed `Theo ngay diem danh` and `+ DD/MM` attendance-date buttons with no console/page errors.
 - **Evidence**: `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
 - **Residual risk**: production deploy/smoke was not run in this turn; deploy should be a separate release action if the user wants these fixes live immediately.
+### 2026-06-27 - Attendance/Delete/Daily Progress Production Closeout
+
+- **Root cause**: the hotfix remained uncommitted in the working tree while production still served the 2026-06-14 deployment.
+- **Deployment**: pushed commit `0fc9b80`; Vercel deployment `dpl_DD5oAS6CoUwpySZerue1RbHXvGCU` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Verification**: unit 85/85, typecheck, frontend lint zero warnings, build, diff-check, focused production Playwright 6/6, and read-only zero-fee anomaly probes passed.
+- **Evidence**: `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
+
+---

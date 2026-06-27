@@ -30,11 +30,13 @@
 | OPS-HOTFIX-2026-06-25-04 | Replace blocked hard delete with archive-safe delete for classes, teachers, and parents | `server/api/classes/index.ts`, `server/api/teachers/index.ts`, `server/api/parents/index.ts` | backend | Required FK constraints | IMPLEMENTED | Regression test, typecheck |
 | OPS-HOTFIX-2026-06-25-05 | Expose attendance dates in student progress report and let teachers create daily progress rows per attendance day | `server/api/reports/student-progress.ts`, `frontend/src/components/student-progress/ProgressInputPanel.jsx` | backend/frontend | Student progress assessment | IMPLEMENTED | Regression test, Chrome smoke |
 
-**Validation:** `npm --prefix frontend run lint`, `npx tsx --test tests/attendance-regressions.test.ts` 7/7, `npx tsc --noEmit`, `npm run test:unit` 85/85, `npm run build`, authenticated Chrome smoke for `/attendance`, `/classes`, `/parents`, `/teachers`, and focused `/student-progress` daily-entry panel smoke.
+**Validation:** `npm --prefix frontend run lint -- --max-warnings=0`, `npx tsx --test tests/attendance-regressions.test.ts` 7/7, `npx tsc --noEmit`, `npm run test:unit` 85/85, `npm run build`, `git diff --check`, authenticated local Chrome smoke for affected routes, and focused production Playwright 6/6.
 
 **Evidence:** `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
 
-**Residual risk:** This pass was verified locally with mocked browser API contracts and unit-level regression coverage. Production deploy/smoke was not run in this turn.
+**Production:** commit `0fc9b80` pushed to `origin/main`; Vercel deployment `dpl_DD5oAS6CoUwpySZerue1RbHXvGCU` is `READY` and aliased to `https://edu-manager-gules.vercel.app`. Read-only fee probes for `2026-05` and `2026-06` found no collectable zero-amount rows and no positive-amount zero-day rows.
+
+**Residual risk:** Existing paid/receipt-linked financial records are intentionally not auto-mutated by attendance locking; corrections remain an explicit operator workflow.
 
 ---
 

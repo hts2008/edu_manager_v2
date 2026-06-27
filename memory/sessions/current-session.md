@@ -687,3 +687,19 @@
   - Local Chrome smoke passed affected route render checks and focused student-progress daily panel check.
 - **Evidence**:
   - `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`
+
+## 2026-06-27 Session Update - Attendance/Delete/Daily Progress Production Closeout
+
+- **Task**: `OPS-HOTFIX-2026-06-25-01..05`
+- **Status**: `IMPLEMENTED` and production deployed.
+- **Deployment**:
+  - Commit `0fc9b80` pushed to `origin/main`.
+  - Vercel deployment `dpl_DD5oAS6CoUwpySZerue1RbHXvGCU` Ready.
+  - Alias: `https://edu-manager-gules.vercel.app`.
+- **Verification**:
+  - Unit 85/85, typecheck, lint zero warnings, build, and diff-check passed.
+  - Focused production Playwright passed 6/6.
+  - Read-only fee probes for 2026-05 and 2026-06 found no zero-amount collectable rows.
+- **Residual risk**:
+  - Existing paid/receipt-linked fee records are not auto-mutated.
+  - Chrome extension state was valid but Chrome was not running; production browser evidence used the repository Playwright suite with system Chrome.

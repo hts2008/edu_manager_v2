@@ -47,8 +47,16 @@ Closed five operator-reported issues:
   - `/teachers` rendered without console/page errors.
   - `/student-progress` rendered without console/page errors.
   - Focused student-progress smoke confirmed the `Theo ngay diem danh` panel and attendance-date buttons.
+- Production deployment:
+  - Commit `0fc9b80` pushed to `origin/main`.
+  - Vercel deployment `dpl_DD5oAS6CoUwpySZerue1RbHXvGCU` reached `READY`.
+  - Alias `https://edu-manager-gules.vercel.app` points to the new deployment.
+- Production browser/API smoke:
+  - Focused Playwright passed 6/6 for Fee Workbench line split, attendance/fee workspaces, attendance month navigation, modal scroll, Template Designer canvas, and receipt PDF.
+  - Read-only Fee Workbench probes for `2026-05` and `2026-06` returned zero collectable rows with `total_amount = 0`.
+  - The broad legacy smoke passed 22/29; the remaining failures were test-selector drift or parallel Chrome setup failures. Every affected hotfix flow was rerun serially and passed.
 
 ## Residual Risk
 
-- Production deploy and production browser smoke were not run in this turn.
 - Parent delete remains a soft delete because `Student.parentId` is required in the current schema; detaching children would require an explicit schema/migration plan.
+- Paid or receipt-linked fee records are not recalculated automatically; financial correction remains an explicit audited operator action.
