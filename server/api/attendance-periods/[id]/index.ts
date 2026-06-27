@@ -10,6 +10,10 @@ import {
   calculateStudentMonthlyTuition,
   CHARGEABLE_ATTENDANCE_STATUSES,
 } from "../../../../lib/tuition.js";
+import {
+  refreshMonthlyFeeAggregateFromLines,
+  syncMonthlyFeeLines,
+} from "../../../../lib/monthly-fee-lines.js";
 import { ApiError, sendApiError } from "../../../../lib/api-utils.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
@@ -245,7 +249,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                   status: "active",
                   student: { status: "active", deletedAt: null },
                 },
-                include: { class: true },
+                include: {
+                  class: {
+                    include: {
+                      teacher: { select: { fullName: true } },
+                    },
+                  },
+                },
               })
             : [];
 
@@ -266,6 +276,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             : [];
           const countByStudentClass = new Map(
             attendanceCounts.map((item) => [
+              `${item.studentId}:${item.classId}`,
+              item._count.status,
+            ])
+          );
+          const makeUpCounts = classIds.length
+            ? await tx.attendance.groupBy({
+                by: ["studentId", "classId"],
+                where: {
+                  studentId: { in: studentIds },
+                  classId: { in: classIds },
+                  attendanceDate: { gte: startDate, lte: endDate },
+                  status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
+                  isMakeUp: true,
+                },
+                _count: { status: true },
+              })
+            : [];
+          const makeUpByStudentClass = new Map(
+            makeUpCounts.map((item) => [
               `${item.studentId}:${item.classId}`,
               item._count.status,
             ])
@@ -304,6 +333,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               period.periodMonth
             );
 
+            let feeRecord: any = existing;
             if (existing) {
               const updated = await tx.monthlyFee.updateMany({
                 where: {
@@ -324,9 +354,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 feesSkipped += 1;
                 continue;
               }
+              feeRecord = await tx.monthlyFee.findUniqueOrThrow({
+                where: { id: existing.id },
+              });
               feesUpdated += 1;
             } else {
-              await tx.monthlyFee.create({
+              feeRecord = await tx.monthlyFee.create({
                 data: {
                   studentId,
                   month: period.periodMonth,
@@ -337,6 +370,37 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               });
               feesCreated += 1;
             }
+
+            const studentClassRows = activeStudentClasses.filter(
+              (item) => item.studentId === studentId
+            );
+            const breakdown = tuition.classes.map((tuitionClass) => {
+              const classRow = studentClassRows.find(
+                (item) => item.classId === tuitionClass.classId
+              );
+              const makeUpSessions =
+                makeUpByStudentClass.get(`${studentId}:${tuitionClass.classId}`) || 0;
+              return {
+                class_id: tuitionClass.classId,
+                class_name: classRow?.class?.className || null,
+                teacher_name: classRow?.class?.teacher?.fullName || null,
+                fee_per_day: tuitionClass.feePerSession,
+                days_count: tuitionClass.chargedSessions,
+                expected_sessions: tuitionClass.expectedSessions,
+                make_up_sessions: makeUpSessions,
+                extra_sessions: Math.max(
+                  0,
+                  tuitionClass.chargedSessions - tuitionClass.expectedSessions
+                ),
+                billing_mode: tuitionClass.billingMode,
+                schedule_mode: tuitionClass.scheduleStrategy,
+                monthly_tuition: tuitionClass.monthlyTuition,
+                amount: tuitionClass.totalAmount,
+                period_status: "locked",
+              };
+            });
+            await syncMonthlyFeeLines(tx, feeRecord, breakdown);
+            await refreshMonthlyFeeAggregateFromLines(tx, feeRecord.id);
           }
 
           const locked = await tx.attendancePeriod.updateMany({

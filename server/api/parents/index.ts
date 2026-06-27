@@ -202,18 +202,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Parent not found", 404);
       }
 
-      const activeChildren = await prisma.student.count({
-        where: { parentId: id, deletedAt: null },
-      });
-      if (activeChildren > 0) {
-        return errorResponse(
-          res,
-          "HAS_CHILDREN",
-          "Cannot delete parent with registered children",
-          400
-        );
-      }
-
       await prisma.parent.update({
         where: { id },
         data: { deletedAt: new Date() },

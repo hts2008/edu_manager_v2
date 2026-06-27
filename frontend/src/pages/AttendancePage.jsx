@@ -53,13 +53,9 @@ const MAKE_UP_REASON = "Hoc bu ngoai lich";
 const buildWeekKey = (classId, week) =>
   classId && week ? `${classId}:${toDateKey(week.start)}:${toDateKey(week.end)}` : "";
 
-function getAttendanceWeekRange(date) {
-  const start = new Date(date);
-  const weekday = start.getDay();
-  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
-  start.setDate(start.getDate() + mondayOffset);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
+function getCalendarRowWeekRange(weekStart, weekEnd) {
+  const start = new Date(weekStart);
+  const end = new Date(weekEnd || weekStart);
   return { start, end };
 }
 
@@ -82,6 +78,7 @@ export default function AttendancePage() {
   const [calendarAttendance, setCalendarAttendance] = useState({}); // { "2026-01-15": { present: 5, holiday: 1, ... } }
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
+  const [classListLoading, setClassListLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -349,6 +346,7 @@ export default function AttendancePage() {
   }, [selectedClass, selectedWeek]);
 
   const loadClasses = async () => {
+    setClassListLoading(true);
     try {
       const response = await classesService.getAll();
       if (response.success) {
@@ -356,6 +354,8 @@ export default function AttendancePage() {
       }
     } catch (error) {
       toast.error(error?.message || "Khong the tai danh sach lop");
+    } finally {
+      setClassListLoading(false);
     }
   };
 
@@ -547,13 +547,14 @@ export default function AttendancePage() {
     }
   };
 
-  const handleWeekClick = (weekStart) => {
+  const handleWeekClick = (weekStart, weekEnd = weekStart) => {
+    const rowRange = getCalendarRowWeekRange(weekStart, weekEnd);
     setAttendance({});
     setWeekError(null);
     setLoadedWeekKey("");
     setSelectedWeek({
-      ...getAttendanceWeekRange(weekStart),
-      anchor: new Date(weekStart),
+      ...rowRange,
+      anchor: rowRange.start,
     });
   };
 
@@ -776,6 +777,7 @@ export default function AttendancePage() {
 
   const initialClassLoading = loading && selectedClass && students.length === 0;
   const isCalendarRefreshing = loading && selectedClass && students.length > 0;
+  const classFilterLoading = classListLoading && !classes.length;
 
   return (
     <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
@@ -812,7 +814,11 @@ export default function AttendancePage() {
                   setSelectedWeek(null);
                 }}
                 className="input"
+                disabled={classFilterLoading}
               >
+                {classFilterLoading && (
+                  <option value="">Dang tai danh sach lop...</option>
+                )}
                 <option value="">-- Chọn lớp --</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -820,6 +826,12 @@ export default function AttendancePage() {
                   </option>
                 ))}
               </select>
+              {classFilterLoading && (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500"></span>
+                  Dang tai danh sach lop
+                </div>
+              )}
             </div>
             {classSchedule && (
               <div className="text-sm text-gray-600">
@@ -959,8 +971,8 @@ export default function AttendancePage() {
                             const weekEnd = [...week]
                               .reverse()
                               .find((d) => d)?.date;
-                            const weekRange = weekStart
-                              ? getAttendanceWeekRange(weekStart)
+                            const weekRange = weekStart && weekEnd
+                              ? getCalendarRowWeekRange(weekStart, weekEnd)
                               : null;
                             const isSelected =
                               selectedWeek &&
@@ -973,7 +985,7 @@ export default function AttendancePage() {
                                 onClick={() =>
                                   weekStart &&
                                   weekEnd &&
-                                  handleWeekClick(weekStart)
+                                  handleWeekClick(weekStart, weekEnd)
                                 }
                                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                                   isSelected ? "bg-primary-100" : ""

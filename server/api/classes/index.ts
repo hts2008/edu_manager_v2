@@ -155,6 +155,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const where: any = {};
       if (status && status !== "all") {
         where.status = status as string;
+      } else if (!status) {
+        where.status = "active";
       }
 
       const rawClasses = await prisma.class.findMany({
@@ -338,7 +340,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Class ID is required", 400);
       }
 
-      // Check if class has enrolled students
       const classWithStudents = await prisma.class.findUnique({
         where: { id },
         include: {
@@ -352,18 +353,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Class not found", 404);
       }
 
-      if (classWithStudents._count.studentClasses > 0) {
-        return errorResponse(
-          res,
-          "HAS_STUDENTS",
-          "Cannot delete class with enrolled students",
-          400
-        );
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.studentClass.updateMany({
+          where: { classId: id, status: "active" },
+          data: { status: "inactive" },
+        });
+        await tx.class.update({
+          where: { id },
+          data: { status: "inactive" },
+        });
+      });
 
-      await prisma.class.delete({ where: { id } });
-
-      return successResponse(res, { message: "Class deleted successfully" });
+      return successResponse(res, { message: "Class archived successfully" });
     } catch (error) {
       console.error("Delete class error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);

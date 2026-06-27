@@ -28,6 +28,10 @@ function progressKey(studentId: string, classId: string, month: string) {
   return `${studentId}\u0000${classId}\u0000${month}`;
 }
 
+function dateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function progressRecordToSnapshot(record: any): ProgressMonthSnapshot {
   return {
     id: record.id,
@@ -239,6 +243,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         progressRecordToSnapshot(record)
       );
     }
+    const attendanceDatesByProgressKey = new Map<string, Set<string>>();
+    for (const record of attendanceRows) {
+      const date = dateOnly(record.attendanceDate);
+      const month = date.slice(0, 7);
+      const key = progressKey(record.studentId, record.classId, month);
+      const dates = attendanceDatesByProgressKey.get(key) || new Set<string>();
+      dates.add(date);
+      attendanceDatesByProgressKey.set(key, dates);
+    }
     const report = buildStudentProgressReport({
       rows: filteredRows,
       parentsByStudentId: parentMap,
@@ -247,7 +260,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const track = getString(req.query.track);
     const readiness = getString(req.query.readiness);
     const academicStatus = getString(req.query.academic_status);
-    const reportRows = report.rows.filter((row) => {
+    const reportRows = report.rows.map((row) => ({
+      ...row,
+      attendance_dates: Array.from(
+        attendanceDatesByProgressKey.get(progressKey(row.student_id, row.class_id, row.month)) ||
+          new Set<string>()
+      ).sort(),
+    })).filter((row) => {
       if (track && track !== "all" && row.english_track !== track) return false;
       if (readiness && readiness !== "all" && row.readiness_band !== readiness) return false;
       if (

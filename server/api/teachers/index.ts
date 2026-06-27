@@ -11,7 +11,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - List all teachers OR single teacher by ID
   if (req.method === "GET") {
     try {
-      const { id } = req.query;
+      const { id, status } = req.query;
 
       // Single teacher retrieval
       if (id) {
@@ -57,7 +57,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       // List all teachers
+      const where: any = {};
+      if (status && status !== "all") {
+        where.status = status as string;
+      } else if (!status) {
+        where.status = "active";
+      }
       const rawTeachers = await prisma.teacher.findMany({
+        where,
         orderBy: { fullName: "asc" },
       });
 
@@ -195,7 +202,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Teacher ID is required", 400);
       }
 
-      // Check if teacher has assigned classes
       const teacherWithClasses = await prisma.teacher.findUnique({
         where: { id },
         include: {
@@ -209,18 +215,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Teacher not found", 404);
       }
 
-      if (teacherWithClasses._count.classes > 0) {
-        return errorResponse(
-          res,
-          "HAS_CLASSES",
-          "Cannot delete teacher with assigned classes",
-          400
-        );
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.class.updateMany({
+          where: { teacherId: id },
+          data: { teacherId: null },
+        });
+        await tx.teacher.update({
+          where: { id },
+          data: { status: "inactive" },
+        });
+      });
 
-      await prisma.teacher.delete({ where: { id } });
-
-      return successResponse(res, { message: "Teacher deleted successfully" });
+      return successResponse(res, { message: "Teacher archived successfully" });
     } catch (error) {
       console.error("Delete teacher error:", error);
       return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);

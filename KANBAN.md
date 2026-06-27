@@ -18,6 +18,26 @@
 
 ---
 
+## IMPLEMENTED - ATTENDANCE / DELETE / DAILY PROGRESS HOTFIX (2026-06-25)
+
+**Objective:** close the latest operator-reported blockers around attendance week selection, fee sync after lock, class-filter loading feedback, delete/archive flows, and daily student-progress entry from attendance dates.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| OPS-HOTFIX-2026-06-25-01 | Fix attendance calendar week-row selection so clicked visual row maps to the same CN-T7 row | `frontend/src/pages/AttendancePage.jsx` | frontend/qa | Attendance calendar UI | IMPLEMENTED | `tests/attendance-regressions.test.ts`, Chrome smoke |
+| OPS-HOTFIX-2026-06-25-02 | Sync class-level monthly fee lines when locking approved attendance so locked fees do not show `0d` | `server/api/attendance-periods/[id]/index.ts` | backend/qa | Monthly fee line ledger | IMPLEMENTED | `tests/attendance-regressions.test.ts`, full unit suite |
+| OPS-HOTFIX-2026-06-25-03 | Add visible loading/disabled state for class dropdown while class data is loading | `frontend/src/pages/AttendancePage.jsx` | frontend/ux | Class API | IMPLEMENTED | Regression test, Chrome smoke |
+| OPS-HOTFIX-2026-06-25-04 | Replace blocked hard delete with archive-safe delete for classes, teachers, and parents | `server/api/classes/index.ts`, `server/api/teachers/index.ts`, `server/api/parents/index.ts` | backend | Required FK constraints | IMPLEMENTED | Regression test, typecheck |
+| OPS-HOTFIX-2026-06-25-05 | Expose attendance dates in student progress report and let teachers create daily progress rows per attendance day | `server/api/reports/student-progress.ts`, `frontend/src/components/student-progress/ProgressInputPanel.jsx` | backend/frontend | Student progress assessment | IMPLEMENTED | Regression test, Chrome smoke |
+
+**Validation:** `npm --prefix frontend run lint`, `npx tsx --test tests/attendance-regressions.test.ts` 7/7, `npx tsc --noEmit`, `npm run test:unit` 85/85, `npm run build`, authenticated Chrome smoke for `/attendance`, `/classes`, `/parents`, `/teachers`, and focused `/student-progress` daily-entry panel smoke.
+
+**Evidence:** `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
+
+**Residual risk:** This pass was verified locally with mocked browser API contracts and unit-level regression coverage. Production deploy/smoke was not run in this turn.
+
+---
+
 ## IMPLEMENTED - STUDENT MONTHLY PROGRESS PARENT REPORT (2026-06-12)
 
 **Objective:** add a parent-facing monthly student progress report for English-center operations, grounded in real platform inputs first and extensible to Cambridge Starters/Movers/Flyers/KET/PET assessment inputs later.

@@ -882,3 +882,23 @@
 - **Production**: Vercel inspect `https://vercel.com/hts2008s-projects/edu-manager/2ZxVKk5NGPq64xhe7H2zokBurm3C`; alias `https://edu-manager-gules.vercel.app`.
 - **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
 - **Follow-up**: add a true class-wide bulk/copy-last-month grid and run a dependency-security pass for npm audit warnings.
+
+---
+
+## 2026-06-25 - Attendance/Delete/Daily Progress Hotfix
+
+- **Task**: close the latest reported blockers in attendance week selection, locked tuition amount, class-filter loading UX, archive/delete flows, and daily student-progress input.
+- **Implementation**:
+  - `AttendancePage` now maps a clicked calendar row to the exact visible CN-T7 row and shows loading/disabled feedback while class options are loading.
+  - Attendance-period lock now rebuilds class-level monthly fee lines and refreshes the aggregate monthly fee total in the same transaction.
+  - Class and teacher deletes now archive safely; teacher delete unassigns classes; parent delete soft-deletes without violating required `Student.parentId`.
+  - Student-progress report rows now include `attendance_dates`; `ProgressInputPanel` can create daily practice rows from each attendance date.
+- **Verification**:
+  - `npm --prefix frontend run lint` passed.
+  - `npx tsx --test tests/attendance-regressions.test.ts` passed 7/7.
+  - `npx tsc --noEmit` passed.
+  - `npm run test:unit` passed 85/85.
+  - `npm run build` passed.
+  - Local Chrome smoke rendered `/attendance`, `/classes`, `/parents`, `/teachers`, and `/student-progress`; focused progress smoke confirmed `Theo ngay diem danh` and `+ DD/MM` attendance-date buttons with no console/page errors.
+- **Evidence**: `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
+- **Residual risk**: production deploy/smoke was not run in this turn; deploy should be a separate release action if the user wants these fixes live immediately.

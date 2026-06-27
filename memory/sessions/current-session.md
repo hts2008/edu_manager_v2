@@ -667,3 +667,23 @@
 - **Residual risk**:
   - No dedicated class-wide bulk/copy-last-month grid yet; row-level monthly save/finalize is live.
   - Existing npm audit warnings should be handled in a separate dependency-security pass.
+
+## 2026-06-25 Session Update - Attendance/Delete/Daily Progress Hotfix
+
+- **Task**: `OPS-HOTFIX-2026-06-25-01..05`
+- **Status**: `IMPLEMENTED locally`; production deploy not run in this turn.
+- **Completed**:
+  - Fixed attendance visual-row week selection.
+  - Synced monthly fee line ledger during attendance lock so fee totals do not show `0d`.
+  - Added class dropdown loading feedback on Attendance.
+  - Changed class/teacher/parent delete behavior to archive-safe flows.
+  - Added attendance-date driven daily student-progress entry creation.
+- **Verification**:
+  - `npm --prefix frontend run lint` passed.
+  - `npx tsx --test tests/attendance-regressions.test.ts` passed 7/7.
+  - `npx tsc --noEmit` passed.
+  - `npm run test:unit` passed 85/85.
+  - `npm run build` passed.
+  - Local Chrome smoke passed affected route render checks and focused student-progress daily panel check.
+- **Evidence**:
+  - `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`

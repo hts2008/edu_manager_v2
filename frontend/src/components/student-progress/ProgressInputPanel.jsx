@@ -67,6 +67,27 @@ export default function ProgressInputPanel({
     });
   }
 
+  const attendanceDates = Array.isArray(row.attendance_dates) ? row.attendance_dates : [];
+  const enteredDates = new Set(((form?.daily_entries) || []).map((entry) => entry.entry_date));
+  const missingAttendanceDates = attendanceDates.filter((date) => !enteredDates.has(date));
+
+  function addEntryForDate(entryDate) {
+    onChange({
+      ...form,
+      daily_entries: [
+        ...(form.daily_entries || []),
+        {
+          entry_date: entryDate,
+          entry_type: "daily_practice",
+          skill_key: "listening",
+          score: "",
+          shield_count: 0,
+          note: "Cap nhat sau buoi diem danh",
+        },
+      ],
+    });
+  }
+
   function removeEntry(index) {
     onChange({
       ...form,
@@ -186,6 +207,40 @@ export default function ProgressInputPanel({
             Thêm dòng
           </button>
         </div>
+        {attendanceDates.length > 0 && (
+          <div className="mb-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.08em] text-indigo-700">
+                  Theo ngay diem danh
+                </div>
+                <p className="mt-1 text-xs font-semibold text-indigo-700/75">
+                  Tao dong tien do tu tung ngay da diem danh de cong don den cuoi thang.
+                </p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">
+                {attendanceDates.length} ngay
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {missingAttendanceDates.slice(0, 12).map((date) => (
+                <button
+                  key={date}
+                  type="button"
+                  className="rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700 shadow-sm hover:border-indigo-400 hover:bg-indigo-100"
+                  onClick={() => addEntryForDate(date)}
+                >
+                  + {date.slice(8, 10)}/{date.slice(5, 7)}
+                </button>
+              ))}
+              {!missingAttendanceDates.length && (
+                <span className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">
+                  Da co dong tien do cho tat ca ngay diem danh
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <div className="space-y-2">
           {(form.daily_entries || []).map((entry, index) => (
             <div key={`${entry.entry_date}-${index}`} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
