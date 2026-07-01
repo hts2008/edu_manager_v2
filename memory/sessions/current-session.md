@@ -1,5 +1,14 @@
 # Current Session
 
+## Latest Closeout - 2026-07-01
+
+- Objective `OPS-2026-06-29-01..05` is complete and production-live.
+- Commits: `e907980`, `1b783fe`.
+- Deployment: `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ` at `https://edu-manager-gules.vercel.app`.
+- Production attendance lock smoke succeeded for July 2026 after fixing Prisma `P2010` by casting advisory-lock `void` to `text`.
+- Daily progress, selector UX, schema, audits, 107 unit tests, 49 local browser tests, and 29 production browser tests passed.
+- Evidence: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+
 ## Session Info
 - **Started**: 2026-05-14
 - **Workspace**: EDU_MANAGER_V2

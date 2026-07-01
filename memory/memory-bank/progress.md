@@ -910,3 +910,18 @@
 - **Evidence**: `receipts/2026-06-25-attendance-delete-daily-progress-hotfix.md`.
 
 ---
+
+## 2026-07-01 - Attendance Lock, Selector UX, And Daily Progress Closeout
+
+- Implemented bounded attendance locking with deterministic PostgreSQL advisory locks and set-based class fee-line reconciliation.
+- Added per-line protection so paid/confirmed/receipt-linked class fees remain immutable while other classes recalculate.
+- Added shared selector loading, refreshing, empty, error, retry, reduced-motion, and accessible mobile behavior.
+- Added date-scoped student progress API/UI and honest monthly daily-assessment rollups.
+- Synchronized additive Prisma schema to Neon; post-push diff is empty.
+- Patched root/frontend dependency advisories; production audits now report zero vulnerabilities.
+- RCA from production smoke: Prisma 5.22 cannot deserialize `pg_advisory_xact_lock()` return type `void`; cast result to `text`.
+- Verified unit 107/107, typecheck, lint, build, local Playwright 49/49, production Playwright 29/29.
+- Production lock smoke succeeded for July 2026 in 7.13 seconds with 3 students/fees/lines and zero post-fix HTTP 500.
+- Deployment: `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ`; evidence: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+
+---

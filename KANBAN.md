@@ -18,19 +18,25 @@
 
 ---
 
-## IN PROGRESS - ATTENDANCE LOCK / SELECT UX / DAILY PROGRESS CLOSEOUT (2026-06-29)
+## IMPLEMENTED - ATTENDANCE LOCK / SELECT UX / DAILY PROGRESS CLOSEOUT (2026-07-01)
 
 **Objective:** remove the confirmed attendance-lock transaction timeout, standardize visible loading/error behavior for operational selectors, and replace month-wide progress overwrite with date-scoped student progress persistence.
 
 | Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
 | ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
-| OPS-2026-06-29-01 | Replace attendance lock N+1 fee synchronization with bounded transaction reconciliation | attendance-period lock + fee lines | backend worker | Existing fee-line ledger | IN PROGRESS | Focused tests, query bound, concurrency, typecheck |
-| OPS-2026-06-29-02 | Add shared selector loading/empty/error UX and migrate critical class/progress filters | frontend selector system | frontend worker | Existing EduFlow design tokens | IN PROGRESS | Lint, build, accessibility, Chrome |
-| OPS-2026-06-29-03 | Add date-scoped student progress API and monthly rollup | Prisma + student-progress API | backend worker | Existing progress assessment | IN PROGRESS | Prisma validate, API tests, missing-input invariant |
-| OPS-2026-06-29-04 | Build daily progress editor/timeline and integrate new API | student-progress UI | frontend/main | OPS-03 | PLANNED | Component tests, Playwright, report rollup |
-| OPS-2026-06-29-05 | Run full regression, preview/production smoke, deploy, and closeout | release/evidence | QA + release | OPS-01..04 | PLANNED | Static gates, E2E, production logs, receipt |
+| OPS-2026-06-29-01 | Replace attendance lock N+1 fee synchronization with bounded transaction reconciliation | attendance-period lock + fee lines | backend worker | Existing fee-line ledger | IMPLEMENTED | 107 unit tests, production lock mutation, zero post-fix HTTP 500 |
+| OPS-2026-06-29-02 | Add shared selector loading/empty/error UX and migrate critical class/progress filters | frontend selector system | frontend worker | Existing EduFlow design tokens | IMPLEMENTED | Lint, build, accessibility, system Chrome |
+| OPS-2026-06-29-03 | Add date-scoped student progress API and monthly rollup | Prisma + student-progress API | backend worker | Existing progress assessment | IMPLEMENTED | Prisma validate/db push, API tests, missing-input invariant |
+| OPS-2026-06-29-04 | Build daily progress editor/timeline and integrate new API | student-progress UI | frontend/main | OPS-03 | IMPLEMENTED | 49 local + 29 production Playwright flows |
+| OPS-2026-06-29-05 | Run full regression, preview/production smoke, deploy, and closeout | release/evidence | QA + release | OPS-01..04 | IMPLEMENTED | Static gates, E2E, production mutation/logs, receipt |
 
 **Approved defaults:** full seven-skill daily snapshot; admin-only mutation in this release; non-attendance dates require a note; missing teacher input remains `missing_input`, never `0`.
+
+**Production:** Vercel deployment `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ` is `READY` and aliased to `https://edu-manager-gules.vercel.app`. The July 2026 approved attendance period was locked successfully in 7.13 seconds with `students_processed=3`, `fees_updated=3`, `fee_lines_written=3`; post-fix logs contained zero HTTP 500 responses.
+
+**RCA:** the first production deploy exposed Prisma `P2010` because PostgreSQL `pg_advisory_xact_lock()` returns `void`. Casting the parameterized lock result to `text` removed the deserialization failure while preserving deterministic transaction-scoped locking.
+
+**Evidence:** `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
 
 ---
 

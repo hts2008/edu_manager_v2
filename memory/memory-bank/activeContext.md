@@ -337,3 +337,14 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Verification**: `npm run test:unit` 78/78, `npx tsc --noEmit`, frontend lint zero warnings, `npm run build`, `git diff --check`, `npx prisma validate`, `npx prisma db push --skip-generate` already in sync, local Playwright 1/1, production Playwright 1/1.
 - **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
 - **Residual risk**: class-wide bulk/copy-last-month entry is not yet a dedicated grid workflow; current production supports row-level monthly save/finalize. npm audit warnings remain and need a separate dependency-security pass.
+
+## 2026-07-01 Current Context - Attendance Lock, Selector UX, Daily Progress
+
+- **Active task closed**: `OPS-2026-06-29-01..05` are `IMPLEMENTED`.
+- **Attendance lock**: deterministic advisory locks plus set-based fee-line reconciliation preserve paid/receipt-linked lines and refresh mutable class lines. Production RCA found Prisma `P2010` on PostgreSQL `void`; casting `pg_advisory_xact_lock(...)` to `text` fixed the actual 500.
+- **Selector UX**: shared accessible loading/refreshing/empty/error/retry states now cover attendance, attendance-period, and student-progress class filters.
+- **Daily progress**: admin-only date-scoped API and editor persist independent daily snapshots and derive monthly average/latest/delta/count/focus rollups without converting missing input to zero.
+- **Production**: `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ`, alias `https://edu-manager-gules.vercel.app`.
+- **Runtime evidence**: July 2026 attendance period locked successfully in 7.13 seconds; 3 students, 3 fee updates, 3 fee lines; zero post-fix HTTP 500 logs.
+- **Quality gates**: unit 107/107, typecheck, lint, build, Prisma validate/push/diff, audits zero, local Playwright 49/49, production Playwright 29/29.
+- **Evidence**: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.

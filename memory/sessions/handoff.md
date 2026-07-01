@@ -425,3 +425,14 @@
 - **Gates passed**: unit 78/78, typecheck, lint zero warnings, build, diff-check, Prisma validate, Prisma db push in sync, local Playwright 1/1, production Playwright 1/1.
 - **Evidence**: `receipts/2026-06-14-student-progress-assessment-expansion.md`, `docs/artifacts/playwright/student-progress-assessment-local-final-20260614/`, `docs/artifacts/playwright/student-progress-assessment-production-20260614/`.
 - **Known follow-up**: add dedicated class-wide bulk/copy-last-month input grid; run dependency-security pass for npm audit warnings. Do not claim official Cambridge certificate scoring until the center approves formal grading policy.
+
+## 2026-07-01 Handoff - Attendance Lock, Selector UX, Daily Progress
+
+- **Completed**: `OPS-2026-06-29-01..05` are production-live.
+- **Production**: `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ`, alias `https://edu-manager-gules.vercel.app`.
+- **Critical RCA**: Prisma 5.22 threw `P2010` when `$queryRaw` returned PostgreSQL advisory-lock `void`; the lock result is now cast to `text`.
+- **Mutation evidence**: July 2026 period is `locked`; 3 students processed, 3 fees updated, 3 fee lines written in 7.13 seconds; zero post-fix HTTP 500 logs.
+- **Daily progress**: date-scoped API/UI and monthly rollups are live; missing input remains null/`missing_input`.
+- **Verification**: 107 unit, 49 local Playwright, 29 production Playwright, typecheck, lint, build, Prisma push/diff, and zero-vulnerability audits.
+- **Evidence**: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+- **Next**: no blocker remains in this track; future work should start from a new KANBAN item.

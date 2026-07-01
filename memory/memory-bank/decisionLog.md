@@ -298,3 +298,17 @@
 **Decision**: Phase 1 student progress reporting must be evidence-first and honest: compute operational progress/readiness from real student-class-month attendance and class data, map class names to Cambridge tracks where possible, and explicitly mark skill scores as `missing_input` until a real assessment input workflow/schema exists. Do not infer or fabricate Cambridge shields, CEFR levels, or Cambridge English Scale scores from attendance alone.
 **Rationale**: Parent reports must be useful immediately without corrupting academic meaning. Attendance and consistency are valid progress signals, but they are not equivalent to Cambridge exam results. Separating proxy metrics from missing academic inputs keeps the product trustworthy and gives Phase 2 a clean path for assessment rubrics.
 **Status**: IMPLEMENTED in `lib/student-progress-report.ts`, `/api/reports/student-progress`, `/student-progress`, and receipt `receipts/2026-06-12-student-progress-parent-report.md`; verified by focused unit 4/4, full unit 65/65, typecheck, lint, build, local Playwright smoke, Vercel production deploy `dpl_5NZEpgh9xKWqCyp99rt5GxWTLoYs`, and production Playwright route/API smoke.
+
+### ADR-43: Attendance Fee Reconciliation Uses Deterministic Advisory Locks And Mutable Lines
+**Date**: 2026-07-01
+**Context**: Attendance-period locking timed out or returned HTTP 500 while rebuilding monthly tuition across multiple classes. Paid and receipt-linked class lines must not be overwritten, while mutable classes still need recalculation.
+**Decision**: Claim `approved -> locked` conditionally, acquire sorted transaction-scoped advisory locks per student-month, read counts in batches, delete/recreate only mutable class lines, then refresh parent fee aggregates with parameterized set-based SQL. Cast `pg_advisory_xact_lock(...)` to `text` because Prisma 5.22 cannot deserialize PostgreSQL `void`.
+**Rationale**: This removes N+1 writes, prevents concurrent student-month races, preserves financial ledger history, and avoids Prisma `P2010`.
+**Status**: IMPLEMENTED and production-verified by the July 2026 lock mutation; evidence in `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+
+### ADR-44: Daily Student Progress Owns Date-Scoped Entries
+**Date**: 2026-07-01
+**Context**: The monthly progress endpoint previously replaced all daily entries, making one-day edits destructive and preventing a real timeline.
+**Decision**: `/api/student-progress/daily` is the only writer for daily entries. PUT replaces one selected date, DELETE removes one selected date, and monthly progress writes reject embedded daily entries. Monthly rollups are derived from persisted daily observations, while absent teacher input remains `missing_input`.
+**Rationale**: Date ownership makes edits isolated, auditable, and suitable for month-over-month reporting without fabricated scores.
+**Status**: IMPLEMENTED with additive Neon schema, local/production browser evidence, and receipt `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
