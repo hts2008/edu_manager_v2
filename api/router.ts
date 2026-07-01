@@ -71,6 +71,7 @@ const routes = {
   reportsStudentFees: () => import("../server/api/reports/student-fees.js"),
   reportsStudentProgress: () => import("../server/api/reports/student-progress.js"),
   reportsUnpaidStudents: () => import("../server/api/reports/unpaid-students.js"),
+  studentProgressDaily: () => import("../server/api/student-progress/daily.js"),
   studentProgressIndex: () => import("../server/api/student-progress/index.js"),
   studentsIndex: () => import("../server/api/students/index.js"),
   teachersIndex: () => import("../server/api/teachers/index.js"),
@@ -133,6 +134,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["reports", "student-fees"], routes.reportsStudentFees) ||
     exact(parts, ["reports", "student-progress"], routes.reportsStudentProgress) ||
     exact(parts, ["reports", "unpaid-students"], routes.reportsUnpaidStudents) ||
+    exact(parts, ["student-progress", "daily"], routes.studentProgressDaily) ||
     exact(parts, ["student-progress"], routes.studentProgressIndex) ||
     exact(parts, ["receipts"], routes.receiptsIndex) ||
     (resource === "receipts" && parts.length === 2

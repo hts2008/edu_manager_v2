@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { classesService, attendancePeriodsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
+import SelectField from "../components/ui/SelectField";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
 import AttendanceReviewModal from "../components/AttendanceReviewModal";
@@ -26,37 +27,47 @@ export default function AttendancePeriodsPage() {
   const [periods, setPeriods] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [classListError, setClassListError] = useState(null);
   const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const toast = useToast();
   const { isAdmin } = useAuth();
   const [reviewPeriodId, setReviewPeriodId] = useState(null);
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
     loadData();
+    return () => {
+      loadRequestRef.current += 1;
+    };
   }, [filterClass, filterStatus, filterMonth]);
 
   const loadData = async () => {
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
     setLoading(true);
+    setClassListError(null);
 
-    // Load classes for filter
-    const classRes = await classesService.getAll();
-    if (classRes.success) {
-      setClasses(classRes.data.classes || []);
-    }
-
-    // Load periods with filters
     const params = {};
     if (filterClass) params.class_id = filterClass;
     if (filterStatus) params.status = filterStatus;
     if (filterMonth) params.month = filterMonth;
 
-    const periodRes = await attendancePeriodsService.getAll(params);
+    const [classRes, periodRes] = await Promise.all([
+      classesService.getAll(),
+      attendancePeriodsService.getAll(params),
+    ]);
+    if (loadRequestRef.current !== requestId) return;
+
+    if (classRes.success) {
+      setClasses(classRes.data.classes || []);
+    } else {
+      setClassListError(classRes.error?.message || "Không thể tải danh sách lớp");
+    }
     if (periodRes.success) {
       setPeriods(periodRes.data.periods || []);
     }
-
     setLoading(false);
   };
 
@@ -110,6 +121,15 @@ export default function AttendancePeriodsPage() {
     approved: periods.filter((p) => p.status === "approved").length,
     locked: periods.filter((p) => p.status === "locked").length,
   };
+  const classSelectorState = classListError
+    ? "error"
+    : loading
+      ? classes.length
+        ? "refreshing"
+        : "initial-loading"
+      : classes.length
+        ? "ready"
+        : "empty";
 
   const columns = [
     {
@@ -261,39 +281,42 @@ export default function AttendancePeriodsPage() {
       {/* Filters */}
       <div className="card">
         <div className="card-body">
-          <div className="flex items-center gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Lớp học
-              </label>
-              <select
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[200px]">
+              <SelectField
+                label="Lớp học"
                 value={filterClass}
                 onChange={(e) => setFilterClass(e.target.value)}
-                className="input min-w-[200px]"
-              >
-                <option value="">Tất cả lớp</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.class_name}
-                  </option>
-                ))}
-              </select>
+                state={classSelectorState}
+                error={classListError}
+                onRetry={loadData}
+                placeholder={{ value: "", label: "Tất cả lớp" }}
+                options={classes.map((classItem) => ({
+                  value: classItem.id,
+                  label: classItem.class_name,
+                }))}
+                statusLabels={{
+                  "initial-loading": "Đang tải danh sách lớp...",
+                  refreshing: "Đang cập nhật danh sách lớp...",
+                  empty: "Chưa có lớp học nào.",
+                  error: "Không thể tải danh sách lớp.",
+                }}
+              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Trạng thái
-              </label>
-              <select
+            <div className="min-w-[150px]">
+              <SelectField
+                label="Trạng thái"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="input min-w-[150px]"
-              >
-                <option value="">Tất cả</option>
-                <option value="open">🟢 Đang mở</option>
-                <option value="submitted">🟡 Chờ duyệt</option>
-                <option value="approved">🔵 Đã duyệt</option>
-                <option value="locked">🔒 Đã chốt</option>
-              </select>
+                state="ready"
+                placeholder={{ value: "", label: "Tất cả" }}
+                options={[
+                  { value: "open", label: "🟢 Đang mở" },
+                  { value: "submitted", label: "🟡 Chờ duyệt" },
+                  { value: "approved", label: "🔵 Đã duyệt" },
+                  { value: "locked", label: "🔒 Đã chốt" },
+                ]}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

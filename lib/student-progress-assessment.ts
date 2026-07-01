@@ -19,7 +19,13 @@ export type ProgressSkillKey =
   | "daily_practice"
   | "mock_test";
 
-export type ProgressEntryType = "homework" | "daily_practice" | "mock_test" | "shield" | "note";
+export type ProgressEntryType =
+  | "homework"
+  | "daily_practice"
+  | "skill_assessment"
+  | "mock_test"
+  | "shield"
+  | "note";
 
 export type ProgressSkillInput = {
   skill_key: ProgressSkillKey;
@@ -99,6 +105,24 @@ export type ProgressAssessmentResult = {
   mockTestScore: number | null;
   hasTeacherInput: boolean;
   rubricSnapshot: Record<string, unknown>;
+};
+
+export type DailyAssessmentRollup = {
+  averageScore: number | null;
+  latestScore: number | null;
+  scoreDelta: number | null;
+  assessmentCount: number;
+  focusSkillKey: ProgressSkillKey | null;
+  focusSkillLabel: string | null;
+  skills: Array<{
+    skillKey: ProgressSkillKey;
+    skillLabel: string;
+    status: "missing_input" | "available";
+    averageScore: number | null;
+    latestScore: number | null;
+    scoreDelta: number | null;
+    assessmentCount: number;
+  }>;
 };
 
 const TRACKS: Record<
@@ -277,6 +301,83 @@ function clamp(value: number, min = 0, max = 100) {
 function average(values: number[]) {
   if (!values.length) return 0;
   return round1(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function sortableEntryDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+}
+
+export function summarizeDailyAssessmentRollup(
+  entries: ProgressDailyEntryInput[]
+): DailyAssessmentRollup {
+  const assessmentEntries = entries
+    .filter(
+      (entry): entry is ProgressDailyEntryInput & { skill_key: ProgressSkillKey } =>
+        entry.entry_type === "skill_assessment" &&
+        Boolean(entry.skill_key) &&
+        SKILL_ORDER.includes(entry.skill_key as ProgressSkillKey)
+    )
+    .map((entry) => {
+      const numericScore =
+        entry.score === null || entry.score === undefined ? null : Number(entry.score);
+      return {
+        ...entry,
+        score: Number.isFinite(numericScore) ? clamp(numericScore as number) : null,
+      };
+    });
+
+  const skillKeys = SKILL_ORDER.filter((skillKey) =>
+    assessmentEntries.some((entry) => entry.skill_key === skillKey)
+  );
+  const skills = skillKeys.map((skillKey) => {
+    const skillEntries = assessmentEntries
+      .filter((entry) => entry.skill_key === skillKey && entry.score !== null)
+      .sort((left, right) => sortableEntryDate(left.entry_date) - sortableEntryDate(right.entry_date));
+    const scores = skillEntries.map((entry) => entry.score as number);
+    const firstScore = scores[0] ?? null;
+    const latestScore = scores.at(-1) ?? null;
+
+    return {
+      skillKey,
+      skillLabel: PROGRESS_SKILL_LABELS[skillKey],
+      status: scores.length ? ("available" as const) : ("missing_input" as const),
+      averageScore: scores.length ? average(scores) : null,
+      latestScore,
+      scoreDelta:
+        firstScore === null || latestScore === null ? null : round1(latestScore - firstScore),
+      assessmentCount: scores.length,
+    };
+  });
+
+  const scoredEntries = assessmentEntries
+    .filter((entry): entry is typeof entry & { score: number } => entry.score !== null)
+    .sort((left, right) => sortableEntryDate(left.entry_date) - sortableEntryDate(right.entry_date));
+  const scores = scoredEntries.map((entry) => entry.score);
+  const firstScore = scores[0] ?? null;
+  const latestScore = scores.at(-1) ?? null;
+  const focusSkill =
+    skills
+      .filter(
+        (skill): skill is typeof skill & { averageScore: number } =>
+          skill.averageScore !== null
+      )
+      .sort(
+        (left, right) =>
+          left.averageScore - right.averageScore ||
+          SKILL_ORDER.indexOf(left.skillKey) - SKILL_ORDER.indexOf(right.skillKey)
+      )[0] || null;
+
+  return {
+    averageScore: scores.length ? average(scores) : null,
+    latestScore,
+    scoreDelta:
+      firstScore === null || latestScore === null ? null : round1(latestScore - firstScore),
+    assessmentCount: scores.length,
+    focusSkillKey: focusSkill?.skillKey || null,
+    focusSkillLabel: focusSkill?.skillLabel || null,
+    skills,
+  };
 }
 
 export function detectProgressTrackKey(className: string | null | undefined): ProgressTrackKey {

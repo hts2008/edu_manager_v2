@@ -24,18 +24,19 @@ export async function assertAttendanceDatesEditable(
     where: {
       classId,
       periodMonth: { in: months },
-      status: "locked",
+      status: { in: ["submitted", "approved", "locked"] },
     },
     select: {
       id: true,
       periodMonth: true,
+      status: true,
     },
   });
 
   if (lockedPeriods.length > 0) {
     throw new ApiError(
       "ATTENDANCE_PERIOD_LOCKED",
-      `Attendance period ${lockedPeriods[0].periodMonth} is locked`,
+      `Attendance period ${lockedPeriods[0].periodMonth} is ${lockedPeriods[0].status} and cannot be edited`,
       409
     );
   }

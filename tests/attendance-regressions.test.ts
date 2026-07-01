@@ -8,10 +8,14 @@ function source(path: string) {
 
 const attendancePage = source("frontend/src/pages/AttendancePage.jsx");
 const attendancePeriodApi = source("server/api/attendance-periods/[id]/index.ts");
+const attendanceLockHelper = source("lib/attendance-lock-transaction.ts");
 const classesApi = source("server/api/classes/index.ts");
 const teachersApi = source("server/api/teachers/index.ts");
 const parentsApi = source("server/api/parents/index.ts");
 const progressPanel = source("frontend/src/components/student-progress/ProgressInputPanel.jsx");
+const dailyProgressEditor = source(
+  "frontend/src/components/student-progress/DailyProgressEditor.jsx"
+);
 const progressReportApi = source("server/api/reports/student-progress.ts");
 
 describe("attendance workflow regressions", () => {
@@ -25,16 +29,20 @@ describe("attendance workflow regressions", () => {
   });
 
   it("creates class-level monthly fee lines when locking an approved attendance period", () => {
-    assert.match(attendancePeriodApi, /syncMonthlyFeeLines/);
-    assert.match(attendancePeriodApi, /refreshMonthlyFeeAggregateFromLines/);
-    assert.match(attendancePeriodApi, /makeUpSessions/);
-    assert.match(attendancePeriodApi, /teacherNameSnapshot|teacher_name/);
+    assert.match(attendancePeriodApi, /lockAttendancePeriodAndSyncFees/);
+    assert.match(attendanceLockHelper, /monthlyFeeLine\.createMany/);
+    assert.match(attendanceLockHelper, /makeUpSessions/);
+    assert.match(attendanceLockHelper, /teacherNameSnapshot/);
+    assert.doesNotMatch(attendanceLockHelper, /syncMonthlyFeeLines/);
+    assert.doesNotMatch(attendanceLockHelper, /refreshMonthlyFeeAggregateFromLines/);
   });
 
   it("shows explicit loading feedback while the class filter is loading", () => {
-    assert.match(attendancePage, /classFilterLoading/);
+    assert.match(attendancePage, /import SelectField/);
+    assert.match(attendancePage, /classListLoading/);
     assert.match(attendancePage, /Dang tai danh sach lop|Đang tải danh sách lớp/);
-    assert.match(attendancePage, /disabled=\{classFilterLoading\}/);
+    assert.match(attendancePage, /state=\{classFilterState\}/);
+    assert.match(attendancePage, /onRetry=\{loadClasses\}/);
   });
 });
 
@@ -66,8 +74,9 @@ describe("archive delete regressions", () => {
 describe("student progress daily entry regressions", () => {
   it("exposes attendance dates in the progress report and lets teachers add daily entries from attendance days", () => {
     assert.match(progressReportApi, /attendance_dates/);
-    assert.match(progressPanel, /attendanceDates/);
-    assert.match(progressPanel, /addEntryForDate/);
+    assert.match(progressPanel, /DailyProgressEditor/);
+    assert.match(dailyProgressEditor, /attendanceDates/);
+    assert.match(dailyProgressEditor, /onDateChange\(date\)/);
     assert.match(progressPanel, /Theo ngày điểm danh|Theo ngay diem danh/);
   });
 });

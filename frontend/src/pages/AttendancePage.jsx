@@ -9,6 +9,7 @@ import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
 import ActionProgressButton from "../components/ui/ActionProgressButton";
 import LongOperationStatus from "../components/ui/LongOperationStatus";
+import SelectField from "../components/ui/SelectField";
 import {
   countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
@@ -79,6 +80,7 @@ export default function AttendancePage() {
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
   const [classListLoading, setClassListLoading] = useState(false);
+  const [classListError, setClassListError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -86,6 +88,7 @@ export default function AttendancePage() {
   const [loadedWeekKey, setLoadedWeekKey] = useState("");
   const [saving, setSaving] = useState(false);
   const classDataRequestRef = useRef(0);
+  const classListRequestRef = useRef(0);
   const weekAttendanceRequestRef = useRef(0);
   const toast = useToast();
   const { isAdmin } = useAuth();
@@ -247,7 +250,7 @@ export default function AttendancePage() {
     () =>
       selectedWeekMonthKeys.map((monthKey) => {
         const status = periods[monthKey]?.status || "open";
-        return `${monthKey}: ${PERIOD_STATUS[status]?.label || "Dang mo"}`;
+        return `${monthKey}: ${PERIOD_STATUS[status]?.label || "Đang mở"}`;
       }),
     [periods, selectedWeekMonthKeys],
   );
@@ -346,16 +349,26 @@ export default function AttendancePage() {
   }, [selectedClass, selectedWeek]);
 
   const loadClasses = async () => {
+    const requestId = classListRequestRef.current + 1;
+    classListRequestRef.current = requestId;
     setClassListLoading(true);
+    setClassListError(null);
     try {
       const response = await classesService.getAll();
+      if (classListRequestRef.current !== requestId) return;
       if (response.success) {
         setClasses(response.data.classes || []);
+      } else {
+        setClassListError(response.error?.message || "Không thể tải danh sách lớp");
       }
     } catch (error) {
-      toast.error(error?.message || "Khong the tai danh sach lop");
+      if (classListRequestRef.current === requestId) {
+        setClassListError(error?.message || "Không thể tải danh sách lớp");
+      }
     } finally {
-      setClassListLoading(false);
+      if (classListRequestRef.current === requestId) {
+        setClassListLoading(false);
+      }
     }
   };
 
@@ -417,7 +430,7 @@ export default function AttendancePage() {
         setStudents([]);
         setPeriods({});
         setCalendarAttendance({});
-        setLoadError(classRes.error?.message || "Khong the tai du lieu diem danh cua lop");
+        setLoadError(classRes.error?.message || "Không thể tải dữ liệu điểm danh của lớp");
         return;
       }
 
@@ -451,7 +464,7 @@ export default function AttendancePage() {
       setCalendarAttendance(calendarData);
     } catch (error) {
       if (classDataRequestRef.current === requestId) {
-        setLoadError(error?.message || "Khong the tai du lieu diem danh");
+        setLoadError(error?.message || "Không thể tải dữ liệu điểm danh");
       }
     } finally {
       if (classDataRequestRef.current === requestId) {
@@ -524,9 +537,9 @@ export default function AttendancePage() {
       const failedMonths = monthResults.filter((result) => result.error);
       if (failedMonths.length) {
         setWeekError(
-          `Khong the tai diem danh thang ${failedMonths
+          `Không thể tải điểm danh tháng ${failedMonths
             .map((item) => item.month)
-            .join(", ")}. Vui long thu lai truoc khi luu.`,
+            .join(", ")}. Vui lòng thử lại trước khi lưu.`,
         );
         return;
       }
@@ -614,11 +627,11 @@ export default function AttendancePage() {
           month: monthKey,
         });
         if (!createRes.success) {
-          toast.error(createRes.error?.message || "Khong the tao ky diem danh");
+          toast.error(createRes.error?.message || "Không thể tạo kỳ điểm danh");
           return;
         }
         if (createRes.data?.period?.status === "locked") {
-          toast.error("Khong the sua diem danh da chot");
+          toast.error("Không thể sửa điểm danh đã chốt");
           return;
         }
       }
@@ -777,7 +790,15 @@ export default function AttendancePage() {
 
   const initialClassLoading = loading && selectedClass && students.length === 0;
   const isCalendarRefreshing = loading && selectedClass && students.length > 0;
-  const classFilterLoading = classListLoading && !classes.length;
+  const classFilterState = classListError
+    ? "error"
+    : classListLoading
+      ? classes.length
+        ? "refreshing"
+        : "initial-loading"
+      : classes.length
+        ? "ready"
+        : "empty";
 
   return (
     <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
@@ -804,34 +825,30 @@ export default function AttendancePage() {
         <div className="card-body">
           <div className="flex items-center gap-4">
             <div className="flex-1 max-w-sm">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chọn lớp
-              </label>
-              <select
+              <SelectField
+                label="Chọn lớp"
+                aria-label="Chon lop"
                 value={selectedClass}
                 onChange={(e) => {
                   setSelectedClass(e.target.value);
                   setSelectedWeek(null);
                 }}
-                className="input"
-                disabled={classFilterLoading}
-              >
-                {classFilterLoading && (
-                  <option value="">Dang tai danh sach lop...</option>
-                )}
-                <option value="">-- Chọn lớp --</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.class_name}
-                  </option>
-                ))}
-              </select>
-              {classFilterLoading && (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500"></span>
-                  Dang tai danh sach lop
-                </div>
-              )}
+                state={classFilterState}
+                error={classListError}
+                onRetry={loadClasses}
+                data-testid="attendance-class-field"
+                placeholder={{ value: "", label: "-- Chọn lớp --" }}
+                options={classes.map((classItem) => ({
+                  value: classItem.id,
+                  label: classItem.class_name,
+                }))}
+                statusLabels={{
+                  "initial-loading": "Đang tải danh sách lớp...",
+                  refreshing: "Đang cập nhật danh sách lớp...",
+                  empty: "Chưa có lớp học nào.",
+                  error: "Không thể tải danh sách lớp.",
+                }}
+              />
             </div>
             {classSchedule && (
               <div className="text-sm text-gray-600">
@@ -869,11 +886,11 @@ export default function AttendancePage() {
         <Motion.div variants={itemVariants} className="rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-black text-rose-800">Khong the tai du lieu diem danh</p>
+              <p className="text-sm font-black text-rose-800">Không thể tải dữ liệu điểm danh</p>
               <p className="mt-1 text-sm font-semibold text-rose-700">{loadError}</p>
             </div>
             <button type="button" onClick={() => loadClassData()} className="btn-secondary">
-              Thu lai
+              Thử lại
             </button>
           </div>
         </Motion.div>
@@ -887,7 +904,7 @@ export default function AttendancePage() {
         <>
           {isCalendarRefreshing && (
             <LongOperationStatus
-              title="Dang cap nhat lich diem danh"
+              title="Đang cập nhật lịch điểm danh"
               message="He thong dang tai lai hoc vien, trang thai ky va dau cham diem danh. Cac thao tac tuan se tam khoa den khi dong bo xong."
               steps={["Tai hoc vien", "Tai ky diem danh", "Dong bo lich thang"]}
               activeStep={1}
@@ -1154,7 +1171,7 @@ export default function AttendancePage() {
                     <ActionProgressButton
                       onClick={handleSave}
                       loading={saving}
-                      loadingLabel="Dang luu diem danh..."
+                      loadingLabel="Đang lưu điểm danh..."
                       disabled={!isWeekReady || Boolean(lockedSelectedMonth) || students.length === 0}
                       className="btn-primary"
                     >
@@ -1165,8 +1182,8 @@ export default function AttendancePage() {
 
                 {weekLoading && (
                   <LongOperationStatus
-                    title="Dang tai diem danh cua tuan"
-                    message="Dang lay du lieu theo tung thang trong tuan duoc chon. Nut luu va cac o diem danh tam khoa de tranh ghi de du lieu cu."
+                    title="Đang tải điểm danh của tuần"
+                    message="Đang lấy dữ liệu theo từng tháng trong tuần được chọn. Nút lưu và các ô điểm danh tạm khóa để tránh ghi đè dữ liệu cũ."
                     steps={selectedWeekMonthKeys.length > 1 ? ["Tai thang dau", "Tai thang tiep noi", "San sang sua"] : ["Tai diem danh", "Kiem tra ky", "San sang sua"]}
                     activeStep={selectedWeekMonthKeys.length > 1 ? 1 : 0}
                   />
@@ -1177,7 +1194,7 @@ export default function AttendancePage() {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <span>{weekError}</span>
                       <button type="button" onClick={() => loadWeekAttendance()} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-700 shadow-sm">
-                        Thu lai tuan nay
+                        Thử lại tuần này
                       </button>
                     </div>
                   </div>
@@ -1190,7 +1207,7 @@ export default function AttendancePage() {
                         Trang thai ky: {selectedWeekPeriodLabels.join(" | ")}
                       </span>
                       <span className={lockedSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
-                        {lockedSelectedMonth ? `Thang ${lockedSelectedMonth} da chot - chi xem` : isWeekReady ? "Da tai xong - co the thao tac" : "Dang cho du lieu tuan"}
+                        {lockedSelectedMonth ? `Tháng ${lockedSelectedMonth} đã chốt - chỉ xem` : isWeekReady ? "Đã tải xong - có thể thao tác" : "Đang chờ dữ liệu tuần"}
                       </span>
                     </div>
                   </div>
@@ -1243,7 +1260,7 @@ export default function AttendancePage() {
                                         return;
                                       }
                                       if (isDateLocked) {
-                                        toast.error("Khong the sua diem danh da chot");
+                                        toast.error("Không thể sửa điểm danh đã chốt");
                                         return;
                                       }
                                       // Toggle all students for this date

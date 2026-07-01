@@ -42,6 +42,7 @@ import {
   OperationalPage,
   PageIntro,
 } from "../components/ui/OperationalPage";
+import SelectField from "../components/ui/SelectField";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 200];
 const READINESS_LABELS = {
@@ -173,14 +174,6 @@ function buildProgressForm(row, progressMonth) {
         sort_order: recordSkill?.sort_order ?? index,
       };
     }),
-    daily_entries: (progressMonth?.daily_entries || progressMonth?.dailyEntries || []).map((entry) => ({
-      entry_date: entry.entry_date || "",
-      entry_type: entry.entry_type || "daily_practice",
-      skill_key: entry.skill_key || "",
-      score: stringifyInput(entry.score),
-      shield_count: stringifyInput(entry.shield_count || 0),
-      note: entry.note || "",
-    })),
   };
 }
 
@@ -207,14 +200,63 @@ function serializeProgressForm(row, form) {
       source: skill.source || "teacher_input",
       sort_order: skill.sort_order,
     })),
-    daily_entries: (form.daily_entries || []).map((entry) => ({
-      entry_date: entry.entry_date,
-      entry_type: entry.entry_type,
-      skill_key: entry.skill_key || null,
-      score: nullableNumber(entry.score),
-      shield_count: nullableNumber(entry.shield_count) || 0,
-      note: entry.note || null,
+  };
+}
+
+function emptyDailyForm() {
+  return {
+    skills: PROGRESS_SKILL_FIELDS.map((skill) => ({ ...skill, score: "" })),
+    shield_count: "0",
+    note: "",
+  };
+}
+
+function buildDailyForm(payload) {
+  const entries = payload?.daily_entries || [];
+  const scores = new Map(
+    entries
+      .filter((entry) => entry.entry_type === "skill_assessment")
+      .map((entry) => [entry.skill_key, entry.score])
+  );
+  return {
+    skills: PROGRESS_SKILL_FIELDS.map((skill) => ({
+      ...skill,
+      score: stringifyInput(scores.get(skill.skill_key)),
     })),
+    shield_count: stringifyInput(
+      entries.reduce((sum, entry) => sum + Number(entry.shield_count || 0), 0)
+    ),
+    note:
+      payload?.note ||
+      entries.find((entry) => entry.entry_type === "note" && entry.note)?.note ||
+      "",
+  };
+}
+
+function serializeDailyForm(row, entryDate, form) {
+  const entries = form.skills.map((skill) => ({
+    entry_type: "skill_assessment",
+    skill_key: skill.skill_key,
+    score: nullableNumber(skill.score),
+    shield_count: 0,
+    note: null,
+  }));
+  const shieldCount = nullableNumber(form.shield_count) || 0;
+  if (shieldCount > 0) {
+    entries.push({
+      entry_type: "shield",
+      skill_key: null,
+      score: null,
+      shield_count: shieldCount,
+      note: null,
+    });
+  }
+  return {
+    student_id: row.student_id,
+    class_id: row.class_id,
+    entry_date: entryDate,
+    note: form.note.trim() || null,
+    entries,
   };
 }
 
@@ -277,7 +319,6 @@ function buildPrintableRow(row, form) {
       ...(row.progress_assessment || {}),
       hasTeacherInput:
         (form.skills || []).some((skill) => nullableNumber(skill.score) !== null) ||
-        (form.daily_entries || []).length > 0 ||
         Boolean(form.teacher_note),
       academicInputStatus: (form.skills || []).every(
         (skill) => nullableNumber(skill.score) !== null
@@ -444,6 +485,17 @@ export default function StudentProgressReportPage() {
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressSaving, setProgressSaving] = useState(false);
   const [progressMessage, setProgressMessage] = useState(null);
+  const [dailyDate, setDailyDate] = useState("");
+  const [dailyForm, setDailyForm] = useState(emptyDailyForm);
+  const [dailyTimeline, setDailyTimeline] = useState([]);
+  const [dailyRollup, setDailyRollup] = useState(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyTimelineLoading, setDailyTimelineLoading] = useState(false);
+  const [dailyHasEntries, setDailyHasEntries] = useState(false);
+  const [dailySaving, setDailySaving] = useState(false);
+  const [dailyDeleting, setDailyDeleting] = useState(false);
+  const [dailyError, setDailyError] = useState(null);
+  const [dailyMessage, setDailyMessage] = useState(null);
   const deferredSearch = useDeferredValue(filters.q);
   const query = useMemo(
     () => makeQuery(filters, deferredSearch, refreshNonce),
@@ -452,6 +504,9 @@ export default function StudentProgressReportPage() {
   const requestKey = JSON.stringify(query);
   const progressState = useAsyncData(async () => {
     const response = await reportsService.getStudentProgress(query);
+    if (!response.success) {
+      throw new Error(response.error?.message || "Không tải được báo cáo tiến độ.");
+    }
     return { ...response.data, __requestKey: requestKey };
   }, requestKey);
   const data = progressState.data;
@@ -460,6 +515,19 @@ export default function StudentProgressReportPage() {
   const charts = data?.charts || {};
   const isInitialLoading = progressState.loading && !data;
   const isRefreshing = progressState.loading && Boolean(data);
+  const classOptions = (data?.meta?.classes || []).map((classItem) => ({
+    value: classItem.id,
+    label: classItem.class_name,
+  }));
+  const classSelectorState = progressState.error
+    ? "error"
+    : isInitialLoading
+      ? "initial-loading"
+      : isRefreshing
+        ? "refreshing"
+        : classOptions.length
+          ? "ready"
+          : "empty";
   useEffect(() => {
     if (!rows.length) {
       setSelectedRow(null);
@@ -512,6 +580,101 @@ export default function StudentProgressReportPage() {
     };
   }, [selectedRow?.student_id, selectedRow?.class_id, selectedRow?.month]);
 
+  useEffect(() => {
+    if (!selectedRow) {
+      setDailyDate("");
+      setDailyForm(emptyDailyForm());
+      setDailyTimeline([]);
+      setDailyRollup(null);
+      setDailyHasEntries(false);
+      setDailyError(null);
+      setDailyMessage(null);
+      return;
+    }
+
+    const attendanceDates = (selectedRow.attendance_dates || []).filter((date) =>
+      date.startsWith(`${selectedRow.month}-`)
+    );
+    const initialDate = attendanceDates.at(-1) || `${selectedRow.month}-01`;
+    let active = true;
+    setDailyDate(initialDate);
+    setDailyForm(emptyDailyForm());
+    setDailyTimeline([]);
+    setDailyRollup(null);
+    setDailyHasEntries(false);
+    setDailyError(null);
+    setDailyMessage(null);
+    setDailyTimelineLoading(true);
+
+    studentProgressService
+      .getDaily(
+        {
+          student_id: selectedRow.student_id,
+          class_id: selectedRow.class_id,
+          month: selectedRow.month,
+        },
+        { skipCache: true }
+      )
+      .then((response) => {
+        if (!active) return;
+        if (!response.success) {
+          setDailyError(response.error?.message || "Không tải được lịch sử theo ngày.");
+          return;
+        }
+        setDailyTimeline(response.data?.daily_entries || []);
+        setDailyRollup(response.data?.rollup || null);
+      })
+      .finally(() => {
+        if (active) setDailyTimelineLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedRow?.student_id, selectedRow?.class_id, selectedRow?.month]);
+
+  useEffect(() => {
+    if (!selectedRow || !dailyDate) return;
+
+    let active = true;
+    setDailyLoading(true);
+    setDailyForm(emptyDailyForm());
+    setDailyHasEntries(false);
+    setDailyError(null);
+    setDailyMessage(null);
+    studentProgressService
+      .getDaily(
+        {
+          student_id: selectedRow.student_id,
+          class_id: selectedRow.class_id,
+          entry_date: dailyDate,
+        },
+        { skipCache: true }
+      )
+      .then((response) => {
+        if (!active) return;
+        if (!response.success) {
+          setDailyError(response.error?.message || "Không tải được bản ghi theo ngày.");
+          return;
+        }
+        setDailyForm(buildDailyForm(response.data));
+        setDailyHasEntries((response.data?.daily_entries || []).length > 0);
+        setDailyRollup(response.data?.rollup || null);
+      })
+      .finally(() => {
+        if (active) setDailyLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    selectedRow?.student_id,
+    selectedRow?.class_id,
+    selectedRow?.month,
+    dailyDate,
+  ]);
+
   const metrics = [
     {
       label: "Học viên",
@@ -559,22 +722,120 @@ export default function StudentProgressReportPage() {
       if (!response.success) {
         setProgressMessage({
           type: "error",
-          text: response.error?.message || "Khong luu duoc tien do.",
+          text: response.error?.message || "Không lưu được tiến độ.",
         });
         return;
       }
 
       const savedRecord = response.data?.progress_month || null;
       setProgressForm(buildProgressForm(selectedRow, savedRecord));
-      setProgressMessage({ type: "success", text: "Da luu tien do hoc vien." });
+      setProgressMessage({ type: "success", text: "Đã lưu tiến độ học viên." });
       setRefreshNonce((value) => value + 1);
     } catch (error) {
       setProgressMessage({
         type: "error",
-        text: error?.message || "Khong luu duoc tien do.",
+        text: error?.message || "Không lưu được tiến độ.",
       });
     } finally {
       setProgressSaving(false);
+    }
+  }
+
+  async function refreshDailyTimeline() {
+    if (!selectedRow) return;
+    setDailyTimelineLoading(true);
+    try {
+      const response = await studentProgressService.getDaily(
+        {
+          student_id: selectedRow.student_id,
+          class_id: selectedRow.class_id,
+          month: selectedRow.month,
+        },
+        { skipCache: true }
+      );
+      if (!response.success) {
+        setDailyError(response.error?.message || "Không tải được lịch sử theo ngày.");
+        return;
+      }
+      setDailyTimeline(response.data?.daily_entries || []);
+      setDailyRollup(response.data?.rollup || null);
+    } finally {
+      setDailyTimelineLoading(false);
+    }
+  }
+
+  async function saveDailyForm() {
+    if (!selectedRow || !dailyDate) return;
+    const attendanceDates = selectedRow.attendance_dates || [];
+    if (!attendanceDates.includes(dailyDate) && !dailyForm.note.trim()) {
+      setDailyMessage({
+        type: "error",
+        text: "Ngày không điểm danh bắt buộc có ghi chú giáo viên.",
+      });
+      return;
+    }
+
+    setDailySaving(true);
+    setDailyError(null);
+    setDailyMessage(null);
+    try {
+      const response = await studentProgressService.saveDay(
+        serializeDailyForm(selectedRow, dailyDate, dailyForm)
+      );
+      if (!response.success) {
+        setDailyMessage({
+          type: "error",
+          text: response.error?.message || "Không lưu được bản ghi theo ngày.",
+        });
+        return;
+      }
+      setDailyForm(buildDailyForm(response.data));
+      setDailyHasEntries((response.data?.daily_entries || []).length > 0);
+      setDailyRollup(response.data?.rollup || null);
+      setDailyMessage({ type: "success", text: `Đã lưu ${dailyDate}.` });
+      await refreshDailyTimeline();
+      setRefreshNonce((value) => value + 1);
+    } catch (error) {
+      setDailyMessage({
+        type: "error",
+        text: error?.message || "Không lưu được bản ghi theo ngày.",
+      });
+    } finally {
+      setDailySaving(false);
+    }
+  }
+
+  async function deleteDailyForm() {
+    if (!selectedRow || !dailyDate) return;
+    setDailyDeleting(true);
+    setDailyError(null);
+    setDailyMessage(null);
+    try {
+      const response = await studentProgressService.deleteDay({
+        student_id: selectedRow.student_id,
+        class_id: selectedRow.class_id,
+        entry_date: dailyDate,
+      });
+      if (!response.success) {
+        setDailyMessage({
+          type: "error",
+          text: response.error?.message || "Không xóa được bản ghi theo ngày.",
+        });
+        return;
+      }
+      setDailyForm(emptyDailyForm());
+      setDailyHasEntries(false);
+      setDailyRollup(response.data?.rollup || null);
+      setDailyMessage({ type: "success", text: `Đã xóa ${dailyDate}.` });
+      await refreshDailyTimeline();
+      setRefreshNonce((value) => value + 1);
+    } catch (error) {
+      setDailyMessage({
+        type: "error",
+        text: error?.message || "Không xóa được bản ghi theo ngày.",
+      });
+    } finally {
+      setDailyDeleting(false);
     }
   }
 
@@ -657,36 +918,39 @@ export default function StudentProgressReportPage() {
           </label>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="text-sm font-bold text-slate-700">
-            Lớp học
-            <select
-              className="input mt-2"
-              value={filters.class_id}
-              onChange={(event) => updateFilter("class_id", event.target.value)}
-            >
-              <option value="all">Tất cả lớp</option>
-              {(data?.meta?.classes || []).map((classItem) => (
-                <option key={classItem.id} value={classItem.id}>
-                  {classItem.class_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-bold text-slate-700">
-            Track
-            <select
-              className="input mt-2"
-              value={filters.track}
-              onChange={(event) => updateFilter("track", event.target.value)}
-            >
-              <option value="all">Tất cả track</option>
-              {Object.entries(data?.framework?.tracks || {}).map(([key, track]) => (
-                <option key={key} value={key}>
-                  {track.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            label="Lớp học"
+            aria-label="Lop hoc"
+            value={filters.class_id}
+            onChange={(event) => updateFilter("class_id", event.target.value)}
+            state={classSelectorState}
+            error={progressState.error?.message}
+            onRetry={() => setRefreshNonce((value) => value + 1)}
+            data-testid="progress-class-field"
+            placeholder={{ value: "all", label: "Tất cả lớp" }}
+            options={classOptions}
+            statusLabels={{
+              "initial-loading": "Đang tải danh sách lớp...",
+              refreshing: "Đang cập nhật danh sách lớp...",
+              empty: "Chưa có lớp trong báo cáo.",
+              error: "Không tải được danh sách lớp.",
+            }}
+          />
+          <SelectField
+            label="Track"
+            value={filters.track}
+            onChange={(event) => updateFilter("track", event.target.value)}
+            state={isInitialLoading ? "initial-loading" : isRefreshing ? "refreshing" : "ready"}
+            placeholder={{ value: "all", label: "Tất cả track" }}
+            options={Object.entries(data?.framework?.tracks || {}).map(([key, track]) => ({
+              value: key,
+              label: track.label,
+            }))}
+            statusLabels={{
+              "initial-loading": "Đang tải danh sách track...",
+              refreshing: "Đang cập nhật danh sách track...",
+            }}
+          />
           <label className="text-sm font-bold text-slate-700">
             Mức tiến độ
             <select
@@ -735,7 +999,11 @@ export default function StudentProgressReportPage() {
           <ShieldAlert className="mx-auto text-rose-500" size={40} />
           <h2 className="mt-4 text-xl font-black text-slate-950">Không tải được báo cáo</h2>
           <p className="mt-2 text-sm text-slate-500">{progressState.error.message}</p>
-          <button className="btn-primary mt-5" type="button" onClick={() => progressState.reload()}>
+          <button
+            className="btn-primary mt-5"
+            type="button"
+            onClick={() => setRefreshNonce((value) => value + 1)}
+          >
             Thử lại
           </button>
         </section>
@@ -1037,8 +1305,25 @@ export default function StudentProgressReportPage() {
                     loading={progressLoading}
                     saving={progressSaving}
                     message={progressMessage}
+                    daily={{
+                      selectedDate: dailyDate,
+                      form: dailyForm,
+                      timeline: dailyTimeline,
+                      rollup: dailyRollup,
+                      loading: dailyLoading,
+                      timelineLoading: dailyTimelineLoading,
+                      saving: dailySaving,
+                      deleting: dailyDeleting,
+                      error: dailyError,
+                      message: dailyMessage,
+                      empty: !dailyHasEntries,
+                    }}
                     onChange={setProgressForm}
                     onSave={saveProgressForm}
+                    onDailyDateChange={setDailyDate}
+                    onDailyChange={setDailyForm}
+                    onSaveDay={saveDailyForm}
+                    onDeleteDay={deleteDailyForm}
                   />
                   <button
                     type="button"

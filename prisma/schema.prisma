@@ -572,6 +572,10 @@ model StudentProgressMonth {
   shieldTotal             Int      @default(0) @map("shield_total")
   pointsTotal             Int      @default(0) @map("points_total")
   mockTestScore           Float?   @map("mock_test_score")
+  dailyAverageScore       Float?   @map("daily_average_score")
+  dailyLatestScore        Float?   @map("daily_latest_score")
+  dailyScoreDelta         Float?   @map("daily_score_delta")
+  dailyAssessmentCount    Int      @default(0) @map("daily_assessment_count")
   finalizedAt             DateTime? @map("finalized_at")
   createdById              String   @map("created_by")
   updatedById              String?  @map("updated_by")
@@ -622,6 +626,7 @@ model StudentProgressSkill {
 enum ProgressEntryType {
   homework
   daily_practice
+  skill_assessment
   mock_test
   shield
   note
@@ -644,6 +649,7 @@ model StudentProgressDailyEntry {
   createdBy     User                @relation("ProgressDailyCreatedBy", fields: [createdById], references: [id])
 
   @@index([progressMonthId])
+  @@index([progressMonthId, entryDate])
   @@index([entryDate])
   @@index([entryType])
   @@index([skillKey])

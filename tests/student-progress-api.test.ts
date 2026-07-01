@@ -60,15 +60,15 @@ describe("student progress API contract", () => {
     assert.match(progressApi, /progress_month:\s*progressMonthToDto\(record\)/);
   });
 
-  it("guards daily entry dates against the selected progress month", () => {
-    assert.match(progressApi, /value\.startsWith\(`\$\{month\}-`\)/);
-    assert.match(progressApi, /"ENTRY_DATE_OUT_OF_MONTH"/);
-    assert.match(
+  it("delegates all daily entry writes to the dedicated daily API", () => {
+    assert.match(progressApi, /"DAILY_ENTRY_API_REQUIRED"/);
+    assert.match(progressApi, /"daily_entries"/);
+    assert.match(progressApi, /"dailyEntries"/);
+    assert.match(progressApi, /409/);
+    assert.doesNotMatch(
       progressApi,
-      /"daily_entries\.entry_date must be inside the progress month"/
+      /studentProgressDailyEntry\.deleteMany|studentProgressDailyEntry\.createMany/
     );
-    assert.match(progressApi, /Number\.isNaN\(date\.getTime\(\)\)/);
-    assert.match(progressApi, /"INVALID_ENTRY_DATE"/);
   });
 
   it("integrates saved assessment rows into the parent report source", () => {
@@ -91,7 +91,6 @@ describe("student progress payload validation", () => {
     assert.equal(result.success, true);
     if (!result.success) return;
     assert.deepEqual(result.data.skills, []);
-    assert.deepEqual(result.data.daily_entries, []);
     assert.equal(result.data.finalized, false);
   });
 
@@ -108,15 +107,6 @@ describe("student progress payload validation", () => {
           score: 78,
           max_score: 100,
           status: "available",
-        },
-      ],
-      daily_entries: [
-        {
-          entry_date: "2026-06-13",
-          entry_type: "mock_test",
-          skill_key: "listening",
-          score: 78,
-          shield_count: 2,
         },
       ],
     });
@@ -139,31 +129,13 @@ describe("student progress payload validation", () => {
     }
   });
 
-  it("rejects out-of-range scores and invalid nested entry fields", () => {
+  it("rejects out-of-range scores and invalid nested skill fields", () => {
     const invalidPayloads = [
       { ...validPayload, mock_test_score: 101 },
       { ...validPayload, skills: [{ skill_key: "listening", score: -1 }] },
       {
         ...validPayload,
         skills: [{ skill_key: "listening", score: 80, max_score: 0 }],
-      },
-      {
-        ...validPayload,
-        daily_entries: [{ entry_date: "2026/06/13", entry_type: "note" }],
-      },
-      {
-        ...validPayload,
-        daily_entries: [{ entry_date: "2026-06-13", entry_type: "quiz" }],
-      },
-      {
-        ...validPayload,
-        daily_entries: [
-          {
-            entry_date: "2026-06-13",
-            entry_type: "shield",
-            shield_count: -1,
-          },
-        ],
       },
     ];
 

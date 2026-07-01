@@ -7,14 +7,11 @@ import {
   successResponse,
 } from "../../../../lib/auth.js";
 import {
-  calculateStudentMonthlyTuition,
-  CHARGEABLE_ATTENDANCE_STATUSES,
-} from "../../../../lib/tuition.js";
-import {
-  refreshMonthlyFeeAggregateFromLines,
-  syncMonthlyFeeLines,
-} from "../../../../lib/monthly-fee-lines.js";
-import { ApiError, sendApiError } from "../../../../lib/api-utils.js";
+  isAttendanceLockTimeout,
+  lockAttendancePeriodAndSyncFees,
+} from "../../../../lib/attendance-lock-transaction.js";
+import { sendApiError } from "../../../../lib/api-utils.js";
+import { getRequestId } from "../../../../lib/observability.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // Get id from query param (Vercel dynamic route)
@@ -228,212 +225,27 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const result = await prisma.$transaction(async (tx) => {
-          const lockedAt = new Date();
-          const [year, month] = period.periodMonth.split("-");
-          const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-          const endDate = new Date(parseInt(year), parseInt(month), 0);
-
-          const impactedStudentClasses = await tx.studentClass.findMany({
-            where: { classId: period.classId, status: "active" },
-            select: { studentId: true },
-          });
-          const studentIds = [
-            ...new Set(impactedStudentClasses.map((item) => item.studentId)),
-          ];
-
-          const activeStudentClasses = studentIds.length
-            ? await tx.studentClass.findMany({
-                where: {
-                  studentId: { in: studentIds },
-                  status: "active",
-                  student: { status: "active", deletedAt: null },
-                },
-                include: {
-                  class: {
-                    include: {
-                      teacher: { select: { fullName: true } },
-                    },
-                  },
-                },
-              })
-            : [];
-
-          const classIds = [
-            ...new Set(activeStudentClasses.map((item) => item.classId)),
-          ];
-          const attendanceCounts = classIds.length
-            ? await tx.attendance.groupBy({
-                by: ["studentId", "classId"],
-                where: {
-                  studentId: { in: studentIds },
-                  classId: { in: classIds },
-                  attendanceDate: { gte: startDate, lte: endDate },
-                  status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
-                },
-                _count: { status: true },
-              })
-            : [];
-          const countByStudentClass = new Map(
-            attendanceCounts.map((item) => [
-              `${item.studentId}:${item.classId}`,
-              item._count.status,
-            ])
-          );
-          const makeUpCounts = classIds.length
-            ? await tx.attendance.groupBy({
-                by: ["studentId", "classId"],
-                where: {
-                  studentId: { in: studentIds },
-                  classId: { in: classIds },
-                  attendanceDate: { gte: startDate, lte: endDate },
-                  status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
-                  isMakeUp: true,
-                },
-                _count: { status: true },
-              })
-            : [];
-          const makeUpByStudentClass = new Map(
-            makeUpCounts.map((item) => [
-              `${item.studentId}:${item.classId}`,
-              item._count.status,
-            ])
-          );
-
-          let feesCreated = 0;
-          let feesUpdated = 0;
-          let feesSkipped = 0;
-
-          for (const studentId of studentIds) {
-            const existing = await tx.monthlyFee.findFirst({
-              where: { studentId, month: period.periodMonth },
-            });
-
-            if (
-              existing &&
-              (!["pending", "ready"].includes(existing.status) ||
-                existing.receiptId ||
-                existing.paidAt)
-            ) {
-              feesSkipped += 1;
-              continue;
-            }
-
-            const tuition = calculateStudentMonthlyTuition(
-              activeStudentClasses
-                .filter((item) => item.studentId === studentId)
-                .map((item) => ({
-                  classId: item.classId,
-                  feePerDay: item.class.feePerDay,
-                  scheduleDays: item.class.scheduleDays,
-                  sessionsPerWeek: item.class.sessionsPerWeek,
-                  chargedSessions:
-                    countByStudentClass.get(`${studentId}:${item.classId}`) || 0,
-                })),
-              period.periodMonth
-            );
-
-            let feeRecord: any = existing;
-            if (existing) {
-              const updated = await tx.monthlyFee.updateMany({
-                where: {
-                  id: existing.id,
-                  status: { in: ["pending", "ready"] },
-                  receiptId: null,
-                  paidAt: null,
-                },
-                data: {
-                  totalDays: tuition.totalDays,
-                  totalAmount: tuition.totalAmount,
-                  status: "ready",
-                  receiptId: null,
-                  paidAt: null,
-                },
-              });
-              if (updated.count !== 1) {
-                feesSkipped += 1;
-                continue;
-              }
-              feeRecord = await tx.monthlyFee.findUniqueOrThrow({
-                where: { id: existing.id },
-              });
-              feesUpdated += 1;
-            } else {
-              feeRecord = await tx.monthlyFee.create({
-                data: {
-                  studentId,
-                  month: period.periodMonth,
-                  totalDays: tuition.totalDays,
-                  totalAmount: tuition.totalAmount,
-                  status: "ready",
-                },
-              });
-              feesCreated += 1;
-            }
-
-            const studentClassRows = activeStudentClasses.filter(
-              (item) => item.studentId === studentId
-            );
-            const breakdown = tuition.classes.map((tuitionClass) => {
-              const classRow = studentClassRows.find(
-                (item) => item.classId === tuitionClass.classId
-              );
-              const makeUpSessions =
-                makeUpByStudentClass.get(`${studentId}:${tuitionClass.classId}`) || 0;
-              return {
-                class_id: tuitionClass.classId,
-                class_name: classRow?.class?.className || null,
-                teacher_name: classRow?.class?.teacher?.fullName || null,
-                fee_per_day: tuitionClass.feePerSession,
-                days_count: tuitionClass.chargedSessions,
-                expected_sessions: tuitionClass.expectedSessions,
-                make_up_sessions: makeUpSessions,
-                extra_sessions: Math.max(
-                  0,
-                  tuitionClass.chargedSessions - tuitionClass.expectedSessions
-                ),
-                billing_mode: tuitionClass.billingMode,
-                schedule_mode: tuitionClass.scheduleStrategy,
-                monthly_tuition: tuitionClass.monthlyTuition,
-                amount: tuitionClass.totalAmount,
-                period_status: "locked",
-              };
-            });
-            await syncMonthlyFeeLines(tx, feeRecord, breakdown);
-            await refreshMonthlyFeeAggregateFromLines(tx, feeRecord.id);
-          }
-
-          const locked = await tx.attendancePeriod.updateMany({
-            where: { id, status: "approved" },
-            data: {
-              status: "locked",
-              lockedById: req.user.id,
-              lockedAt,
-            },
-          });
-
-          if (locked.count !== 1) {
-            throw new ApiError(
-              "ATTENDANCE_PERIOD_STATE_CONFLICT",
-              "Attendance period changed while locking",
-              409
-            );
-          }
-
-          return {
-            studentsProcessed: studentIds.length,
-            feesCreated,
-            feesUpdated,
-            feesSkipped,
-          };
-        });
+        const result = await prisma.$transaction(
+          (tx) =>
+            lockAttendancePeriodAndSyncFees(tx, {
+              periodId: id,
+              classId: period.classId,
+              month: period.periodMonth,
+              userId: req.user.id,
+            }),
+          {
+            maxWait: 5_000,
+            timeout: 15_000,
+          },
+        );
 
         return successResponse(res, {
           message: "Period locked and fee records created",
-          studentsProcessed: result.studentsProcessed,
-          fees_created: result.feesCreated,
-          fees_updated: result.feesUpdated,
-          fees_skipped: result.feesSkipped,
+          studentsProcessed: result.students_processed,
+          fees_created: result.fees_created,
+          fees_updated: result.fees_updated,
+          fees_skipped: result.fees_preserved,
+          fee_sync: result,
         });
       }
 
@@ -510,6 +322,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
     }
   } catch (error) {
+    if (actionType === "lock" && isAttendanceLockTimeout(error)) {
+      const requestId = getRequestId(req);
+      return res.status(503).json({
+        success: false,
+        error: {
+          code: "ATTENDANCE_LOCK_TIMEOUT",
+          message: "Attendance lock timed out; retry the request",
+          retryable: true,
+          request_id: requestId,
+        },
+      });
+    }
     return sendApiError(res, error, "ATTENDANCE_PERIOD_ACTION_ERROR");
   }
 }

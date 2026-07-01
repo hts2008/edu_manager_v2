@@ -177,6 +177,29 @@ const progressMaxScoreSchema = z.preprocess(
   z.coerce.number().min(1).max(1000).optional()
 );
 
+const progressDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "entry_date must be YYYY-MM-DD")
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }, "entry_date must be a valid calendar date");
+
+const progressMonthSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM")
+  .refine((value) => {
+    const month = Number(value.slice(5, 7));
+    return month >= 1 && month <= 12;
+  }, "month must contain a valid month number");
+
 export const studentProgressUpsertSchema = z.object({
   student_id: z.string().trim().min(1, "student_id is required"),
   class_id: z.string().trim().min(1, "class_id is required"),
@@ -207,17 +230,66 @@ export const studentProgressUpsertSchema = z.object({
     )
     .optional()
     .default([]),
-  daily_entries: z
-    .array(
-      z.object({
-        entry_date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "entry_date must be YYYY-MM-DD"),
-        entry_type: z.enum(["homework", "daily_practice", "mock_test", "shield", "note"]),
-        skill_key: progressSkillKeySchema.nullable().optional(),
-        score: progressScoreSchema,
-        shield_count: z.coerce.number().int().min(0).optional().default(0),
-        note: optionalNullableText,
-      })
-    )
-    .optional()
-    .default([]),
 });
+
+const studentProgressDailyIdentitySchema = z.object({
+  student_id: z.string().trim().min(1, "student_id is required"),
+  class_id: z.string().trim().min(1, "class_id is required"),
+  entry_date: progressDateSchema,
+});
+
+const studentProgressDailyEntrySchema = z
+  .object({
+    entry_type: z.enum([
+      "homework",
+      "daily_practice",
+      "skill_assessment",
+      "mock_test",
+      "shield",
+      "note",
+    ]),
+    skill_key: progressSkillKeySchema.nullable().optional(),
+    score: progressScoreSchema,
+    shield_count: z.coerce.number().int().min(0).optional().default(0),
+    note: optionalNullableText,
+  })
+  .superRefine((entry, context) => {
+    if (entry.entry_type === "skill_assessment" && !entry.skill_key) {
+      context.addIssue({
+        code: "custom",
+        path: ["skill_key"],
+        message: "skill_key is required for skill_assessment",
+      });
+    }
+  });
+
+export const studentProgressDailyQuerySchema = z
+  .object({
+    student_id: z.string().trim().min(1, "student_id is required"),
+    class_id: z.string().trim().min(1, "class_id is required"),
+    month: progressMonthSchema.optional(),
+    entry_date: progressDateSchema.optional(),
+  })
+  .superRefine((query, context) => {
+    if (!query.month && !query.entry_date) {
+      context.addIssue({
+        code: "custom",
+        path: ["month"],
+        message: "month or entry_date is required",
+      });
+    }
+    if (query.month && query.entry_date && !query.entry_date.startsWith(`${query.month}-`)) {
+      context.addIssue({
+        code: "custom",
+        path: ["entry_date"],
+        message: "entry_date must be inside month",
+      });
+    }
+  });
+
+export const studentProgressDailyPutSchema = studentProgressDailyIdentitySchema.extend({
+  note: optionalNullableText,
+  entries: z.array(studentProgressDailyEntrySchema).max(100).optional().default([]),
+});
+
+export const studentProgressDailyDeleteSchema = studentProgressDailyIdentitySchema;

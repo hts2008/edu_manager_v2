@@ -584,11 +584,26 @@ export const studentProgressService = {
     const query = new URLSearchParams(params).toString();
     return request(`/student-progress${query ? `?${query}` : ""}`);
   },
+  getDaily: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/student-progress/daily${query ? `?${query}` : ""}`, options);
+  },
   saveMonth: (data) =>
     request("/student-progress", {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  saveDay: (data) =>
+    request("/student-progress/daily", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteDay: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/student-progress/daily${query ? `?${query}` : ""}`, {
+      method: "DELETE",
+    });
+  },
 };
 
 // Activity Logs API

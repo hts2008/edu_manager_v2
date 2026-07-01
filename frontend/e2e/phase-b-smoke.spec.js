@@ -67,7 +67,7 @@ async function expectHealthyPage(page, path, headingSelector) {
   await expect(page).not.toHaveURL(/\/login$/);
   await expect(page.getByText("Đã xảy ra lỗi")).toHaveCount(0);
   await expect(page.getByText("Network Error")).toHaveCount(0);
-  await expect(page.locator(headingSelector)).toBeVisible();
+  await expect(page.locator(headingSelector).first()).toBeVisible();
   expect(errors).toEqual([]);
 }
 
@@ -348,11 +348,11 @@ test("operations pages for reminders, backups, and recycle bin are available", a
 
 test("parent portal login rejects invalid credentials and exposes read-only login surface", async ({ page, request }) => {
   await page.goto("/parent-login");
-  await expect(page.getByRole("heading", { name: "Parent Portal" })).toBeVisible();
-  await page.getByLabel("Parent phone").fill("0999999999");
-  await page.getByLabel("Student date of birth").fill("2010-01-01");
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page.getByText("Invalid parent credentials")).toBeVisible();
+  await expect(page.locator("main h1, h1").filter({ hasText: /Cổng phụ huynh|Parent Portal/ }).first()).toBeVisible();
+  await page.locator("#parent-phone").fill("0999999999");
+  await page.locator("#student-dob").fill("2010-01-01");
+  await page.locator('button[type="submit"]').click();
+  await expect(page.locator(".text-red-700").first()).toBeVisible();
 
   const response = await request.post("/api/parent-portal/login", {
     data: {

@@ -232,6 +232,97 @@ body {
   @apply border-gray-300 bg-white;
 }
 
+.select-field {
+  min-width: 0;
+}
+
+.select-field__label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.select-field__control {
+  position: relative;
+}
+
+.select-field__select {
+  min-height: 44px;
+  padding-right: 2.75rem;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.select-field__spinner {
+  position: absolute;
+  top: calc(50% - 9px);
+  right: 2rem;
+  color: #4f46e5;
+  animation: select-field-spin 700ms linear infinite;
+  pointer-events: none;
+}
+
+.select-field__status {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease;
+}
+
+.select-field__status--empty {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.select-field__status--error {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.select-field__status-spinner {
+  flex: 0 0 auto;
+  animation: select-field-spin 700ms linear infinite;
+}
+
+.select-field__retry {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  background: #fff;
+  color: #be123c;
+}
+
+.select-field__retry:focus-visible {
+  outline: 2px solid #e11d48;
+  outline-offset: 2px;
+}
+
+@keyframes select-field-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .input-error {
   @apply border-error-500 focus:ring-error-500/30 focus:border-error-500;
 }
@@ -1163,6 +1254,16 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .select-field__select,
+  .select-field__status {
+    transition: none;
+  }
+
+  .select-field__spinner,
+  .select-field__status-spinner {
+    animation: none;
+  }
+
   .eduflow-loading-bars span {
     animation: none;
   }

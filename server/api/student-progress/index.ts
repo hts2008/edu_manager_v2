@@ -24,7 +24,6 @@ import {
   detectProgressTrackKey,
   normalizeProgressClassType,
   type ProgressClassType,
-  type ProgressDailyEntryInput,
   type ProgressMonthSnapshot,
   type ProgressSkillInput,
   type ProgressSkillKey,
@@ -81,6 +80,10 @@ function progressMonthToDto(record: any) {
     shield_total: record.shieldTotal,
     points_total: record.pointsTotal,
     mock_test_score: record.mockTestScore,
+    daily_average_score: record.dailyAverageScore,
+    daily_latest_score: record.dailyLatestScore,
+    daily_score_delta: record.dailyScoreDelta,
+    daily_assessment_count: record.dailyAssessmentCount,
     finalized_at: record.finalizedAt,
     created_by: record.createdById,
     updated_by: record.updatedById,
@@ -163,26 +166,6 @@ function recordToSnapshot(record: any): ProgressMonthSnapshot {
   };
 }
 
-function parseEntryDate(value: string, month: string) {
-  if (!value.startsWith(`${month}-`)) {
-    throw new ApiError(
-      "ENTRY_DATE_OUT_OF_MONTH",
-      "daily_entries.entry_date must be inside the progress month",
-      400
-    );
-  }
-  const date = new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw new ApiError("INVALID_ENTRY_DATE", "daily_entries.entry_date is invalid", 400);
-  }
-  return date;
-}
-
-function average(values: number[]) {
-  if (!values.length) return null;
-  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
-}
-
 function normalizeSkillInputs(input: {
   skills: ProgressSkillInput[];
   trackKey: ProgressTrackKey;
@@ -213,20 +196,6 @@ function normalizeSkillInputs(input: {
       sort_order: Number(source?.sort_order ?? rubricSkill.sortOrder),
     };
   });
-}
-
-function normalizeDailyEntries(entries: ProgressDailyEntryInput[], month: string) {
-  return (entries || []).map((entry) => ({
-    entry_date: parseEntryDate(String(entry.entry_date), month),
-    entry_type: entry.entry_type,
-    skill_key: entry.skill_key || null,
-    score:
-      entry.score === null || entry.score === undefined || Number.isNaN(Number(entry.score))
-        ? null
-        : Number(entry.score),
-    shield_count: Math.max(0, Math.trunc(Number(entry.shield_count || 0))),
-    note: entry.note || null,
-  }));
 }
 
 async function loadOperationalRow(studentId: string, classId: string, month: string) {
@@ -374,6 +343,17 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
+  if (
+    Object.prototype.hasOwnProperty.call(req.body || {}, "daily_entries") ||
+    Object.prototype.hasOwnProperty.call(req.body || {}, "dailyEntries")
+  ) {
+    throw new ApiError(
+      "DAILY_ENTRY_API_REQUIRED",
+      "Use /api/student-progress/daily to create, replace, or delete daily entries",
+      409
+    );
+  }
+
   const body = validateBody(studentProgressUpsertSchema, {
     ...req.body,
     student_id: req.body?.student_id || req.body?.studentId,
@@ -385,7 +365,6 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     focus_skill_key: req.body?.focus_skill_key || req.body?.focusSkillKey,
     focus_skill_label: req.body?.focus_skill_label ?? req.body?.focusSkillLabel,
     mock_test_score: req.body?.mock_test_score ?? req.body?.mockTestScore,
-    daily_entries: req.body?.daily_entries || req.body?.dailyEntries,
   });
 
   const row = await loadOperationalRow(body.student_id, body.class_id, body.month);
@@ -409,23 +388,62 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     : existing?.classType
       ? normalizeProgressClassType(existing.classType)
       : defaultClassTypeForTrack(trackKey);
-  const skills = normalizeSkillInputs({
+  const normalizedSkills = normalizeSkillInputs({
     skills: body.skills,
     trackKey,
     classType,
   });
-  const dailyEntries = normalizeDailyEntries(body.daily_entries, body.month);
-  const shieldTotal = dailyEntries.reduce((sum, entry) => sum + entry.shield_count, 0);
+  const dailyRollupSkills = new Map(
+    (existing?.skills || [])
+      .filter((skill: any) => skill.source === "daily_rollup")
+      .map((skill: any) => [skill.skillKey, skill])
+  );
+  const skills = normalizedSkills.map((skill) => {
+    const dailyRollup = dailyRollupSkills.get(skill.skill_key) as any;
+    if (!dailyRollup) return skill;
+    return {
+      skill_key: skill.skill_key,
+      skill_label: dailyRollup.skillLabel,
+      score: dailyRollup.score,
+      max_score: dailyRollup.maxScore,
+      weight: dailyRollup.weight,
+      status: dailyRollup.score === null ? "missing_input" : "available",
+      note: dailyRollup.note,
+      source: "daily_rollup",
+      sort_order: dailyRollup.sortOrder,
+    };
+  });
+  const dailyEntries =
+    existing?.dailyEntries?.map((entry: any) => ({
+      entry_date: entry.entryDate,
+      entry_type: entry.entryType,
+      skill_key: entry.skillKey,
+      score: entry.score,
+      shield_count: entry.shieldCount,
+      note: entry.note,
+    })) || [];
+  const shieldTotal = dailyEntries.reduce(
+    (sum: number, entry: any) => sum + Number(entry.shield_count || 0),
+    0
+  );
   const pointsTotal = Math.round(
-    dailyEntries.reduce((sum, entry) => sum + Number(entry.score || 0), 0)
+    dailyEntries.reduce((sum: number, entry: any) => sum + Number(entry.score || 0), 0)
   );
   const mockScores = dailyEntries
-    .filter((entry) => entry.entry_type === "mock_test" && entry.score !== null)
-    .map((entry) => Number(entry.score));
+    .filter((entry: any) => entry.entry_type === "mock_test" && entry.score !== null)
+    .map((entry: any) => Number(entry.score));
   const mockSkillScore = skills.find((skill) => skill.skill_key === "mock_test")?.score;
   const mockTestScore =
     body.mock_test_score ??
-    (mockSkillScore === null || mockSkillScore === undefined ? average(mockScores) : mockSkillScore);
+    (mockSkillScore === null || mockSkillScore === undefined
+      ? mockScores.length
+        ? Math.round(
+            (mockScores.reduce((sum: number, score: number) => sum + score, 0) /
+              mockScores.length) *
+              10
+          ) / 10
+        : null
+      : mockSkillScore);
 
   const snapshot: ProgressMonthSnapshot = {
     id: existing?.id || "new",
@@ -443,14 +461,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     mockTestScore,
     finalizedAt: body.finalized ? existing?.finalizedAt || new Date() : null,
     skills,
-    dailyEntries: dailyEntries.map((entry) => ({
-      entry_date: entry.entry_date,
-      entry_type: entry.entry_type,
-      skill_key: entry.skill_key,
-      score: entry.score,
-      shield_count: entry.shield_count,
-      note: entry.note,
-    })),
+    dailyEntries,
   };
   const assessment = buildProgressAssessment({
     row,
@@ -532,22 +543,6 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
           note: skill.note,
           source: skill.source,
           sortOrder: Number(skill.sort_order || 0),
-        })),
-      });
-    }
-
-    await tx.studentProgressDailyEntry.deleteMany({ where: { progressMonthId: saved.id } });
-    if (dailyEntries.length) {
-      await tx.studentProgressDailyEntry.createMany({
-        data: dailyEntries.map((entry) => ({
-          progressMonthId: saved.id,
-          entryDate: entry.entry_date,
-          entryType: entry.entry_type as any,
-          skillKey: entry.skill_key,
-          score: entry.score,
-          shieldCount: entry.shield_count,
-          note: entry.note,
-          createdById: req.user.id,
         })),
       });
     }

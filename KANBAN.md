@@ -18,6 +18,22 @@
 
 ---
 
+## IN PROGRESS - ATTENDANCE LOCK / SELECT UX / DAILY PROGRESS CLOSEOUT (2026-06-29)
+
+**Objective:** remove the confirmed attendance-lock transaction timeout, standardize visible loading/error behavior for operational selectors, and replace month-wide progress overwrite with date-scoped student progress persistence.
+
+| Task ID | Description | Scope | Agent Owner | Dependencies | Status | Quality Gates |
+| ------- | ----------- | ----- | ----------- | ------------ | ------ | ------------- |
+| OPS-2026-06-29-01 | Replace attendance lock N+1 fee synchronization with bounded transaction reconciliation | attendance-period lock + fee lines | backend worker | Existing fee-line ledger | IN PROGRESS | Focused tests, query bound, concurrency, typecheck |
+| OPS-2026-06-29-02 | Add shared selector loading/empty/error UX and migrate critical class/progress filters | frontend selector system | frontend worker | Existing EduFlow design tokens | IN PROGRESS | Lint, build, accessibility, Chrome |
+| OPS-2026-06-29-03 | Add date-scoped student progress API and monthly rollup | Prisma + student-progress API | backend worker | Existing progress assessment | IN PROGRESS | Prisma validate, API tests, missing-input invariant |
+| OPS-2026-06-29-04 | Build daily progress editor/timeline and integrate new API | student-progress UI | frontend/main | OPS-03 | PLANNED | Component tests, Playwright, report rollup |
+| OPS-2026-06-29-05 | Run full regression, preview/production smoke, deploy, and closeout | release/evidence | QA + release | OPS-01..04 | PLANNED | Static gates, E2E, production logs, receipt |
+
+**Approved defaults:** full seven-skill daily snapshot; admin-only mutation in this release; non-attendance dates require a note; missing teacher input remains `missing_input`, never `0`.
+
+---
+
 ## IMPLEMENTED - ATTENDANCE / DELETE / DAILY PROGRESS HOTFIX (2026-06-25)
 
 **Objective:** close the latest operator-reported blockers around attendance week selection, fee sync after lock, class-filter loading feedback, delete/archive flows, and daily student-progress entry from attendance dates.

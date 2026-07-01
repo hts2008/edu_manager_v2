@@ -94,12 +94,17 @@ test("receipt correction route is resolved before dynamic id route", () => {
 });
 
 test("attendance lock refreshes student-month tuition atomically across active classes", () => {
-  const code = source("server/api/attendance-periods/[id]/index.ts");
+  const endpoint = source("server/api/attendance-periods/[id]/index.ts");
+  const helper = source("lib/attendance-lock-transaction.ts");
 
-  assert.match(code, /prisma\.\$transaction/);
-  assert.match(code, /calculateStudentMonthlyTuition/);
-  assert.match(code, /classId: \{ in: classIds \}/);
-  assert.match(code, /ATTENDANCE_PERIOD_STATE_CONFLICT/);
+  assert.match(endpoint, /prisma\.\$transaction/);
+  assert.match(endpoint, /lockAttendancePeriodAndSyncFees/);
+  assert.match(helper, /calculateStudentMonthlyTuition/);
+  assert.match(helper, /classId: \{ in: classIds \}/);
+  assert.match(helper, /ATTENDANCE_PERIOD_STATE_CONFLICT/);
+  assert.match(helper, /pg_advisory_xact_lock/);
+  assert.match(helper, /monthlyFee\.createMany/);
+  assert.match(helper, /monthlyFeeLine\.createMany/);
 });
 
 test("student fee report flags paid receipt anomalies even without monthly fee rows", () => {

@@ -238,8 +238,8 @@ test("template designer loads an editable canvas surface", async ({ page, reques
   await page.goto(`/templates/${templateId}/design`);
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Redo" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Hoàn tác|Undo/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Làm lại|Redo/ })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload ảnh" })).toBeVisible();
   await expect(page.locator("canvas").first()).toBeVisible();
 });
