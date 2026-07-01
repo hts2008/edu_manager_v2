@@ -90,7 +90,7 @@ async function acquireAttendanceFeeAdvisoryLocks(
         FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[]) AS keys(lock_key)
         ORDER BY lock_key
       )
-      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))
+      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
       FROM ordered_keys
       ORDER BY lock_key
     `,

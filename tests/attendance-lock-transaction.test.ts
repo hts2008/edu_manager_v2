@@ -380,6 +380,11 @@ describe("attendance lock API contract", () => {
 
   it("uses one parameterized PostgreSQL advisory-lock query without unsafe or string-built SQL", () => {
     assert.match(lockHelperSource, /pg_advisory_xact_lock/);
+    assert.match(
+      lockHelperSource,
+      /pg_advisory_xact_lock\([^)]*\)\)::text AS lock_result/,
+      "Prisma cannot deserialize PostgreSQL void; advisory lock results must be cast",
+    );
     assert.match(lockHelperSource, /Prisma\.sql/);
     assert.match(lockHelperSource, /Prisma\.join/);
     assert.match(lockHelperSource, /MATERIALIZED/);
