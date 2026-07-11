@@ -18,11 +18,11 @@
 
 | Task ID | Description | Status | Evidence |
 | --- | --- | --- | --- |
-| AUD-RM-001 | Make attendance lock class-scoped and month-bounded | IMPLEMENTED | 125/125 unit tests; production deploy `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` |
-| AUD-RM-002 | Add immutable enrollment periods and prorate expected sessions to enrollment dates | IMPLEMENTED | Neon additive schema push; 37 active periods backfilled |
-| AUD-RM-003 | Enforce independent class-line collection and reporting | IMPLEMENTED | strict ledger tests; aggregate collection returns typed 409 |
-| AUD-RM-004 | Harden template upload/PDF render contract | IMPLEMENTED | template/PDF tests; authenticated Chrome canvas smoke |
-| AUD-RM-005 | Replace mocked-only gates with router audit and isolated Postgres CI | IMPLEMENTED | CI Postgres 16 job; router mutation audit tests |
+| CORE-2026-07-11-01 | Make attendance lock class-scoped and month-bounded | IMPLEMENTED | 125/125 unit tests; production deploy `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` |
+| CORE-2026-07-11-02 | Add immutable enrollment periods and prorate expected sessions to enrollment dates | IMPLEMENTED | Neon additive schema push; 37 active periods backfilled |
+| CORE-2026-07-11-03 | Enforce independent class-line collection and reporting | IMPLEMENTED | strict ledger tests; aggregate collection returns typed 409 |
+| CORE-2026-07-11-04 | Harden template upload/PDF render contract | IMPLEMENTED | template/PDF tests; authenticated Chrome canvas smoke |
+| CORE-2026-07-11-05 | Replace mocked-only gates with router audit and isolated Postgres CI | IMPLEMENTED | GitHub CI run `29149776064` succeeded |
 
 **Production:** `https://edu-manager-gules.vercel.app` is aliased to Ready deployment `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG`. Root 200, protected API 401 without token, authenticated dashboard/attendance/fee/reports/templates loaded without console errors, and Template Designer rendered 13 Fabric objects then accepted a dynamic field as object 14 without saving production data.
 
