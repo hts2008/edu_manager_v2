@@ -1,6 +1,12 @@
 import { createRequire } from "node:module";
 import type { TDocumentDefinitions } from "pdfmake/interfaces.js";
 import { parseJsonConfig } from "./api-utils.js";
+import {
+  fetchTemplateImage,
+  isTemplateRenderContractV2,
+  parseTemplateRenderContract,
+  type TemplateRenderContractV2,
+} from "./template-render-contract.js";
 
 type PdfData = Record<string, unknown>;
 
@@ -116,6 +122,56 @@ function replaceBindings(text: string, data: PdfData) {
       const value = getPath(data, field);
       return value === undefined || value === null ? match : String(value);
     });
+}
+
+function rawTemplateConfig(template: any) {
+  const value = template?.jsonConfig ?? template?.json_config;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+async function contractV2Content(
+  contract: TemplateRenderContractV2,
+  data: PdfData,
+  pageWidthPt: number,
+  pageHeightPt: number
+) {
+  const background = await fetchTemplateImage(contract.background.src);
+  const xScale = contract.canvas ? pageWidthPt / contract.canvas.width : mmToPt(1);
+  const yScale = contract.canvas ? pageHeightPt / contract.canvas.height : mmToPt(1);
+
+  return [
+    {
+      image: background,
+      width: pageWidthPt,
+      height: pageHeightPt,
+      absolutePosition: { x: 0, y: 0 },
+    },
+    ...contract.bindings.map((binding) => {
+      const rawValue = getPath(data, binding.field);
+      const value = rawValue === undefined || rawValue === null || rawValue === ""
+        ? binding.fallback || ""
+        : String(rawValue);
+      return {
+        text: `${binding.prefix || ""}${value}${binding.suffix || ""}`,
+        fontSize: binding.fontSize || 12,
+        bold: binding.bold,
+        italics: binding.italic,
+        color: binding.color || "#111827",
+        alignment: binding.align || "left",
+        width: binding.width === undefined ? undefined : binding.width * xScale,
+        height: binding.height === undefined ? undefined : binding.height * yScale,
+        absolutePosition: {
+          x: binding.x * xScale,
+          y: binding.y * yScale,
+        },
+      };
+    }),
+  ];
 }
 
 function formatCurrency(amount: unknown) {
@@ -499,18 +555,29 @@ export async function generatePdf(template: any, data: PdfData = {}) {
   const isLandscape = (template.orientation || "portrait") === "landscape";
   const width = isLandscape ? paper.height : paper.width;
   const height = isLandscape ? paper.width : paper.height;
-  const content = (() => {
-    try {
-      return fabricContent(template, data);
-    } catch {
-      return [];
-    }
-  })();
+  const rawConfig = rawTemplateConfig(template);
+  const isV2 = isTemplateRenderContractV2(rawConfig);
+  const content = isV2
+    ? await contractV2Content(
+        parseTemplateRenderContract(rawConfig),
+        data,
+        mmToPt(width),
+        mmToPt(height)
+      )
+    : (() => {
+        try {
+          return fabricContent(template, data);
+        } catch {
+          return [];
+        }
+      })();
 
   const definition: TDocumentDefinitions = {
     pageSize: { width: mmToPt(width), height: mmToPt(height) },
     pageOrientation: isLandscape ? "landscape" : "portrait",
-    pageMargins: [mmToPt(15), mmToPt(15), mmToPt(15), mmToPt(15)],
+    pageMargins: isV2
+      ? [0, 0, 0, 0]
+      : [mmToPt(15), mmToPt(15), mmToPt(15), mmToPt(15)],
     content: content.length ? (content as any) : (productionDefaultContent(template, data) as any),
     styles: {
       header: { fontSize: 18, bold: true },
@@ -525,7 +592,7 @@ export async function generatePdf(template: any, data: PdfData = {}) {
   try {
     pdfDoc = await printer.createPdfKitDocument(definition);
   } catch (error) {
-    if (!content.length) throw error;
+    if (isV2 || !content.length) throw error;
     definition.content = productionDefaultContent(template, data) as any;
     pdfDoc = await printer.createPdfKitDocument(definition);
   }

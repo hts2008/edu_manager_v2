@@ -312,3 +312,17 @@
 **Decision**: `/api/student-progress/daily` is the only writer for daily entries. PUT replaces one selected date, DELETE removes one selected date, and monthly progress writes reject embedded daily entries. Monthly rollups are derived from persisted daily observations, while absent teacher input remains `missing_input`.
 **Rationale**: Date ownership makes edits isolated, auditable, and suitable for month-over-month reporting without fabricated scores.
 **Status**: IMPLEMENTED with additive Neon schema, local/production browser evidence, and receipt `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+
+### ADR-45: Production Readiness Is Conditional On Data-Safety And Recovery Invariants
+**Date**: 2026-07-10
+**Context**: A fresh deep review passed all static gates but proved that destructive seed, backup/restore coverage, auth revocation, exact template printing, class-line billing enforcement, enrollment history, finalization and migration controls are weaker than prior KANBAN `IMPLEMENTED` claims imply.
+**Decision**: Treat `prisma/schema.prisma` and current runtime code as implementation truth, but do not describe the platform as "Production Live without bug" until `AUD-RM-001` and all P1 remediation tasks pass real API/DB/browser/recovery gates. Mocked browser tests and source-regex tests are useful guards but cannot close production dataflow findings.
+**Rationale**: Evidence must distinguish static/UI coverage from recoverability and transactional business invariants. This prevents historical receipts from overstating readiness and makes stop-loss work precede additional features.
+**Status**: ACCEPTED. Review evidence: `reports/2026-07-10-deep-codebase-review.md`; remediation backlog: `KANBAN.md` `AUD-RM-001..010`.
+
+### ADR-46: Enrollment History Uses Immutable Periods Plus A Current-State Projection
+**Date**: 2026-07-11
+**Context**: `StudentClass.status` could not distinguish current membership from historical enrollment, causing past attendance and tuition to depend on today's state.
+**Decision**: `EnrollmentPeriod` stores `[startedAt, endedAt)` history. `StudentClass` remains the compatibility projection for current UI/API reads. Enrollment mutations update both inside one transaction; historical tuition prefers periods and falls back to the projection only for legacy rows.
+**Rationale**: Half-open periods correctly handle month/week boundaries, re-enrollment and mid-month prorating without breaking existing clients.
+**Status**: IMPLEMENTED and deployed; 37 active projection rows backfilled without fabricating inactive end dates.

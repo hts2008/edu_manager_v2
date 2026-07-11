@@ -10,6 +10,7 @@ const attendancePage = source("frontend/src/pages/AttendancePage.jsx");
 const attendancePeriodApi = source("server/api/attendance-periods/[id]/index.ts");
 const attendanceLockHelper = source("lib/attendance-lock-transaction.ts");
 const classesApi = source("server/api/classes/index.ts");
+const enrollmentHelper = source("lib/enrollment.ts");
 const teachersApi = source("server/api/teachers/index.ts");
 const parentsApi = source("server/api/parents/index.ts");
 const progressPanel = source("frontend/src/components/student-progress/ProgressInputPanel.jsx");
@@ -50,7 +51,9 @@ describe("archive delete regressions", () => {
   it("archives classes and hides inactive classes by default instead of hard-blocking delete", () => {
     assert.match(classesApi, /status && status !== "all"/);
     assert.match(classesApi, /where\.status = "active"/);
-    assert.match(classesApi, /tx\.studentClass\.updateMany/);
+    assert.match(classesApi, /deactivateEnrollmentPeriods/);
+    assert.match(enrollmentHelper, /tx\.studentClass\.updateMany/);
+    assert.match(enrollmentHelper, /tx\.enrollmentPeriod\.updateMany/);
     assert.match(classesApi, /tx\.class\.update/);
     assert.doesNotMatch(classesApi, /Cannot delete class with enrolled students/);
     assert.doesNotMatch(classesApi, /prisma\.class\.delete/);

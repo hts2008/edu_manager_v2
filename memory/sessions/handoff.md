@@ -436,3 +436,25 @@
 - **Verification**: 107 unit, 49 local Playwright, 29 production Playwright, typecheck, lint, build, Prisma push/diff, and zero-vulnerability audits.
 - **Evidence**: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
 - **Next**: no blocker remains in this track; future work should start from a new KANBAN item.
+
+## 2026-07-10 Handoff - Deep Codebase Review
+
+- **Completed**: `AUD-2026-07-10-01`; application code and production data were not changed.
+- **Review report**: `reports/2026-07-10-deep-codebase-review.md`.
+- **Receipt**: `receipts/2026-07-10-deep-codebase-review.md`.
+- **Fresh gates**: unit 107/107, typecheck, lint, Prisma validate, build, root/frontend audit zero, CI-selected mocked Playwright 5/5.
+- **Do not forget**:
+  - `npm run db:seed` is a P0 partial-data-loss risk; do not run it on Neon/production.
+  - Backup omits five current models and has no restore implementation.
+  - Template canvas and generated PDF do not share a faithful rendering contract.
+  - Legacy aggregate payment paths violate class-line billing.
+  - Attendance unlock leaves API state approved/non-editable while UI appears editable.
+- **Backlog**: `AUD-RM-001..010` in KANBAN; start with seed guard, recovery, auth and migration baseline before feature work.
+- **Verification boundary**: default production credentials were not retried because login mutates `lastLogin`; no deploy/migration/restore/seed occurred.
+- **Runtime degradation**: Paperclip offline; Context+/Neural Memory workspace MCP and Claude TeamCreate unavailable; six explorer attempts quota-failed, so review proceeded inline.
+
+## 2026-07-11 handoff
+- Core remediation is deployed. Continue from deployment `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG`.
+- `EnrollmentPeriod` is authoritative for new enrollment history; `StudentClass` remains the live projection and fallback for legacy rows.
+- Do not infer end dates for inactive legacy links; they require operator-confirmed correction if historical reporting needs them.
+- CI integration uses isolated PostgreSQL and intentionally refuses remote `TEST_DATABASE_URL` hosts.

@@ -7,6 +7,8 @@ import {
   logApiEvent,
   setSecurityHeaders,
 } from "../lib/observability.js";
+import { observeResponse } from "../lib/request-response-adapter.js";
+import type { AuthedRequest } from "../lib/auth.js";
 
 type Handler = (
   req: VercelRequest,
@@ -198,16 +200,26 @@ function resolveRoute(parts: string[]): RouteMatch | null {
 async function recordMutationAudit(
   req: VercelRequest,
   requestId: string,
-  routePath: string
+  routePath: string,
+  statusCode: number,
+  writeAudit: typeof logActivity = logActivity
 ) {
   const method = req.method?.toUpperCase();
   if (!method || !MUTATION_METHODS.has(method)) return;
 
-  const user = verifyAuth(req);
+  const user = (req as Partial<AuthedRequest>).user || verifyAuth(req);
   if (!user) return;
 
+  const outcome = statusCode >= 200 && statusCode < 400 ? "SUCCEEDED" : "FAILED";
+
   try {
-    await logActivity(req, user.userId, `API_${method}`, "api_route", routePath);
+    await writeAudit(
+      req,
+      user.userId,
+      `API_${method}_${outcome}`,
+      "api_route",
+      `${routePath}#${statusCode}`
+    );
   } catch (error) {
     logApiError(
       error,
@@ -221,46 +233,73 @@ async function recordMutationAudit(
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const requestId = getRequestId(req);
-  setSecurityHeaders(res);
-  res.setHeader("X-Request-Id", requestId);
+type RouterDependencies = {
+  resolve?: (parts: string[]) => RouteMatch | null;
+  writeAudit?: typeof logActivity;
+};
 
-  if (handleCors(req, res)) return;
+export function createRouterHandler(dependencies: RouterDependencies = {}) {
+  return async function handler(req: VercelRequest, res: VercelResponse) {
+    const requestId = getRequestId(req);
+    setSecurityHeaders(res);
+    res.setHeader("X-Request-Id", requestId);
 
-  const startedAt = Date.now();
-  const parts = pathParts(req);
-  const routePath = `/api/${parts.join("/")}`;
-  const match = resolveRoute(parts);
-  if (!match) {
-    logApiEvent("warn", "api_route_not_found", {
-      requestId,
-      method: req.method,
-      path: routePath,
-    });
-    return errorResponse(res, "NOT_FOUND", "API route not found", 404);
-  }
+    if (handleCors(req, res)) return;
 
-  delete req.query.path;
-  Object.assign(req.query, match.params || {});
-  try {
-    const module = await match.load();
-    const result = await module.default(req, res);
-    await recordMutationAudit(req, requestId, routePath);
-    logApiEvent("info", "api_request_handled", {
-      requestId,
-      method: req.method,
-      path: routePath,
-      durationMs: Date.now() - startedAt,
-    });
-    return result;
-  } catch (error) {
-    logApiError(error, {
-      requestId,
-      method: req.method,
-      path: routePath,
-      durationMs: Date.now() - startedAt,
-    });
-    return sendApiError(res, error);
-  }
+    const startedAt = Date.now();
+    const parts = pathParts(req);
+    const routePath = `/api/${parts.join("/")}`;
+    const match = (dependencies.resolve || resolveRoute)(parts);
+    if (!match) {
+      logApiEvent("warn", "api_route_not_found", {
+        requestId,
+        method: req.method,
+        path: routePath,
+      });
+      return errorResponse(res, "NOT_FOUND", "API route not found", 404);
+    }
+
+    delete req.query.path;
+    Object.assign(req.query, match.params || {});
+    const observed = observeResponse(res);
+    try {
+      const module = await match.load();
+      const result = await module.default(req, observed.res);
+      await recordMutationAudit(
+        req,
+        requestId,
+        routePath,
+        observed.snapshot.statusCode,
+        dependencies.writeAudit
+      );
+      logApiEvent("info", "api_request_handled", {
+        requestId,
+        method: req.method,
+        path: routePath,
+        durationMs: Date.now() - startedAt,
+      });
+      return result;
+    } catch (error) {
+      logApiError(error, {
+        requestId,
+        method: req.method,
+        path: routePath,
+        durationMs: Date.now() - startedAt,
+      });
+      const statusCode =
+        typeof (error as { status?: unknown })?.status === "number"
+          ? (error as { status: number }).status
+          : 500;
+      await recordMutationAudit(
+        req,
+        requestId,
+        routePath,
+        statusCode,
+        dependencies.writeAudit
+      );
+      return sendApiError(res, error);
+    }
+  };
 }
+
+export default createRouterHandler();

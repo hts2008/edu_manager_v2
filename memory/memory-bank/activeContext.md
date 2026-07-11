@@ -11,6 +11,14 @@
 - **Latest production deployment observed in Codex session**: Vercel inspect URL `https://vercel.com/hts2008s-projects/edu-manager/4LemiLebU9nYNmDq6YAmdUyGiQn4`; production URL `https://edu-manager-p01b3s0mp-hts2008s-projects.vercel.app`, aliased to `https://edu-manager-gules.vercel.app`, after the 2026-06-12 Figma runtime UX/UI apply.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
+## Core Ledger Remediation (2026-07-11)
+- Attendance locking now reconciles only the locked class allocation and uses UTC half-open month ranges.
+- Text weekday labels use final JavaScript weekday values; enrollment periods bound expected sessions inside the month.
+- `EnrollmentPeriod` is immutable history while `StudentClass` remains the current-state projection. Neon contains 37 backfilled active periods.
+- Aggregate receipt/payment paths are rejected when class lines exist; parent/report DTOs expose independent class lines.
+- Template image validation, bounded remote fetch, absolute render contract and typed PDF errors are deployed.
+- Production deployment `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` is Ready and aliased to the canonical URL.
+
 ## Phase A Production Closeout (2026-05-15)
 - **Production target**: Vercel alias `https://edu-manager-delta.vercel.app` on commit `cd77f48`, ready state `READY`.
 - **Database/storage**: Neon project `dry-dew-91484915` is the approved Postgres target. Vercel Blob store `edu-manager-blob` replaces Supabase Storage for template image uploads.
@@ -348,3 +356,18 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Runtime evidence**: July 2026 attendance period locked successfully in 7.13 seconds; 3 students, 3 fee updates, 3 fee lines; zero post-fix HTTP 500 logs.
 - **Quality gates**: unit 107/107, typecheck, lint, build, Prisma validate/push/diff, audits zero, local Playwright 49/49, production Playwright 29/29.
 - **Evidence**: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
+
+## 2026-07-10 Current Context - Deep Codebase Review
+
+- **Review task closed**: `AUD-2026-07-10-01` is `IMPLEMENTED`; no application code or production data was changed.
+- **Verdict**: static health remains strong (unit 107/107, typecheck, lint, Prisma validate, build and zero-vulnerability audits), but unconditional production-readiness is suspended pending the new P0/P1 remediation backlog.
+- **Highest risks**:
+  - `npm run db:seed` performs an outdated, non-transactional destructive reset and can leave partial data loss.
+  - Backup exports only 14/19 models and has verify-only, not restore, behavior.
+  - JWT config fails open to a public fallback and sessions are not revoked on logout/password change.
+  - Fabric canvas output is converted to sequential pdfmake flow and Blob URLs are dropped from PDFs.
+  - Aggregate fee APIs/cron/portal bypass the class-line-only billing invariant.
+  - Enrollment history, progress finalization and attendance reopen state transitions are not trustworthy enough for final reports.
+- **Evidence**: `reports/2026-07-10-deep-codebase-review.md`; `receipts/2026-07-10-deep-codebase-review.md`.
+- **Runtime/tooling**: Paperclip offline; Context+/Neural Memory workspace MCP and Claude TeamCreate unavailable. Six authorized explorer attempts hit helper quota; the review continued inline with line-level and read-only runtime evidence.
+- **Next recommended**: implement `AUD-RM-001` first, then backup/auth/migration gates before additional product features.

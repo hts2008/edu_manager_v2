@@ -11,6 +11,10 @@ import {
   studentUpdateSchema,
   validateBody,
 } from "../../../lib/validation.js";
+import {
+  deactivateEnrollmentPeriods,
+  syncStudentEnrollmentPeriods,
+} from "../../../lib/enrollment.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - List all students OR single student by ID
@@ -266,31 +270,29 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "PARENT_NOT_FOUND", "Parent not found", 404);
       }
 
-      const student = await prisma.student.create({
-        data: {
-          fullName: body.full_name,
-          dateOfBirth: new Date(body.date_of_birth),
-          gender: body.gender,
-          parentId: body.parent_id,
-          phone: body.phone,
-          email: body.email,
-          address: body.address,
-          enrollmentDate: new Date(body.enrollment_date),
-          notes: body.notes,
-        },
-        include: { parent: true },
-      });
-
-      // Enroll in classes if provided
-      if (body.class_ids.length > 0) {
-        await prisma.studentClass.createMany({
-          data: body.class_ids.map((classId: string) => ({
-            studentId: student.id,
-            classId,
-            enrollmentDate: new Date(),
-          })),
+      const student = await prisma.$transaction(async (tx) => {
+        const created = await tx.student.create({
+          data: {
+            fullName: body.full_name,
+            dateOfBirth: new Date(body.date_of_birth),
+            gender: body.gender,
+            parentId: body.parent_id,
+            phone: body.phone,
+            email: body.email,
+            address: body.address,
+            enrollmentDate: new Date(body.enrollment_date),
+            notes: body.notes,
+          },
+          include: { parent: true },
         });
-      }
+        await syncStudentEnrollmentPeriods(tx, {
+          studentId: created.id,
+          desiredClassIds: body.class_ids,
+          effectiveAt: new Date(body.enrollment_date),
+          source: "student_create",
+        });
+        return created;
+      });
 
       return res.status(201).json({ success: true, data: student });
     } catch (error) {
@@ -318,77 +320,31 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Student not found", 404);
       }
 
-      const updatedStudent = await prisma.student.update({
-        where: { id },
-        data: {
-          ...(body.full_name && { fullName: body.full_name }),
-          ...(body.date_of_birth && { dateOfBirth: new Date(body.date_of_birth) }),
-          ...(body.gender && { gender: body.gender }),
-          ...(body.parent_id && { parentId: body.parent_id }),
-          ...(body.phone !== undefined && { phone: body.phone }),
-          ...(body.email !== undefined && { email: body.email }),
-          ...(body.address !== undefined && { address: body.address }),
-          ...(body.status && { status: body.status }),
-          ...(body.notes !== undefined && { notes: body.notes }),
-        },
-        include: { parent: true },
-      });
-
-      // Sync class enrollments if class_ids provided
-      if (body.class_ids !== undefined && Array.isArray(body.class_ids)) {
-        // Get ALL enrollments (including inactive) to handle re-enrollment
-        const allEnrollments = await prisma.studentClass.findMany({
-          where: { studentId: id },
-          select: { classId: true, id: true, status: true },
+      const updatedStudent = await prisma.$transaction(async (tx) => {
+        const updated = await tx.student.update({
+          where: { id },
+          data: {
+            ...(body.full_name && { fullName: body.full_name }),
+            ...(body.date_of_birth && { dateOfBirth: new Date(body.date_of_birth) }),
+            ...(body.gender && { gender: body.gender }),
+            ...(body.parent_id && { parentId: body.parent_id }),
+            ...(body.phone !== undefined && { phone: body.phone }),
+            ...(body.email !== undefined && { email: body.email }),
+            ...(body.address !== undefined && { address: body.address }),
+            ...(body.status && { status: body.status }),
+            ...(body.notes !== undefined && { notes: body.notes }),
+          },
+          include: { parent: true },
         });
-        const activeEnrollments = allEnrollments.filter(
-          (e: any) => e.status === "active",
-        );
-        const inactiveEnrollments = allEnrollments.filter(
-          (e: any) => e.status === "inactive",
-        );
-        const activeClassIds = activeEnrollments.map((e: any) => e.classId);
-        const inactiveClassIds = inactiveEnrollments.map((e: any) => e.classId);
-
-        // Find classes to deactivate, re-activate, or create new
-        const toDeactivate = activeEnrollments.filter(
-          (e: any) => !body.class_ids?.includes(e.classId),
-        );
-        const toReactivate = inactiveEnrollments.filter((e: any) =>
-          body.class_ids?.includes(e.classId),
-        );
-        const toCreate = body.class_ids.filter(
-          (cid: string) =>
-            !activeClassIds.includes(cid) && !inactiveClassIds.includes(cid),
-        );
-
-        // Deactivate removed enrollments (soft delete)
-        if (toDeactivate.length > 0) {
-          await prisma.studentClass.updateMany({
-            where: { id: { in: toDeactivate.map((e: any) => e.id) } },
-            data: { status: "inactive" },
+        if (body.class_ids !== undefined) {
+          await syncStudentEnrollmentPeriods(tx, {
+            studentId: id,
+            desiredClassIds: body.class_ids,
+            source: "student_update",
           });
         }
-
-        // Re-activate previously inactive enrollments
-        if (toReactivate.length > 0) {
-          await prisma.studentClass.updateMany({
-            where: { id: { in: toReactivate.map((e: any) => e.id) } },
-            data: { status: "active", enrollmentDate: new Date() },
-          });
-        }
-
-        // Create truly new enrollments (never existed before)
-        if (toCreate.length > 0) {
-          await prisma.studentClass.createMany({
-            data: toCreate.map((classId: string) => ({
-              studentId: id,
-              classId,
-              enrollmentDate: new Date(),
-            })),
-          });
-        }
-      }
+        return updated;
+      });
 
       return successResponse(res, { student: updatedStudent });
     } catch (error) {
@@ -416,10 +372,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       await prisma.$transaction(async (tx) => {
-        await tx.studentClass.updateMany({
-          where: { studentId: id, status: "active" },
-          data: { status: "inactive" },
-        });
+        await deactivateEnrollmentPeriods(tx, { studentId: id });
         await tx.student.update({
           where: { id },
           data: { status: "inactive", deletedAt: new Date() },

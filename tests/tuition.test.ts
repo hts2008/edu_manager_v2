@@ -104,6 +104,39 @@ describe("tuition calculation", () => {
     assert.equal(countScheduleDaysInMonth("2026-06", mondayWednesday), 9);
   });
 
+  it("keeps textual weekday labels in the final JavaScript weekday convention", () => {
+    assert.deepEqual(normalizeScheduleDays(["T2", "T4"]), [1, 3]);
+    assert.deepEqual(normalizeScheduleDays(["monday", "wednesday"]), [1, 3]);
+    assert.deepEqual(normalizeScheduleDays(["CN", "T7"]), [0, 6]);
+  });
+
+  it("bounds expected sessions to the student's enrollment period inside the month", () => {
+    const partialStart = calculateTuitionForClass(
+      {
+        feePerDay: 900000,
+        scheduleDays: ["T2", "T4"],
+        enrollmentStart: new Date("2026-07-15T00:00:00.000Z"),
+      },
+      "2026-07",
+      5,
+    );
+    const partialEnd = calculateTuitionForClass(
+      {
+        feePerDay: 900000,
+        scheduleDays: ["T2", "T4"],
+        enrollmentStart: new Date("2026-07-15T00:00:00.000Z"),
+        enrollmentEnd: new Date("2026-07-22T00:00:00.000Z"),
+      },
+      "2026-07",
+      2,
+    );
+
+    assert.equal(partialStart.expectedSessions, 5);
+    assert.equal(partialStart.totalAmount, 900000);
+    assert.equal(partialEnd.expectedSessions, 2);
+    assert.equal(partialEnd.totalAmount, 900000);
+  });
+
   it("marks off-schedule fixed-weekday attendance as make-up", () => {
     const scheduled = resolveAttendanceSessionPolicy(
       { scheduleDays: [2, 4] },

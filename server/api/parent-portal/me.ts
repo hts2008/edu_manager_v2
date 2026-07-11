@@ -4,7 +4,7 @@ import { errorResponse, handleCors, successResponse } from "../../../lib/auth.js
 import { sendApiError, toDateOnly } from "../../../lib/api-utils.js";
 import { verifyParentToken } from "../../../lib/parent-auth.js";
 
-function feeToDto(fee: any) {
+export function feeToDto(fee: any) {
   return {
     id: fee.id,
     student_id: fee.studentId,
@@ -15,6 +15,24 @@ function feeToDto(fee: any) {
     status: fee.status,
     receipt_id: fee.receiptId,
     paid_at: fee.paidAt,
+    lines: (fee.lines || []).map((line: any) => ({
+      id: line.id,
+      monthly_fee_line_id: line.id,
+      monthly_fee_id: line.monthlyFeeId,
+      class_id: line.classId,
+      class_name: line.classNameSnapshot || line.class?.className || null,
+      teacher_name: line.teacherNameSnapshot || line.class?.teacher?.fullName || null,
+      charged_sessions: line.chargedSessions,
+      expected_sessions: line.expectedSessions,
+      fee_per_session: line.feePerSession,
+      amount: line.amount,
+      expected_amount: line.amount,
+      paid_amount: line.status === "paid" ? line.amount : 0,
+      outstanding_amount: line.status === "paid" ? 0 : line.amount,
+      status: line.status,
+      receipt_id: line.receiptId,
+      paid_at: line.paidAt,
+    })),
   };
 }
 
@@ -46,7 +64,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         students: {
           where: { deletedAt: null },
           include: {
-            monthlyFees: { orderBy: { month: "desc" }, take: 24 },
+            monthlyFees: {
+              orderBy: { month: "desc" },
+              take: 24,
+              include: {
+                lines: {
+                  include: { class: { include: { teacher: true } } },
+                  orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
+                },
+              },
+            },
             receipts: {
               where: { deletedAt: null },
               orderBy: { createdAt: "desc" },

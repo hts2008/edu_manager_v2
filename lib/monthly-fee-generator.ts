@@ -3,6 +3,10 @@ import {
   calculateTuitionForClass,
   CHARGEABLE_ATTENDANCE_STATUSES,
 } from "./tuition.js";
+import {
+  monthlyFeeLineToDto,
+  syncMonthlyFeeLines,
+} from "./monthly-fee-lines.js";
 
 type GenerateItem = {
   student_id: string;
@@ -12,6 +16,7 @@ type GenerateItem = {
   total_amount: number;
   existing_status: string | null;
   action: "created" | "updated" | "skipped" | "would_create" | "would_update";
+  lines?: any[];
   reason?: string;
 };
 
@@ -32,13 +37,25 @@ function calculateStudentFee(
   let totalDays = 0;
   let totalAmount = 0;
 
-  for (const enrollment of student.studentClasses || []) {
+  const enrollments = student.enrollmentPeriods?.length
+    ? student.enrollmentPeriods.map((period: any) => ({
+        classId: period.classId,
+        class: {
+          ...period.class,
+          enrollmentStart: period.startedAt,
+          enrollmentEnd: period.endedAt,
+        },
+      }))
+    : student.studentClasses || [];
+
+  for (const enrollment of enrollments) {
     const daysCount = attendanceCounts.get(countKey(student.id, enrollment.classId)) || 0;
     const tuition = calculateTuitionForClass(enrollment.class, month, daysCount);
 
     breakdown.push({
       class_id: enrollment.classId,
       class_name: enrollment.class.className,
+      teacher_name: enrollment.class.teacher?.fullName || null,
       fee_per_day: tuition.feePerSession,
       days_count: daysCount,
       expected_sessions: tuition.expectedSessions,
@@ -72,13 +89,27 @@ export async function generateMonthlyFees(
 ) {
   const { startDate, endDate } = parseMonthRange(month);
 
+  const enrollmentWindow = {
+    startedAt: { lte: endDate },
+    OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
+  };
   const students = await prisma.student.findMany({
-    where: { status: "active", deletedAt: null },
+    where: {
+      deletedAt: null,
+      OR: [
+        { status: "active" },
+        { enrollmentPeriods: { some: enrollmentWindow } },
+      ],
+    },
     include: {
       monthlyFees: { where: { month } },
+      enrollmentPeriods: {
+        where: enrollmentWindow,
+        include: { class: { include: { teacher: true } } },
+      },
       studentClasses: {
         where: { status: "active" },
-        include: { class: true },
+        include: { class: { include: { teacher: true } } },
       },
     },
     orderBy: { fullName: "asc" },
@@ -106,13 +137,13 @@ export async function generateMonthlyFees(
   const items: GenerateItem[] = [];
   for (const student of students) {
     const existing = student.monthlyFees?.[0] || null;
-    const { totalDays, totalAmount } = calculateStudentFee(
+    const { breakdown, totalDays, totalAmount } = calculateStudentFee(
       student,
       attendanceCounts,
       month
     );
 
-    if (!student.studentClasses?.length) {
+    if (!student.enrollmentPeriods?.length && !student.studentClasses?.length) {
       items.push({
         student_id: student.id,
         student_name: student.fullName,
@@ -153,21 +184,30 @@ export async function generateMonthlyFees(
       continue;
     }
 
-    if (existing) {
-      const updated = await prisma.monthlyFee.updateMany({
-        where: {
-          id: existing.id,
-          status: { in: ["pending", "ready"] },
-          receiptId: null,
-          paidAt: null,
-        },
-        data: {
-          totalDays,
-          totalAmount,
-          status: "ready",
-        },
-      });
-      if (updated.count !== 1) {
+    const writeResult = await prisma.$transaction(async (tx: any) => {
+      let fee = existing;
+      if (fee) {
+        const updated = await tx.monthlyFee.updateMany({
+          where: {
+            id: fee.id,
+            status: { in: ["pending", "ready"] },
+            receiptId: null,
+            paidAt: null,
+          },
+          data: { totalDays, totalAmount, status: "ready" },
+        });
+        if (updated.count !== 1) return null;
+        fee = await tx.monthlyFee.findUniqueOrThrow({ where: { id: fee.id } });
+      } else {
+        fee = await tx.monthlyFee.create({
+          data: { studentId: student.id, month, totalDays, totalAmount, status: "ready" },
+        });
+      }
+      const lines = await syncMonthlyFeeLines(tx, fee, breakdown);
+      return { fee, lines };
+    });
+
+    if (!writeResult) {
         items.push({
           student_id: student.id,
           student_name: student.fullName,
@@ -179,7 +219,9 @@ export async function generateMonthlyFees(
           reason: "STATE_CHANGED",
         });
         continue;
-      }
+    }
+
+    if (existing) {
       items.push({
         student_id: student.id,
         student_name: student.fullName,
@@ -188,17 +230,9 @@ export async function generateMonthlyFees(
         total_amount: totalAmount,
         existing_status: existing.status,
         action: "updated",
+        lines: writeResult.lines.map((line: any) => monthlyFeeLineToDto(line, student)),
       });
     } else {
-      await prisma.monthlyFee.create({
-        data: {
-          studentId: student.id,
-          month,
-          totalDays,
-          totalAmount,
-          status: "ready",
-        },
-      });
       items.push({
         student_id: student.id,
         student_name: student.fullName,
@@ -207,6 +241,7 @@ export async function generateMonthlyFees(
         total_amount: totalAmount,
         existing_status: null,
         action: "created",
+        lines: writeResult.lines.map((line: any) => monthlyFeeLineToDto(line, student)),
       });
     }
   }

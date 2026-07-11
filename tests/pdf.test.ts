@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { generatePdf, numberToWords } from "../lib/pdf.js";
+import { onePixelPngDataUri, validV2Config } from "./fixtures/template-render-v2.js";
 
 const onePixelPng =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
@@ -241,5 +242,36 @@ describe("PDF generation", () => {
     const raw = buffer.toString("latin1");
     assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
     assert.match(raw, /\/MediaBox \[0 0 226\.8 567\]/);
+  });
+
+  it("renders a v2 full-page background with absolute dynamic bindings", async () => {
+    const buffer = await generatePdf(
+      {
+        type: "receipt",
+        paper_size: "a4",
+        orientation: "portrait",
+        json_config: JSON.stringify(validV2Config(onePixelPngDataUri)),
+      },
+      { student: { name: "Nguyen Van V2" } }
+    );
+
+    const raw = buffer.toString("latin1");
+    assert.equal(buffer.subarray(0, 4).toString("latin1"), "%PDF");
+    assert.match(raw, /\/Subtype\s*\/Image/);
+  });
+
+  it("propagates invalid v2 render contracts without legacy fallback", async () => {
+    await assert.rejects(
+      generatePdf(
+        {
+          type: "receipt",
+          paper_size: "a4",
+          json_config: JSON.stringify({ version: 2, bindings: [] }),
+        },
+        { receipt_id: "RCPT_INVALID_V2" }
+      ),
+      (error: any) =>
+        error?.code === "INVALID_TEMPLATE_RENDER_CONTRACT" && error?.status === 422
+    );
   });
 });

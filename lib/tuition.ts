@@ -2,6 +2,8 @@ export type TuitionClassInput = {
   feePerDay?: number | null;
   scheduleDays?: unknown;
   sessionsPerWeek?: number | null;
+  enrollmentStart?: Date | string | null;
+  enrollmentEnd?: Date | string | null;
 };
 
 export type TuitionResult = {
@@ -64,43 +66,49 @@ function normalizeRawScheduleDays(raw: unknown): number[] {
   }
   if (!Array.isArray(value)) return [];
 
-  const numericDays = value
+  const parsedDays = value
     .map((item) => {
-      if (typeof item === "number") return item;
+      if (typeof item === "number") {
+        return { day: item, convention: "numeric" as const };
+      }
       const key = String(item).trim().toLowerCase();
-      return (
-        {
-          sunday: 0,
-          cn: 0,
-          monday: 1,
-          mon: 1,
-          t2: 1,
-          tuesday: 2,
-          tue: 2,
-          t3: 2,
-          wednesday: 3,
-          wed: 3,
-          t4: 3,
-          thursday: 4,
-          thu: 4,
-          t5: 4,
-          friday: 5,
-          fri: 5,
-          t6: 5,
-          saturday: 6,
-          sat: 6,
-          t7: 6,
-        }[key] ?? Number.NaN
-      );
+      const labelDay = {
+        sunday: 0,
+        cn: 0,
+        monday: 1,
+        mon: 1,
+        t2: 1,
+        tuesday: 2,
+        tue: 2,
+        t3: 2,
+        wednesday: 3,
+        wed: 3,
+        t4: 3,
+        thursday: 4,
+        thu: 4,
+        t5: 4,
+        friday: 5,
+        fri: 5,
+        t6: 5,
+        saturday: 6,
+        sat: 6,
+        t7: 6,
+      }[key];
+      if (labelDay !== undefined) {
+        return { day: labelDay, convention: "js" as const };
+      }
+      return { day: Number(key), convention: "numeric" as const };
     })
-    .filter((item) => Number.isInteger(item));
+    .filter((item) => Number.isInteger(item.day));
 
-  const usesJsConvention = numericDays.includes(0);
-  const normalized = numericDays
-    .map((day) => {
-      if (usesJsConvention) return day;
-      if (day >= 1 && day <= 7) return day - 1;
-      return day;
+  const numericUsesJsConvention = parsedDays.some(
+    (item) => item.convention === "numeric" && item.day === 0
+  );
+  const normalized = parsedDays
+    .map((item) => {
+      if (item.convention === "js" || numericUsesJsConvention) return item.day;
+      if (item.day >= 1 && item.day <= 7) return item.day - 1;
+      return item.day;
     })
     .filter((day) => day >= 0 && day <= 6);
 
@@ -152,14 +160,36 @@ export function resolveAttendanceSessionPolicy(
   };
 }
 
-export function countScheduleDaysInMonth(month: string, scheduleDays: number[]) {
+function enrollmentDayBounds(classData: TuitionClassInput, month: string) {
+  const { year, monthIndex } = parseMonthParts(month);
+  const monthStart = new Date(Date.UTC(year, monthIndex, 1));
+  const monthEndExclusive = new Date(Date.UTC(year, monthIndex + 1, 1));
+  const requestedStart = classData.enrollmentStart
+    ? new Date(classData.enrollmentStart)
+    : monthStart;
+  const requestedEnd = classData.enrollmentEnd
+    ? new Date(classData.enrollmentEnd)
+    : monthEndExclusive;
+  const start = requestedStart > monthStart ? requestedStart : monthStart;
+  const endExclusive = requestedEnd < monthEndExclusive ? requestedEnd : monthEndExclusive;
+  return { start, endExclusive };
+}
+
+export function countScheduleDaysInMonth(
+  month: string,
+  scheduleDays: number[],
+  enrollment: Pick<TuitionClassInput, "enrollmentStart" | "enrollmentEnd"> = {},
+) {
   if (!scheduleDays.length) return 0;
   const { year, monthIndex } = parseMonthParts(month);
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  const { start, endExclusive } = enrollmentDayBounds(enrollment, month);
   const wanted = new Set(scheduleDays);
   let count = 0;
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const weekday = new Date(Date.UTC(year, monthIndex, day)).getUTCDay();
+    const date = new Date(Date.UTC(year, monthIndex, day));
+    if (date < start || date >= endExclusive) continue;
+    const weekday = date.getUTCDay();
     if (wanted.has(weekday)) count += 1;
   }
   return count;
@@ -183,18 +213,21 @@ function getMondayWeekKey(date: Date) {
 export function countMonthBoundedWeeklySessions(
   month: string,
   sessionsPerWeek: number,
-  allowedWeekdays = DEFAULT_WEEKLY_SESSION_DAYS
+  allowedWeekdays = DEFAULT_WEEKLY_SESSION_DAYS,
+  enrollment: Pick<TuitionClassInput, "enrollmentStart" | "enrollmentEnd"> = {},
 ) {
   const safeSessionsPerWeek = Math.max(0, Math.trunc(Number(sessionsPerWeek) || 0));
   if (safeSessionsPerWeek <= 0) return 0;
 
   const { year, monthIndex } = parseMonthParts(month);
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  const { start, endExclusive } = enrollmentDayBounds(enrollment, month);
   const allowed = new Set(allowedWeekdays);
   const availableDaysByWeek = new Map<string, number>();
 
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = new Date(Date.UTC(year, monthIndex, day));
+    if (date < start || date >= endExclusive) continue;
     if (!allowed.has(date.getUTCDay())) continue;
     const weekKey = getMondayWeekKey(date);
     availableDaysByWeek.set(weekKey, (availableDaysByWeek.get(weekKey) || 0) + 1);
@@ -210,7 +243,7 @@ export function expectedSessionsForClass(classData: TuitionClassInput, month: st
   const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
   if (scheduleDays.length) {
     return {
-      expectedSessions: countScheduleDaysInMonth(month, scheduleDays),
+      expectedSessions: countScheduleDaysInMonth(month, scheduleDays, classData),
       scheduleStrategy: "schedule_days" as const,
       scheduleDays,
     };
@@ -219,7 +252,12 @@ export function expectedSessionsForClass(classData: TuitionClassInput, month: st
   const sessionsPerWeek = Number(classData.sessionsPerWeek || 0);
   if (sessionsPerWeek > 0) {
     return {
-      expectedSessions: countMonthBoundedWeeklySessions(month, sessionsPerWeek),
+      expectedSessions: countMonthBoundedWeeklySessions(
+        month,
+        sessionsPerWeek,
+        DEFAULT_WEEKLY_SESSION_DAYS,
+        classData,
+      ),
       scheduleStrategy: "sessions_per_week" as const,
       scheduleDays,
     };

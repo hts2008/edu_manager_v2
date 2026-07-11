@@ -21,6 +21,8 @@ type StudentClassRow = {
     feePerDay?: number | null;
     scheduleDays?: string | null;
     sessionsPerWeek?: number | null;
+    enrollmentStart?: Date | string | null;
+    enrollmentEnd?: Date | string | null;
     teacher?: { fullName?: string | null } | null;
   };
 };
@@ -56,6 +58,7 @@ export type AttendanceLockFeeSyncMetrics = {
 
 type BuildPlanInput = {
   month: string;
+  targetClassId: string;
   studentIds: string[];
   activeStudentClasses: StudentClassRow[];
   attendanceCounts: CountRow[];
@@ -108,10 +111,11 @@ function isProtectedFeeLine(line: ExistingFeeLine) {
 
 function isProtectedFee(fee: ExistingFee) {
   return (
-    fee.status === "paid" ||
-    Boolean(fee.receiptId) ||
-    Boolean(fee.paidAt) ||
-    (fee.status === "confirmed" && !fee.lines?.length)
+    !fee.lines?.length &&
+    (fee.status === "paid" ||
+      Boolean(fee.receiptId) ||
+      Boolean(fee.paidAt) ||
+      fee.status === "confirmed")
   );
 }
 
@@ -126,6 +130,7 @@ function countMap(rows: CountRow[]) {
 
 export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
   const createId = input.createId || randomUUID;
+  const targetAllocationKey = feeLineAllocationKey(input.targetClassId);
   const existingByStudent = new Map(
     input.existingFees.map((fee) => [fee.studentId, fee]),
   );
@@ -153,13 +158,17 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
       continue;
     }
 
-    const studentClasses = classesByStudent.get(studentId) || [];
+    const studentClasses = (classesByStudent.get(studentId) || []).filter(
+      (row) => row.classId === input.targetClassId,
+    );
     const tuition = calculateStudentMonthlyTuition(
       studentClasses.map((row) => ({
         classId: row.classId,
         feePerDay: row.class.feePerDay,
         scheduleDays: row.class.scheduleDays,
         sessionsPerWeek: row.class.sessionsPerWeek,
+        enrollmentStart: row.class.enrollmentStart,
+        enrollmentEnd: row.class.enrollmentEnd,
         chargedSessions:
           chargedByStudentClass.get(`${studentId}:${row.classId}`) || 0,
       })),
@@ -188,13 +197,12 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
     const existingLines = new Map(
       (existing?.lines || []).map((line) => [line.allocationKey, line]),
     );
-    const activeAllocationKeys = new Set(
-      tuition.classes.map((tuitionClass) =>
-        feeLineAllocationKey(tuitionClass.classId),
-      ),
-    );
     for (const line of existing?.lines || []) {
-      if (!isProtectedFeeLine(line) && !activeAllocationKeys.has(line.allocationKey)) {
+      if (
+        line.allocationKey === targetAllocationKey &&
+        !isProtectedFeeLine(line) &&
+        studentClasses.length === 0
+      ) {
         mutableLineIds.push(line.id);
       }
     }
@@ -287,13 +295,31 @@ export async function lockAttendancePeriodAndSyncFees(
     );
   }
 
+  const [year, monthNumber] = input.month.split("-").map(Number);
+  const startDate = new Date(Date.UTC(year, monthNumber - 1, 1));
+  const nextMonthStart = new Date(Date.UTC(year, monthNumber, 1));
   const impactedStudentClasses = await tx.studentClass.findMany({
     where: { classId: input.classId, status: "active" },
     select: { studentId: true },
   });
+  const enrollmentPeriods = tx.enrollmentPeriod?.findMany
+    ? await tx.enrollmentPeriod.findMany({
+        where: {
+          classId: input.classId,
+          startedAt: { lt: nextMonthStart },
+          OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
+          student: { deletedAt: null },
+        },
+        include: {
+          class: { include: { teacher: { select: { fullName: true } } } },
+        },
+      })
+    : [];
   const studentIds = [
     ...new Set(
-      impactedStudentClasses.map((item: { studentId: string }) => item.studentId),
+      [...impactedStudentClasses, ...enrollmentPeriods].map(
+        (item: { studentId: string }) => item.studentId,
+      ),
     ),
   ] as string[];
   if (studentIds.length === 0) {
@@ -308,8 +334,9 @@ export async function lockAttendancePeriodAndSyncFees(
 
   await acquireAttendanceFeeAdvisoryLocks(tx, studentIds, input.month);
 
-  const activeStudentClasses = await tx.studentClass.findMany({
+  const projectedStudentClasses = await tx.studentClass.findMany({
     where: {
+      classId: input.classId,
       studentId: { in: studentIds },
       status: "active",
       student: { status: "active", deletedAt: null },
@@ -322,41 +349,46 @@ export async function lockAttendancePeriodAndSyncFees(
       },
     },
   });
-  const classIds = [
-    ...new Set(
-      activeStudentClasses.map((item: { classId: string }) => item.classId),
+  const periodStudentIds = new Set(
+    enrollmentPeriods.map((period: { studentId: string }) => period.studentId),
+  );
+  const activeStudentClasses = [
+    ...enrollmentPeriods.map((period: any) => ({
+      studentId: period.studentId,
+      classId: period.classId,
+      class: {
+        ...period.class,
+        enrollmentStart: period.startedAt,
+        enrollmentEnd: period.endedAt,
+      },
+    })),
+    ...projectedStudentClasses.filter(
+      (link: { studentId: string }) => !periodStudentIds.has(link.studentId),
     ),
-  ] as string[];
-  const [year, monthNumber] = input.month.split("-").map(Number);
-  const startDate = new Date(year, monthNumber - 1, 1);
-  const endDate = new Date(year, monthNumber, 0);
+  ];
 
   const [attendanceCounts, makeUpCounts, existingFees] = await Promise.all([
-    classIds.length
-      ? tx.attendance.groupBy({
+    tx.attendance.groupBy({
           by: ["studentId", "classId"],
           where: {
             studentId: { in: studentIds },
-            classId: { in: classIds },
-            attendanceDate: { gte: startDate, lte: endDate },
+            classId: input.classId,
+            attendanceDate: { gte: startDate, lt: nextMonthStart },
             status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] },
           },
           _count: { status: true },
-        })
-      : Promise.resolve([]),
-    classIds.length
-      ? tx.attendance.groupBy({
+        }),
+    tx.attendance.groupBy({
           by: ["studentId", "classId"],
           where: {
             studentId: { in: studentIds },
-            classId: { in: classIds },
-            attendanceDate: { gte: startDate, lte: endDate },
+            classId: input.classId,
+            attendanceDate: { gte: startDate, lt: nextMonthStart },
             status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] },
             isMakeUp: true,
           },
           _count: { status: true },
-        })
-      : Promise.resolve([]),
+        }),
     tx.monthlyFee.findMany({
       where: {
         studentId: { in: studentIds },
@@ -374,6 +406,7 @@ export async function lockAttendancePeriodAndSyncFees(
 
   const plan = buildAttendanceLockFeePlan({
     month: input.month,
+    targetClassId: input.classId,
     studentIds,
     activeStudentClasses,
     attendanceCounts,

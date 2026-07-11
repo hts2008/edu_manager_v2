@@ -11,6 +11,10 @@ import {
   classUpdateSchema,
   validateBody,
 } from "../../../lib/validation.js";
+import {
+  deactivateEnrollmentPeriods,
+  syncStudentEnrollmentPeriods,
+} from "../../../lib/enrollment.js";
 
 async function enrollStudentsInClass(tx: any, classId: string, studentIds: string[] = []) {
   const uniqueIds = [...new Set(studentIds.filter(Boolean))];
@@ -54,15 +58,14 @@ async function enrollStudentsInClass(tx: any, classId: string, studentIds: strin
   let reactivated = 0;
   for (const studentId of idsToActivate) {
     const existing = existingLinks.find((link: any) => link.studentId === studentId);
-    await tx.studentClass.upsert({
-      where: { studentId_classId: { studentId, classId } },
-      create: {
-        studentId,
-        classId,
-        enrollmentDate: new Date(),
-        status: "active",
-      },
-      update: { status: "active" },
+    const activeLinks = await tx.studentClass.findMany({
+      where: { studentId, status: "active" },
+      select: { classId: true },
+    });
+    await syncStudentEnrollmentPeriods(tx, {
+      studentId,
+      desiredClassIds: [...activeLinks.map((link: any) => link.classId), classId],
+      source: "class_bulk_enroll",
     });
     if (!existing) enrolled += 1;
     else if (existing.status !== "active") reactivated += 1;
@@ -354,10 +357,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       await prisma.$transaction(async (tx) => {
-        await tx.studentClass.updateMany({
-          where: { classId: id, status: "active" },
-          data: { status: "inactive" },
-        });
+        await deactivateEnrollmentPeriods(tx, { classId: id });
         await tx.class.update({
           where: { id },
           data: { status: "inactive" },

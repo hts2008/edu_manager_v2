@@ -18,6 +18,16 @@ import {
 import { receiptCreateSchema, validateBody } from "../../../lib/validation.js";
 import { detectReceiptAnomaly } from "../../../lib/finance-corrections.js";
 
+export function assertAggregateReceiptAllowed(monthlyFee: any) {
+  if (monthlyFee?.lines?.length) {
+    throw new ApiError(
+      "CLASS_LINE_PAYMENT_REQUIRED",
+      "Monthly fee has class-level lines and must be collected per class line",
+      409
+    );
+  }
+}
+
 function receiptToDto(receipt: any) {
   const monthlyFee = receipt.monthlyFees?.[0] || null;
   const anomaly = detectReceiptAnomaly(receipt);
@@ -150,6 +160,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               studentId: body.student_id,
               month: body.month,
             },
+            include: { lines: { select: { id: true }, take: 1 } },
           });
           if (!monthlyFee) {
             throw new ApiError("MONTHLY_FEE_NOT_FOUND", "Monthly fee not found", 404);
@@ -166,6 +177,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               receiptId: null,
             },
             orderBy: { createdAt: "desc" },
+            include: { lines: { select: { id: true }, take: 1 } },
           });
           if (
             monthlyFee &&
@@ -179,6 +191,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             );
           }
         }
+
+        assertAggregateReceiptAllowed(monthlyFee);
 
         const receiptDays = monthlyFee ? monthlyFee.totalDays : body.days_count;
         const receiptAmount = monthlyFee ? monthlyFee.totalAmount : body.amount;

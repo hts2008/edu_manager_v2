@@ -65,3 +65,32 @@ jobs:
             frontend/test-results
             frontend/playwright-report
           if-no-files-found: ignore
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: edu_manager_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d edu_manager_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
+      JWT_SECRET: ci-only-router-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx prisma db push --skip-generate
+      - run: npm run test:integration

@@ -85,7 +85,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       items: receiptLines,
     };
 
-    const buffer = await generatePdf(receipt.template, data);
+    let buffer: Buffer;
+    try {
+      buffer = await generatePdf(receipt.template, data);
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError("PDF_RENDER_FAILED", "Receipt PDF could not be rendered", 500);
+    }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",

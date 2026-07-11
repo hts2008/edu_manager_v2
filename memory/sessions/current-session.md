@@ -712,3 +712,26 @@
 - **Residual risk**:
   - Existing paid/receipt-linked fee records are not auto-mutated.
   - Chrome extension state was valid but Chrome was not running; production browser evidence used the repository Playwright suite with system Chrome.
+
+## 2026-07-10 Session Update - Deep Codebase Review
+
+- **Objective**: complete a repository-wide adversarial review and reconcile implementation with platform requirements.
+- **Active task**: `AUD-2026-07-10-01` - `IMPLEMENTED` (review complete; remediation not implemented in this pass).
+- **Completed**:
+  - Inspected clean git state and current board/memory/requirements.
+  - Reviewed auth, master data, enrollment, attendance, finance, reports, student progress, templates/PDF, backup, tests, CI and deploy configuration.
+  - Ran unit 107/107, typecheck, lint, Prisma validate, build, dependency audits and CI-selected Playwright 5/5.
+  - Confirmed no Prisma migration history, 14/19 backup table coverage, legacy weekday shift and live default Vite shell/no CSP.
+  - Published report and receipt and opened `AUD-RM-001..010`.
+- **Current risks**: P0 destructive seed plus P1 backup/auth/PDF/billing/enrollment/finalization/migration/reopen findings.
+- **Touched files**: review report, receipt, KANBAN and workspace memory only; no app code.
+- **Pending validation**: remediation tasks require isolated DB, real API E2E, restore drill and production release evidence.
+- **Expected next action**: `AUD-RM-001`, then `AUD-RM-002/003/008` stop-loss work.
+- **Tool degradation**: Paperclip offline; Context+/Neural Memory and Claude TeamCreate unavailable; helper agents quota-failed and were closed.
+
+## 2026-07-11 closeout
+- Objective completed: attendance/enrollment/tuition kernel, class-line ledger, template/PDF hardening, and real quality gates.
+- Production DB received additive `enrollment_periods`; 37 active links were backfilled.
+- Production deployment: `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` Ready and aliased.
+- Verification: 125 unit tests, tsc, lint, build, audits, HTTP 200/401 boundaries, authenticated Chrome module and canvas interaction smoke.
+- Remaining operational note: rotate documented default admin credentials before external production use.

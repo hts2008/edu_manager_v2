@@ -16,6 +16,16 @@ import {
   sendApiError,
 } from "../../../../lib/api-utils.js";
 
+export function assertAggregatePaymentAllowed(fee: any) {
+  if (fee.lines?.length) {
+    throw new ApiError(
+      "CLASS_LINE_PAYMENT_REQUIRED",
+      "Monthly fee has class-level lines and must be collected per class line",
+      409
+    );
+  }
+}
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -43,9 +53,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const result = await prisma.$transaction(async (tx) => {
       const fee = await tx.monthlyFee.findUnique({
         where: { id },
-        include: { student: true },
+        include: { student: true, lines: { select: { id: true }, take: 1 } },
       });
       if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+      assertAggregatePaymentAllowed(fee);
 
       if (fee.status === "paid") {
         if (fee.receiptId) {

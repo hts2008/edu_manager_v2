@@ -33,6 +33,28 @@ function normalizeMonth(value: string | undefined, fallback: string) {
   return /^\d{4}-\d{2}$/.test(value || "") ? value! : fallback;
 }
 
+export function classLineToDto(line: any) {
+  const amount = Number(line.amount || 0);
+  const paid = line.status === "paid";
+  return {
+    id: line.id,
+    monthly_fee_line_id: line.id,
+    monthly_fee_id: line.monthlyFeeId,
+    class_id: line.classId,
+    class_name: line.classNameSnapshot || line.class?.className || null,
+    teacher_name: line.teacherNameSnapshot || line.class?.teacher?.fullName || null,
+    charged_sessions: line.chargedSessions,
+    expected_sessions: line.expectedSessions,
+    fee_per_session: line.feePerSession,
+    expected_amount: amount,
+    paid_amount: paid ? amount : 0,
+    outstanding_amount: paid ? 0 : amount,
+    status: line.status,
+    receipt_id: line.receiptId,
+    paid_at: line.paidAt,
+  };
+}
+
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -66,6 +88,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             totalAmount: true,
             receiptId: true,
             paidAt: true,
+            lines: {
+              select: {
+                id: true,
+                monthlyFeeId: true,
+                classId: true,
+                classNameSnapshot: true,
+                teacherNameSnapshot: true,
+                chargedSessions: true,
+                expectedSessions: true,
+                feePerSession: true,
+                amount: true,
+                status: true,
+                receiptId: true,
+                paidAt: true,
+                createdAt: true,
+                class: { select: { className: true, teacher: { select: { fullName: true } } } },
+              },
+              orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
+            },
           },
         },
         receipts: {
@@ -160,6 +201,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           monthly_fee_id: fee?.id || null,
           anomaly,
           anomaly_detail: anomalyDetail,
+          lines: (fee?.lines || []).map(classLineToDto),
         };
       });
 

@@ -50,7 +50,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       notes: payment.notes || "",
     };
 
-    const buffer = await generatePdf(payment.template, data);
+    let buffer: Buffer;
+    try {
+      buffer = await generatePdf(payment.template, data);
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError("PDF_RENDER_FAILED", "Payment PDF could not be rendered", 500);
+    }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",

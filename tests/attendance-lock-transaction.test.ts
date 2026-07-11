@@ -93,6 +93,7 @@ describe("attendance lock fee plan", () => {
 
     const plan = buildAttendanceLockFeePlan({
       month: "2026-06",
+      targetClassId: "class-1",
       studentIds: ["student-1", "student-2", "student-3", "student-4"],
       activeStudentClasses,
       attendanceCounts: [
@@ -117,6 +118,7 @@ describe("attendance lock fee plan", () => {
     let nextId = 0;
     const plan = buildAttendanceLockFeePlan({
       month: "2026-06",
+      targetClassId: "class-1",
       studentIds: ["student-1", "student-2"],
       activeStudentClasses,
       attendanceCounts: [
@@ -171,6 +173,7 @@ describe("attendance lock fee plan", () => {
     let nextId = 0;
     const plan = buildAttendanceLockFeePlan({
       month: "2026-06",
+      targetClassId: "class-2",
       studentIds: ["student-1"],
       activeStudentClasses: [
         activeStudentClasses[0],
@@ -251,6 +254,8 @@ describe("attendance lock transaction", () => {
   it("claims approved -> locked before reads and uses bounded set-based writes", async () => {
     const calls: string[] = [];
     const advisoryQueries: any[] = [];
+    const studentClassQueries: any[] = [];
+    const attendanceQueries: any[] = [];
     const tx = {
       $queryRaw: async (query: any) => {
         calls.push("$queryRaw");
@@ -266,12 +271,14 @@ describe("attendance lock transaction", () => {
       studentClass: {
         findMany: async (args: any) => {
           calls.push("studentClass.findMany");
+          studentClassQueries.push(args);
           return args.select ? [{ studentId: "student-1" }] : activeStudentClasses.slice(0, 1);
         },
       },
       attendance: {
-        groupBy: async () => {
+        groupBy: async (args: any) => {
           calls.push("attendance.groupBy");
+          attendanceQueries.push(args);
           return [];
         },
       },
@@ -327,6 +334,16 @@ describe("attendance lock transaction", () => {
     assert.equal(calls.filter((call) => call === "monthlyFee.findMany").length, 1);
     assert.equal(calls.filter((call) => call === "monthlyFee.createMany").length, 1);
     assert.equal(calls.filter((call) => call === "monthlyFeeLine.createMany").length, 1);
+    assert.equal(studentClassQueries.length, 2);
+    assert.equal(studentClassQueries[0].where.classId, "class-1");
+    assert.equal(studentClassQueries[1].where.classId, "class-1");
+    assert.equal(attendanceQueries.length, 2);
+    for (const query of attendanceQueries) {
+      assert.equal(query.where.classId, "class-1");
+      assert.equal(query.where.attendanceDate.gte.toISOString(), "2026-06-01T00:00:00.000Z");
+      assert.equal(query.where.attendanceDate.lt.toISOString(), "2026-07-01T00:00:00.000Z");
+      assert.equal(query.where.attendanceDate.lte, undefined);
+    }
     assert.deepEqual(metrics, {
       students_processed: 1,
       fees_created: 1,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { del, put } from "@vercel/blob";
 import { ApiError } from "./api-utils.js";
+import { validateTemplateImage } from "./template-render-contract.js";
 
 const IMAGE_PREFIX = "template-images";
 
@@ -28,6 +29,7 @@ export async function uploadImage(
   filename: string,
   contentType = "application/octet-stream"
 ) {
+  const validatedContentType = validateTemplateImage(file, contentType);
   assertStorageConfigured();
   const path = `${IMAGE_PREFIX}/${Date.now()}-${randomUUID()}-${safeName(filename)}`;
 
@@ -35,7 +37,7 @@ export async function uploadImage(
     const blob = await put(path, file, {
       access: "public",
       addRandomSuffix: false,
-      contentType,
+      contentType: validatedContentType,
     });
 
     return { url: blob.url, path: blob.pathname };

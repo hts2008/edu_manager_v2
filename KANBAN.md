@@ -14,6 +14,20 @@
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
+## IMPLEMENTED - CORE LEDGER REMEDIATION (2026-07-11)
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| AUD-RM-001 | Make attendance lock class-scoped and month-bounded | IMPLEMENTED | 125/125 unit tests; production deploy `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` |
+| AUD-RM-002 | Add immutable enrollment periods and prorate expected sessions to enrollment dates | IMPLEMENTED | Neon additive schema push; 37 active periods backfilled |
+| AUD-RM-003 | Enforce independent class-line collection and reporting | IMPLEMENTED | strict ledger tests; aggregate collection returns typed 409 |
+| AUD-RM-004 | Harden template upload/PDF render contract | IMPLEMENTED | template/PDF tests; authenticated Chrome canvas smoke |
+| AUD-RM-005 | Replace mocked-only gates with router audit and isolated Postgres CI | IMPLEMENTED | CI Postgres 16 job; router mutation audit tests |
+
+**Production:** `https://edu-manager-gules.vercel.app` is aliased to Ready deployment `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG`. Root 200, protected API 401 without token, authenticated dashboard/attendance/fee/reports/templates loaded without console errors, and Template Designer rendered 13 Fabric objects then accepted a dynamic field as object 14 without saving production data.
+
+**Evidence:** `receipts/2026-07-11-core-ledger-remediation-production-closeout.md`.
+
 **Default/dev login:** `admin / admin123` — rotate before real production operation.
 
 ---
@@ -830,3 +844,32 @@ stop.bat
 **Key note:** the existing `/student-progress` Phase 1 report stays intact. This phase adds the missing teacher update path and rubric-backed academic input model. It intentionally does not fabricate Cambridge certificate results; empty academic inputs remain explicit `missing_input`.
 
 **Last Updated:** 2026-06-14
+
+---
+
+## IMPLEMENTED - DEEP CODEBASE REVIEW (2026-07-10)
+
+**Objective:** reconcile implementation with platform requirements and identify hidden correctness, security, recovery, workflow, testing and production-readiness risks without mutating production or changing application code.
+
+| Task ID | Description | Scope | Status | Evidence |
+| ------- | ----------- | ----- | ------ | -------- |
+| AUD-2026-07-10-01 | Deep codebase, requirement, dataflow, API, security, test and deploy review | Full repository | IMPLEMENTED | `reports/2026-07-10-deep-codebase-review.md`; `receipts/2026-07-10-deep-codebase-review.md`; unit 107/107, typecheck, lint, build, Prisma validate, audits and mocked CI Playwright 5/5 |
+
+### Remediation backlog opened by the review
+
+| Task ID | Priority | Description | Dependencies | Status | Acceptance gate |
+| ------- | -------- | ----------- | ------------ | ------ | --------------- |
+| AUD-RM-001 | P0 | Disable/replace destructive production seed and prove rollback-safe local reset | None | PLANNED | Production-like env refuses seed; forced failure leaves all tables unchanged |
+| AUD-RM-002 | P1 | Complete backup coverage, dedicated key management, isolated restore drill and RPO/RTO | AUD-RM-001 | PLANNED | All 19 models restore with relational checksum evidence |
+| AUD-RM-003 | P1 | Fail-fast JWT config, session revocation, CSP and distributed login protection | None | PLANNED | Weak/missing secret cannot start; old tokens fail after logout/password reset |
+| AUD-RM-004 | P1 | Replace Fabric-to-flow PDF conversion with exact layout and real Blob asset rendering | None | PLANNED | Pixel/golden tests pass for A4/A5/A6/custom and real upload-save-print |
+| AUD-RM-005 | P1 | Enforce class-line-only tuition collection across API, cron, receipts, portal and reports | AUD-RM-001 | PLANNED | Multi-class aggregate payment is rejected; each class pays/prints independently |
+| AUD-RM-006 | P1 | Add enrollment periods and atomic/capacity-safe enrollment writes | Migration baseline | PLANNED | Historical report ranges and concurrent capacity tests pass |
+| AUD-RM-007 | P1 | Add explicit attendance reopen/correction and immutable progress finalization revisions | AUD-RM-005 | PLANNED | UI/API state contract matches; finalized reports remain reproducible |
+| AUD-RM-008 | P1 | Baseline Prisma migrations and controlled deploy/rollback workflow | AUD-RM-001..002 | PLANNED | `prisma migrate status` clean on isolated and production targets |
+| AUD-RM-009 | P2 | Add real-router/Postgres integration and non-mocked critical Playwright flows | AUD-RM-003..008 | PLANNED | Auth, attendance, collect-print, template-PDF and progress-finalize run against real API/DB |
+| AUD-RM-010 | P2 | Bound/idempotent bulk pay; validate uploads, pagination and legacy weekday inputs | AUD-RM-005 | PLANNED | 500-line interruption/retry and adversarial input suites pass |
+
+**Review verdict:** static/build health is strong, but the platform must not be represented as "Production Live without bug" until `AUD-RM-001` and the P1 data/security/recovery invariants above are implemented with evidence.
+
+**Last Updated:** 2026-07-10

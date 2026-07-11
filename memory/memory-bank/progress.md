@@ -925,3 +925,22 @@
 - Deployment: `dpl_eufDoj4mNuJRRMz6FxdXXoyP8YcJ`; evidence: `receipts/2026-07-01-attendance-lock-selector-daily-progress-closeout.md`.
 
 ---
+
+## 2026-07-10 - Deep Codebase Review
+
+- **Task**: `AUD-2026-07-10-01`.
+- **Scope**: full requirement/code/dataflow/API/security/finance/progress/template/PDF/report/backup/test/deploy review; application remained read-only.
+- **Findings**: 1 P0, 10 P1 and 9 P2/P3 findings. The P0 is the outdated non-transactional destructive seed. Major P1s cover incomplete/non-restorable backup, auth fail-open/revocation, Fabric/PDF incompatibility, class-line fee bypass, enrollment history, atomic enrollment, parent auth, mutable final reports, migrations and attendance reopen contradiction.
+- **Verification**: unit 107/107; typecheck; lint zero warnings; Prisma validate; build; root/frontend audits zero; CI-selected mocked Playwright 5/5; migration status confirmed no migration history; read-only production root/auth probes; schedule and backup coverage diagnostics.
+- **Project control**: opened `AUD-RM-001..010`; production-readiness claim is conditional until P0/P1 remediation passes.
+- **Evidence**: `reports/2026-07-10-deep-codebase-review.md`; `receipts/2026-07-10-deep-codebase-review.md`.
+
+## 2026-07-11 - Core ledger remediation production closeout
+- Fixed class-scoped attendance fee reconciliation, weekday conversion, and enrollment-bounded expected sessions.
+- Added `EnrollmentPeriod`, transactional projection/period synchronization, and idempotent active-link backfill.
+- Enforced class-line payment boundaries across pay, receipts, parent portal, reports, and monthly generation.
+- Hardened template upload/PDF rendering and added real router audit plus isolated Postgres CI.
+- Gates: 125/125 unit, TypeScript, frontend lint, production build, root/frontend audits, HTTP smoke, authenticated Chrome smoke.
+- Production: `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` Ready at `https://edu-manager-gules.vercel.app`.
+
+---
