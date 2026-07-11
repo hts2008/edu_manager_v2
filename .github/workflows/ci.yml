@@ -84,6 +84,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
       JWT_SECRET: ci-only-router-secret
     steps:
