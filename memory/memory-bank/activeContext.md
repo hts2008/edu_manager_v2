@@ -371,3 +371,14 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Evidence**: `reports/2026-07-10-deep-codebase-review.md`; `receipts/2026-07-10-deep-codebase-review.md`.
 - **Runtime/tooling**: Paperclip offline; Context+/Neural Memory workspace MCP and Claude TeamCreate unavailable. Six authorized explorer attempts hit helper quota; the review continued inline with line-level and read-only runtime evidence.
 - **Next recommended**: implement `AUD-RM-001` first, then backup/auth/migration gates before additional product features.
+
+## 2026-07-12 Current Context - Production Remediation Closeout
+
+- **Active remediation closed**: `AUD-RM-001..010` are `IMPLEMENTED`.
+- **Production**: commit `eac5079` deployed as `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Data safety**: destructive seed is isolated behind an explicit reset command; bootstrap is idempotent; backup/restore covers 24 durable models with AES-GCM v2 and a dedicated key.
+- **Security**: JWT is fail-fast and constrained by issuer/audience/algorithm/session claims; staff/parent sessions are revocable; login protection uses a distributed PostgreSQL limiter; production serves CSP/HSTS/nosniff/referrer-policy headers.
+- **Correctness**: attendance reopen shares student-month advisory locks with fee synchronization; finalized progress reports have immutable revisions; bulk class-line collection is bounded, persisted and idempotent.
+- **Schema**: populated production was baselined without replaying historical DDL; `20260712_remaining_remediation` deployed successfully; isolated and production migration status were clean.
+- **Verification**: 169/169 unit, typecheck, lint, build, production audit zero, isolated restore/real-router/browser gates, production root/login 200, no-token auth 401, and Chrome anonymous navigation with zero request failures.
+- **Evidence**: `receipts/2026-07-12-production-remediation-closeout.md`.

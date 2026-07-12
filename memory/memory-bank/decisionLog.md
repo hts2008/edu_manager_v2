@@ -326,3 +326,21 @@
 **Decision**: `EnrollmentPeriod` stores `[startedAt, endedAt)` history. `StudentClass` remains the compatibility projection for current UI/API reads. Enrollment mutations update both inside one transaction; historical tuition prefers periods and falls back to the projection only for legacy rows.
 **Rationale**: Half-open periods correctly handle month/week boundaries, re-enrollment and mid-month prorating without breaking existing clients.
 **Status**: IMPLEMENTED and deployed; 37 active projection rows backfilled without fabricating inactive end dates.
+
+### ADR-47: Production Authentication Uses Revocable Database Sessions
+**Date**: 2026-07-12
+**Decision**: Staff and parent JWTs must include strict issuer, audience, algorithm, subject, token type, version and session ID claims. Authentication verifies the corresponding database session and token version; logout/password reset revokes active sessions. Login throttling is stored and serialized in PostgreSQL rather than process memory.
+**Rationale**: Serverless instances do not share memory, and stateless JWT logout cannot revoke a compromised token.
+**Status**: IMPLEMENTED in `lib/auth-config.ts`, `lib/auth-session.ts`, `lib/distributed-rate-limit.ts` and production migration `20260712_remaining_remediation`.
+
+### ADR-48: Populated Production Uses A Resolved Baseline Plus Additive Migrations
+**Date**: 2026-07-12
+**Decision**: Capture the existing production schema as `0_prod_baseline`, mark it applied on the populated database, and deploy only additive remediation DDL afterward. Future schema changes must use checked-in Prisma migrations and `migrate status/deploy` rather than untracked `db push`.
+**Rationale**: Replaying a generated baseline against populated production would collide with existing objects; continuing without migration history makes rollback and environment parity unauditable.
+**Status**: IMPLEMENTED; baseline resolved and additive migration deployed on production after duplicate/collision preflight and encrypted emergency snapshot.
+
+### ADR-49: Bulk Tuition Collection Is A Persisted Class-Line Idempotency Workflow
+**Date**: 2026-07-12
+**Decision**: Bulk collection accepts only class fee-line IDs, caps each request at 500 lines, canonicalizes and hashes the payload, persists batch/item outcomes under an actor-scoped idempotency key, and exposes reconciliation/resume state.
+**Rationale**: Student-month aggregate payment merges independently payable classes and a retry after response loss can double-charge without a durable idempotency ledger.
+**Status**: IMPLEMENTED in `server/api/monthly-fees/bulk-pay.ts`, its status route, schema constraints and Fee Workbench resume UI.

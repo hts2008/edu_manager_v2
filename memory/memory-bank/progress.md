@@ -885,6 +885,17 @@
 
 ---
 
+## 2026-07-12 - Production Remediation Controls Closeout
+
+- **Task**: `AUD-RM-001..010`.
+- **Status**: `IMPLEMENTED`, migrated and deployed to production.
+- **Implementation**: safe seed/bootstrap and encrypted full restore; revocable auth sessions and distributed rate limiting; attendance reopen and progress revisions; populated-DB migration baseline; bounded persisted bulk collection; strict pagination/input contracts; isolated real PostgreSQL/browser gates.
+- **Verification**: `npm run test:unit` 169/169; `npx tsc --noEmit`; frontend lint; production build; `npm audit --omit=dev` zero vulnerabilities; isolated migration/restore/router/browser gates; production migration status clean; Chrome read-only smoke and security headers pass.
+- **Production**: commit `eac5079`; deployment `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`; alias `https://edu-manager-gules.vercel.app`.
+- **Evidence**: `receipts/2026-07-12-production-remediation-closeout.md`.
+
+---
+
 ## 2026-06-25 - Attendance/Delete/Daily Progress Hotfix
 
 - **Task**: close the latest reported blockers in attendance week selection, locked tuition amount, class-filter loading UX, archive/delete flows, and daily student-progress input.

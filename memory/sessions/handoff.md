@@ -458,3 +458,12 @@
 - `EnrollmentPeriod` is authoritative for new enrollment history; `StudentClass` remains the live projection and fallback for legacy rows.
 - Do not infer end dates for inactive legacy links; they require operator-confirmed correction if historical reporting needs them.
 - CI integration uses isolated PostgreSQL and intentionally refuses remote `TEST_DATABASE_URL` hosts.
+
+## 2026-07-12 Handoff - Production Remediation Closed
+
+- `AUD-RM-001..010` are implemented, migrated and production-live.
+- Runtime source: commit `eac5079`, Vercel `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`, alias `https://edu-manager-gules.vercel.app`.
+- Prisma production history now has resolved baseline `0_prod_baseline` plus deployed `20260712_remaining_remediation`; do not resolve the baseline again.
+- Bulk fee operations must remain class-line-only and idempotent. Missing teacher scores must remain `missing_input`, never numeric zero.
+- Final read-only production smoke passed; authenticated mutations should continue through isolated DB gates or explicit operator-approved production scenarios.
+- Evidence: `receipts/2026-07-12-production-remediation-closeout.md`.

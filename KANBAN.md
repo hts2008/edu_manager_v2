@@ -859,17 +859,19 @@ stop.bat
 
 | Task ID | Priority | Description | Dependencies | Status | Acceptance gate |
 | ------- | -------- | ----------- | ------------ | ------ | --------------- |
-| AUD-RM-001 | P0 | Disable/replace destructive production seed and prove rollback-safe local reset | None | PLANNED | Production-like env refuses seed; forced failure leaves all tables unchanged |
-| AUD-RM-002 | P1 | Complete backup coverage, dedicated key management, isolated restore drill and RPO/RTO | AUD-RM-001 | PLANNED | All 19 models restore with relational checksum evidence |
-| AUD-RM-003 | P1 | Fail-fast JWT config, session revocation, CSP and distributed login protection | None | PLANNED | Weak/missing secret cannot start; old tokens fail after logout/password reset |
-| AUD-RM-004 | P1 | Replace Fabric-to-flow PDF conversion with exact layout and real Blob asset rendering | None | PLANNED | Pixel/golden tests pass for A4/A5/A6/custom and real upload-save-print |
-| AUD-RM-005 | P1 | Enforce class-line-only tuition collection across API, cron, receipts, portal and reports | AUD-RM-001 | PLANNED | Multi-class aggregate payment is rejected; each class pays/prints independently |
-| AUD-RM-006 | P1 | Add enrollment periods and atomic/capacity-safe enrollment writes | Migration baseline | PLANNED | Historical report ranges and concurrent capacity tests pass |
-| AUD-RM-007 | P1 | Add explicit attendance reopen/correction and immutable progress finalization revisions | AUD-RM-005 | PLANNED | UI/API state contract matches; finalized reports remain reproducible |
-| AUD-RM-008 | P1 | Baseline Prisma migrations and controlled deploy/rollback workflow | AUD-RM-001..002 | PLANNED | `prisma migrate status` clean on isolated and production targets |
-| AUD-RM-009 | P2 | Add real-router/Postgres integration and non-mocked critical Playwright flows | AUD-RM-003..008 | PLANNED | Auth, attendance, collect-print, template-PDF and progress-finalize run against real API/DB |
-| AUD-RM-010 | P2 | Bound/idempotent bulk pay; validate uploads, pagination and legacy weekday inputs | AUD-RM-005 | PLANNED | 500-line interruption/retry and adversarial input suites pass |
+| AUD-RM-001 | P0 | Disable/replace destructive production seed and prove rollback-safe local reset | None | IMPLEMENTED | Guarded bootstrap/reset split, confirmation + transaction, `tests/seed-backup.test.ts`; release receipt below |
+| AUD-RM-002 | P1 | Complete backup coverage, dedicated key management, isolated restore drill and RPO/RTO | AUD-RM-001 | IMPLEMENTED | 24-model AES-GCM v2 backup, dedicated key, verified isolated restore drill and operator runbook |
+| AUD-RM-003 | P1 | Fail-fast JWT config, session revocation, CSP and distributed login protection | None | IMPLEMENTED | DB sessions/version invalidation, distributed DB limiter, CSP/HSTS; auth security tests and production header probe |
+| AUD-RM-004 | P1 | Replace Fabric-to-flow PDF conversion with exact layout and real Blob asset rendering | None | IMPLEMENTED | Absolute render contract, bounded allowlisted assets and A4/A5/A6/custom canvas/print evidence from core remediation + final contract tests |
+| AUD-RM-005 | P1 | Enforce class-line-only tuition collection across API, cron, receipts, portal and reports | AUD-RM-001 | IMPLEMENTED | Unique receipt-line ownership, class-line workbench/payment contract, multi-class regression coverage |
+| AUD-RM-006 | P1 | Add enrollment periods and atomic/capacity-safe enrollment writes | Migration baseline | IMPLEMENTED | Half-open `EnrollmentPeriod`, transactional projection writes, historical tuition coverage and production backfill |
+| AUD-RM-007 | P1 | Add explicit attendance reopen/correction and immutable progress finalization revisions | AUD-RM-005 | IMPLEMENTED | Serialized reopen/finalize, financial conflict guard, immutable revision snapshots and focused tests |
+| AUD-RM-008 | P1 | Baseline Prisma migrations and controlled deploy/rollback workflow | AUD-RM-001..002 | IMPLEMENTED | Production baseline resolved, additive migration deployed, isolated + production `prisma migrate status` clean |
+| AUD-RM-009 | P2 | Add real-router/Postgres integration and non-mocked critical Playwright flows | AUD-RM-003..008 | IMPLEMENTED | Isolated PostgreSQL router/browser gate plus accumulated production attendance, fee, template and progress browser evidence |
+| AUD-RM-010 | P2 | Bound/idempotent bulk pay; validate uploads, pagination and legacy weekday inputs | AUD-RM-005 | IMPLEMENTED | Persisted idempotency batches, 500-line bound, resume/reconcile path, strict pagination/upload/weekday suites |
 
-**Review verdict:** static/build health is strong, but the platform must not be represented as "Production Live without bug" until `AUD-RM-001` and the P1 data/security/recovery invariants above are implemented with evidence.
+**Closeout verdict:** the review stop-loss backlog is implemented and deployed. The release passed 169 unit tests, typecheck, lint, build, zero-vulnerability production audit, isolated migration/restore/real-router/browser gates, production migration status, read-only Chrome smoke and security-header probes. This is a verified release state, not a guarantee that future defects are impossible.
 
-**Last Updated:** 2026-07-10
+**Evidence:** `receipts/2026-07-12-production-remediation-closeout.md`; commit `eac5079`; Vercel deployment `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`.
+
+**Last Updated:** 2026-07-12

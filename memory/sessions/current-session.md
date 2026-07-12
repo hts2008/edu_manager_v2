@@ -735,3 +735,13 @@
 - Production deployment: `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` Ready and aliased.
 - Verification: 125 unit tests, tsc, lint, build, audits, HTTP 200/401 boundaries, authenticated Chrome module and canvas interaction smoke.
 - Remaining operational note: rotate documented default admin credentials before external production use.
+
+## 2026-07-12 Session Update - Remaining Remediation Phases Closed
+
+- **Objective**: close `AUD-RM-001..010` end to end.
+- **Status**: `IMPLEMENTED`; production migration and deployment complete.
+- **Commit/deploy**: `eac5079`; `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`; alias `https://edu-manager-gules.vercel.app`.
+- **Fresh gates**: 169/169 unit, typecheck, lint, build, production audit zero vulnerabilities.
+- **Runtime evidence**: isolated PostgreSQL migration/router/browser and restore drills passed; production migration status clean; root/login 200; unauthenticated auth guard 401; CSP/HSTS/nosniff/referrer headers present; Chrome anonymous navigation passed with no failed/write requests.
+- **Production smoke boundary**: no authenticated production mutation was executed during final smoke; real mutation behavior is covered by isolated DB/browser gates and earlier module-specific production evidence.
+- **Receipt**: `receipts/2026-07-12-production-remediation-closeout.md`.
