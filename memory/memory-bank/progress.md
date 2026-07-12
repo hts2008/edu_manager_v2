@@ -965,3 +965,11 @@
 - Reconciled only mutable Flyer B2 lines: June/July/August 2026 now converge to 900,000 VND; protected rows were not mutated.
 - Verified unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright `2/2`, and authenticated local Chrome attendance/classes/Fee Workbench with zero console errors.
 - Status: `REVIEW`; production deployment and production browser evidence still pending.
+
+## 2026-07-12 - Tuition V3 production closeout
+
+- Pushed `304c4e7` to `origin/main` and deployed Vercel production `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`.
+- Production alias `https://edu-manager-gules.vercel.app` is Ready.
+- Authenticated Chrome verified Flyer B2 at 900,000 VND monthly with 14-session denominator, Fee Workbench class-line values, class billing units and zero console warnings/errors.
+- Evidence: `receipts/2026-07-12-tuition-v3-session-ledger-closeout.md` and `receipts/artifacts/tuition-v3-production-fee-workbench.png`.
+- Status: `IMPLEMENTED`.

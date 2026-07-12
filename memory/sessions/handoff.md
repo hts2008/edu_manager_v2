@@ -467,3 +467,13 @@
 - Bulk fee operations must remain class-line-only and idempotent. Missing teacher scores must remain `missing_input`, never numeric zero.
 - Final read-only production smoke passed; authenticated mutations should continue through isolated DB gates or explicit operator-approved production scenarios.
 - Evidence: `receipts/2026-07-12-production-remediation-closeout.md`.
+## 2026-07-12 Handoff - Tuition V3 Session Ledger
+
+- `TUIV3-2026-07-12-01..06` is production-live.
+- Runtime source: commit `304c4e7`; Vercel `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`; alias `https://edu-manager-gules.vercel.app`.
+- Monthly package tuition now uses actual regular `ClassSession` rows inside each billing month. Do not restore `sessions_per_week * calendar weeks` as the denominator.
+- Protected confirmed/paid/receipt-linked fee rows remain immutable. Low-confidence backfill requires `--allow-low-confidence` and reconciliation is dry-run by default.
+- Flyer B2 mutable lines for June, July and August 2026 converge to 900,000 VND; protected rows were excluded.
+- Gates: unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright `2/2`, local and production authenticated Chrome smoke.
+- Context+ and EDU-scoped Neural Memory MCPProxy were unavailable in this tool palette; markdown-only mode was used.
+- Evidence: `receipts/2026-07-12-tuition-v3-session-ledger-closeout.md`.

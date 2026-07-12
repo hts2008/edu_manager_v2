@@ -748,8 +748,8 @@
 # Current Session - Tuition V3 Release (2026-07-12)
 
 - Objective: finish Tuition V3 actual-month session ledger and deploy safely.
-- Active task: `TUIV3-2026-07-12-06` production deploy/smoke.
+- Active task: none; `TUIV3-2026-07-12-01..06` closed.
 - Completed: schema/migration, engine/service, attendance and fee integration, protected-row hardening, UI policy/cross-month display, backfill/reconcile, local gates and Chrome smoke.
-- Pending: commit/push, Vercel deploy, production API/UI smoke, receipt, KANBAN closeout.
+- Completed: commit `304c4e7`, production deploy `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`, Chrome smoke, receipt and KANBAN closeout.
 - Risk boundary: do not recalculate protected fee rows; do not apply low-confidence backfill without explicit override.
 - Context+ / Neural Memory: unavailable in current tool palette; markdown-only mode recorded.

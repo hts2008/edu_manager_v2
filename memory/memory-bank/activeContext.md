@@ -385,10 +385,11 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 # Active Context - 2026-07-12 Tuition V3 Release
 
 - Active track: `TUIV3-2026-07-12-01..06`.
-- Code is in `REVIEW`; deploy/production smoke remains.
+- Track is `IMPLEMENTED` and production-live.
 - Tuition monthly-package denominator is now actual regular `ClassSession` rows in the billing month, not four weeks or a cross-month visual week.
 - Production migration `20260712_tuition_v3_session_ledger` is applied and Prisma reports schema up to date.
 - Flyer B2 mutable class lines were reconciled to 900,000 VND for June, July and August 2026; protected rows were excluded.
 - Latest gates: full unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright Tuition V3 contract `2/2`, local authenticated Chrome smoke.
-- Remaining: commit/push, Vercel production deploy, authenticated production Chrome smoke, receipt and board closeout.
+- Runtime source: commit `304c4e7`, Vercel `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`, alias `https://edu-manager-gules.vercel.app`.
+- Production Chrome smoke passed for Attendance, Classes and Fee Workbench with zero console warnings/errors.
 - Context+ and EDU-scoped Neural Memory MCPProxy were unavailable in this tool palette; markdown-only graceful degradation is active.
