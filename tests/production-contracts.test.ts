@@ -47,9 +47,9 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(bulkPay, /ZERO_DAY_POSITIVE_RECEIPT/);
   assert.match(bulkPay, /NO_CHARGEABLE_AMOUNT/);
   assert.match(bulkPay, /receipt_ids/);
-  assert.match(bulkPay, /student_ids/);
-  assert.match(bulkPay, /resolveLineIdsForTarget/);
-  assert.match(bulkPay, /monthlyFeeLineIdsForCollection/);
+  assert.match(bulkPay, /line_ids/);
+  assert.doesNotMatch(bulkPay, /student_ids|fee_ids|resolveLineIdsForTarget/);
+  assert.match(bulkPay, /Idempotency-Key/);
   assert.doesNotMatch(bulkPay, /monthlyFeeLineId:\s*null/);
   assert.match(confirm, /updateMany/);
   assert.match(confirm, /MONTHLY_FEE_STATE_CONFLICT/);

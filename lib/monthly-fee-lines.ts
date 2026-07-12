@@ -1,4 +1,41 @@
+import { createHash } from "node:crypto";
+
 type FeeStatus = "pending" | "ready" | "confirmed" | "paid";
+
+export const MAX_BULK_FEE_PAYMENT_LINES = 500;
+
+export type CanonicalBulkFeePayment = {
+  line_ids: string[];
+  month: string;
+  payment_method: "cash" | "transfer";
+  template_id: string | null;
+  notes: string | null;
+};
+
+export function canonicalizeBulkFeePayment(input: any): CanonicalBulkFeePayment {
+  const sourceIds = Array.isArray(input?.line_ids) ? input.line_ids : [];
+  const lineIds = [
+    ...new Set<string>(
+      sourceIds.map((value: unknown) => String(value).trim()).filter(Boolean)
+    ),
+  ].sort();
+  if (!lineIds.length) throw new Error("line_ids is required");
+  if (lineIds.length > MAX_BULK_FEE_PAYMENT_LINES) {
+    throw new Error(`line_ids supports at most ${MAX_BULK_FEE_PAYMENT_LINES} unique values`);
+  }
+
+  return {
+    line_ids: lineIds,
+    month: String(input?.month || "").trim(),
+    payment_method: String(input?.payment_method || "").trim() as "cash" | "transfer",
+    template_id: String(input?.template_id || "").trim() || null,
+    notes: String(input?.notes || "").trim() || null,
+  };
+}
+
+export function hashBulkFeePaymentPayload(payload: CanonicalBulkFeePayment) {
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
 
 export type MonthlyFeeLineInput = {
   class_id?: string | null;

@@ -50,6 +50,7 @@ const routes = {
   monthlyFeeById: () => import("../server/api/monthly-fees/[id]/index.js"),
   monthlyFeePay: () => import("../server/api/monthly-fees/[id]/pay.js"),
   monthlyFeesBulkPay: () => import("../server/api/monthly-fees/bulk-pay.js"),
+  monthlyFeesBulkPayStatus: () => import("../server/api/monthly-fees/bulk-pay/[id].js"),
   monthlyFeesCalculate: () => import("../server/api/monthly-fees/calculate.js"),
   monthlyFeesGenerate: () => import("../server/api/monthly-fees/generate.js"),
   monthlyFeesIndex: () => import("../server/api/monthly-fees/index.js"),
@@ -59,6 +60,7 @@ const routes = {
   paymentPdf: () => import("../server/api/payments/[id]/pdf.js"),
   paymentsIndex: () => import("../server/api/payments/index.js"),
   parentPortalLogin: () => import("../server/api/parent-portal/login.js"),
+  parentPortalLogout: () => import("../server/api/parent-portal/logout.js"),
   parentPortalMe: () => import("../server/api/parent-portal/me.js"),
   recycleBinIndex: () => import("../server/api/recycle-bin/index.js"),
   receiptById: () => import("../server/api/receipts/[id]/index.js"),
@@ -156,6 +158,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
       ? { load: routes.paymentPdf, params: { id } }
       : null) ||
     exact(parts, ["parent-portal", "login"], routes.parentPortalLogin) ||
+    exact(parts, ["parent-portal", "logout"], routes.parentPortalLogout) ||
     exact(parts, ["parent-portal", "me"], routes.parentPortalMe) ||
     exact(parts, ["recycle-bin"], routes.recycleBinIndex) ||
     exact(parts, ["templates"], routes.templatesIndex) ||
@@ -181,6 +184,9 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["monthly-fees", "calculate"], routes.monthlyFeesCalculate) ||
     exact(parts, ["monthly-fees", "generate"], routes.monthlyFeesGenerate) ||
     exact(parts, ["monthly-fees", "bulk-pay"], routes.monthlyFeesBulkPay) ||
+    (resource === "monthly-fees" && id === "bulk-pay" && parts.length === 3
+      ? { load: routes.monthlyFeesBulkPayStatus, params: { id: action } }
+      : null) ||
     exact(parts, ["monthly-fees", "workbench"], routes.monthlyFeesWorkbench) ||
     (resource === "monthly-fees" && action === "confirm" && parts.length === 3
       ? { load: routes.monthlyFeeConfirm, params: { id } }

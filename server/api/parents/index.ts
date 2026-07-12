@@ -1,5 +1,6 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
+import { normalizePhone } from "../../../lib/parent-auth.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -110,6 +111,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const data = {
         fullName: full_name,
         phone,
+        phoneNormalized: normalizePhone(phone),
         email: email || null,
         address: address || null,
         relationship: relationship || "father",
@@ -170,6 +172,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         data: {
           ...(full_name && { fullName: full_name }),
           ...(phone && { phone }),
+          ...(phone && { phoneNormalized: normalizePhone(phone) }),
           ...(email !== undefined && { email }),
           ...(address !== undefined && { address }),
           ...(relationship && { relationship }),

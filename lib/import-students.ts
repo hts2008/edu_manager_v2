@@ -505,7 +505,7 @@ export async function commitStudentImport(prisma: any, csv: string) {
     for (const row of preview.rows) {
       const item = row.data;
       let parent = await tx.parent.findUnique({
-        where: { phone: item.parent_phone },
+        where: { phoneNormalized: item.parent_phone },
         select: { id: true, phone: true },
       });
 
@@ -514,6 +514,7 @@ export async function commitStudentImport(prisma: any, csv: string) {
           data: {
             fullName: item.parent_full_name,
             phone: item.parent_phone,
+            phoneNormalized: normalizePhone(item.parent_phone),
             relationship: item.relationship,
             address: item.address,
             notes: item.notes,

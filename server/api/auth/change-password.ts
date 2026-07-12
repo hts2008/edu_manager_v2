@@ -8,12 +8,8 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
-import {
-  ApiError,
-  getRequiredString,
-  logActivity,
-  sendApiError,
-} from "../../../lib/api-utils.js";
+import { ApiError, logActivity, sendApiError } from "../../../lib/api-utils.js";
+import { validateChangePassword } from "../../../lib/auth-validation.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -23,16 +19,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const oldPassword = getRequiredString(req.body?.oldPassword, "oldPassword");
-    const newPassword = getRequiredString(req.body?.newPassword, "newPassword");
-
-    if (newPassword.length < 6) {
-      throw new ApiError(
-        "PASSWORD_TOO_SHORT",
-        "New password must be at least 6 characters",
-        400
-      );
-    }
+    const { oldPassword, newPassword } = validateChangePassword(req.body);
 
     if (oldPassword === newPassword) {
       throw new ApiError(
@@ -55,10 +42,16 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: { passwordHash },
-    });
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: req.user.id },
+        data: { passwordHash, tokenVersion: { increment: 1 } },
+      }),
+      prisma.authSession.updateMany({
+        where: { userId: req.user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     await logActivity(req, req.user.id, "PASSWORD_CHANGED", "user", req.user.id);
 

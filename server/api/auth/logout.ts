@@ -7,6 +7,7 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import { logActivity, sendApiError } from "../../../lib/api-utils.js";
+import { revokeSession } from "../../../lib/auth-session.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -16,6 +17,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
+    await revokeSession(req.authToken.jti);
     await logActivity(req, req.user.id, "LOGOUT", "user", req.user.id);
     return successResponse(res, { message: "Logged out" });
   } catch (error) {

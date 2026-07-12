@@ -3,6 +3,12 @@ import prisma from "../../../lib/prisma.js";
 import { errorResponse, handleCors, successResponse } from "../../../lib/auth.js";
 import { ApiError, sendApiError } from "../../../lib/api-utils.js";
 import { normalizePhone, signParentToken, toDateOnly } from "../../../lib/parent-auth.js";
+import { validateParentPortalLogin } from "../../../lib/auth-validation.js";
+import { getClientIp, setRateLimitHeaders } from "../../../lib/rate-limit.js";
+import {
+  checkDistributedRateLimit,
+  getLoginRateLimitConfig,
+} from "../../../lib/distributed-rate-limit.js";
 
 function parentToDto(parent: any) {
   return {
@@ -21,22 +27,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const phone = normalizePhone(req.body?.parent_phone || req.body?.phone);
-    const dateOfBirth = String(req.body?.student_date_of_birth || req.body?.date_of_birth || "").trim();
-    if (!phone || !dateOfBirth) {
-      throw new ApiError(
-        "VALIDATION_ERROR",
-        "parent_phone and student_date_of_birth are required",
-        400
-      );
+    const payload = validateParentPortalLogin(req.body);
+    const phone = normalizePhone(payload.phone);
+    const dateOfBirth = payload.dateOfBirth;
+    const limit = await checkDistributedRateLimit(
+      `parent-login:${getClientIp(req)}:${phone}`,
+      getLoginRateLimitConfig(process.env, "PARENT_LOGIN_RATE_LIMIT")
+    );
+    setRateLimitHeaders(res, limit);
+    if (!limit.allowed) {
+      throw new ApiError("RATE_LIMITED", "Too many login attempts. Please try again later.", 429);
     }
 
-    const parents = await prisma.parent.findMany({
-      where: { deletedAt: null },
+    const parent = await prisma.parent.findUnique({
+      where: { phoneNormalized: phone },
       include: { students: { where: { deletedAt: null } } },
     });
-    const parent = parents.find((item: any) => normalizePhone(item.phone) === phone);
-    if (!parent) {
+    if (!parent || parent.deletedAt) {
       throw new ApiError("PARENT_PORTAL_LOGIN_FAILED", "Invalid parent credentials", 401);
     }
 
@@ -48,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return successResponse(res, {
-      token: signParentToken(parent.id),
+      token: await signParentToken(parent.id, parent.tokenVersion),
       parent: parentToDto(parent),
       students: parent.students.map((student: any) => ({
         id: student.id,

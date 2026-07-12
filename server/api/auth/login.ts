@@ -1,18 +1,19 @@
 import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import prisma from "../../../lib/prisma.js";
 import { handleCors, errorResponse, successResponse } from "../../../lib/auth.js";
 import {
-  checkRateLimit,
   getClientIp,
   setRateLimitHeaders,
 } from "../../../lib/rate-limit.js";
+import {
+  checkDistributedRateLimit,
+  getLoginRateLimitConfig,
+} from "../../../lib/distributed-rate-limit.js";
+import { logApiError } from "../../../lib/observability.js";
 import { loginSchema, validateBody } from "../../../lib/validation.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const LOGIN_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 900000);
-const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX || 10);
+import { createSessionToken } from "../../../lib/auth-session.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -34,25 +35,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const { username, password } = credentials;
 
-  const limit = checkRateLimit(
-    `login:${getClientIp(req)}:${username.toLowerCase() || "unknown"}`,
-    {
-      windowMs: LOGIN_WINDOW_MS,
-      max: LOGIN_MAX_ATTEMPTS,
-    }
-  );
-  setRateLimitHeaders(res, limit);
-
-  if (!limit.allowed) {
-    return errorResponse(
-      res,
-      "RATE_LIMITED",
-      "Too many login attempts. Please try again later.",
-      429
-    );
-  }
-
   try {
+    const limit = await checkDistributedRateLimit(
+      `login:${getClientIp(req)}:${username.toLowerCase() || "unknown"}`,
+      getLoginRateLimitConfig(process.env, "LOGIN_RATE_LIMIT")
+    );
+    setRateLimitHeaders(res, limit);
+    if (!limit.allowed) {
+      return errorResponse(
+        res,
+        "RATE_LIMITED",
+        "Too many login attempts. Please try again later.",
+        429
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { username },
     });
@@ -80,15 +77,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return errorResponse(res, "ACCOUNT_INACTIVE", "Account is inactive", 403);
     }
 
-    // Update last login
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
+      select: { tokenVersion: true },
     });
 
-    // Generate token
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
-      expiresIn: "8h",
+    const { token } = await createSessionToken({
+      subjectId: user.id,
+      subjectType: "user",
+      tokenVersion: updatedUser.tokenVersion,
+      role: user.role,
+      username: user.username,
     });
 
     return successResponse(res, {
@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    logApiError(error, { code: "LOGIN_ERROR" });
     return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
   }
 }

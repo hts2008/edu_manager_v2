@@ -1,12 +1,19 @@
 import jwt from "jsonwebtoken";
 import type { VercelRequest } from "./vercel-types.js";
 import { ApiError } from "./api-utils.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import prisma from "./prisma.js";
+import {
+  createSessionToken,
+  getActiveSession,
+  verifySessionToken,
+  type SessionTokenPayload,
+} from "./auth-session.js";
+import { getBearerToken } from "./auth.js";
 
 export type ParentAuth = {
   parentId: string;
   type: "parent_portal";
+  token: SessionTokenPayload;
 };
 
 export function normalizePhone(value: unknown) {
@@ -15,25 +22,34 @@ export function normalizePhone(value: unknown) {
     .replace(/[^\d+]/g, "");
 }
 
-export function signParentToken(parentId: string) {
-  return jwt.sign({ parentId, type: "parent_portal" }, JWT_SECRET, {
-    expiresIn: "7d",
+export async function signParentToken(parentId: string, tokenVersion: number) {
+  const session = await createSessionToken({
+    subjectId: parentId,
+    subjectType: "parent",
+    tokenVersion,
   });
+  return session.token;
 }
 
-export function verifyParentToken(req: VercelRequest): ParentAuth {
-  const rawAuth = req.headers.authorization;
-  const authHeader = Array.isArray(rawAuth) ? rawAuth[0] : rawAuth;
-  if (!authHeader?.startsWith("Bearer ")) {
+export async function verifyParentToken(req: VercelRequest): Promise<ParentAuth> {
+  const token = getBearerToken(req);
+  if (!token) {
     throw new ApiError("UNAUTHORIZED", "Parent portal token is required", 401);
   }
 
   try {
-    const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as Partial<ParentAuth>;
-    if (decoded.type !== "parent_portal" || !decoded.parentId) {
+    const decoded = verifySessionToken(token, "parent");
+    const [session, parent] = await Promise.all([
+      getActiveSession(decoded),
+      prisma.parent.findUnique({
+        where: { id: decoded.sub },
+        select: { id: true, tokenVersion: true, deletedAt: true },
+      }),
+    ]);
+    if (!session || !parent || parent.deletedAt || parent.tokenVersion !== decoded.ver) {
       throw new ApiError("TOKEN_INVALID", "Invalid parent portal token", 401);
     }
-    return { parentId: decoded.parentId, type: "parent_portal" };
+    return { parentId: decoded.sub, type: "parent_portal", token: decoded };
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof jwt.TokenExpiredError) {

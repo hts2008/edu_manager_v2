@@ -11,10 +11,11 @@ const databaseUrl = process.env.TEST_DATABASE_URL;
 
 test("real router and isolated Postgres harness are reachable", { skip: !databaseUrl }, async () => {
   const parsed = new URL(databaseUrl!);
-  assert.ok(
-    ["127.0.0.1", "localhost", "postgres"].includes(parsed.hostname),
-    "TEST_DATABASE_URL must target the isolated CI/local Postgres host"
-  );
+  const localHost = ["127.0.0.1", "localhost", "postgres"].includes(parsed.hostname);
+  const isolatedRemoteSchema =
+    process.env.ALLOW_REMOTE_TEST_DATABASE === "true" &&
+    /^codex_migration_test_[a-z0-9_]+$/.test(parsed.searchParams.get("schema") || "");
+  assert.ok(localHost || isolatedRemoteSchema, "TEST_DATABASE_URL must target an isolated Postgres host/schema");
 
   const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
   try {

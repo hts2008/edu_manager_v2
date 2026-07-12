@@ -7,7 +7,13 @@ import {
   requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
-import { createDatabaseBackup, verifyDatabaseBackup } from "../../../lib/backup.js";
+import {
+  createDatabaseBackup,
+  fetchDatabaseBackup,
+  openBackupEnvelope,
+  restoreDatabaseBackup,
+  verifyDatabaseBackup,
+} from "../../../lib/backup.js";
 import { getString, sendApiError } from "../../../lib/api-utils.js";
 
 function parseDryRun(value: unknown) {
@@ -27,6 +33,20 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const url = getString(req.body?.url || req.query.url);
       if (!url) return errorResponse(res, "URL_REQUIRED", "backup url is required", 400);
       return successResponse(res, await verifyDatabaseBackup(url));
+    }
+    if (action === "restore") {
+      const confirmation = getString(req.body?.confirmation);
+      const backup = req.body?.envelope
+        ? openBackupEnvelope(req.body.envelope)
+        : await fetchDatabaseBackup(getString(req.body?.url) || "");
+      return successResponse(
+        res,
+        await restoreDatabaseBackup(prisma, backup, {
+          databaseUrl: process.env.DATABASE_URL,
+          confirmation,
+          nodeEnv: process.env.NODE_ENV,
+        })
+      );
     }
 
     const dryRun = parseDryRun(req.body?.dry_run ?? req.query.dry_run);

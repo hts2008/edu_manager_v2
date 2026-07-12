@@ -5,7 +5,7 @@ type Bucket = {
   resetAt: number;
 };
 
-type RateLimitResult = {
+export type RateLimitResult = {
   allowed: boolean;
   limit: number;
   remaining: number;
@@ -14,6 +14,7 @@ type RateLimitResult = {
 };
 
 const buckets = new Map<string, Bucket>();
+let callsSinceCleanup = 0;
 
 export function getClientIp(req: VercelRequest) {
   const forwardedFor = req.headers["x-forwarded-for"];
@@ -28,6 +29,16 @@ export function checkRateLimit(
   options: { windowMs: number; max: number; now?: number }
 ): RateLimitResult {
   const now = options.now ?? Date.now();
+  if (!Number.isFinite(options.windowMs) || options.windowMs <= 0 || !Number.isInteger(options.max) || options.max <= 0) {
+    throw new Error("Rate limit windowMs and max must be positive integers");
+  }
+  callsSinceCleanup += 1;
+  if (callsSinceCleanup >= 100) {
+    for (const [bucketKey, bucket] of buckets) {
+      if (bucket.resetAt <= now) buckets.delete(bucketKey);
+    }
+    callsSinceCleanup = 0;
+  }
   const existing = buckets.get(key);
   const bucket =
     existing && existing.resetAt > now
@@ -66,4 +77,5 @@ export function setRateLimitHeaders(
 
 export function resetRateLimitBucketsForTests() {
   buckets.clear();
+  callsSinceCleanup = 0;
 }

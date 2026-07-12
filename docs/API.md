@@ -59,6 +59,7 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/payments/:id` | Payment detail/delete. |
 | `/api/payments/:id/pdf` | Payment PDF. |
 | `/api/parent-portal/login` | Parent portal login. |
+| `/api/parent-portal/logout` | Revoke the current parent portal session. |
 | `/api/parent-portal/me` | Parent portal current read-only data. |
 | `/api/recycle-bin` | Soft-delete/recycle-bin operations. |
 | `/api/templates` | Template list/create. |
@@ -73,7 +74,8 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/monthly-fees` | Monthly-fee list. |
 | `/api/monthly-fees/calculate` | Calculate/upsert a monthly fee. |
 | `/api/monthly-fees/generate` | Dry-run or generate monthly fees. |
-| `/api/monthly-fees/bulk-pay` | Collect selected fee lines and create receipts. |
+| `POST /api/monthly-fees/bulk-pay` | Bounded idempotent collection for up to 500 unique `line_ids`. Requires `Idempotency-Key`; accepts snake_case `month`, `payment_method`, optional `template_id`/`notes`. Reusing the same actor/key/hash resumes or replays the persisted batch; a different hash returns `409 IDEMPOTENCY_KEY_REUSED`. Responses are `200` when completed or `202` while more persisted items remain. |
+| `GET /api/monthly-fees/bulk-pay/:batch_id` | Reconcile an actor-owned batch and restore persisted item results plus `receipt_ids` for the print queue. |
 | `/api/monthly-fees/workbench` | Fee Workbench per-class line ledger. |
 | `/api/monthly-fees/:id/confirm` | Confirm a fee. |
 | `/api/monthly-fees/:id/pay` | Pay a fee. |

@@ -1,4 +1,5 @@
-import { Save } from "lucide-react";
+import { useState } from "react";
+import { LockKeyhole, Save, UnlockKeyhole } from "lucide-react";
 import DailyProgressEditor from "./DailyProgressEditor";
 
 const CLASS_TYPE_OPTIONS = [
@@ -16,11 +17,13 @@ export default function ProgressInputPanel({
   daily,
   onChange,
   onSave,
+  onReopen,
   onDailyDateChange,
   onDailyChange,
   onSaveDay,
   onDeleteDay,
 }) {
+  const [reopenReason, setReopenReason] = useState("");
   if (!row) return null;
 
   function setField(key, value) {
@@ -41,6 +44,8 @@ export default function ProgressInputPanel({
     );
   }
 
+  const finalized = Boolean(form.finalized_at || form.finalized);
+
   return (
     <div className="space-y-4 rounded-2xl border border-indigo-100 bg-white p-4" data-testid="progress-input-panel">
       <div className="flex items-start justify-between gap-3">
@@ -56,6 +61,38 @@ export default function ProgressInputPanel({
           {message.text}
         </div>
       )}
+
+      {finalized && (
+        <section className="rounded-md border border-amber-300 bg-amber-50 p-3" data-testid="progress-finalized-lock">
+          <div className="flex items-center gap-2 text-sm font-black text-amber-900">
+            <LockKeyhole size={16} /> Bản ghi đã chốt, revision {form.revision_number || 1}
+          </div>
+          <p className="mt-1 text-xs text-amber-800">Dữ liệu tháng và dữ liệu theo ngày được khóa. Nhập lý do admin để mở lại.</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              className="input flex-1"
+              value={reopenReason}
+              onChange={(event) => setReopenReason(event.target.value)}
+              placeholder="Lý do mở lại (tối thiểu 10 ký tự)"
+              aria-label="Lý do mở lại bản ghi tiến độ"
+            />
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center justify-center gap-2"
+              disabled={saving || reopenReason.trim().length < 10}
+              onClick={async () => {
+                await onReopen(reopenReason);
+                setReopenReason("");
+              }}
+              data-testid="reopen-progress"
+            >
+              <UnlockKeyhole size={16} /> Mở lại
+            </button>
+          </div>
+        </section>
+      )}
+
+      <fieldset disabled={finalized} className="space-y-4 disabled:opacity-70">
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">
@@ -127,6 +164,7 @@ export default function ProgressInputPanel({
           </button>
         </div>
       </section>
+      </fieldset>
     </div>
   );
 }

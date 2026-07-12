@@ -10,8 +10,9 @@ import {
   isAttendanceLockTimeout,
   lockAttendancePeriodAndSyncFees,
 } from "../../../../lib/attendance-lock-transaction.js";
-import { sendApiError } from "../../../../lib/api-utils.js";
+import { getString, sendApiError } from "../../../../lib/api-utils.js";
 import { getRequestId } from "../../../../lib/observability.js";
+import { reopenAttendancePeriod } from "../../../../lib/attendance-lock.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // Get id from query param (Vercel dynamic route)
@@ -263,16 +264,34 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        await prisma.attendancePeriod.update({
-          where: { id },
-          data: {
-            status: "approved",
-            lockedById: null,
-            lockedAt: null,
-          },
-        });
+        const reason = getString(req.body?.reason)?.trim();
+        if (!reason) {
+          return errorResponse(
+            res,
+            "REOPEN_REASON_REQUIRED",
+            "A non-empty reason is required to reopen attendance",
+            400,
+          );
+        }
 
-        return successResponse(res, { message: "Period unlocked" });
+        const reopenedPeriod = await prisma.$transaction((tx) =>
+          reopenAttendancePeriod(tx, {
+            periodId: id,
+            classId: period.classId,
+            month: period.periodMonth,
+            userId: req.user.id,
+            reason,
+            ipAddress:
+              getString(req.headers["x-forwarded-for"]) ||
+              getString(req.headers["x-real-ip"]),
+            userAgent: getString(req.headers["user-agent"]),
+          }),
+        );
+
+        return successResponse(res, {
+          message: "Attendance period reopened for correction",
+          period: reopenedPeriod,
+        });
       }
 
       case "reject": {

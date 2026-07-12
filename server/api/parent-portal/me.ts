@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const auth = verifyParentToken(req);
+    const auth = await verifyParentToken(req);
     const since = new Date();
     since.setDate(since.getDate() - 365);
     const parent = await prisma.parent.findFirst({

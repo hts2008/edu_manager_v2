@@ -28,10 +28,16 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const payload = validateBody(userResetPasswordSchema, req.body);
     const passwordHash = await bcrypt.hash(payload.password, 10);
-    const user = await prisma.user.update({
-      where: { id },
-      data: { passwordHash },
-    });
+    const [user] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id },
+        data: { passwordHash, tokenVersion: { increment: 1 } },
+      }),
+      prisma.authSession.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     return successResponse(res, { user: userToDto(user), message: "Password reset" });
   } catch (error) {

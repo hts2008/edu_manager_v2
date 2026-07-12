@@ -87,6 +87,7 @@ export default function AttendancePage() {
   const [weekError, setWeekError] = useState(null);
   const [loadedWeekKey, setLoadedWeekKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [reopeningMonth, setReopeningMonth] = useState(null);
   const classDataRequestRef = useRef(0);
   const classListRequestRef = useRef(0);
   const weekAttendanceRequestRef = useRef(0);
@@ -241,8 +242,11 @@ export default function AttendancePage() {
     selectedWeek && selectedWeekKey && loadedWeekKey === selectedWeekKey && !weekLoading && !weekError,
   );
 
-  const lockedSelectedMonth = useMemo(
-    () => selectedWeekMonthKeys.find((monthKey) => periods[monthKey]?.status === "locked"),
+  const nonEditableSelectedMonth = useMemo(
+    () => selectedWeekMonthKeys.find((monthKey) => {
+      const status = periods[monthKey]?.status;
+      return status && status !== "open";
+    }),
     [periods, selectedWeekMonthKeys],
   );
 
@@ -578,8 +582,8 @@ export default function AttendancePage() {
     }
     const monthKey = dateStr.slice(0, 7);
     const period = periods[monthKey];
-    if (period?.status === "locked") {
-      toast.error("Không thể sửa điểm danh đã chốt");
+    if (period?.status && period.status !== "open") {
+      toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
       return;
     }
 
@@ -612,8 +616,8 @@ export default function AttendancePage() {
       return;
     }
 
-    if (lockedSelectedMonth) {
-      toast.error("Không thể sửa điểm danh đã chốt");
+    if (nonEditableSelectedMonth) {
+      toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
       return;
     }
 
@@ -630,8 +634,11 @@ export default function AttendancePage() {
           toast.error(createRes.error?.message || "Không thể tạo kỳ điểm danh");
           return;
         }
-        if (createRes.data?.period?.status === "locked") {
-          toast.error("Không thể sửa điểm danh đã chốt");
+        if (
+          createRes.data?.period?.status &&
+          createRes.data.period.status !== "open"
+        ) {
+          toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
           return;
         }
       }
@@ -746,12 +753,41 @@ export default function AttendancePage() {
   const handleUnlock = async (monthKey) => {
     const period = periods[monthKey];
     if (!period) return;
-    const res = await attendancePeriodsService.unlock(period.id);
-    if (res.success) {
-      toast.success("Đã mở lại điểm danh tháng " + monthKey);
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || "Lỗi");
+
+    const reason = window.prompt(
+      `Nhập lý do mở lại điểm danh tháng ${monthKey}:`,
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error("Vui lòng nhập lý do mở lại điểm danh");
+      return;
+    }
+
+    setReopeningMonth(monthKey);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `/api/attendance-periods/${period.id}?action=unlock`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ reason: reason.trim() }),
+        },
+      );
+      const res = await response.json();
+      if (res.success) {
+        toast.success("Đã mở lại điểm danh tháng " + monthKey + " để chỉnh sửa");
+        await loadClassData();
+      } else {
+        toast.error(res.error?.message || "Không thể mở lại điểm danh");
+      }
+    } catch (error) {
+      toast.error(error?.message || "Không thể mở lại điểm danh");
+    } finally {
+      setReopeningMonth(null);
     }
   };
 
@@ -1120,9 +1156,10 @@ export default function AttendancePage() {
                                   e.stopPropagation();
                                   handleUnlock(key);
                                 }}
-                                className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
+                                disabled={reopeningMonth === key}
+                                className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                🔓 Mở lại
+                                {reopeningMonth === key ? "Đang mở lại..." : "Mở lại để chỉnh sửa"}
                               </button>
                             )}
                           </div>
@@ -1172,7 +1209,7 @@ export default function AttendancePage() {
                       onClick={handleSave}
                       loading={saving}
                       loadingLabel="Đang lưu điểm danh..."
-                      disabled={!isWeekReady || Boolean(lockedSelectedMonth) || students.length === 0}
+                      disabled={!isWeekReady || Boolean(nonEditableSelectedMonth) || students.length === 0}
                       className="btn-primary"
                     >
                       Luu diem danh
@@ -1206,8 +1243,8 @@ export default function AttendancePage() {
                       <span>
                         Trang thai ky: {selectedWeekPeriodLabels.join(" | ")}
                       </span>
-                      <span className={lockedSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
-                        {lockedSelectedMonth ? `Tháng ${lockedSelectedMonth} đã chốt - chỉ xem` : isWeekReady ? "Đã tải xong - có thể thao tác" : "Đang chờ dữ liệu tuần"}
+                      <span className={nonEditableSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
+                        {nonEditableSelectedMonth ? `Tháng ${nonEditableSelectedMonth} không ở trạng thái mở - chỉ xem` : isWeekReady ? "Đã tải xong - có thể thao tác" : "Đang chờ dữ liệu tuần"}
                       </span>
                     </div>
                   </div>
@@ -1237,8 +1274,10 @@ export default function AttendancePage() {
                             const anyMarked = students.some(
                               (s) => attendance[s.id]?.[dateStr],
                             );
-                            const isDateLocked =
-                              periods[dateStr.slice(0, 7)]?.status === "locked";
+                            const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
+                            const isDateReadOnly = Boolean(
+                              datePeriodStatus && datePeriodStatus !== "open",
+                            );
                             return (
                               <th
                                 key={dateStr}
@@ -1259,8 +1298,8 @@ export default function AttendancePage() {
                                         toast.error("Vui long doi tai xong tuan diem danh truoc khi sua");
                                         return;
                                       }
-                                      if (isDateLocked) {
-                                        toast.error("Không thể sửa điểm danh đã chốt");
+                                      if (isDateReadOnly) {
+                                        toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
                                         return;
                                       }
                                       // Toggle all students for this date
@@ -1280,11 +1319,11 @@ export default function AttendancePage() {
                                         return updated;
                                       });
                                     }}
-                                    disabled={!isWeekReady || isDateLocked}
+                                    disabled={!isWeekReady || isDateReadOnly}
                                     className={`px-2 py-1 text-[10px] rounded font-medium transition-colors ${
                                       allPresent
                                         ? "bg-green-500 text-white"
-                                        : !isWeekReady || isDateLocked
+                                        : !isWeekReady || isDateReadOnly
                                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                                           : anyMarked
                                           ? "bg-yellow-200 text-yellow-800"
@@ -1335,9 +1374,11 @@ export default function AttendancePage() {
                               {weekDates.map(({ dateStr, isMakeUpDate }) => {
                                 const status =
                                   attendance[student.id]?.[dateStr];
-                                const isDateLocked =
-                                  periods[dateStr.slice(0, 7)]?.status === "locked";
-                                const isCellDisabled = !isWeekReady || isDateLocked;
+                                const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
+                                const isDateReadOnly = Boolean(
+                                  datePeriodStatus && datePeriodStatus !== "open",
+                                );
+                                const isCellDisabled = !isWeekReady || isDateReadOnly;
                                 return (
                                   <td
                                     key={dateStr}

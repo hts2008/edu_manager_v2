@@ -30,6 +30,11 @@ import {
   type ProgressTrackKey,
 } from "../../../lib/student-progress-assessment.js";
 import {
+  assertProgressMonthEditable,
+  buildProgressRevisionSnapshot,
+  normalizeReopenReason,
+} from "../../../lib/student-progress-finalization.js";
+import {
   studentProgressUpsertSchema,
   validateBody,
 } from "../../../lib/validation.js";
@@ -85,6 +90,8 @@ function progressMonthToDto(record: any) {
     daily_score_delta: record.dailyScoreDelta,
     daily_assessment_count: record.dailyAssessmentCount,
     finalized_at: record.finalizedAt,
+    is_finalized: Boolean(record.finalizedAt),
+    revision_number: record.revisionNumber || 0,
     created_by: record.createdById,
     updated_by: record.updatedById,
     created_at: record.createdAt,
@@ -113,6 +120,15 @@ function progressMonthToDto(record: any) {
         note: entry.note,
         created_by: entry.createdById,
         created_at: entry.createdAt,
+      })) || [],
+    revisions:
+      record.revisions?.map((revision: any) => ({
+        id: revision.id,
+        revision_number: revision.revisionNumber,
+        event_type: revision.eventType,
+        reason: revision.reason,
+        actor_id: revision.actorId,
+        created_at: revision.createdAt,
       })) || [],
   };
 }
@@ -326,6 +342,7 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
         class: { select: { className: true } },
         skills: { orderBy: { sortOrder: "asc" } },
         dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+        revisions: { orderBy: { revisionNumber: "desc" }, take: 20 },
       },
       orderBy: [{ month: "desc" }, { student: { fullName: "asc" } }],
       skip: (page - 1) * limit,
@@ -340,6 +357,65 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
     page,
     limit,
   });
+}
+
+async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
+  const studentId = getString(req.body?.student_id || req.body?.studentId);
+  const classId = getString(req.body?.class_id || req.body?.classId);
+  const month = getString(req.body?.month);
+  if (!studentId || !classId || !month) {
+    throw new ApiError(
+      "PROGRESS_REOPEN_TARGET_REQUIRED",
+      "student_id, class_id, and month are required",
+      400
+    );
+  }
+  const reason = normalizeReopenReason(req.body?.reason || req.body?.reopen_reason);
+
+  const record = await prisma.$transaction(async (tx) => {
+    const current = await tx.studentProgressMonth.findUnique({
+      where: { studentId_classId_month: { studentId, classId, month } },
+      include: {
+        skills: { orderBy: { sortOrder: "asc" } },
+        dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+      },
+    });
+    if (!current) {
+      throw new ApiError("PROGRESS_MONTH_NOT_FOUND", "Progress month not found", 404);
+    }
+    if (!current.finalizedAt) {
+      throw new ApiError("PROGRESS_MONTH_NOT_FINALIZED", "Progress month is already open", 409);
+    }
+
+    const revisionNumber = current.revisionNumber + 1;
+    await tx.studentProgressRevision.create({
+      data: {
+        progressMonthId: current.id,
+        revisionNumber,
+        eventType: "reopened",
+        reason,
+        snapshot: buildProgressRevisionSnapshot(current),
+        actorId: req.user.id,
+      },
+    });
+    await tx.studentProgressMonth.update({
+      where: { id: current.id },
+      data: { finalizedAt: null, revisionNumber, updatedById: req.user.id },
+    });
+    return tx.studentProgressMonth.findUniqueOrThrow({
+      where: { id: current.id },
+      include: {
+        student: { select: { fullName: true, parent: { select: { fullName: true, phone: true } } } },
+        class: { select: { className: true } },
+        skills: { orderBy: { sortOrder: "asc" } },
+        dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+        revisions: { orderBy: { revisionNumber: "desc" }, take: 20 },
+      },
+    });
+  }, { isolationLevel: "Serializable" });
+
+  await logActivity(req, req.user.id, "REOPEN_STUDENT_PROGRESS", "student_progress", record.id);
+  return successResponse(res, { progress_month: progressMonthToDto(record) });
 }
 
 async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
@@ -381,6 +457,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
     },
   });
+  assertProgressMonthEditable(existing?.finalizedAt);
 
   const trackKey = (body.track_key || existing?.trackKey || detectProgressTrackKey(row.class_name)) as ProgressTrackKey;
   const classType = body.class_type
@@ -471,6 +548,17 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
   const finalizedAt = body.finalized ? existing?.finalizedAt || new Date() : null;
 
   const record = await prisma.$transaction(async (tx) => {
+    const transactionalExisting = await tx.studentProgressMonth.findUnique({
+      where: {
+        studentId_classId_month: {
+          studentId: body.student_id,
+          classId: body.class_id,
+          month: body.month,
+        },
+      },
+    });
+    assertProgressMonthEditable(transactionalExisting?.finalizedAt);
+
     const saved = await tx.studentProgressMonth.upsert({
       where: {
         studentId_classId_month: {
@@ -547,6 +635,27 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       });
     }
 
+    if (body.finalized) {
+      const revisionNumber = saved.revisionNumber + 1;
+      const finalizedRecord = await tx.studentProgressMonth.update({
+        where: { id: saved.id },
+        data: { revisionNumber },
+        include: {
+          skills: { orderBy: { sortOrder: "asc" } },
+          dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+        },
+      });
+      await tx.studentProgressRevision.create({
+        data: {
+          progressMonthId: saved.id,
+          revisionNumber,
+          eventType: "finalized",
+          snapshot: buildProgressRevisionSnapshot(finalizedRecord),
+          actorId: req.user.id,
+        },
+      });
+    }
+
     return tx.studentProgressMonth.findUniqueOrThrow({
       where: { id: saved.id },
       include: {
@@ -554,9 +663,10 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
         class: { select: { className: true } },
         skills: { orderBy: { sortOrder: "asc" } },
         dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
+        revisions: { orderBy: { revisionNumber: "desc" }, take: 20 },
       },
     });
-  });
+  }, { isolationLevel: "Serializable" });
 
   await logActivity(req, req.user.id, "UPSERT_STUDENT_PROGRESS", "student_progress", record.id);
 
@@ -580,6 +690,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     if (req.method === "GET") return listProgress(req, res);
+    if (
+      (req.method === "POST" || req.method === "PUT") &&
+      String(req.body?.action || "").toLowerCase() === "reopen"
+    ) {
+      return reopenProgress(req, res);
+    }
     if (req.method === "POST" || req.method === "PUT") return upsertProgress(req, res);
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);
   } catch (error) {

@@ -22,6 +22,7 @@ import {
   type ProgressDailyEntryInput,
   type ProgressSkillKey,
 } from "../../../lib/student-progress-assessment.js";
+import { assertProgressMonthEditable } from "../../../lib/student-progress-finalization.js";
 import {
   studentProgressDailyDeleteSchema,
   studentProgressDailyPutSchema,
@@ -95,6 +96,9 @@ function progressMonthRollupToDto(record: any) {
     shield_total: record.shieldTotal,
     points_total: record.pointsTotal,
     mock_test_score: record.mockTestScore,
+    finalized_at: record.finalizedAt,
+    is_finalized: Boolean(record.finalizedAt),
+    revision_number: record.revisionNumber || 0,
     updated_at: record.updatedAt,
   };
 }
@@ -369,6 +373,7 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
         },
       },
     });
+    assertProgressMonthEditable(existing?.finalizedAt);
     const trackKey = existing?.trackKey || detectProgressTrackKey(enrollment.class.className);
     const progressMonth =
       existing ||
@@ -460,6 +465,13 @@ async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
   }
 
   const result = await runSerializableTransaction(async (tx) => {
+    const current = await tx.studentProgressMonth.findUnique({
+      where: { id: progressMonth.id },
+    });
+    if (!current) {
+      throw new ApiError("PROGRESS_MONTH_NOT_FOUND", "Progress month not found", 404);
+    }
+    assertProgressMonthEditable(current.finalizedAt);
     const deleted = await tx.studentProgressDailyEntry.deleteMany({
       where: {
         progressMonthId: progressMonth.id,
@@ -468,7 +480,7 @@ async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
     });
     const recomputed = await recomputeMonthlyRollup(
       tx,
-      progressMonth,
+      current,
       req.user.id
     );
     return { ...recomputed, deletedCount: deleted.count };

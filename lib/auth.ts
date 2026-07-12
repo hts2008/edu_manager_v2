@@ -2,8 +2,11 @@ import type { VercelRequest, VercelResponse } from "./vercel-types.js";
 import jwt from "jsonwebtoken";
 import prisma from "./prisma.js";
 import { setSecurityHeaders } from "./observability.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import {
+  getActiveSession,
+  verifySessionToken,
+  type SessionTokenPayload,
+} from "./auth-session.js";
 
 export interface AuthUser {
   userId: string;
@@ -19,14 +22,8 @@ export interface AuthUser {
 
 export interface AuthedRequest extends VercelRequest {
   user: AuthUser;
+  authToken: SessionTokenPayload;
 }
-
-type JwtPayload = {
-  userId?: string;
-  id?: string;
-  username?: string;
-  role?: "admin" | "receptionist";
-};
 
 type AuthFailure = {
   code: "UNAUTHORIZED" | "TOKEN_INVALID" | "TOKEN_EXPIRED";
@@ -34,10 +31,10 @@ type AuthFailure = {
 };
 
 type AuthResult =
-  | { ok: true; user: AuthUser }
+  | { ok: true; user: AuthUser; token: SessionTokenPayload }
   | { ok: false; error: AuthFailure };
 
-function getBearerToken(req: VercelRequest): string | null {
+export function getBearerToken(req: VercelRequest): string | null {
   const rawAuthHeader = req.headers.authorization;
   const authHeader = Array.isArray(rawAuthHeader)
     ? rawAuthHeader[0]
@@ -54,12 +51,11 @@ export function verifyAuth(req: VercelRequest): AuthUser | null {
   if (!token) return null;
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    const userId = decoded.userId || decoded.id;
-    if (!userId || !decoded.role) return null;
+    const decoded = verifySessionToken(token, "user");
+    if (!decoded.role) return null;
     return {
-      userId,
-      id: userId,
+      userId: decoded.sub,
+      id: decoded.sub,
       username: decoded.username,
       role: decoded.role,
     };
@@ -81,31 +77,38 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    const userId = decoded.userId || decoded.id;
-
-    if (!userId || !decoded.role) {
+    const decoded = verifySessionToken(token, "user");
+    if (!decoded.role) {
       return {
         ok: false,
         error: { code: "TOKEN_INVALID", message: "Invalid token payload" },
       };
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        role: true,
-        status: true,
-        lastLogin: true,
-      },
-    });
+    const [session, user] = await Promise.all([
+      getActiveSession(decoded),
+      prisma.user.findUnique({
+        where: { id: decoded.sub },
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          role: true,
+          status: true,
+          lastLogin: true,
+          tokenVersion: true,
+        },
+      }),
+    ]);
 
-    if (!user || user.status !== "active") {
+    if (
+      !session ||
+      !user ||
+      user.status !== "active" ||
+      user.tokenVersion !== decoded.ver
+    ) {
       return {
         ok: false,
         error: { code: "TOKEN_INVALID", message: "Invalid token" },
@@ -125,6 +128,7 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
         status: user.status,
         lastLogin: user.lastLogin,
       },
+      token: decoded,
     };
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -168,6 +172,7 @@ export function requireAuth(
 
     const authedReq = req as AuthedRequest;
     authedReq.user = result.user;
+    authedReq.authToken = result.token;
     return handler(authedReq, res, result.user);
   };
 }
@@ -185,8 +190,22 @@ export function requireAdmin(
 // CORS handler for OPTIONS requests
 export function handleCors(req: VercelRequest, res: VercelResponse): boolean {
   setSecurityHeaders(res);
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = Array.isArray(req.headers.origin)
+    ? req.headers.origin[0]
+    : req.headers.origin;
+  const configured = (process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const development =
+    process.env.NODE_ENV === "production"
+      ? []
+      : ["http://localhost:3000", "http://localhost:5173"];
+  if (origin && [...configured, ...development].includes(origin)) {
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET,OPTIONS,PATCH,DELETE,POST,PUT"

@@ -155,6 +155,8 @@ function buildProgressForm(row, progressMonth) {
     teacher_note: progressMonth?.teacher_note || "",
     parent_summary: progressMonth?.parent_summary || "",
     finalized: Boolean(progressMonth?.finalized_at),
+    finalized_at: progressMonth?.finalized_at || null,
+    revision_number: progressMonth?.revision_number || 0,
     skills: PROGRESS_SKILL_FIELDS.map((skill, index) => {
       const recordSkill = recordSkills.get(skill.skill_key);
       const assessmentSkill = assessmentSkills.get(skill.skill_key);
@@ -741,6 +743,37 @@ export default function StudentProgressReportPage() {
     }
   }
 
+  async function reopenProgressMonth(reason) {
+    if (!selectedRow) return;
+    setProgressSaving(true);
+    setProgressMessage(null);
+    try {
+      const response = await studentProgressService.reopenMonth({
+        student_id: selectedRow.student_id,
+        class_id: selectedRow.class_id,
+        month: selectedRow.month,
+        reason,
+      });
+      if (!response.success) {
+        setProgressMessage({
+          type: "error",
+          text: response.error?.message || "Không mở lại được bản ghi tiến độ.",
+        });
+        return;
+      }
+      setProgressForm(buildProgressForm(selectedRow, response.data?.progress_month || null));
+      setProgressMessage({ type: "success", text: "Đã mở lại bản ghi và lưu lý do kiểm toán." });
+      setRefreshNonce((value) => value + 1);
+    } catch (error) {
+      setProgressMessage({
+        type: "error",
+        text: error?.message || "Không mở lại được bản ghi tiến độ.",
+      });
+    } finally {
+      setProgressSaving(false);
+    }
+  }
+
   async function refreshDailyTimeline() {
     if (!selectedRow) return;
     setDailyTimelineLoading(true);
@@ -1320,6 +1353,7 @@ export default function StudentProgressReportPage() {
                     }}
                     onChange={setProgressForm}
                     onSave={saveProgressForm}
+                    onReopen={reopenProgressMonth}
                     onDailyDateChange={setDailyDate}
                     onDailyChange={setDailyForm}
                     onSaveDay={saveDailyForm}

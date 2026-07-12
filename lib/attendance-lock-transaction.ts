@@ -78,7 +78,7 @@ export function attendanceFeeAdvisoryLockKeys(
   ].sort();
 }
 
-async function acquireAttendanceFeeAdvisoryLocks(
+export async function acquireAttendanceFeeAdvisoryLocks(
   tx: any,
   studentIds: string[],
   month: string,

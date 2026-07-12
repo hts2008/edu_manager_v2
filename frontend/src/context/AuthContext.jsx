@@ -37,11 +37,9 @@ export function AuthProvider({ children }) {
       const response = await authService.me();
       if (response.success) {
         setUser(response.data.user);
-      } else {
-        localStorage.removeItem('token');
       }
     } catch {
-      localStorage.removeItem('token');
+      // Preserve the session during transient network failures.
     } finally {
       setLoading(false);
     }
@@ -54,7 +52,7 @@ export function AuthProvider({ children }) {
       const response = await authService.login(username, password);
       if (response.success) {
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('refreshToken', response.data.refreshToken);
+        localStorage.removeItem('refreshToken');
         setUser(response.data.user);
         return { success: true };
       } else {

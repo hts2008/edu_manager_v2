@@ -21,6 +21,11 @@ const PAYMENT_LABEL = {
   transfer: 'Chuyển khoản',
 };
 
+const BULK_PAYMENT_STORAGE_KEY = 'edu-manager:monthly-fees:bulk-payment';
+const createIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `fee-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 const formatMoney = (value = 0) => `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
 
 const getRowMonth = (row) => row?.month || row?.fee?.month || row?.billing_month || row?.fee?.billing_month;
@@ -97,6 +102,7 @@ export default function FeeCollectionPage() {
   const [printingAll, setPrintingAll] = useState(false);
   const [printQueue, setPrintQueue] = useState([]);
   const [showPrintQueue, setShowPrintQueue] = useState(false);
+  const [activeBatch, setActiveBatch] = useState(null);
   const loadRequestRef = useRef(0);
   const toast = useToast();
 
@@ -108,6 +114,41 @@ export default function FeeCollectionPage() {
     loadData();
     setSelectedIds([]);
   }, [selectedMonth, selectedClass]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const reconcile = async () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(BULK_PAYMENT_STORAGE_KEY) || 'null');
+        if (!saved?.idempotency_key || !saved?.payload) return;
+        let response = saved.batch_id
+          ? await monthlyFeesService.bulkPayStatus(saved.batch_id)
+          : await monthlyFeesService.bulkPay(saved.payload, saved.idempotency_key);
+        while (response.success && response.data.status === 'processing') {
+          if (cancelled) return;
+          localStorage.setItem(
+            BULK_PAYMENT_STORAGE_KEY,
+            JSON.stringify({ ...saved, batch_id: response.data.batch_id })
+          );
+          response = await monthlyFeesService.bulkPay(saved.payload, saved.idempotency_key);
+        }
+        if (cancelled || !response.success) return;
+        const receipts = (response.data.results || []).filter((item) => item.receipt_id);
+        setPrintQueue(receipts);
+        setShowPrintQueue(receipts.length > 0);
+        setActiveBatch(response.data);
+        if (response.data.status === 'completed') {
+          localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
+        }
+      } catch {
+        localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
+      }
+    };
+    reconcile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const classFilterParams = useMemo(
     () => (selectedClass === 'all' ? {} : { class_id: selectedClass }),
@@ -270,18 +311,38 @@ export default function FeeCollectionPage() {
 
     setProcessing(true);
     try {
-      const lineIds = targetRows.map((student) => student.fee?.line_id).filter(Boolean);
+      const lineIds = [...new Set(targetRows.map((student) => student.fee?.line_id).filter(Boolean))];
+      if (lineIds.length > 500) {
+        toast.error('Mỗi lượt thu hỗ trợ tối đa 500 dòng học phí');
+        return;
+      }
+      const payload = {
+        month: selectedMonth,
+        line_ids: lineIds,
+        payment_method: method,
+      };
+      const key = createIdempotencyKey();
+      localStorage.setItem(
+        BULK_PAYMENT_STORAGE_KEY,
+        JSON.stringify({ idempotency_key: key, payload, batch_id: null })
+      );
 
-    const res = await monthlyFeesService.bulkPay({
-      month: selectedMonth,
-      line_ids: lineIds,
-      payment_method: method,
-    });
+      let res = await monthlyFeesService.bulkPay(payload, key);
+      while (res.success && res.data.status === 'processing') {
+        setActiveBatch(res.data);
+        localStorage.setItem(
+          BULK_PAYMENT_STORAGE_KEY,
+          JSON.stringify({ idempotency_key: key, payload, batch_id: res.data.batch_id })
+        );
+        res = await monthlyFeesService.bulkPay(payload, key);
+      }
 
     if (res.success) {
       const receipts = (res.data.results || []).filter((item) => item.receipt_id);
       setPrintQueue(receipts);
       setShowPrintQueue(receipts.length > 0);
+      setActiveBatch(res.data);
+      localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
       toast.success(
         `Đã thu ${res.data.paid || 0} dòng bằng ${PAYMENT_LABEL[method]}`
       );
@@ -607,6 +668,15 @@ export default function FeeCollectionPage() {
           title="Dang dong bo bang thu tien"
           message="He thong dang tai lai du lieu theo lop, thang va tung dong hoc phi. Cac nut thu/in tam khoa de tranh thao tac tren du lieu cu."
           steps={["Tai dong hoc phi", "Doi soat trang thai", "San sang thao tac"]}
+          activeStep={1}
+        />
+      )}
+
+      {activeBatch?.status === 'processing' && (
+        <LongOperationStatus
+          title="Đang xử lý đợt thu học phí"
+          message={`Đã xử lý ${activeBatch.processed}/${activeBatch.total} dòng. Tiến độ được lưu để có thể tiếp tục và đối soát.`}
+          steps={["Tạo đợt thu", "Ghi nhận từng dòng", "Khôi phục hàng đợi in"]}
           activeStep={1}
         />
       )}

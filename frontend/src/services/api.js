@@ -174,12 +174,12 @@ async function request(endpoint, options = {}) {
   }
 
   const config = {
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
       ...(options.headers || {}),
     },
-    ...options,
     // Add 30-second timeout for all requests
     signal: options.signal || AbortSignal.timeout(30000),
   };
@@ -502,8 +502,12 @@ export const parentPortalService = {
       body: JSON.stringify(data),
     }),
   me: () => parentPortalRequest("/parent-portal/me"),
-  logout: () => {
-    localStorage.removeItem("parentPortalToken");
+  logout: async () => {
+    try {
+      return await parentPortalRequest("/parent-portal/logout", { method: "POST" });
+    } finally {
+      localStorage.removeItem("parentPortalToken");
+    }
   },
 };
 
@@ -592,6 +596,11 @@ export const studentProgressService = {
     request("/student-progress", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  reopenMonth: (data) =>
+    request("/student-progress", {
+      method: "POST",
+      body: JSON.stringify({ action: "reopen", ...data }),
     }),
   saveDay: (data) =>
     request("/student-progress/daily", {
@@ -707,10 +716,16 @@ export const monthlyFeesService = {
       body: JSON.stringify(payload),
     });
   },
-  bulkPay: (data = {}) =>
+  bulkPay: (data = {}, idempotencyKey) =>
     request("/monthly-fees/bulk-pay", {
       method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(data),
+    }),
+  bulkPayStatus: (batchId) =>
+    request(`/monthly-fees/bulk-pay/${encodeURIComponent(batchId)}`, {
+      cache: "no-store",
+      skipCache: true,
     }),
   cancel: (id) => request(`/monthly-fees/${id}/cancel`, { method: "POST" }),
 };

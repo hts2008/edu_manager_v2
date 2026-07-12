@@ -15,12 +15,15 @@ import {
   deactivateEnrollmentPeriods,
   syncStudentEnrollmentPeriods,
 } from "../../../lib/enrollment.js";
+import { sendApiError } from "../../../lib/api-utils.js";
+import { parsePagination } from "../../../lib/pagination.js";
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - List all students OR single student by ID
   if (req.method === "GET") {
     try {
-      const { id, search, status, limit = "100", offset = "0" } = req.query;
+      const { id, search, status } = req.query;
+      const { limit, offset } = parsePagination(req.query);
       const fields =
         typeof req.query.fields === "string" ? req.query.fields : undefined;
       const classId =
@@ -128,8 +131,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               parent: { select: { id: true, fullName: true, phone: true } },
             },
             orderBy: { fullName: "asc" },
-            take: parseInt(limit as string),
-            skip: parseInt(offset as string),
+            take: limit,
+            skip: offset,
           }),
           prisma.student.count({ where }),
         ]);
@@ -172,8 +175,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               deletedAt: true,
             },
             orderBy: { createdAt: "desc" },
-            take: parseInt(limit as string),
-            skip: parseInt(offset as string),
+            take: limit,
+            skip: offset,
           }),
           prisma.student.count({ where }),
         ]);
@@ -215,8 +218,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             },
           },
           orderBy: { createdAt: "desc" },
-          take: parseInt(limit as string),
-          skip: parseInt(offset as string),
+          take: limit,
+          skip: offset,
         }),
         prisma.student.count({ where }),
       ]);
@@ -252,8 +255,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
       return successResponse(res, { students, total });
     } catch (error) {
-      console.error("Students GET error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error);
     }
   }
 

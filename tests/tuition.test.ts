@@ -213,6 +213,7 @@ describe("tuition calculation", () => {
     );
     const mockedPrisma = prisma as any;
     const originalUserFindUnique = mockedPrisma.user.findUnique;
+    const originalAuthSessionFindFirst = mockedPrisma.authSession?.findFirst;
     const originalStudentFindMany = mockedPrisma.student.findMany;
     const originalMonthlyFeeFindMany = mockedPrisma.monthlyFee.findMany;
     const timestamp = new Date("2026-05-31T00:00:00.000Z");
@@ -248,7 +249,9 @@ describe("tuition calculation", () => {
         role: "admin",
         status: "active",
         lastLogin: null,
+        tokenVersion: 0,
       });
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-1" });
       mockedPrisma.student.findMany = async () => [student];
       mockedPrisma.monthlyFee.findMany = async () => [
         {
@@ -332,8 +335,16 @@ describe("tuition calculation", () => {
       ];
 
       const token = jwt.sign(
-        { userId: "admin-1", username: "admin", role: "admin" },
-        process.env.JWT_SECRET || "your-secret-key"
+        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        process.env.JWT_SECRET!,
+        {
+          algorithm: "HS256",
+          issuer: process.env.JWT_ISSUER || "edu-manager-v2",
+          audience: process.env.JWT_AUDIENCE || "edu-manager-v2-api",
+          subject: "admin-1",
+          jwtid: "session-1",
+          expiresIn: "5m",
+        }
       );
       const response = mockResponse();
       await workbenchHandler(
@@ -373,6 +384,7 @@ describe("tuition calculation", () => {
       assert.equal(response.body.data.summary.total_amount, 1300000);
     } finally {
       mockedPrisma.user.findUnique = originalUserFindUnique;
+      mockedPrisma.authSession.findFirst = originalAuthSessionFindFirst;
       mockedPrisma.student.findMany = originalStudentFindMany;
       mockedPrisma.monthlyFee.findMany = originalMonthlyFeeFindMany;
     }
