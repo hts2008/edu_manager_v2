@@ -51,6 +51,13 @@ export type MonthlyFeeLineInput = {
   monthly_tuition?: number | null;
   amount?: number | null;
   period_status?: string | null;
+  contract_sessions?: number | null;
+  eligible_sessions?: number | null;
+  delivered_sessions?: number | null;
+  center_credit_sessions?: number | null;
+  student_waived_sessions?: number | null;
+  calculation_version?: string | null;
+  calculation_snapshot?: unknown;
 };
 
 function numberOrZero(value: unknown) {
@@ -60,6 +67,24 @@ function numberOrZero(value: unknown) {
 
 function intOrZero(value: unknown) {
   return Math.max(0, Math.round(numberOrZero(value)));
+}
+
+export function isProtectedMonthlyFeeLine(line: any) {
+  return (
+    ["confirmed", "paid"].includes(line?.status) ||
+    Boolean(line?.receiptId) ||
+    Boolean(line?.paidAt) ||
+    Boolean(line?.receiptLines?.length)
+  );
+}
+
+export function isProtectedMonthlyFee(fee: any) {
+  return (
+    ["confirmed", "paid"].includes(fee?.status) ||
+    Boolean(fee?.receiptId) ||
+    Boolean(fee?.paidAt) ||
+    Boolean(fee?.lines?.some(isProtectedMonthlyFeeLine))
+  );
 }
 
 export function feeLineAllocationKey(classId?: string | null) {
@@ -84,6 +109,13 @@ export function monthlyFeeLineToDto(line: any, student?: any) {
     days_count: line.chargedSessions,
     charged_sessions: line.chargedSessions,
     expected_sessions: line.expectedSessions,
+    contract_sessions: line.contractSessions,
+    eligible_sessions: line.eligibleSessions,
+    delivered_sessions: line.deliveredSessions,
+    center_credit_sessions: line.centerCreditSessions,
+    student_waived_sessions: line.studentWaivedSessions,
+    calculation_version: line.calculationVersion,
+    calculation_snapshot: line.calculationSnapshot,
     make_up_sessions: line.makeUpSessions,
     extra_sessions: line.extraSessions,
     fee_per_day: line.feePerSession,
@@ -128,9 +160,10 @@ export async function syncMonthlyFeeLines(
           allocationKey,
         },
       },
+      include: { receiptLines: { select: { id: true } } },
     });
 
-    if (existing?.status === "paid" || existing?.receiptId || existing?.paidAt) {
+    if (existing && isProtectedMonthlyFeeLine(existing)) {
       lines.push(existing);
       continue;
     }
@@ -155,6 +188,13 @@ export async function syncMonthlyFeeLines(
       status: amount > 0 ? "ready" : "pending",
       allocationConfidence: item.class_id ? "calculated" : "legacy_unallocated",
       notes: null,
+      contractSessions: intOrZero(item.contract_sessions ?? expectedSessions),
+      eligibleSessions: intOrZero(item.eligible_sessions ?? expectedSessions),
+      deliveredSessions: intOrZero(item.delivered_sessions ?? chargedSessions),
+      centerCreditSessions: intOrZero(item.center_credit_sessions),
+      studentWaivedSessions: intOrZero(item.student_waived_sessions),
+      calculationVersion: item.calculation_version || "tuition-v2-legacy",
+      calculationSnapshot: item.calculation_snapshot ?? undefined,
     };
 
     const line = existing
@@ -169,8 +209,10 @@ export async function syncMonthlyFeeLines(
   await client.monthlyFeeLine.deleteMany({
     where: {
       monthlyFeeId: fee.id,
-      status: { not: "paid" },
+      status: { notIn: ["confirmed", "paid"] },
       receiptId: null,
+      paidAt: null,
+      receiptLines: { none: {} },
       allocationKey: { notIn: [...activeKeys] },
     },
   });
@@ -179,13 +221,28 @@ export async function syncMonthlyFeeLines(
 }
 
 export async function refreshMonthlyFeeAggregateFromLines(client: any, feeId: string) {
+  const fee = await client.monthlyFee.findUnique({
+    where: { id: feeId },
+    include: {
+      lines: {
+        select: {
+          status: true,
+          receiptId: true,
+          paidAt: true,
+          receiptLines: { select: { id: true } },
+        },
+      },
+    },
+  });
+  if (!fee || isProtectedMonthlyFee(fee)) return fee;
+
   const lines = await client.monthlyFeeLine.findMany({
     where: { monthlyFeeId: feeId },
     orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
   });
 
   if (!lines.length) {
-    return client.monthlyFee.findUnique({ where: { id: feeId } });
+    return fee;
   }
 
   const totalDays = lines.reduce(

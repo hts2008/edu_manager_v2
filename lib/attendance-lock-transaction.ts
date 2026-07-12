@@ -6,6 +6,7 @@ import {
   CHARGEABLE_ATTENDANCE_STATUSES,
 } from "./tuition.js";
 import { feeLineAllocationKey } from "./monthly-fee-lines.js";
+import { buildStudentTuitionV3 } from "./tuition-v3-service.js";
 
 type CountRow = {
   studentId: string;
@@ -64,6 +65,7 @@ type BuildPlanInput = {
   attendanceCounts: CountRow[];
   makeUpCounts: CountRow[];
   existingFees: ExistingFee[];
+  tuitionV3ByStudentClass?: Map<string, ReturnType<typeof buildStudentTuitionV3>>;
   createId?: () => string;
 };
 
@@ -161,7 +163,25 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
     const studentClasses = (classesByStudent.get(studentId) || []).filter(
       (row) => row.classId === input.targetClassId,
     );
-    const tuition = calculateStudentMonthlyTuition(
+    const tuitionV3 = input.tuitionV3ByStudentClass?.get(
+      `${studentId}:${input.targetClassId}`,
+    );
+    const tuition = tuitionV3
+      ? {
+          totalDays: tuitionV3.chargedSessions,
+          totalAmount: tuitionV3.amount,
+          classes: [{
+            classId: tuitionV3.classId,
+            expectedSessions: tuitionV3.contractSessions,
+            chargedSessions: tuitionV3.chargedSessions,
+            feePerSession: tuitionV3.feePerSession,
+            monthlyTuition: tuitionV3.monthlyTuition,
+            totalAmount: tuitionV3.amount,
+            billingMode: tuitionV3.billingMode,
+            scheduleStrategy: tuitionV3.scheduleMode,
+          }],
+        }
+      : calculateStudentMonthlyTuition(
       studentClasses.map((row) => ({
         classId: row.classId,
         feePerDay: row.class.feePerDay,
@@ -173,7 +193,7 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
           chargedByStudentClass.get(`${studentId}:${row.classId}`) || 0,
       })),
       input.month,
-    );
+      );
     const feeId = existing?.id || createId();
 
     if (existing) {
@@ -246,6 +266,15 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
         paidAt: null,
         allocationConfidence: "calculated",
         notes: null,
+        ...(tuitionV3 ? {
+          contractSessions: tuitionV3.contractSessions,
+          eligibleSessions: tuitionV3.eligibleSessions,
+          deliveredSessions: tuitionV3.deliveredSessions,
+          centerCreditSessions: tuitionV3.centerCreditSessions,
+          studentWaivedSessions: tuitionV3.studentWaivedSessions,
+          calculationVersion: tuitionV3.calculationVersion,
+          calculationSnapshot: tuitionV3.calculationSnapshot,
+        } : {}),
         ...(existingLine?.createdAt ? { createdAt: existingLine.createdAt } : {}),
       });
     }
@@ -367,7 +396,7 @@ export async function lockAttendancePeriodAndSyncFees(
     ),
   ];
 
-  const [attendanceCounts, makeUpCounts, existingFees] = await Promise.all([
+  const [attendanceCounts, makeUpCounts, existingFees, classSessions, attendanceRows] = await Promise.all([
     tx.attendance.groupBy({
           by: ["studentId", "classId"],
           where: {
@@ -402,7 +431,51 @@ export async function lockAttendancePeriodAndSyncFees(
         },
       },
     }),
+    tx.classSession?.findMany
+      ? tx.classSession.findMany({
+          where: { classId: input.classId, billingMonth: input.month },
+          orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
+        })
+      : [],
+    tx.classSession?.findMany
+      ? tx.attendance.findMany({
+          where: {
+            studentId: { in: studentIds },
+            classId: input.classId,
+            attendanceDate: { gte: startDate, lt: nextMonthStart },
+          },
+          select: {
+            studentId: true,
+            classSessionId: true,
+            attendanceDate: true,
+            status: true,
+          },
+        })
+      : [],
   ]);
+
+  const tuitionV3ByStudentClass = new Map<string, ReturnType<typeof buildStudentTuitionV3>>();
+  if (classSessions.length > 0) {
+    for (const studentId of studentIds) {
+      const enrollment = activeStudentClasses.find(
+        (row) => row.studentId === studentId && row.classId === input.classId,
+      );
+      if (!enrollment) continue;
+      tuitionV3ByStudentClass.set(
+        `${studentId}:${input.classId}`,
+        buildStudentTuitionV3({
+          month: input.month,
+          classData: { id: input.classId, ...enrollment.class },
+          enrollment: {
+            startedAt: enrollment.class.enrollmentStart,
+            endedAt: enrollment.class.enrollmentEnd,
+          },
+          sessions: classSessions,
+          attendance: attendanceRows.filter((row: any) => row.studentId === studentId),
+        }),
+      );
+    }
+  }
 
   const plan = buildAttendanceLockFeePlan({
     month: input.month,
@@ -412,6 +485,7 @@ export async function lockAttendancePeriodAndSyncFees(
     attendanceCounts,
     makeUpCounts,
     existingFees,
+    tuitionV3ByStudentClass,
     createId: input.createId,
   });
 

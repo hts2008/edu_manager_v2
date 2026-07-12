@@ -511,6 +511,19 @@ export const parentPortalService = {
   },
 };
 
+export const classSessionsService = {
+  getMonthPlan: (classId, month) =>
+    request(`/class-sessions/month-plan?class_id=${encodeURIComponent(classId)}&month=${encodeURIComponent(month)}`),
+  replaceMonthPlan: (data) =>
+    request("/class-sessions/month-plan", { method: "PUT", body: JSON.stringify(data) }),
+  patchMonthPlan: (data) =>
+    request("/class-sessions/month-plan", { method: "PATCH", body: JSON.stringify(data) }),
+  update: (id, data) =>
+    request(`/class-sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id, version) =>
+    request(`/class-sessions/${encodeURIComponent(id)}?version=${encodeURIComponent(version)}`, { method: "DELETE" }),
+};
+
 // Templates API
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {

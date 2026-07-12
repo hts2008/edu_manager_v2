@@ -19,10 +19,12 @@ import {
 } from "../../../lib/tuition.js";
 import {
   type MonthlyFeeLineInput,
+  isProtectedMonthlyFee,
   monthlyFeeLineToDto,
   syncMonthlyFeeLines,
   refreshMonthlyFeeAggregateFromLines,
 } from "../../../lib/monthly-fee-lines.js";
+import { buildStudentTuitionV3 } from "../../../lib/tuition-v3-service.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -65,7 +67,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
-      const counts = await prisma.attendance.groupBy({
+      const [counts, classSessions, attendanceRows] = await Promise.all([prisma.attendance.groupBy({
         by: ["status"],
         where: {
           studentId,
@@ -74,7 +76,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
         },
         _count: { status: true },
-      });
+      }), prisma.classSession.findMany({
+        where: { classId: enrollment.classId, billingMonth: month },
+        orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
+      }), prisma.attendance.findMany({
+        where: {
+          studentId,
+          classId: enrollment.classId,
+          attendanceDate: { gte: startDate, lte: endDate },
+        },
+        select: { classSessionId: true, attendanceDate: true, status: true },
+      })]);
       const makeUpSessions = await prisma.attendance.count({
         where: {
           studentId,
@@ -86,26 +98,45 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       });
 
       const daysCount = counts.reduce((sum, item) => sum + item._count.status, 0);
-      const tuition = calculateTuitionForClass(enrollment.class, month, daysCount);
+      const tuitionV3 = classSessions.length > 0
+        ? buildStudentTuitionV3({
+            month,
+            classData: enrollment.class,
+            enrollment: {
+              startedAt: enrollment.enrollmentDate,
+              endedAt: null,
+            },
+            sessions: classSessions,
+            attendance: attendanceRows,
+          })
+        : null;
+      const tuition = tuitionV3 || calculateTuitionForClass(enrollment.class, month, daysCount);
 
       breakdown.push({
         class_id: enrollment.classId,
         class_name: enrollment.class.className,
         teacher_name: enrollment.class.teacher?.fullName || null,
         fee_per_day: tuition.feePerSession,
-        days_count: daysCount,
-        expected_sessions: tuition.expectedSessions,
+        days_count: tuitionV3?.chargedSessions ?? daysCount,
+        expected_sessions: tuitionV3?.contractSessions ?? (tuition as any).expectedSessions,
         make_up_sessions: makeUpSessions,
-        extra_sessions: Math.max(0, daysCount - tuition.expectedSessions),
+        extra_sessions: tuitionV3?.extraSessions ?? Math.max(0, daysCount - (tuition as any).expectedSessions),
         billing_mode: tuition.billingMode,
-        schedule_mode: tuition.scheduleStrategy,
+        schedule_mode: tuitionV3?.scheduleMode ?? (tuition as any).scheduleStrategy,
         monthly_tuition: tuition.monthlyTuition,
-        amount: tuition.totalAmount,
+        amount: tuitionV3?.amount ?? (tuition as any).totalAmount,
         period_status: period?.status || null,
+        contract_sessions: tuitionV3?.contractSessions,
+        eligible_sessions: tuitionV3?.eligibleSessions,
+        delivered_sessions: tuitionV3?.deliveredSessions,
+        center_credit_sessions: tuitionV3?.centerCreditSessions,
+        student_waived_sessions: tuitionV3?.studentWaivedSessions,
+        calculation_version: tuitionV3?.calculationVersion,
+        calculation_snapshot: tuitionV3?.calculationSnapshot,
       });
 
-      totalDays += daysCount;
-      totalAmount += tuition.totalAmount;
+      totalDays += tuitionV3?.chargedSessions ?? daysCount;
+      totalAmount += tuitionV3?.amount ?? (tuition as any).totalAmount;
     }
 
     if (breakdown.length === 0) {
@@ -115,12 +146,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const { fee, lines } = await prisma.$transaction(async (tx) => {
       const existing = await tx.monthlyFee.findUnique({
         where: { studentId_month: { studentId, month } },
+        include: {
+          lines: {
+            select: {
+              status: true,
+              receiptId: true,
+              paidAt: true,
+              receiptLines: { select: { id: true } },
+            },
+          },
+        },
       });
 
-      if (existing?.status === "paid") {
+      if (existing && isProtectedMonthlyFee(existing)) {
+        const alreadyPaid = existing.status === "paid";
         throw new ApiError(
-          "FEE_ALREADY_PAID",
-          "Monthly fee is already fully paid",
+          alreadyPaid ? "FEE_ALREADY_PAID" : "FEE_IMMUTABLE",
+          alreadyPaid
+            ? "Monthly fee is already fully paid"
+            : "Confirmed or receipt-linked monthly fees cannot be recalculated",
           409
         );
       }
@@ -143,7 +187,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const updated = await tx.monthlyFee.updateMany({
         where: {
           id: existing.id,
-          status: { in: ["pending", "ready", "confirmed"] },
+          status: { in: ["pending", "ready"] },
+          receiptId: null,
+          paidAt: null,
         },
         data: {
           totalDays,

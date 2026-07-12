@@ -382,3 +382,13 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Schema**: populated production was baselined without replaying historical DDL; `20260712_remaining_remediation` deployed successfully; isolated and production migration status were clean.
 - **Verification**: 169/169 unit, typecheck, lint, build, production audit zero, isolated restore/real-router/browser gates, production root/login 200, no-token auth 401, and Chrome anonymous navigation with zero request failures.
 - **Evidence**: `receipts/2026-07-12-production-remediation-closeout.md`.
+# Active Context - 2026-07-12 Tuition V3 Release
+
+- Active track: `TUIV3-2026-07-12-01..06`.
+- Code is in `REVIEW`; deploy/production smoke remains.
+- Tuition monthly-package denominator is now actual regular `ClassSession` rows in the billing month, not four weeks or a cross-month visual week.
+- Production migration `20260712_tuition_v3_session_ledger` is applied and Prisma reports schema up to date.
+- Flyer B2 mutable class lines were reconciled to 900,000 VND for June, July and August 2026; protected rows were excluded.
+- Latest gates: full unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright Tuition V3 contract `2/2`, local authenticated Chrome smoke.
+- Remaining: commit/push, Vercel production deploy, authenticated production Chrome smoke, receipt and board closeout.
+- Context+ and EDU-scoped Neural Memory MCPProxy were unavailable in this tool palette; markdown-only graceful degradation is active.

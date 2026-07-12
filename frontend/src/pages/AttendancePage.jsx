@@ -4,9 +4,11 @@ import {
   classesService,
   attendanceService,
   attendancePeriodsService,
+  classSessionsService,
 } from "../services/api";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
+import { calculateTuitionSessionFee, normalizeTuitionSession } from "../utils/tuitionV3";
 import ActionProgressButton from "../components/ui/ActionProgressButton";
 import LongOperationStatus from "../components/ui/LongOperationStatus";
 import SelectField from "../components/ui/SelectField";
@@ -79,6 +81,7 @@ export default function AttendancePage() {
   const [calendarAttendance, setCalendarAttendance] = useState({}); // { "2026-01-15": { present: 5, holiday: 1, ... } }
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
+  const [classSessionsByMonth, setClassSessionsByMonth] = useState({});
   const [classListLoading, setClassListLoading] = useState(false);
   const [classListError, setClassListError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -176,6 +179,14 @@ export default function AttendancePage() {
 
   const plannedSessionsInMonth = useMemo(() => {
     if (!classSchedule) return 0;
+    const activeMonthKey = toMonthKey(activeFeeMonth);
+    const hasLedgerResponse = Object.prototype.hasOwnProperty.call(
+      classSessionsByMonth,
+      activeMonthKey,
+    );
+    const ledgerSessions = classSessionsByMonth[activeMonthKey] || [];
+    const regularLedgerSessions = ledgerSessions.filter((session) => session.kind === "regular");
+    if (hasLedgerResponse) return regularLedgerSessions.length;
     const year = activeFeeMonth.getFullYear();
     const month = activeFeeMonth.getMonth();
     if (scheduleDayNumbers.length) {
@@ -184,13 +195,15 @@ export default function AttendancePage() {
     const sessions = Number(classSchedule.sessions_per_week || 0);
     if (sessions > 0) return countMonthBoundedWeeklySessions(year, month, sessions);
     return 0;
-  }, [activeFeeMonth, classSchedule, scheduleDayNumbers]);
+  }, [activeFeeMonth, classSchedule, classSessionsByMonth, scheduleDayNumbers]);
 
   // Calculate fee per session from monthly tuition and the real month calendar.
   const feePerSession = useMemo(() => {
-    if (!classSchedule?.fee_per_day) return 0;
-    if (!plannedSessionsInMonth) return classSchedule.fee_per_day;
-    return Math.round(classSchedule.fee_per_day / plannedSessionsInMonth);
+    return calculateTuitionSessionFee({
+      billingPolicy: classSchedule?.billing_policy,
+      feeAmount: classSchedule?.fee_per_day,
+      plannedSessions: plannedSessionsInMonth,
+    });
   }, [classSchedule, plannedSessionsInMonth]);
 
   // Get sessions_per_week limit for the class (default to 7 if not set)
@@ -232,6 +245,19 @@ export default function AttendancePage() {
     () => [...new Set(weekDates.map(({ dateStr }) => dateStr.slice(0, 7)))],
     [weekDates],
   );
+
+  const feePerSessionByMonth = useMemo(() => {
+    if (!classSchedule) return {};
+    return Object.fromEntries(selectedWeekMonthKeys.map((monthKey) => {
+      const plannedSessions = (classSessionsByMonth[monthKey] || [])
+        .filter((session) => session.kind === "regular").length;
+      return [monthKey, calculateTuitionSessionFee({
+        billingPolicy: classSchedule.billing_policy,
+        feeAmount: classSchedule.fee_per_day,
+        plannedSessions,
+      })];
+    }));
+  }, [classSchedule, classSessionsByMonth, selectedWeekMonthKeys]);
 
   const selectedWeekKey = useMemo(
     () => buildWeekKey(selectedClass, selectedWeek),
@@ -282,18 +308,23 @@ export default function AttendancePage() {
       let absentWithFee = 0;
       let absentNoFee = 0;
       let holidayDays = 0;
+      let fee = 0;
 
       weekDates.forEach(({ dateStr }) => {
         const status = studentAtt[dateStr];
-        if (status === "present") presentDays++;
-        else if (status === "absent_with_fee") absentWithFee++;
+        if (status === "present") {
+          presentDays++;
+          fee += feePerSessionByMonth[dateStr.slice(0, 7)] || 0;
+        } else if (status === "absent_with_fee") {
+          absentWithFee++;
+          fee += feePerSessionByMonth[dateStr.slice(0, 7)] || 0;
+        }
         else if (status === "absent_no_fee") absentNoFee++;
         else if (status === "holiday") holidayDays++;
       });
 
       // Holiday doesn't count towards fees
       const totalDays = presentDays + absentWithFee;
-      const fee = totalDays * feePerSession;
       // Check if exceeding the limit
       const isExceeding = totalDays > weekSessionLimit;
       const extraSessions = isExceeding ? totalDays - weekSessionLimit : 0;
@@ -311,7 +342,7 @@ export default function AttendancePage() {
       };
     });
     return summary;
-  }, [students, attendance, weekDates, feePerSession, weekSessionLimit]);
+  }, [students, attendance, weekDates, feePerSessionByMonth, weekSessionLimit]);
 
   const totalFee = useMemo(() => {
     return Object.values(feeSummary).reduce((sum, s) => sum + s.fee, 0);
@@ -331,6 +362,7 @@ export default function AttendancePage() {
       setCalendarAttendance({});
       setPeriods({});
       setClassSchedule(null);
+      setClassSessionsByMonth({});
       setLoading(false);
       setLoadError(null);
       setWeekLoading(false);
@@ -396,6 +428,12 @@ export default function AttendancePage() {
           }),
         })),
       );
+      const sessionsPromise = Promise.all(
+        monthsWindow.map(async (m) => ({
+          month: m.key,
+          response: await classSessionsService.getMonthPlan(classId, m.key),
+        })),
+      );
       const calendarPromise = Promise.all(
         monthsWindow.map(async (m) => {
           try {
@@ -421,9 +459,10 @@ export default function AttendancePage() {
         }),
       );
 
-      const [classRes, periodResults, calendarResults] = await Promise.all([
+      const [classRes, periodResults, sessionResults, calendarResults] = await Promise.all([
         classPromise,
         periodsPromise,
+        sessionsPromise,
         calendarPromise,
       ]);
 
@@ -448,6 +487,14 @@ export default function AttendancePage() {
         }
       });
       setPeriods(periodsMap);
+      const sessionMap = {};
+      sessionResults.forEach(({ month, response }) => {
+        if (!response.success || !Array.isArray(response.data?.sessions)) {
+          throw new Error(`Không thể tải sổ buổi học tháng ${month}. Không dùng lịch dự phòng để tính học phí.`);
+        }
+        sessionMap[month] = response.data.sessions.map(normalizeTuitionSession);
+      });
+      setClassSessionsByMonth(sessionMap);
 
       const calendarData = {};
       calendarResults.flat().forEach((a) => {
@@ -889,16 +936,16 @@ export default function AttendancePage() {
             {classSchedule && (
               <div className="text-sm text-gray-600">
                 <p>
-                  <strong>Học phí tháng:</strong>{" "}
+                  <strong>{classSchedule.billing_policy === "per_session" ? "Học phí mỗi buổi:" : "Học phí tháng:"}</strong>{" "}
                   {new Intl.NumberFormat("vi-VN").format(
                     classSchedule.fee_per_day,
                   )}
                   đ
                 </p>
                 <p>
-                  <strong>Học phí/buổi:</strong>{" "}
+                  <strong>Học phí áp dụng/buổi:</strong>{" "}
                   {new Intl.NumberFormat("vi-VN").format(feePerSession)}đ
-                  {plannedSessionsInMonth ? (
+                  {classSchedule.billing_policy !== "per_session" && plannedSessionsInMonth ? (
                     <span className="text-gray-400">
                       {" "}
                       / {plannedSessionsInMonth} buổi trong tháng
@@ -918,7 +965,7 @@ export default function AttendancePage() {
             <p className="text-gray-500">Đang tải...</p>
           </div>
         </Motion.div>
-      ) : loadError && selectedClass && students.length === 0 ? (
+      ) : loadError && selectedClass ? (
         <Motion.div variants={itemVariants} className="rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

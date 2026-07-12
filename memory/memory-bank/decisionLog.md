@@ -344,3 +344,9 @@
 **Decision**: Bulk collection accepts only class fee-line IDs, caps each request at 500 lines, canonicalizes and hashes the payload, persists batch/item outcomes under an actor-scoped idempotency key, and exposes reconciliation/resume state.
 **Rationale**: Student-month aggregate payment merges independently payable classes and a retry after response loss can double-charge without a durable idempotency ledger.
 **Status**: IMPLEMENTED in `server/api/monthly-fees/bulk-pay.ts`, its status route, schema constraints and Fee Workbench resume UI.
+### ADR-50: Monthly Package Tuition Uses An Explicit Billing-Month Session Ledger
+**Date**: 2026-07-12
+**Context**: Dividing monthly tuition by `sessions_per_week * calendar weeks` undercharged months whose first or last visual week crossed a month boundary. A 900,000 VND Flyer B2 package produced 835,714/840,000 VND despite completing the month's actual plan.
+**Decision**: `ClassSession` is the denominator and audit ledger. Monthly packages divide by regular sessions whose `billingMonth` matches the fee month; `sessions_per_week` is only cadence validation. Present and `absent_with_fee` are chargeable; `absent_no_fee`, center cancellation and holiday are credited unless replaced by a same-month makeup; included extras are free and surcharge extras use the derived unit rate. Confirmed, paid, receipt-linked and receipt-line-linked rows are immutable.
+**Rationale**: Calendar boundaries no longer affect the agreed monthly package, while every deduction and replacement remains explainable by a dated session row.
+**Status**: ACCEPTED; implementation is in release review pending production deploy/smoke.

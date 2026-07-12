@@ -41,6 +41,9 @@ const routes = {
   bulkActionsIndex: () => import("../server/api/bulk-actions/index.js"),
   centerSettingsIndex: () => import("../server/api/center-settings/index.js"),
   classesIndex: () => import("../server/api/classes/index.js"),
+  classSessionsIndex: () => import("../server/api/class-sessions/index.js"),
+  classSessionsMonthPlan: () => import("../server/api/class-sessions/month-plan.js"),
+  classSessionById: () => import("../server/api/class-sessions/[id].js"),
   cronBackup: () => import("../server/api/cron/backup.js"),
   cronMonthlyFees: () => import("../server/api/cron/monthly-fees.js"),
   feeRemindersIndex: () => import("../server/api/fee-reminders/index.js"),
@@ -121,6 +124,11 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["parents"], routes.parentsIndex) ||
     exact(parts, ["teachers"], routes.teachersIndex) ||
     exact(parts, ["classes"], routes.classesIndex) ||
+    exact(parts, ["class-sessions", "month-plan"], routes.classSessionsMonthPlan) ||
+    exact(parts, ["class-sessions"], routes.classSessionsIndex) ||
+    (resource === "class-sessions" && parts.length === 2
+      ? { load: routes.classSessionById, params: { id } }
+      : null) ||
     exact(parts, ["attendance"], routes.attendanceIndex) ||
     exact(parts, ["attendance", "bulk"], routes.attendanceBulk) ||
     exact(parts, ["attendance", "insights"], routes.attendanceInsights) ||

@@ -43,6 +43,9 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/attendance/calculate-fee` | Attendance-based fee calculation. |
 | `/api/attendance-periods` | Attendance period list/lock/unlock. |
 | `/api/attendance-periods/:id` | Attendance period detail/update. |
+| `/api/class-sessions` | Canonical class-session ledger by class and billing month. |
+| `/api/class-sessions/month-plan` | Versioned month-plan read/replace/patch API; `sessions_per_week` is warning-only. |
+| `/api/class-sessions/:id` | Read or mutate one unprotected class session with optimistic locking. |
 | `/api/reports/advanced` | Advanced reports: revenue trend, teacher utilization, retention/cohort. |
 | `/api/reports/bi` | Report Intelligence cube at student-class-month grain with attendance, tuition, risk flags, charts, pagination, and metric definitions. |
 | `/api/reports/dashboard` | Dashboard summary. |

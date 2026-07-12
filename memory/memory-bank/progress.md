@@ -955,3 +955,13 @@
 - Production: `dpl_6Bw6PFpY4AQFqKvYJMMu4ZRKqPrG` Ready at `https://edu-manager-gules.vercel.app`.
 
 ---
+
+## 2026-07-12 - Tuition V3 month-session ledger implementation
+
+- Added additive `ClassSession`, `BillingPolicy`, fee calculation snapshots and immutable `MonthlyFeeLineRevision` schema/migration.
+- Replaced calendar-week assumptions with an actual billing-month session ledger for attendance lock and manual monthly-fee calculation.
+- Added enrollment-bound prorating, waived absence/holiday/center-credit/makeup/extra rules, monthly/per-session policies and protected-row guards.
+- Added safe dry-run-first backfill/reconciliation; low-confidence backfill requires explicit override and reconcile detects source drift.
+- Reconciled only mutable Flyer B2 lines: June/July/August 2026 now converge to 900,000 VND; protected rows were not mutated.
+- Verified unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright `2/2`, and authenticated local Chrome attendance/classes/Fee Workbench with zero console errors.
+- Status: `REVIEW`; production deployment and production browser evidence still pending.

@@ -14,6 +14,23 @@
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
+## REVIEW - TUITION V3 MONTH SESSION LEDGER (2026-07-12)
+
+**Objective:** make monthly-package tuition independent from partial calendar weeks by using the actual class-session ledger inside each billing month, while preserving independent class lines and immutable financial history.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| TUIV3-2026-07-12-01 | Add `ClassSession` ledger, billing policy and immutable fee-line revisions | REVIEW | Migration `20260712_tuition_v3_session_ledger`; Prisma schema/status pass |
+| TUIV3-2026-07-12-02 | Calculate monthly package, waived absences, holidays, makeup and extras from actual month sessions | REVIEW | Tuition V3 engine/service tests; Flyer B2 June-July-Aug reconciliation |
+| TUIV3-2026-07-12-03 | Integrate attendance writes, lock transaction and manual fee calculation | REVIEW | Full unit `210/210`; TypeScript pass |
+| TUIV3-2026-07-12-04 | Protect confirmed/paid/receipt-linked rows and mutable session plans | REVIEW | Persistence safety, period immutability, attendance deletion and duplicate-makeup tests |
+| TUIV3-2026-07-12-05 | Expose correct monthly/per-session UI and cross-month week pricing | REVIEW | Lint, build, Playwright contract `2/2`, local Chrome smoke |
+| TUIV3-2026-07-12-06 | Deploy and production-smoke attendance/classes/Fee Workbench | IN PROGRESS | Pending Vercel deployment and production Chrome evidence |
+
+**Boundary:** `sessions_per_week` is cadence guidance only. The denominator for a monthly package is the set of regular `ClassSession` rows in that billing month. Protected fee rows are never auto-mutated. Low-confidence backfill requires an explicit override.
+
+**Runtime degradation:** workspace Context+ and EDU-scoped Neural Memory MCPProxy tools were unavailable in this Codex tool palette; this session used direct code inspection, tests and markdown memory only.
+
 ## IMPLEMENTED - CORE LEDGER REMEDIATION (2026-07-11)
 
 | Task ID | Description | Status | Evidence |

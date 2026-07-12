@@ -38,6 +38,9 @@ model User {
   progressDailyEntries  StudentProgressDailyEntry[] @relation("ProgressDailyCreatedBy")
   progressRevisions     StudentProgressRevision[]   @relation("ProgressRevisionActor")
   attendanceCreated     Attendance[]                @relation("AttendanceCreator")
+  classSessionsCreated  ClassSession[]              @relation("ClassSessionCreatedBy")
+  classSessionsUpdated  ClassSession[]              @relation("ClassSessionUpdatedBy")
+  feeLineRevisions      MonthlyFeeLineRevision[]    @relation("MonthlyFeeLineRevisionActor")
   periodSubmitted       AttendancePeriod[]          @relation("PeriodSubmitter")
   periodApproved        AttendancePeriod[]          @relation("PeriodApprover")
   periodLocked          AttendancePeriod[]          @relation("PeriodLocker")
@@ -197,10 +200,11 @@ model Class {
   className String @map("class_name")
 
   // Schedule options (flexible attendance)
-  scheduleDays     Json?   @map("schedule_days") // [2,4,6] = T2, T4, T6 (optional)
-  scheduleRequired Boolean @default(false) @map("schedule_required") // Bắt buộc đúng ngày
-  sessionsPerWeek  Int?    @map("sessions_per_week") // Số buổi/tuần (optional)
-  sessionRequired  Boolean @default(false) @map("session_required") // Bắt buộc đúng số buổi
+  scheduleDays     Json?         @map("schedule_days") // [2,4,6] = T2, T4, T6 (optional)
+  scheduleRequired Boolean       @default(false) @map("schedule_required") // Bắt buộc đúng ngày
+  sessionsPerWeek  Int?          @map("sessions_per_week") // Số buổi/tuần (optional)
+  sessionRequired  Boolean       @default(false) @map("session_required") // Bắt buộc đúng số buổi
+  billingPolicy    BillingPolicy @default(per_session) @map("billing_policy")
 
   startTime   String   @map("start_time")
   endTime     String   @map("end_time")
@@ -221,10 +225,67 @@ model Class {
   receiptLines      ReceiptLine[]
   progressMonths    StudentProgressMonth[]
   enrollmentPeriods EnrollmentPeriod[]
+  classSessions     ClassSession[]
 
   @@index([teacherId])
   @@index([status])
   @@map("classes")
+}
+
+enum BillingPolicy {
+  monthly_prorated
+  per_session
+}
+
+enum ClassSessionKind {
+  regular
+  makeup
+  extra
+}
+
+enum ClassSessionStatus {
+  planned
+  held
+  cancelled
+  holiday
+}
+
+enum ExtraFeeMode {
+  included
+  surcharge
+}
+
+model ClassSession {
+  id               String             @id @default(cuid())
+  classId          String             @map("class_id")
+  sessionDate      DateTime           @map("session_date") @db.Date
+  billingMonth     String             @map("billing_month")
+  kind             ClassSessionKind   @default(regular)
+  status           ClassSessionStatus @default(planned)
+  extraFeeMode     ExtraFeeMode       @default(included) @map("extra_fee_mode")
+  replacementForId String?            @map("replacement_for_id")
+  version          Int                @default(1)
+  source           String             @default("application")
+  notes            String?
+  createdById      String?            @map("created_by")
+  updatedById      String?            @map("updated_by")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  class               Class          @relation(fields: [classId], references: [id])
+  attendance          Attendance[]
+  replacementFor      ClassSession?  @relation("ClassSessionReplacement", fields: [replacementForId], references: [id])
+  replacementSessions ClassSession[] @relation("ClassSessionReplacement")
+  createdBy           User?          @relation("ClassSessionCreatedBy", fields: [createdById], references: [id])
+  updatedBy           User?          @relation("ClassSessionUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([classId, sessionDate])
+  @@index([classId, billingMonth, status])
+  @@index([sessionDate, status])
+  @@index([replacementForId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("class_sessions")
 }
 
 // ========================================
@@ -277,6 +338,7 @@ model Attendance {
   id             String           @id @default(cuid())
   studentId      String           @map("student_id")
   classId        String           @map("class_id")
+  classSessionId String?          @map("class_session_id")
   attendanceDate DateTime         @map("attendance_date")
   status         AttendanceStatus
   reason         String?
@@ -290,9 +352,10 @@ model Attendance {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  student   Student @relation(fields: [studentId], references: [id])
-  class     Class   @relation(fields: [classId], references: [id])
-  createdBy User    @relation("AttendanceCreator", fields: [createdById], references: [id])
+  student      Student       @relation(fields: [studentId], references: [id])
+  class        Class         @relation(fields: [classId], references: [id])
+  classSession ClassSession? @relation(fields: [classSessionId], references: [id])
+  createdBy    User          @relation("AttendanceCreator", fields: [createdById], references: [id])
 
   @@unique([studentId, classId, attendanceDate])
   @@index([studentId])
@@ -302,6 +365,7 @@ model Attendance {
   @@index([studentId, attendanceDate])
   @@index([attendanceDate, status])
   @@index([isMakeUp])
+  @@index([classSessionId])
   @@map("attendance")
 }
 
@@ -386,37 +450,45 @@ model MonthlyFee {
 }
 
 model MonthlyFeeLine {
-  id                   String    @id @default(cuid())
-  monthlyFeeId         String    @map("monthly_fee_id")
-  studentId            String    @map("student_id")
-  classId              String?   @map("class_id")
-  allocationKey        String    @map("allocation_key")
-  month                String
-  classNameSnapshot    String?   @map("class_name_snapshot")
-  teacherNameSnapshot  String?   @map("teacher_name_snapshot")
-  expectedSessions     Int       @default(0) @map("expected_sessions")
-  chargedSessions      Int       @default(0) @map("charged_sessions")
-  makeUpSessions       Int       @default(0) @map("make_up_sessions")
-  extraSessions        Int       @default(0) @map("extra_sessions")
-  feePerSession        Float     @default(0) @map("fee_per_session")
-  monthlyTuition       Float     @default(0) @map("monthly_tuition")
-  amount               Float     @default(0)
-  billingMode          String?   @map("billing_mode")
-  scheduleMode         String?   @map("schedule_mode")
-  status               FeeStatus @default(pending)
-  receiptId            String?   @map("receipt_id")
-  paidAt               DateTime? @map("paid_at")
-  allocationConfidence String    @default("calculated") @map("allocation_confidence")
-  notes                String?
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(cuid())
+  monthlyFeeId          String    @map("monthly_fee_id")
+  studentId             String    @map("student_id")
+  classId               String?   @map("class_id")
+  allocationKey         String    @map("allocation_key")
+  month                 String
+  classNameSnapshot     String?   @map("class_name_snapshot")
+  teacherNameSnapshot   String?   @map("teacher_name_snapshot")
+  expectedSessions      Int       @default(0) @map("expected_sessions")
+  chargedSessions       Int       @default(0) @map("charged_sessions")
+  makeUpSessions        Int       @default(0) @map("make_up_sessions")
+  extraSessions         Int       @default(0) @map("extra_sessions")
+  feePerSession         Float     @default(0) @map("fee_per_session")
+  monthlyTuition        Float     @default(0) @map("monthly_tuition")
+  amount                Float     @default(0)
+  billingMode           String?   @map("billing_mode")
+  scheduleMode          String?   @map("schedule_mode")
+  status                FeeStatus @default(pending)
+  receiptId             String?   @map("receipt_id")
+  paidAt                DateTime? @map("paid_at")
+  allocationConfidence  String    @default("calculated") @map("allocation_confidence")
+  contractSessions      Int       @default(0) @map("contract_sessions")
+  eligibleSessions      Int       @default(0) @map("eligible_sessions")
+  deliveredSessions     Int       @default(0) @map("delivered_sessions")
+  centerCreditSessions  Int       @default(0) @map("center_credit_sessions")
+  studentWaivedSessions Int       @default(0) @map("student_waived_sessions")
+  calculationVersion    String    @default("tuition-v2-legacy") @map("calculation_version")
+  calculationSnapshot   Json?     @map("calculation_snapshot")
+  notes                 String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  monthlyFee       MonthlyFee           @relation(fields: [monthlyFeeId], references: [id], onDelete: Cascade)
-  student          Student              @relation(fields: [studentId], references: [id])
-  class            Class?               @relation(fields: [classId], references: [id])
-  receipt          Receipt?             @relation(fields: [receiptId], references: [id])
+  monthlyFee       MonthlyFee               @relation(fields: [monthlyFeeId], references: [id], onDelete: Cascade)
+  student          Student                  @relation(fields: [studentId], references: [id])
+  class            Class?                   @relation(fields: [classId], references: [id])
+  receipt          Receipt?                 @relation(fields: [receiptId], references: [id])
   receiptLines     ReceiptLine[]
   bulkPaymentItems BulkFeePaymentItem[]
+  revisions        MonthlyFeeLineRevision[]
 
   @@unique([studentId, month, allocationKey])
   @@index([monthlyFeeId])
@@ -424,6 +496,27 @@ model MonthlyFeeLine {
   @@index([classId, month, status])
   @@index([receiptId])
   @@map("monthly_fee_lines")
+}
+
+model MonthlyFeeLineRevision {
+  id               String   @id @default(cuid())
+  monthlyFeeLineId String   @map("monthly_fee_line_id")
+  revisionNumber   Int      @map("revision_number")
+  runId            String   @map("run_id")
+  eventType        String   @map("event_type")
+  reason           String?
+  beforeSnapshot   Json?    @map("before_snapshot")
+  afterSnapshot    Json     @map("after_snapshot")
+  actorId          String?  @map("actor_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  monthlyFeeLine MonthlyFeeLine @relation(fields: [monthlyFeeLineId], references: [id], onDelete: Restrict)
+  actor          User?          @relation("MonthlyFeeLineRevisionActor", fields: [actorId], references: [id])
+
+  @@unique([monthlyFeeLineId, revisionNumber])
+  @@index([monthlyFeeLineId, createdAt])
+  @@index([actorId])
+  @@map("monthly_fee_line_revisions")
 }
 
 enum FeeStatus {

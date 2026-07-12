@@ -98,6 +98,7 @@ export const classCreateSchema = z.object({
   start_time: z.string().trim().min(1, "start_time is required"),
   end_time: z.string().trim().min(1, "end_time is required"),
   fee_per_day: z.coerce.number().positive("fee_per_day must be greater than 0"),
+  billing_policy: z.enum(["monthly_prorated", "per_session"]).optional(),
   max_students: z.coerce.number().int().positive().optional().default(50),
   teacher_id: optionalNullableText,
   notes: optionalNullableText,

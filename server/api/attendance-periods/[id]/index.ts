@@ -137,23 +137,23 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
         const endDate = new Date(parseInt(year), parseInt(month), 0);
 
-        const stats = await prisma.attendance.groupBy({
+        const [stats, totalSessions] = await Promise.all([prisma.attendance.groupBy({
           by: ["status"],
           where: {
             classId: period.classId,
             attendanceDate: { gte: startDate, lte: endDate },
           },
           _count: { status: true },
-        });
+        }), prisma.classSession.count({
+          where: { classId: period.classId, billingMonth: period.periodMonth },
+        })]);
 
-        let totalSessions = 0,
-          totalPresent = 0,
+        let totalPresent = 0,
           totalAbsentFee = 0,
           totalAbsentNoFee = 0,
           totalHoliday = 0;
         stats.forEach((s) => {
           const count = s._count.status;
-          totalSessions += count;
           if (s.status === "present") totalPresent = count;
           else if (s.status === "absent_with_fee") totalAbsentFee = count;
           else if (s.status === "absent_no_fee") totalAbsentNoFee = count;

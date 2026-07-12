@@ -96,10 +96,47 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     // Convert ALL dates to Date objects for deletion (not just from records)
     const dateObjects = dates.map((d: string) => new Date(d));
-    await assertAttendanceDatesEditable(class_id, dateObjects);
-
     // Use transaction for atomic delete + insert
     await prisma.$transaction(async (tx) => {
+      await assertAttendanceDatesEditable(class_id, dateObjects, tx as typeof prisma);
+      const recordsByDate = new Map<string, typeof validRecords>();
+      for (const record of validRecords) {
+        const key = record.attendanceDate.toISOString().slice(0, 10);
+        const rows = recordsByDate.get(key) || [];
+        rows.push(record);
+        recordsByDate.set(key, rows);
+      }
+      const sessionIdsByDate = new Map<string, string>();
+      for (const [date, rows] of recordsByDate) {
+        const isMakeUp = rows.some((row: any) => row.isMakeUp);
+        const allHoliday = rows.every((row: any) => row.status === "holiday");
+        const session = await tx.classSession.upsert({
+          where: {
+            classId_sessionDate: {
+              classId: class_id,
+              sessionDate: new Date(`${date}T00:00:00.000Z`),
+            },
+          },
+          create: {
+            classId: class_id,
+            sessionDate: new Date(`${date}T00:00:00.000Z`),
+            billingMonth: date.slice(0, 7),
+            kind: isMakeUp ? "makeup" : "regular",
+            status: allHoliday ? "holiday" : "held",
+            source: "attendance_bulk",
+            createdById: req.user.userId,
+            updatedById: req.user.userId,
+          },
+          update: {
+            kind: isMakeUp ? "makeup" : "regular",
+            status: allHoliday ? "holiday" : "held",
+            updatedById: req.user.userId,
+            version: { increment: 1 },
+          },
+          select: { id: true },
+        });
+        sessionIdsByDate.set(date, session.id);
+      }
       // 1. Delete ALL existing records for this class and these dates
       // This ensures removed attendance cells are properly deleted
       await tx.attendance.deleteMany({
@@ -109,13 +146,33 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
+      const populatedDates = new Set(recordsByDate.keys());
+      const clearedDates = dateObjects.filter(
+        (date) => !populatedDates.has(date.toISOString().slice(0, 10)),
+      );
+      if (clearedDates.length > 0) {
+        await tx.classSession.updateMany({
+          where: { classId: class_id, sessionDate: { in: clearedDates } },
+          data: {
+            status: "planned",
+            updatedById: req.user.userId,
+            version: { increment: 1 },
+          },
+        });
+      }
+
       // 2. Insert valid records (if any)
       if (validRecords.length > 0) {
         await tx.attendance.createMany({
-          data: validRecords,
+          data: validRecords.map((record: any) => ({
+            ...record,
+            classSessionId: sessionIdsByDate.get(
+              record.attendanceDate.toISOString().slice(0, 10),
+            ),
+          })),
         });
       }
-    });
+    }, { isolationLevel: "Serializable" });
 
     return successResponse(res, {
       message:

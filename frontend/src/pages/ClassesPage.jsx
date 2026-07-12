@@ -127,12 +127,18 @@ export default function ClassesPage() {
     },
     {
       key: "fee_per_day",
-      title: "Học phí tháng",
-      render: (value) =>
-        new Intl.NumberFormat("vi-VN", {
-          style: "currency",
-          currency: "VND",
-        }).format(value || 0),
+      title: "Học phí",
+      render: (value, row) => (
+        <span>
+          {new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
+          }).format(value || 0)}
+          <span className="ml-1 text-xs text-gray-500">
+            {row.billing_policy === "per_session" ? "/buổi" : "/tháng"}
+          </span>
+        </span>
+      ),
     },
     {
       key: "student_count",
@@ -464,6 +470,7 @@ function ClassForm({
     start_time: classData?.start_time || "18:00",
     end_time: classData?.end_time || "19:30",
     fee_per_day: classData?.fee_per_day || 50000,
+    billing_policy: classData?.billing_policy || "monthly_prorated",
     max_students: classData?.max_students || 20,
     status: classData?.status || "active",
   });
@@ -608,6 +615,7 @@ function ClassForm({
         start_time: formData.start_time,
         end_time: formData.end_time,
         fee_per_day: formData.fee_per_day,
+        billing_policy: formData.billing_policy,
         max_students: formData.max_students,
         status: formData.status,
         student_ids: selectedStudentIds,
@@ -642,7 +650,7 @@ function ClassForm({
       )}
 
       {/* Basic Info */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Tên lớp *
@@ -815,7 +823,7 @@ function ClassForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Học phí tháng (VND)
+            {formData.billing_policy === "monthly_prorated" ? "Học phí tháng" : "Học phí mỗi buổi"} (VND)
           </label>
           <input
             type="number"
@@ -823,6 +831,19 @@ function ClassForm({
             onChange={(e) => updateField("fee_per_day", parseInt(e.target.value) || 0)}
             className="input"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Chính sách học phí
+          </label>
+          <select
+            value={formData.billing_policy}
+            onChange={(e) => updateField("billing_policy", e.target.value)}
+            className="input"
+          >
+            <option value="monthly_prorated">Gói tháng, khấu trừ theo session</option>
+            <option value="per_session">Tính theo từng buổi</option>
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

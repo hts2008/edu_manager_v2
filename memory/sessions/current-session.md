@@ -745,3 +745,11 @@
 - **Runtime evidence**: isolated PostgreSQL migration/router/browser and restore drills passed; production migration status clean; root/login 200; unauthenticated auth guard 401; CSP/HSTS/nosniff/referrer headers present; Chrome anonymous navigation passed with no failed/write requests.
 - **Production smoke boundary**: no authenticated production mutation was executed during final smoke; real mutation behavior is covered by isolated DB/browser gates and earlier module-specific production evidence.
 - **Receipt**: `receipts/2026-07-12-production-remediation-closeout.md`.
+# Current Session - Tuition V3 Release (2026-07-12)
+
+- Objective: finish Tuition V3 actual-month session ledger and deploy safely.
+- Active task: `TUIV3-2026-07-12-06` production deploy/smoke.
+- Completed: schema/migration, engine/service, attendance and fee integration, protected-row hardening, UI policy/cross-month display, backfill/reconcile, local gates and Chrome smoke.
+- Pending: commit/push, Vercel deploy, production API/UI smoke, receipt, KANBAN closeout.
+- Risk boundary: do not recalculate protected fee rows; do not apply low-confidence backfill without explicit override.
+- Context+ / Neural Memory: unavailable in current tool palette; markdown-only mode recorded.

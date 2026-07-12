@@ -96,8 +96,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
       }
 
-      await assertAttendanceDatesEditable(class_id, [attendance_date]);
-
       const classRecord = await prisma.class.findUnique({
         where: { id: class_id },
         select: { scheduleDays: true, sessionsPerWeek: true },
@@ -115,31 +113,58 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
       );
 
-      const record = await prisma.attendance.upsert({
-        where: {
-          studentId_classId_attendanceDate: {
+      const attendanceDate = new Date(attendance_date);
+      const record = await prisma.$transaction(async (tx) => {
+        await assertAttendanceDatesEditable(class_id, [attendanceDate], tx as typeof prisma);
+        const session = await tx.classSession.upsert({
+          where: {
+            classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
+          },
+          create: {
+            classId: class_id,
+            sessionDate: attendanceDate,
+            billingMonth: attendance_date.slice(0, 7),
+            kind: sessionPolicy.isMakeUp ? "makeup" : "regular",
+            status: status === "holiday" ? "holiday" : "held",
+            source: "attendance_single",
+            createdById: req.user.userId,
+            updatedById: req.user.userId,
+          },
+          update: {
+            kind: sessionPolicy.isMakeUp ? "makeup" : "regular",
+            status: status === "holiday" ? "holiday" : "held",
+            updatedById: req.user.userId,
+            version: { increment: 1 },
+          },
+        });
+        return tx.attendance.upsert({
+          where: {
+            studentId_classId_attendanceDate: {
+              studentId: student_id,
+              classId: class_id,
+              attendanceDate,
+            },
+          },
+          create: {
             studentId: student_id,
             classId: class_id,
-            attendanceDate: new Date(attendance_date),
+            attendanceDate,
+            status,
+            reason,
+            isMakeUp: sessionPolicy.isMakeUp,
+            makeUpReason: sessionPolicy.makeUpReason,
+            classSessionId: session.id,
+            createdById: req.user.id,
           },
-        },
-        create: {
-          studentId: student_id,
-          classId: class_id,
-          attendanceDate: new Date(attendance_date),
-          status,
-          reason,
-          isMakeUp: sessionPolicy.isMakeUp,
-          makeUpReason: sessionPolicy.makeUpReason,
-          createdById: req.user.id,
-        },
-        update: {
-          status,
-          reason,
-          isMakeUp: sessionPolicy.isMakeUp,
-          makeUpReason: sessionPolicy.makeUpReason,
-        },
-      });
+          update: {
+            status,
+            reason,
+            isMakeUp: sessionPolicy.isMakeUp,
+            makeUpReason: sessionPolicy.makeUpReason,
+            classSessionId: session.id,
+          },
+        });
+      }, { isolationLevel: "Serializable" });
 
       return res.status(201).json({ success: true, data: toAttendanceResponse(record) });
     } catch (error) {
