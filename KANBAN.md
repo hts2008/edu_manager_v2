@@ -896,3 +896,15 @@ stop.bat
 **Evidence:** `receipts/2026-07-12-production-remediation-closeout.md`; commit `eac5079`; Vercel deployment `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`.
 
 **Last Updated:** 2026-07-12
+
+---
+
+## IMPLEMENTED - CLASS BULK ENROLLMENT TIMEOUT HOTFIX (2026-07-13)
+
+| Task ID | Priority | Description | Status | Evidence |
+| ------- | -------- | ----------- | ------ | -------- |
+| OPS-2026-07-13-01 | P0 | Eliminate Prisma P2028 when creating a class with multiple students | IMPLEMENTED | `tests/class-bulk-enrollment.test.ts`; `receipts/2026-07-13-class-create-timeout-hotfix.md`; commit `dbb0171`; production `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr` |
+
+**Runtime acceptance:** authenticated Chrome created `Flyer VB3` with three students; the class list changed from 10 to 11 classes and 37 to 40 active enrollments. Vercel recorded `POST /api/classes` as HTTP 201 with no P2028/500.
+
+**Last Updated:** 2026-07-13

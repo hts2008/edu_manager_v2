@@ -477,3 +477,13 @@
 - Gates: unit `210/210`, TypeScript, lint, Prisma validate/status, build, Playwright `2/2`, local and production authenticated Chrome smoke.
 - Context+ and EDU-scoped Neural Memory MCPProxy were unavailable in this tool palette; markdown-only mode was used.
 - Evidence: `receipts/2026-07-12-tuition-v3-session-ledger-closeout.md`.
+
+## 2026-07-13 Handoff - Class Create Timeout Hotfix
+
+- `OPS-2026-07-13-01` is production-live at commit `dbb0171`, deployment `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr`.
+- Keep class enrollment set-based; do not restore per-student `syncStudentEnrollmentPeriods` inside the class write transaction.
+- Authenticated Chrome created the intended `Flyer VB3` class with three students; Vercel recorded HTTP 201 and no P2028/500.
+- Successful cold request latency was 6.188 seconds. Treat further latency work as performance tuning, not a rollback of the correctness fix.
+- Gates: 212/212 unit, TypeScript, lint, build and production runtime smoke.
+- Context+ and EDU Neural Memory were unavailable in the callable tool palette; markdown-only mode was used.
+- Evidence: `receipts/2026-07-13-class-create-timeout-hotfix.md`.

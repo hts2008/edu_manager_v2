@@ -753,3 +753,12 @@
 - Completed: commit `304c4e7`, production deploy `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`, Chrome smoke, receipt and KANBAN closeout.
 - Risk boundary: do not recalculate protected fee rows; do not apply low-confidence backfill without explicit override.
 - Context+ / Neural Memory: unavailable in current tool palette; markdown-only mode recorded.
+
+## 2026-07-13 Class Create Hotfix
+
+- Objective: fix production class creation failure with bulk student enrollment.
+- Active task: none; `OPS-2026-07-13-01` closed.
+- Completed: production RCA, TDD regression, set-based enrollment writes, typed timeout handling, full static/unit/build gates, commit/push/deploy and authenticated Chrome mutation smoke.
+- Production evidence: `Flyer VB3` created with three students; deployment `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr` returned POST `/api/classes` 201.
+- Residual observation: successful cold production request took 6.188 seconds; no correctness blocker remains, but Neon/cold-start latency should be monitored separately.
+- Context+ / EDU Neural Memory: unavailable in this tool palette; markdown-only mode recorded.

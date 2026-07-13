@@ -393,3 +393,13 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Runtime source: commit `304c4e7`, Vercel `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`, alias `https://edu-manager-gules.vercel.app`.
 - Production Chrome smoke passed for Attendance, Classes and Fee Workbench with zero console warnings/errors.
 - Context+ and EDU-scoped Neural Memory MCPProxy were unavailable in this tool palette; markdown-only graceful degradation is active.
+
+## 2026-07-13 Current Context - Class Create Timeout Hotfix
+
+- `OPS-2026-07-13-01` is `IMPLEMENTED` and production-live.
+- RCA: class create used a default five-second interactive Prisma transaction and performed N+1 enrollment synchronization against Neon; three students exceeded the transaction lifetime and raised P2028.
+- Fix: class enrollment now uses bounded set-based `StudentClass` and `EnrollmentPeriod` writes, a 15-second transaction timeout, and typed timeout/API error handling.
+- Production acceptance: Chrome created `Flyer VB3` with three selected students; Vercel returned HTTP 201 and showed no P2028/500.
+- Runtime: commit `dbb0171`, deployment `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr`, alias `https://edu-manager-gules.vercel.app`.
+- Gates: focused 2/2, full unit 212/212, TypeScript, lint, build, diff-check.
+- Context+/EDU Neural Memory remained unavailable in the callable tool palette; markdown-only mode was used.

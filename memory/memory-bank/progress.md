@@ -973,3 +973,13 @@
 - Authenticated Chrome verified Flyer B2 at 900,000 VND monthly with 14-session denominator, Fee Workbench class-line values, class billing units and zero console warnings/errors.
 - Evidence: `receipts/2026-07-12-tuition-v3-session-ledger-closeout.md` and `receipts/artifacts/tuition-v3-production-fee-workbench.png`.
 - Status: `IMPLEMENTED`.
+
+## 2026-07-13 - Class creation bulk-enrollment timeout fixed
+
+- Reproduced the production failure from Vercel logs: Prisma P2028 closed the default five-second transaction during per-student enrollment synchronization.
+- Replaced N+1 synchronization with bounded batch writes for new/reactivated `StudentClass` rows and missing open `EnrollmentPeriod` rows.
+- Added a 15-second transaction guard and typed `CLASS_WRITE_TIMEOUT`/validation responses.
+- Added `tests/class-bulk-enrollment.test.ts`; full suite passed 212/212 plus typecheck, lint and build.
+- Deployed commit `dbb0171` as `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr`.
+- Authenticated Chrome created `Flyer VB3` with three students; Vercel runtime log recorded HTTP 201 and no P2028/500.
+- Evidence: `receipts/2026-07-13-class-create-timeout-hotfix.md`.
