@@ -403,3 +403,15 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Runtime: commit `dbb0171`, deployment `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr`, alias `https://edu-manager-gules.vercel.app`.
 - Gates: focused 2/2, full unit 212/212, TypeScript, lint, build, diff-check.
 - Context+/EDU Neural Memory remained unavailable in the callable tool palette; markdown-only mode was used.
+
+## 2026-07-14 Current Context - Attendance Month-Ledger Correction Closeout
+
+- `ATLC-2026-07-13-01..05` are production-live at commit `5627779` and Vercel deployment `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`.
+- Monthly-package billing remains anchored to regular `ClassSession` rows whose actual dates are inside the billing month. A visual cross-month week never owns tuition; `sessions_per_week` is cadence guidance only.
+- Production reconciliation for Flyer VB3 June 2026 deleted phantom session `cmriwhxu2000473zinzv4vqx3`, moved three enrollment-period starts to `2026-06-03`, and emitted four audit rows. The post-repair dry-run reports no phantom, enrollment or unresolved findings.
+- Additive migration `20260713_zz_class_month_plan_revision_state_guard` is deployed. ClassMonthPlan backfill created 23 plans; final dry-run reports 25 existing plans and 0 missing.
+- Protected finance fingerprint stayed `58ab3cae7a6eac983a8610f863324ef9` for 30 immutable rows through repair, backfill and post-smoke verification.
+- Authenticated Chrome selected Flyer VB3, verified readiness `8/8` regular sessions for 3 students with 0 missing, executed the real close action, and confirmed three Fee Workbench class lines at `8 buổi / 1.000.000đ`. Console errors/warnings: 0; horizontal overflow: false.
+- Fresh gates: unit `306/306`, TypeScript, frontend lint with zero warnings, Prisma validate/status, build, root/frontend audits and diff-check passed. Integration command exited 0 but skipped because `TEST_DATABASE_URL` is not configured locally.
+- Evidence: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md` and `receipts/artifacts/tuition-v3-production-closeout-fee-workbench.png`.
+- Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in this callable tool palette; workspace markdown memory remained authoritative.

@@ -487,3 +487,15 @@
 - Gates: 212/212 unit, TypeScript, lint, build and production runtime smoke.
 - Context+ and EDU Neural Memory were unavailable in the callable tool palette; markdown-only mode was used.
 - Evidence: `receipts/2026-07-13-class-create-timeout-hotfix.md`.
+
+## 2026-07-14 Handoff - Attendance Month-Ledger Correction Closed
+
+- `ATLC-2026-07-13-01..05` are implemented, migrated, repaired, deployed and production-smoked.
+- Runtime source: commit `5627779`; Vercel deployment `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`; alias `https://edu-manager-gules.vercel.app`.
+- Preserve the billing invariant: monthly package denominator is the regular ClassSession ledger inside the actual billing month; cross-month visual weeks and `sessions_per_week` do not own tuition.
+- Preserve immutable finance: confirmed, paid, receipt-linked and receipt-line-linked fees are excluded from recalculation/correction. Latest fingerprint is `58ab3cae7a6eac983a8610f863324ef9` for 30 protected rows.
+- Production repair is complete: one June phantom session removed, three enrollment periods corrected, four audit rows written, no remaining dry-run findings, 25 ClassMonthPlans present and 0 missing.
+- Authenticated Chrome successfully closed Flyer VB3 June with readiness `8/8`, then verified 3 separate Fee Workbench lines at 8 sessions / 1.000.000 VND with zero console errors/warnings.
+- Fresh quality gates passed except the isolated integration suite was skipped by its explicit missing-`TEST_DATABASE_URL` guard.
+- Evidence: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md` and `receipts/artifacts/tuition-v3-production-closeout-fee-workbench.png`.
+- Context+ and EDU Neural Memory/MCPProxy were unavailable in this tool palette; markdown memory was updated instead.

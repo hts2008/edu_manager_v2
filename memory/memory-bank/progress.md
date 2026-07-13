@@ -983,3 +983,14 @@
 - Deployed commit `dbb0171` as `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr`.
 - Authenticated Chrome created `Flyer VB3` with three students; Vercel runtime log recorded HTTP 201 and no P2028/500.
 - Evidence: `receipts/2026-07-13-class-create-timeout-hotfix.md`.
+
+## 2026-07-14 - Attendance month-ledger correction production closeout
+
+- Closed `ATLC-2026-07-13-01..05`: readiness preflight, correction workflow, Tuition V3 convergence, monotonic ClassMonthPlan state/revisions, operator UX, production repair and release verification.
+- Deployed migration `20260713_zz_class_month_plan_revision_state_guard`; backfilled 23 month plans. Final dry-run: 23 candidates, 25 existing, 0 missing.
+- Reconciled Flyer VB3 June 2026 by deleting one phantom ClassSession, correcting three enrollment periods and writing four audit rows. Post-repair checks are clean.
+- Preserved protected finance fingerprint `58ab3cae7a6eac983a8610f863324ef9` across 30 immutable rows.
+- Passed unit `306/306`, TypeScript, lint zero warnings, Prisma validation/status, build, dependency audits and diff-check. Integration test was intentionally skipped by its guard because local `TEST_DATABASE_URL` is absent.
+- Pushed app commit `5627779`; Vercel production deployment `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj` reached READY and is aliased to `https://edu-manager-gules.vercel.app`.
+- Authenticated Chrome ran the real Flyer VB3 June close: readiness `8/8`, 3 students, 0 missing; Fee Workbench showed 3 independent lines at 8 sessions and 1.000.000 VND each; zero console errors/warnings and no horizontal overflow.
+- Receipt: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md`.

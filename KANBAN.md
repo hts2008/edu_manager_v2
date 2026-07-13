@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - Figma runtime UX/UI applied to production and smoked on 2026-06-12
+> **Status**: PRODUCTION LIVE - attendance month-ledger correction deployed and authenticated Chrome-smoked on 2026-07-14
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,23 +10,29 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, latest Figma runtime UX/UI apply deployed and smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commit `5627779`, Vercel `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`, authenticated Chrome smoke passed |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
-## IN PROGRESS - ATTENDANCE MONTH-LEDGER CORRECTION (2026-07-13)
+## IMPLEMENTED - ATTENDANCE MONTH-LEDGER CORRECTION (2026-07-14)
 
 **Objective:** eliminate phantom planned sessions and partial-week billing ambiguity, make attendance submit/approve/lock fail before mutation with actionable typed diagnostics, and preserve exact monthly-package tuition through an explicit month session ledger.
 
 | Task ID | Description | Status | Evidence |
 | --- | --- | --- | --- |
-| ATLC-2026-07-13-01 | Add readiness preflight before submit/approve/lock and reopen-for-correction workflow | IN PROGRESS | Focused regression tests `30/30`; TypeScript pass |
-| ATLC-2026-07-13-02 | Remove attendance-generated phantom sessions and converge all fee generation on Tuition V3 | IN PROGRESS | Regression tests and full suite pending |
-| ATLC-2026-07-13-03 | Add monotonic `ClassMonthPlan` state/revision and immutable snapshots | IN PROGRESS | Additive migration and backfill dry-run pending |
-| ATLC-2026-07-13-04 | Add operator preflight/correction/month-plan UX with loading and typed blockers | IN PROGRESS | Frontend worker active; browser evidence pending |
-| ATLC-2026-07-13-05 | Dry-run production repair, migrate/deploy, and authenticated Chrome smoke | PLANNED | Blocked on ATLC-01..04 |
+| ATLC-2026-07-13-01 | Add readiness preflight before submit/approve/lock and reopen-for-correction workflow | IMPLEMENTED | Unit `306/306`; production readiness showed `8/8` sessions, 3 students, 0 missing before lock |
+| ATLC-2026-07-13-02 | Remove attendance-generated phantom sessions and converge all fee generation on Tuition V3 | IMPLEMENTED | Production reconciliation deleted one phantom June session, corrected 3 enrollment periods, wrote 4 audit rows; post dry-run clean |
+| ATLC-2026-07-13-03 | Add monotonic `ClassMonthPlan` state/revision and immutable snapshots | IMPLEMENTED | Migration `20260713_zz_class_month_plan_revision_state_guard` deployed; 23 plans backfilled; final dry-run `0` missing |
+| ATLC-2026-07-13-04 | Add operator preflight/correction/month-plan UX with loading and typed blockers | IMPLEMENTED | Authenticated Chrome verified selector loading, actionable readiness modal, zero console errors/warnings and no horizontal overflow |
+| ATLC-2026-07-13-05 | Dry-run production repair, migrate/deploy, and authenticated Chrome smoke | IMPLEMENTED | Commit `5627779`; Vercel `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`; real Flyer VB3 close produced 3 class lines at 8 sessions / 1.000.000 VND |
 
 **Billing invariant:** a visual calendar week never owns tuition. Each session belongs to the month of its actual date; a monthly package is allocated in whole VND across regular sessions in that month. `sessions_per_week` remains cadence guidance only.
+
+**Production:** commit `5627779` is deployed and aliased to `https://edu-manager-gules.vercel.app`. Authenticated Chrome locked Flyer VB3 June 2026 after readiness passed `8/8` regular sessions for 3 students. Fee Workbench then showed three independent class lines, each `8 buổi / 1.000.000đ`, with no Internal server error.
+
+**Safety evidence:** final ClassMonthPlan dry-run found 23 candidates, 25 existing plans and 0 missing. Protected finance fingerprint remained `58ab3cae7a6eac983a8610f863324ef9` across 30 immutable rows before and after repair/lock verification.
+
+**Evidence:** `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md`; screenshot `receipts/artifacts/tuition-v3-production-closeout-fee-workbench.png`.
 
 **Runtime degradation:** Context+ and EDU-scoped Neural Memory tools are not exposed in this Codex palette; direct code inspection and workspace markdown memory are being used, and this does not relax test/runtime gates.
 
@@ -911,7 +917,7 @@ stop.bat
 
 **Evidence:** `receipts/2026-07-12-production-remediation-closeout.md`; commit `eac5079`; Vercel deployment `dpl_8Q1Vt9xLdaB8aDHru8HuYV16XewX`.
 
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-14
 
 ---
 

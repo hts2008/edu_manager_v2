@@ -762,3 +762,14 @@
 - Production evidence: `Flyer VB3` created with three students; deployment `dpl_3dFiMGhd9j7jf7iXtcod4Tz9xRLr` returned POST `/api/classes` 201.
 - Residual observation: successful cold production request took 6.188 seconds; no correctness blocker remains, but Neon/cold-start latency should be monitored separately.
 - Context+ / EDU Neural Memory: unavailable in this tool palette; markdown-only mode recorded.
+
+## 2026-07-14 Attendance Month-Ledger Correction Closeout
+
+- Current objective: complete; no active ATLC task remains.
+- Runtime source: commit `5627779`, Vercel `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`, production alias `https://edu-manager-gules.vercel.app`.
+- Production state: migration current; 25 ClassMonthPlans exist; no backfill candidate is missing; Flyer VB3 June ledger is reconciled and locked after readiness `8/8` for 3 students.
+- Browser acceptance: Fee Workbench contains three separate Flyer VB3 rows at 8 sessions / 1.000.000 VND; no server, console or overflow error observed.
+- Touched release-control files: `KANBAN.md`, workspace memory/session files, release receipt and production screenshot. Application files are captured by commit `5627779`.
+- Pending validations: no correctness blocker. Real-router integration remains environment-guarded and skipped locally without `TEST_DATABASE_URL`.
+- Operational risk: rotate documented default admin credentials before external operation; never recalculate protected confirmed/paid/receipt-linked rows.
+- Tool degradation: Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable tool palette.
