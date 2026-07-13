@@ -77,6 +77,50 @@ describe("bounded idempotent monthly fee bulk collection", () => {
     assert.match(endpoint, /ACTIVITY_LOG_FAILED/);
   });
 
+  it("shares the attendance student-month lock before authoritative fee reads and writes", () => {
+    const endpoint = source("server/api/monthly-fees/bulk-pay.ts");
+    const identityRead = endpoint.indexOf(
+      "const lineIdentity = await tx.monthlyFeeLine.findUnique",
+    );
+    const advisoryLock = endpoint.indexOf("await acquireAttendanceFeeAdvisoryLocks(");
+    const authoritativeRead = endpoint.indexOf(
+      "const line = await tx.monthlyFeeLine.findUnique",
+      identityRead + 1,
+    );
+    const receiptWrite = endpoint.indexOf("const receipt = await tx.receipt.create");
+    const feeWrite = endpoint.indexOf("const claimedLine = await tx.monthlyFeeLine.updateMany");
+
+    assert.match(
+      endpoint,
+      /import \{ acquireAttendanceFeeAdvisoryLocks \} from "\.\.\/\.\.\/\.\.\/lib\/attendance-lock-transaction\.js"/,
+    );
+    assert.match(
+      endpoint,
+      /const lineIdentity = await tx\.monthlyFeeLine\.findUnique\([\s\S]*?select:\s*\{\s*studentId:\s*true,\s*month:\s*true\s*\}/,
+      "the pre-lock lookup must read only the identity needed to derive the lock key",
+    );
+    assert.match(
+      endpoint,
+      /acquireAttendanceFeeAdvisoryLocks\(\s*tx,\s*\[lineIdentity\.studentId\],\s*lineIdentity\.month,?\s*\)/,
+      "bulk payment must use the exact student-month namespace used by attendance",
+    );
+    assert.ok(identityRead >= 0);
+    assert.ok(advisoryLock > identityRead);
+    assert.ok(
+      authoritativeRead > advisoryLock,
+      "the authoritative fee read must happen after the student-month advisory lock",
+    );
+    assert.ok(receiptWrite > advisoryLock);
+    assert.ok(feeWrite > advisoryLock);
+    assert.match(
+      endpoint,
+      /async function collectItem[\s\S]*?runSerializableTransaction\(prisma,[\s\S]*?transactionOptions:\s*BULK_PAY_TRANSACTION_OPTIONS/,
+    );
+    assert.match(endpoint, /isolationLevel:\s*"Serializable"/);
+    assert.match(endpoint, /maxWait:\s*5_?000/);
+    assert.match(endpoint, /timeout:\s*15_?000/);
+  });
+
   it("recovers a batch after response loss even before the batch id was persisted", () => {
     const page = source("frontend/src/pages/FeeCollectionPage.jsx");
     assert.match(page, /saved\?\.idempotency_key/);

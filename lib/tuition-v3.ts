@@ -20,14 +20,20 @@ export type TuitionSlot = {
   extraFeeMode?: "included" | "surcharge";
 };
 
+export type TuitionEnrollmentWindow = {
+  startDate?: string;
+  endDate?: string;
+};
+
+export type TuitionEnrollment = TuitionEnrollmentWindow & {
+  periods?: TuitionEnrollmentWindow[];
+};
+
 export type TuitionV3Input = {
   month: string;
   plan: TuitionBillingPlan;
   slots: TuitionSlot[];
-  enrollment?: {
-    startDate?: string;
-    endDate?: string;
-  };
+  enrollment?: TuitionEnrollment;
   extraSurchargePerSlot?: number;
 };
 
@@ -93,12 +99,17 @@ function isInMonth(date: string, month: string) {
   return date.slice(0, 7) === month;
 }
 
-function isEnrollmentEligible(
+export function isEnrollmentEligible(
   date: string,
   enrollment: TuitionV3Input["enrollment"],
-) {
+): boolean {
+  if (enrollment?.periods?.length) {
+    return enrollment.periods.some((period) =>
+      isEnrollmentEligible(date, period),
+    );
+  }
   if (enrollment?.startDate && date < enrollment.startDate.slice(0, 10)) return false;
-  if (enrollment?.endDate && date > enrollment.endDate.slice(0, 10)) return false;
+  if (enrollment?.endDate && date >= enrollment.endDate.slice(0, 10)) return false;
   return true;
 }
 
@@ -141,10 +152,21 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
     validReplacementIds.add(original.id);
   }
 
-  const monthlyUnit =
-    input.plan.mode === "monthly_prorated"
-      ? Math.max(0, input.plan.monthlyAmount) / regularSlots.length
-      : Math.max(0, input.plan.sessionAmount);
+  const regularSlotAmounts = new Map<string, number>();
+  if (input.plan.mode === "monthly_prorated") {
+    const monthlyAmount = Math.max(0, Math.round(input.plan.monthlyAmount));
+    const sortedRegularSlots = [...regularSlots].sort((a, b) =>
+      a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
+    );
+    const baseAmount = Math.floor(monthlyAmount / sortedRegularSlots.length);
+    const remainder = monthlyAmount % sortedRegularSlots.length;
+    sortedRegularSlots.forEach((slot, index) => {
+      regularSlotAmounts.set(slot.id, baseAmount + (index < remainder ? 1 : 0));
+    });
+  }
+  const perSessionAmount = input.plan.mode === "per_session"
+    ? Math.max(0, input.plan.sessionAmount)
+    : 0;
   const surcharge = Math.max(0, input.extraSurchargePerSlot ?? 0);
   let eligibleRegularSlots = 0;
   let deliveredRegularSlots = 0;
@@ -174,12 +196,16 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
       if (CHARGEABLE_STATUSES.has(slot.status)) {
         deliveredRegularSlots += 1;
         disposition = "charged";
-        amount = monthlyUnit;
+        amount = input.plan.mode === "monthly_prorated"
+          ? regularSlotAmounts.get(slot.id) || 0
+          : perSessionAmount;
         chargedRegularSlots += 1;
       } else if (validReplacementIds.has(slot.id)) {
         deliveredRegularSlots += 1;
         disposition = "charged_replaced_same_month";
-        amount = monthlyUnit;
+        amount = input.plan.mode === "monthly_prorated"
+          ? regularSlotAmounts.get(slot.id) || 0
+          : perSessionAmount;
         chargedRegularSlots += 1;
       } else {
         disposition = regularDisposition(slot.status);

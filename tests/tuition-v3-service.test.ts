@@ -73,7 +73,7 @@ describe("Tuition V3 class-session adapter", () => {
       })),
     });
     assert.equal(result.eligibleSessions, 8);
-    assert.equal(result.amount, 553_846);
+    assert.equal(result.amount, 553_845);
   });
 
   it("rejects a held regular session without student attendance at lock time", () => {
@@ -87,6 +87,57 @@ describe("Tuition V3 class-session adapter", () => {
       }),
       (error: any) => error?.code === "ATTENDANCE_INCOMPLETE",
     );
+  });
+
+  it("requires attendance only for sessions eligible in the enrollment [start, end) window", () => {
+    const sessions = [
+      {
+        id: "before-start",
+        classId: "flyer-b2",
+        sessionDate: new Date("2026-06-08T00:00:00.000Z"),
+        kind: "regular",
+        status: "held",
+        extraFeeMode: "included",
+        replacementForId: null,
+      },
+      {
+        id: "eligible",
+        classId: "flyer-b2",
+        sessionDate: new Date("2026-06-10T00:00:00.000Z"),
+        kind: "regular",
+        status: "held",
+        extraFeeMode: "included",
+        replacementForId: null,
+      },
+      {
+        id: "at-exclusive-end",
+        classId: "flyer-b2",
+        sessionDate: new Date("2026-06-20T00:00:00.000Z"),
+        kind: "regular",
+        status: "held",
+        extraFeeMode: "included",
+        replacementForId: null,
+      },
+    ];
+
+    const result = buildStudentTuitionV3({
+      month: "2026-06",
+      classData,
+      enrollment: {
+        startedAt: new Date("2026-06-10T00:00:00.000Z"),
+        endedAt: new Date("2026-06-20T00:00:00.000Z"),
+      },
+      sessions,
+      attendance: [{
+        classSessionId: "eligible",
+        attendanceDate: new Date("2026-06-10T00:00:00.000Z"),
+        status: "present",
+      }],
+    });
+
+    assert.equal(result.contractSessions, 3);
+    assert.equal(result.eligibleSessions, 1);
+    assert.equal(result.chargedSessions, 1);
   });
 
   it("charges a monthly extra surcharge at the derived per-session rate", () => {

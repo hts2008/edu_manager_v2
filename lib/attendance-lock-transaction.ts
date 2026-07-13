@@ -7,6 +7,10 @@ import {
 } from "./tuition.js";
 import { feeLineAllocationKey } from "./monthly-fee-lines.js";
 import { buildStudentTuitionV3 } from "./tuition-v3-service.js";
+import {
+  assertAttendancePeriodReady,
+  getAttendancePeriodReadiness,
+} from "./attendance-period-readiness.js";
 
 type CountRow = {
   studentId: string;
@@ -24,6 +28,10 @@ type StudentClassRow = {
     sessionsPerWeek?: number | null;
     enrollmentStart?: Date | string | null;
     enrollmentEnd?: Date | string | null;
+    enrollmentPeriods?: Array<{
+      startedAt?: Date | string | null;
+      endedAt?: Date | string | null;
+    }>;
     teacher?: { fullName?: string | null } | null;
   };
 };
@@ -113,11 +121,45 @@ function isProtectedFeeLine(line: ExistingFeeLine) {
 
 function isProtectedFee(fee: ExistingFee) {
   return (
-    !fee.lines?.length &&
-    (fee.status === "paid" ||
-      Boolean(fee.receiptId) ||
-      Boolean(fee.paidAt) ||
-      fee.status === "confirmed")
+    fee.status === "paid" ||
+    Boolean(fee.receiptId) ||
+    Boolean(fee.paidAt) ||
+    fee.status === "confirmed"
+  );
+}
+
+export function classMonthRosterAdvisoryLockKeys(
+  classIds: string[],
+  months: string[],
+) {
+  return [
+    ...new Set(
+      months.flatMap((month) =>
+        classIds.map((classId) => `attendance-roster:${month}:${classId}`),
+      ),
+    ),
+  ].sort();
+}
+
+export async function acquireClassMonthRosterAdvisoryLocks(
+  tx: any,
+  classIds: string[],
+  months: string[],
+) {
+  const lockKeys = classMonthRosterAdvisoryLockKeys(classIds, months);
+  if (lockKeys.length === 0 || typeof tx.$queryRaw !== "function") return;
+
+  await tx.$queryRaw(
+    Prisma.sql`
+      WITH ordered_keys(lock_key) AS MATERIALIZED (
+        SELECT lock_key
+        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[]) AS keys(lock_key)
+        ORDER BY lock_key
+      )
+      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
+      FROM ordered_keys
+      ORDER BY lock_key
+    `,
   );
 }
 
@@ -308,6 +350,37 @@ export async function lockAttendancePeriodAndSyncFees(
   tx: any,
   input: LockInput,
 ): Promise<AttendanceLockFeeSyncMetrics> {
+  await acquireClassMonthRosterAdvisoryLocks(
+    tx,
+    [input.classId],
+    [input.month],
+  );
+
+  if (tx.classSession?.findMany) {
+    const readiness = await getAttendancePeriodReadiness(tx, {
+      classId: input.classId,
+      month: input.month,
+    });
+    assertAttendancePeriodReady(readiness);
+
+    const monthPlan = await tx.classMonthPlan.findUnique({
+      where: {
+        classId_billingMonth: {
+          classId: input.classId,
+          billingMonth: input.month,
+        },
+      },
+    });
+    if (!monthPlan || monthPlan.state !== "frozen") {
+      throw new ApiError(
+        "CLASS_MONTH_PLAN_NOT_FROZEN",
+        "Class month plan must be frozen before attendance can be locked",
+        409,
+        { class_id: input.classId, billing_month: input.month },
+      );
+    }
+  }
+
   const claimed = await tx.attendancePeriod.updateMany({
     where: { id: input.periodId, status: "approved" },
     data: {
@@ -328,7 +401,11 @@ export async function lockAttendancePeriodAndSyncFees(
   const startDate = new Date(Date.UTC(year, monthNumber - 1, 1));
   const nextMonthStart = new Date(Date.UTC(year, monthNumber, 1));
   const impactedStudentClasses = await tx.studentClass.findMany({
-    where: { classId: input.classId, status: "active" },
+    where: {
+      classId: input.classId,
+      status: "active",
+      enrollmentDate: { lt: nextMonthStart },
+    },
     select: { studentId: true },
   });
   const enrollmentPeriods = tx.enrollmentPeriod?.findMany
@@ -368,6 +445,7 @@ export async function lockAttendancePeriodAndSyncFees(
       classId: input.classId,
       studentId: { in: studentIds },
       status: "active",
+      enrollmentDate: { lt: nextMonthStart },
       student: { status: "active", deletedAt: null },
     },
     include: {
@@ -381,19 +459,36 @@ export async function lockAttendancePeriodAndSyncFees(
   const periodStudentIds = new Set(
     enrollmentPeriods.map((period: { studentId: string }) => period.studentId),
   );
+  const periodsByStudent = new Map<string, typeof enrollmentPeriods>();
+  for (const period of enrollmentPeriods) {
+    const periods = periodsByStudent.get(period.studentId) || [];
+    periods.push(period);
+    periodsByStudent.set(period.studentId, periods);
+  }
   const activeStudentClasses = [
-    ...enrollmentPeriods.map((period: any) => ({
-      studentId: period.studentId,
-      classId: period.classId,
+    ...[...periodsByStudent.entries()].map(([studentId, periods]) => ({
+      studentId,
+      classId: input.classId,
       class: {
-        ...period.class,
-        enrollmentStart: period.startedAt,
-        enrollmentEnd: period.endedAt,
+        ...periods[0].class,
+        enrollmentStart: periods[0].startedAt,
+        enrollmentEnd: periods[0].endedAt,
+        enrollmentPeriods: periods.map((period: any) => ({
+          startedAt: period.startedAt,
+          endedAt: period.endedAt,
+        })),
       },
     })),
     ...projectedStudentClasses.filter(
       (link: { studentId: string }) => !periodStudentIds.has(link.studentId),
-    ),
+    ).map((link: any) => ({
+      ...link,
+      class: {
+        ...link.class,
+        enrollmentStart: link.enrollmentDate,
+        enrollmentEnd: null,
+      },
+    })),
   ];
 
   const [attendanceCounts, makeUpCounts, existingFees, classSessions, attendanceRows] = await Promise.all([
@@ -469,6 +564,7 @@ export async function lockAttendancePeriodAndSyncFees(
           enrollment: {
             startedAt: enrollment.class.enrollmentStart,
             endedAt: enrollment.class.enrollmentEnd,
+            periods: enrollment.class.enrollmentPeriods,
           },
           sessions: classSessions,
           attendance: attendanceRows.filter((row: any) => row.studentId === studentId),

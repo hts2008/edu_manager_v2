@@ -12,6 +12,10 @@ import { calculateTuitionSessionFee, normalizeTuitionSession } from "../utils/tu
 import ActionProgressButton from "../components/ui/ActionProgressButton";
 import LongOperationStatus from "../components/ui/LongOperationStatus";
 import SelectField from "../components/ui/SelectField";
+import AttendanceLockPreflightModal from "../components/attendance/AttendanceLockPreflightModal";
+import AttendanceCorrectionModal from "../components/attendance/AttendanceCorrectionModal";
+import AttendanceReadinessIssuePanel from "../components/attendance/AttendanceReadinessIssuePanel";
+import useAttendancePeriodWorkflow from "../hooks/useAttendancePeriodWorkflow";
 import {
   countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
@@ -90,7 +94,7 @@ export default function AttendancePage() {
   const [weekError, setWeekError] = useState(null);
   const [loadedWeekKey, setLoadedWeekKey] = useState("");
   const [saving, setSaving] = useState(false);
-  const [reopeningMonth, setReopeningMonth] = useState(null);
+  const [correctionTarget, setCorrectionTarget] = useState(null);
   const classDataRequestRef = useRef(0);
   const classListRequestRef = useRef(0);
   const weekAttendanceRequestRef = useRef(0);
@@ -417,7 +421,6 @@ export default function AttendancePage() {
     setLoadError(null);
 
     try {
-      const token = localStorage.getItem("token");
       const classPromise = classesService.getById(classId);
       const periodsPromise = Promise.all(
         monthsWindow.map(async (m) => ({
@@ -435,28 +438,13 @@ export default function AttendancePage() {
         })),
       );
       const calendarPromise = Promise.all(
-        monthsWindow.map(async (m) => {
-          try {
-            const res = await fetch(
-              `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${m.key}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              },
-            );
-            if (!res.ok) return [];
-            const data = await res.json();
-            return data.success ? data.data.attendance || [] : [];
-          } catch (e) {
-            console.error(
-              "Error loading calendar attendance for month",
-              m.key,
-              e,
-            );
-            return [];
-          }
-        }),
+        monthsWindow.map(async (m) => ({
+          month: m.key,
+          response: await attendanceService.getMonth(classId, m.key, {
+            cache: "no-store",
+            skipCache: true,
+          }),
+        })),
       );
 
       const [classRes, periodResults, sessionResults, calendarResults] = await Promise.all([
@@ -475,6 +463,24 @@ export default function AttendancePage() {
         setCalendarAttendance({});
         setLoadError(classRes.error?.message || "Không thể tải dữ liệu điểm danh của lớp");
         return;
+      }
+
+      const failedPeriod = periodResults.find(({ response }) => !response.success);
+      if (failedPeriod) {
+        setPeriods({});
+        throw new Error(
+          failedPeriod.response.error?.message ||
+            `Không thể tải kỳ điểm danh tháng ${failedPeriod.month}`,
+        );
+      }
+
+      const failedCalendar = calendarResults.find(({ response }) => !response.success);
+      if (failedCalendar) {
+        setCalendarAttendance({});
+        throw new Error(
+          failedCalendar.response.error?.message ||
+            `Không thể tải điểm danh tháng ${failedCalendar.month}`,
+        );
       }
 
       setClassSchedule(classRes.data);
@@ -497,21 +503,23 @@ export default function AttendancePage() {
       setClassSessionsByMonth(sessionMap);
 
       const calendarData = {};
-      calendarResults.flat().forEach((a) => {
-        const dateKey = a.attendance_date;
-        if (!calendarData[dateKey]) {
-          calendarData[dateKey] = {
-            present: 0,
-            absent_with_fee: 0,
-            absent_no_fee: 0,
-            holiday: 0,
-            total: 0,
-          };
-        }
-        calendarData[dateKey][a.status] =
-          (calendarData[dateKey][a.status] || 0) + 1;
-        calendarData[dateKey].total++;
-      });
+      calendarResults
+        .flatMap(({ response }) => response.data?.attendance || [])
+        .forEach((a) => {
+          const dateKey = a.attendance_date;
+          if (!calendarData[dateKey]) {
+            calendarData[dateKey] = {
+              present: 0,
+              absent_with_fee: 0,
+              absent_no_fee: 0,
+              holiday: 0,
+              total: 0,
+            };
+          }
+          calendarData[dateKey][a.status] =
+            (calendarData[dateKey][a.status] || 0) + 1;
+          calendarData[dateKey].total++;
+        });
       setCalendarAttendance(calendarData);
     } catch (error) {
       if (classDataRequestRef.current === requestId) {
@@ -523,6 +531,8 @@ export default function AttendancePage() {
       }
     }
   };
+
+  const workflow = useAttendancePeriodWorkflow({ onChanged: loadClassData, toast });
 
   const loadWeekAttendance = async (
     classId = selectedClass,
@@ -551,35 +561,20 @@ export default function AttendancePage() {
       months.push(endMonth);
     }
 
-    const token = localStorage.getItem("token");
     try {
       const monthResults = await Promise.all(
         months.map(async (month) => {
-          try {
-            const res = await fetch(
-              `/api/attendance/month?class_id=${encodeURIComponent(classId)}&month=${month}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              },
-            );
-            if (!res.ok) {
-              return { month, error: `HTTP ${res.status}`, attendance: [] };
-            }
-            const data = await res.json();
-            if (!data.success) {
-              return {
-                month,
-                error: data.error?.message || "API khong tra ve du lieu diem danh",
-                attendance: [],
-              };
-            }
-            return { month, error: null, attendance: data.data.attendance || [] };
-          } catch (e) {
-            console.error("Error loading attendance for month", month, e);
-            return { month, error: e?.message || "Network error", attendance: [] };
-          }
+          const response = await attendanceService.getMonth(classId, month, {
+            cache: "no-store",
+            skipCache: true,
+          });
+          return {
+            month,
+            error: response.success
+              ? null
+              : response.error?.message || "API không trả về dữ liệu điểm danh",
+            attendance: response.success ? response.data?.attendance || [] : [],
+          };
         }),
       );
 
@@ -731,36 +726,26 @@ export default function AttendancePage() {
 
   const handleSubmit = async (monthKey) => {
     const period = periods[monthKey];
-    if (!period) {
-      // Create period first
-      const createRes = await attendancePeriodsService.create({
-        class_id: selectedClass,
+    await workflow.runAction({
+      key: `submit:${period?.id || monthKey}`,
+      operation: async () => {
+        if (period) return attendancePeriodsService.submit(period.id);
+        const createResponse = await attendancePeriodsService.create({
+          class_id: selectedClass,
+          month: monthKey,
+        });
+        if (!createResponse.success) return createResponse;
+        return attendancePeriodsService.submit(createResponse.data.period.id);
+      },
+      successMessage: "Đã nộp điểm danh tháng " + monthKey,
+      errorMessage: "Lỗi nộp điểm danh",
+      refreshOnFailure: !period,
+      issueContext: {
+        action: "submit",
+        period,
         month: monthKey,
-      });
-      if (!createRes.success) {
-        toast.error("Không thể tạo kỳ điểm danh");
-        return;
-      }
-      // Submit the newly created period
-      const submitRes = await attendancePeriodsService.submit(
-        createRes.data.period.id,
-      );
-      if (submitRes.success) {
-        toast.success("Đã nộp điểm danh tháng " + monthKey);
-        loadClassData();
-      } else {
-        toast.error(submitRes.error?.message || "Lỗi nộp điểm danh");
-      }
-      return;
-    }
-
-    const res = await attendancePeriodsService.submit(period.id);
-    if (res.success) {
-      toast.success("Đã nộp điểm danh tháng " + monthKey);
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || "Lỗi nộp điểm danh");
-    }
+      },
+    });
   };
 
   const handleApprove = async (monthKey) => {
@@ -769,73 +754,23 @@ export default function AttendancePage() {
       toast.error("Chưa có dữ liệu điểm danh cho tháng này");
       return;
     }
-    const res = await attendancePeriodsService.approve(period.id);
-    if (res.success) {
-      toast.success("Đã duyệt điểm danh tháng " + monthKey);
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || "Lỗi duyệt điểm danh");
-    }
+    await workflow.runAction({
+      key: `approve:${period.id}`,
+      operation: () => attendancePeriodsService.approve(period.id),
+      successMessage: "Đã duyệt điểm danh tháng " + monthKey,
+      errorMessage: "Lỗi duyệt điểm danh",
+      issueContext: {
+        action: "approve",
+        period,
+        month: monthKey,
+      },
+    });
   };
 
-  const handleLock = async (monthKey) => {
-    const period = periods[monthKey];
-    if (!period) {
-      toast.error("Chưa có dữ liệu điểm danh cho tháng này");
-      return;
-    }
-    const res = await attendancePeriodsService.lock(period.id);
-    if (res.success) {
-      toast.success(
-        "🔒 Đã chốt điểm danh tháng " +
-          monthKey +
-          ". Học phí đã sẵn sàng để thu!",
-      );
-      loadClassData();
-    } else {
-      toast.error(res.error?.message || "Lỗi chốt điểm danh");
-    }
-  };
-
-  const handleUnlock = async (monthKey) => {
-    const period = periods[monthKey];
-    if (!period) return;
-
-    const reason = window.prompt(
-      `Nhập lý do mở lại điểm danh tháng ${monthKey}:`,
-    );
-    if (reason === null) return;
-    if (!reason.trim()) {
-      toast.error("Vui lòng nhập lý do mở lại điểm danh");
-      return;
-    }
-
-    setReopeningMonth(monthKey);
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `/api/attendance-periods/${period.id}?action=unlock`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ reason: reason.trim() }),
-        },
-      );
-      const res = await response.json();
-      if (res.success) {
-        toast.success("Đã mở lại điểm danh tháng " + monthKey + " để chỉnh sửa");
-        await loadClassData();
-      } else {
-        toast.error(res.error?.message || "Không thể mở lại điểm danh");
-      }
-    } catch (error) {
-      toast.error(error?.message || "Không thể mở lại điểm danh");
-    } finally {
-      setReopeningMonth(null);
-    }
+  const handleUnlockConfirm = async (reason) => {
+    const response = await workflow.reopenPeriodForCorrection(correctionTarget, reason);
+    if (response.success) setCorrectionTarget(null);
+    return response;
   };
 
   const shiftVisibleMonths = (delta) => {
@@ -1159,36 +1094,72 @@ export default function AttendancePage() {
                               e.stopPropagation();
                               handleSubmit(key);
                             }}
-                            className="w-full py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 font-medium"
+                            disabled={workflow.isBusy}
+                            aria-busy={workflow.activeAction === `submit:${period?.id || key}` || undefined}
+                            className="w-full py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            📤 Nộp điểm danh
+                            {workflow.activeAction === `submit:${period?.id || key}`
+                              ? "Đang nộp..."
+                              : "📤 Nộp điểm danh"}
                           </button>
                         )}
 
                         {/* Submitted status - show approve button */}
-                        {period?.status === "submitted" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApprove(key);
-                            }}
-                            className="w-full py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 font-medium"
-                          >
-                            ✓ Duyệt điểm danh
-                          </button>
+                        {period?.status === "submitted" && isAdmin() && (
+                          <div className="space-y-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApprove(key);
+                              }}
+                              disabled={workflow.isBusy}
+                              aria-busy={workflow.activeAction === `approve:${period.id}` || undefined}
+                              className="w-full py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {workflow.activeAction === `approve:${period.id}`
+                                ? "Đang duyệt..."
+                                : "✓ Duyệt điểm danh"}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCorrectionTarget(period);
+                              }}
+                              disabled={workflow.isBusy}
+                              className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Mở lại để chỉnh sửa
+                            </button>
+                          </div>
                         )}
 
                         {/* Approved status - show lock button */}
-                        {period?.status === "approved" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLock(key);
-                            }}
-                            className="w-full py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 font-medium"
-                          >
-                            🔒 Chốt để thu học phí
-                          </button>
+                        {period?.status === "approved" && isAdmin() && (
+                          <div className="space-y-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                workflow.openLockPreflight(period);
+                              }}
+                              disabled={workflow.isBusy}
+                              aria-busy={workflow.activeAction === `preflight:${period.id}` || undefined}
+                              className="w-full py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {workflow.activeAction === `preflight:${period.id}`
+                                ? "Đang kiểm tra..."
+                                : "🔒 Chốt để thu học phí"}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCorrectionTarget(period);
+                              }}
+                              disabled={workflow.isBusy}
+                              className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Mở lại để chỉnh sửa
+                            </button>
+                          </div>
                         )}
 
                         {/* Locked status - show unlock button */}
@@ -1201,12 +1172,12 @@ export default function AttendancePage() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleUnlock(key);
+                                  setCorrectionTarget(period);
                                 }}
-                                disabled={reopeningMonth === key}
+                                disabled={workflow.isBusy}
                                 className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {reopeningMonth === key ? "Đang mở lại..." : "Mở lại để chỉnh sửa"}
+                                Mở lại để chỉnh sửa
                               </button>
                             )}
                           </div>
@@ -1218,6 +1189,19 @@ export default function AttendancePage() {
               </div>
             </div>
           </Motion.div>
+
+          <AttendanceReadinessIssuePanel
+            state={workflow.readinessIssue}
+            canReopen={Boolean(
+              isAdmin() &&
+                workflow.readinessIssue?.period?.id &&
+                ["submitted", "approved", "locked"].includes(
+                  workflow.readinessIssue.period.status,
+                ),
+            )}
+            onReopen={() => setCorrectionTarget(workflow.readinessIssue?.period)}
+            onDismiss={workflow.dismissReadinessIssue}
+          />
 
           {/* Week Timesheet - SAP Style */}
           {selectedWeek && (
@@ -1527,6 +1511,21 @@ export default function AttendancePage() {
           )}
         </>
       )}
+      <AttendanceLockPreflightModal
+        dialog={workflow.lockDialog}
+        onClose={workflow.closeLockPreflight}
+        onRetry={workflow.retryLockPreflight}
+        onConfirmLock={workflow.confirmLock}
+        onReopenForCorrection={workflow.reopenForCorrection}
+      />
+      <AttendanceCorrectionModal
+        period={correctionTarget}
+        busy={workflow.activeAction === `reopen:${correctionTarget?.id}`}
+        onClose={() => {
+          if (!workflow.isBusy) setCorrectionTarget(null);
+        }}
+        onConfirm={handleUnlockConfirm}
+      />
     </Motion.div>
   );
 }

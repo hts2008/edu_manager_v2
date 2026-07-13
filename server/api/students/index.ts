@@ -299,7 +299,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
       return res.status(201).json({ success: true, data: student });
     } catch (error) {
       console.error("Create student error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "STUDENT_CREATE_ERROR");
     }
   }
 
@@ -351,7 +351,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
       return successResponse(res, { student: updatedStudent });
     } catch (error) {
       console.error("Update student error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "STUDENT_UPDATE_ERROR");
     }
   }
 
@@ -384,7 +384,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
       return successResponse(res, { message: "Student moved to recycle bin" });
     } catch (error) {
       console.error("Delete student error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "STUDENT_DELETE_ERROR");
     }
   }
 

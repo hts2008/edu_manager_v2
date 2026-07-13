@@ -14,6 +14,8 @@ import {
   sendApiError,
 } from "../../../../lib/api-utils.js";
 import { detectReceiptAnomaly } from "../../../../lib/finance-corrections.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 
 function receiptToDto(receipt: any) {
   const monthlyFee = receipt.monthlyFees?.[0] || null;
@@ -74,15 +76,43 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      const receipt = await prisma.receipt.findFirst({ where: { id, deletedAt: null } });
-      if (!receipt) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
+      await runSerializableTransaction(prisma, async (tx) => {
+        const receiptIdentity = await tx.receipt.findFirst({
+          where: { id, deletedAt: null },
+          select: { studentId: true, month: true },
+        });
+        if (!receiptIdentity) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
 
-      await prisma.$transaction(async (tx) => {
+        await acquireAttendanceFeeAdvisoryLocks(
+          tx,
+          [receiptIdentity.studentId],
+          receiptIdentity.month,
+        );
+        const receipt = await tx.receipt.findFirst({
+          where: { id, deletedAt: null },
+        });
+        if (!receipt) {
+          throw new ApiError(
+            "RECEIPT_STATE_CONFLICT",
+            "Receipt changed while it was being deleted",
+            409,
+            { retryable: true },
+          );
+        }
+
         await tx.monthlyFee.updateMany({
           where: { receiptId: id },
           data: { receiptId: null, status: "confirmed", paidAt: null },
         });
         await tx.receipt.update({ where: { id }, data: { deletedAt: new Date() } });
+      }, {
+        maxAttempts: 3,
+        baseDelayMs: 20,
+        transactionOptions: {
+          isolationLevel: "Serializable",
+          maxWait: 5_000,
+          timeout: 15_000,
+        },
       });
 
       await logActivity(req, req.user.id, "DELETE_RECEIPT", "receipt", id);

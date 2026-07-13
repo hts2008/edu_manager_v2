@@ -9,6 +9,13 @@ import {
 import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
 import { sendApiError } from "../../../lib/api-utils.js";
 import { resolveAttendanceSessionPolicy } from "../../../lib/tuition.js";
+import { recordClassMonthPlanWrite } from "../../../lib/class-month-plan.js";
+import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
+import {
+  buildAttendanceSessionUpdate,
+  parseAttendanceDate,
+  validateBulkAttendanceRecords,
+} from "../../../lib/attendance-session-lifecycle.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -96,6 +103,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
       }
 
+      const [validatedRecord] = validateBulkAttendanceRecords([
+        {
+          student_id,
+          class_id,
+          attendance_date,
+          status,
+        },
+      ], class_id);
+      const attendanceDate = parseAttendanceDate(attendance_date, "attendance_date", 0);
+      const dateOnly = attendanceDate.toISOString().slice(0, 10);
+      const billingMonth = dateOnly.slice(0, 7);
+
       const classRecord = await prisma.class.findUnique({
         where: { id: class_id },
         select: { scheduleDays: true, sessionsPerWeek: true },
@@ -113,9 +132,32 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
       );
 
-      const attendanceDate = new Date(attendance_date);
-      const record = await prisma.$transaction(async (tx) => {
+      const record = await runSerializableTransaction(prisma, async (tx) => {
         await assertAttendanceDatesEditable(class_id, [attendanceDate], tx as typeof prisma);
+        await recordClassMonthPlanWrite(tx, {
+          classId: class_id,
+          billingMonth,
+          actorId: req.user.userId,
+          eventType: "attendance_single",
+          snapshot: { date: dateOnly },
+        });
+        const existingSession = await tx.classSession.findUnique({
+          where: {
+            classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
+          },
+          select: {
+            source: true,
+            replacementSessions: { select: { id: true }, take: 1 },
+          },
+        });
+        const sessionUpdate = buildAttendanceSessionUpdate(
+          existingSession || { source: null, replacementSessions: [] },
+          {
+            inferredKind: sessionPolicy.isMakeUp ? "makeup" : "regular",
+            status: validatedRecord.status === "holiday" ? "holiday" : "held",
+            userId: req.user.userId,
+          },
+        );
         const session = await tx.classSession.upsert({
           where: {
             classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
@@ -123,19 +165,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           create: {
             classId: class_id,
             sessionDate: attendanceDate,
-            billingMonth: attendance_date.slice(0, 7),
+            billingMonth,
             kind: sessionPolicy.isMakeUp ? "makeup" : "regular",
-            status: status === "holiday" ? "holiday" : "held",
+            status: validatedRecord.status === "holiday" ? "holiday" : "held",
             source: "attendance_single",
             createdById: req.user.userId,
             updatedById: req.user.userId,
           },
-          update: {
-            kind: sessionPolicy.isMakeUp ? "makeup" : "regular",
-            status: status === "holiday" ? "holiday" : "held",
-            updatedById: req.user.userId,
-            version: { increment: 1 },
-          },
+          update: sessionUpdate,
         });
         return tx.attendance.upsert({
           where: {
@@ -149,7 +186,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             studentId: student_id,
             classId: class_id,
             attendanceDate,
-            status,
+            status: validatedRecord.status,
             reason,
             isMakeUp: sessionPolicy.isMakeUp,
             makeUpReason: sessionPolicy.makeUpReason,
@@ -157,14 +194,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             createdById: req.user.id,
           },
           update: {
-            status,
+            status: validatedRecord.status,
             reason,
             isMakeUp: sessionPolicy.isMakeUp,
             makeUpReason: sessionPolicy.makeUpReason,
             classSessionId: session.id,
           },
         });
-      }, { isolationLevel: "Serializable" });
+      });
 
       return res.status(201).json({ success: true, data: toAttendanceResponse(record) });
     } catch (error) {

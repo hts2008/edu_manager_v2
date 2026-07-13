@@ -10,13 +10,63 @@ import {
   isAttendanceLockTimeout,
   lockAttendancePeriodAndSyncFees,
 } from "../../../../lib/attendance-lock-transaction.js";
-import { getString, sendApiError } from "../../../../lib/api-utils.js";
+import { ApiError, getString, sendApiError } from "../../../../lib/api-utils.js";
 import { getRequestId } from "../../../../lib/observability.js";
 import { reopenAttendancePeriod } from "../../../../lib/attendance-lock.js";
+import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
+import {
+  assertAttendancePeriodReady,
+  getAttendancePeriodReadiness,
+} from "../../../../lib/attendance-period-readiness.js";
+import {
+  ensureClassMonthPlan,
+  freezeClassMonthPlan,
+} from "../../../../lib/class-month-plan.js";
+
+function attendanceMonthRange(periodMonth: string) {
+  const [year, month] = periodMonth.split("-").map(Number);
+  return {
+    startDate: new Date(Date.UTC(year, month - 1, 1)),
+    nextMonthStart: new Date(Date.UTC(year, month, 1)),
+  };
+}
+
+export async function calculatePeriodStats(db: any, classId: string, periodMonth: string) {
+  const { startDate, nextMonthStart } = attendanceMonthRange(periodMonth);
+  const [stats, totalSessions] = await Promise.all([
+    db.attendance.groupBy({
+      by: ["status"],
+      where: {
+        classId,
+        attendanceDate: { gte: startDate, lt: nextMonthStart },
+      },
+      _count: { status: true },
+    }),
+    db.classSession.count({
+      where: { classId, billingMonth: periodMonth, kind: "regular" },
+    }),
+  ]);
+
+  const totals = {
+    totalSessions,
+    totalPresent: 0,
+    totalAbsentFee: 0,
+    totalAbsentNoFee: 0,
+    totalHoliday: 0,
+  };
+  for (const row of stats) {
+    const count = row._count.status;
+    if (row.status === "present") totals.totalPresent = count;
+    else if (row.status === "absent_with_fee") totals.totalAbsentFee = count;
+    else if (row.status === "absent_no_fee") totals.totalAbsentNoFee = count;
+    else if (row.status === "holiday") totals.totalHoliday = count;
+  }
+  return totals;
+}
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   // Get id from query param (Vercel dynamic route)
-  const { id, action } = req.query;
+  const { id, action, view } = req.query;
 
   if (!id || typeof id !== "string") {
     return errorResponse(res, "MISSING_ID", "Period ID is required", 400);
@@ -31,6 +81,23 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     if (!period) {
       return errorResponse(res, "NOT_FOUND", "Period not found", 404);
+    }
+
+    if (view === "lock-preflight") {
+      const readiness = await getAttendancePeriodReadiness(prisma, {
+        classId: period.classId,
+        month: period.periodMonth,
+      });
+      return successResponse(res, {
+        period: {
+          id: period.id,
+          class_id: period.classId,
+          period_month: period.periodMonth,
+          status: period.status,
+        },
+        ready_to_lock: readiness.ready,
+        ...readiness,
+      });
     }
 
     // Get attendance for this period
@@ -132,56 +199,72 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        // Calculate stats
-        const [year, month] = period.periodMonth.split("-");
-        const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-        const endDate = new Date(parseInt(year), parseInt(month), 0);
-
-        const [stats, totalSessions] = await Promise.all([prisma.attendance.groupBy({
-          by: ["status"],
-          where: {
+        const totals = await runSerializableTransaction(prisma, async (tx) => {
+          const current = await tx.attendancePeriod.findUnique({ where: { id } });
+          if (!current || current.status !== "open") {
+            throw new ApiError(
+              "ATTENDANCE_PERIOD_STATE_CONFLICT",
+              "Attendance period changed while submitting",
+              409,
+            );
+          }
+          assertAttendancePeriodReady(
+            await getAttendancePeriodReadiness(tx, {
+              classId: period.classId,
+              month: period.periodMonth,
+            }),
+          );
+          const plan = await ensureClassMonthPlan(tx, {
             classId: period.classId,
-            attendanceDate: { gte: startDate, lte: endDate },
-          },
-          _count: { status: true },
-        }), prisma.classSession.count({
-          where: { classId: period.classId, billingMonth: period.periodMonth },
-        })]);
-
-        let totalPresent = 0,
-          totalAbsentFee = 0,
-          totalAbsentNoFee = 0,
-          totalHoliday = 0;
-        stats.forEach((s) => {
-          const count = s._count.status;
-          if (s.status === "present") totalPresent = count;
-          else if (s.status === "absent_with_fee") totalAbsentFee = count;
-          else if (s.status === "absent_no_fee") totalAbsentNoFee = count;
-          else if (s.status === "holiday") totalHoliday = count;
-        });
-
-        await prisma.attendancePeriod.update({
-          where: { id },
-          data: {
-            status: "submitted",
-            submittedById: req.user.id,
-            submittedAt: new Date(),
-            totalSessions,
-            totalPresent,
-            totalAbsentFee,
-            totalAbsentNoFee,
-            totalHoliday,
-          },
+            billingMonth: period.periodMonth,
+            attendancePeriodStatus: "open",
+            actorId: req.user.id,
+            snapshot: { attendance_period_id: id },
+          });
+          const nextTotals = await calculatePeriodStats(
+            tx,
+            period.classId,
+            period.periodMonth,
+          );
+          await freezeClassMonthPlan(tx, {
+            planId: plan.id,
+            expectedRevision: plan.revision,
+            actorId: req.user.id,
+            reason: "attendance_period_submitted",
+            snapshot: {
+              attendance_period_id: id,
+              totals: nextTotals,
+            },
+          });
+          const updated = await tx.attendancePeriod.updateMany({
+            where: { id, status: "open" },
+            data: {
+              status: "submitted",
+              submittedById: req.user.id,
+              submittedAt: new Date(),
+              ...nextTotals,
+            },
+          });
+          if (updated.count !== 1) {
+            throw new ApiError(
+              "ATTENDANCE_PERIOD_STATE_CONFLICT",
+              "Attendance period changed while submitting",
+              409,
+            );
+          }
+          return nextTotals;
+        }, {
+          transactionOptions: { maxWait: 5_000, timeout: 15_000 },
         });
 
         return successResponse(res, {
           message: "Period submitted for approval",
           stats: {
-            total_sessions: totalSessions,
-            total_present: totalPresent,
-            total_absent_fee: totalAbsentFee,
-            total_absent_no_fee: totalAbsentNoFee,
-            total_holiday: totalHoliday,
+            total_sessions: totals.totalSessions,
+            total_present: totals.totalPresent,
+            total_absent_fee: totals.totalAbsentFee,
+            total_absent_no_fee: totals.totalAbsentNoFee,
+            total_holiday: totals.totalHoliday,
           },
         });
       }
@@ -200,13 +283,45 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        await prisma.attendancePeriod.update({
-          where: { id },
-          data: {
-            status: "approved",
-            approvedById: req.user.id,
-            approvedAt: new Date(),
-          },
+        await runSerializableTransaction(prisma, async (tx) => {
+          const current = await tx.attendancePeriod.findUnique({ where: { id } });
+          if (!current || current.status !== "submitted") {
+            throw new ApiError(
+              "ATTENDANCE_PERIOD_STATE_CONFLICT",
+              "Attendance period changed while approving",
+              409,
+            );
+          }
+          assertAttendancePeriodReady(
+            await getAttendancePeriodReadiness(tx, {
+              classId: period.classId,
+              month: period.periodMonth,
+            }),
+          );
+          await ensureClassMonthPlan(tx, {
+            classId: period.classId,
+            billingMonth: period.periodMonth,
+            attendancePeriodStatus: "submitted",
+            actorId: req.user.id,
+            snapshot: { attendance_period_id: id },
+          });
+          const updated = await tx.attendancePeriod.updateMany({
+            where: { id, status: "submitted" },
+            data: {
+              status: "approved",
+              approvedById: req.user.id,
+              approvedAt: new Date(),
+            },
+          });
+          if (updated.count !== 1) {
+            throw new ApiError(
+              "ATTENDANCE_PERIOD_STATE_CONFLICT",
+              "Attendance period changed while approving",
+              409,
+            );
+          }
+        }, {
+          transactionOptions: { maxWait: 5_000, timeout: 15_000 },
         });
 
         return successResponse(res, { message: "Period approved" });
@@ -226,7 +341,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const result = await prisma.$transaction(
+        const result = await runSerializableTransaction(
+          prisma,
           (tx) =>
             lockAttendancePeriodAndSyncFees(tx, {
               periodId: id,
@@ -234,10 +350,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               month: period.periodMonth,
               userId: req.user.id,
             }),
-          {
-            maxWait: 5_000,
-            timeout: 15_000,
-          },
+          { transactionOptions: { maxWait: 5_000, timeout: 15_000 } },
         );
 
         return successResponse(res, {
@@ -274,8 +387,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const reopenedPeriod = await prisma.$transaction((tx) =>
-          reopenAttendancePeriod(tx, {
+        const reopenedPeriod = await runSerializableTransaction(
+          prisma,
+          (tx) => reopenAttendancePeriod(tx, {
             periodId: id,
             classId: period.classId,
             month: period.periodMonth,
@@ -285,9 +399,52 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               getString(req.headers["x-forwarded-for"]) ||
               getString(req.headers["x-real-ip"]),
             userAgent: getString(req.headers["user-agent"]),
+            allowedStatuses: ["locked"],
           }),
         );
 
+        return successResponse(res, {
+          message: "Attendance period reopened for correction",
+          period: reopenedPeriod,
+        });
+      }
+
+      case "reopen-for-correction": {
+        if (req.user.role !== "admin") {
+          return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
+        }
+        if (!["submitted", "approved", "locked"].includes(period.status)) {
+          return errorResponse(
+            res,
+            "INVALID_STATUS",
+            `Cannot reopen: current status is ${period.status}`,
+            400,
+          );
+        }
+        const reason = getString(req.body?.reason)?.trim();
+        if (!reason) {
+          return errorResponse(
+            res,
+            "REOPEN_REASON_REQUIRED",
+            "A non-empty reason is required to reopen attendance",
+            400,
+          );
+        }
+        const reopenedPeriod = await runSerializableTransaction(
+          prisma,
+          (tx) => reopenAttendancePeriod(tx, {
+            periodId: id,
+            classId: period.classId,
+            month: period.periodMonth,
+            userId: req.user.id,
+            reason,
+            ipAddress:
+              getString(req.headers["x-forwarded-for"]) ||
+              getString(req.headers["x-real-ip"]),
+            userAgent: getString(req.headers["user-agent"]),
+            allowedStatuses: ["submitted", "approved", "locked"],
+          }),
+        );
         return successResponse(res, {
           message: "Attendance period reopened for correction",
           period: reopenedPeriod,
@@ -309,26 +466,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const { reason } = req.body || {};
-
-        await prisma.attendancePeriod.update({
-          where: { id },
-          data: {
-            status: "open",
-            submittedById: null,
-            submittedAt: null,
-            // Reset stats so teacher can recalculate
-            totalSessions: 0,
-            totalPresent: 0,
-            totalAbsentFee: 0,
-            totalAbsentNoFee: 0,
-            totalHoliday: 0,
-          },
-        });
+        const reason = getString(req.body?.reason)?.trim() || "Attendance submission rejected";
+        await runSerializableTransaction(prisma, (tx) =>
+          reopenAttendancePeriod(tx, {
+            periodId: id,
+            classId: period.classId,
+            month: period.periodMonth,
+            userId: req.user.id,
+            reason,
+            ipAddress:
+              getString(req.headers["x-forwarded-for"]) ||
+              getString(req.headers["x-real-ip"]),
+            userAgent: getString(req.headers["user-agent"]),
+            allowedStatuses: ["submitted"],
+          }),
+        );
 
         return successResponse(res, {
           message: "Period returned to teacher for revision",
-          reason: reason || null,
+          reason,
         });
       }
 
@@ -336,7 +492,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(
           res,
           "INVALID_ACTION",
-          `Invalid action: ${actionType}. Valid actions: submit, approve, lock, unlock, reject`,
+          `Invalid action: ${actionType}. Valid actions: submit, approve, lock, unlock, reopen-for-correction, reject`,
           400,
         );
     }

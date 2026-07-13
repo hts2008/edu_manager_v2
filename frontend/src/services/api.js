@@ -367,6 +367,11 @@ export const classesService = {
 
 // Attendance API
 export const attendanceService = {
+  getMonth: (classId, month, options = {}) =>
+    request(
+      `/attendance/month?class_id=${encodeURIComponent(classId)}&month=${encodeURIComponent(month)}`,
+      options,
+    ),
   getByDate: (date, classId) =>
     request(`/attendance?class_id=${classId}&date=${date}`),
   getByClassDate: (classId, date) =>
@@ -520,8 +525,11 @@ export const classSessionsService = {
     request("/class-sessions/month-plan", { method: "PATCH", body: JSON.stringify(data) }),
   update: (id, data) =>
     request(`/class-sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(data) }),
-  delete: (id, version) =>
-    request(`/class-sessions/${encodeURIComponent(id)}?version=${encodeURIComponent(version)}`, { method: "DELETE" }),
+  delete: (id, version, expectedVersion) =>
+    request(
+      `/class-sessions/${encodeURIComponent(id)}?version=${encodeURIComponent(version)}&expected_version=${encodeURIComponent(expectedVersion)}`,
+      { method: "DELETE" },
+    ),
 };
 
 // Templates API
@@ -671,22 +679,31 @@ export const attendancePeriodsService = {
     const query = new URLSearchParams(params).toString();
     return request(`/attendance-periods${query ? `?${query}` : ""}`);
   },
-  getById: (id) => request(`/attendance-periods/${id}`),
+  getById: (id) => request(`/attendance-periods/${encodeURIComponent(id)}`),
+  getLockPreflight: (id, options = {}) =>
+    request(`/attendance-periods/${encodeURIComponent(id)}?view=lock-preflight`, {
+      ...options,
+      cache: "no-store",
+      skipCache: true,
+    }),
   create: (data) =>
     request("/attendance-periods", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   submit: (id) =>
-    request(`/attendance-periods/${id}?action=submit`, { method: "POST" }),
+    request(`/attendance-periods/${encodeURIComponent(id)}?action=submit`, { method: "POST" }),
   approve: (id) =>
-    request(`/attendance-periods/${id}?action=approve`, { method: "POST" }),
+    request(`/attendance-periods/${encodeURIComponent(id)}?action=approve`, { method: "POST" }),
   lock: (id) =>
-    request(`/attendance-periods/${id}?action=lock`, { method: "POST" }),
-  unlock: (id) =>
-    request(`/attendance-periods/${id}?action=unlock`, { method: "POST" }),
+    request(`/attendance-periods/${encodeURIComponent(id)}?action=lock`, { method: "POST" }),
+  reopenForCorrection: (id, reason) =>
+    request(`/attendance-periods/${encodeURIComponent(id)}?action=reopen-for-correction`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
   reject: (id, reason) =>
-    request(`/attendance-periods/${id}?action=reject`, {
+    request(`/attendance-periods/${encodeURIComponent(id)}?action=reject`, {
       method: "POST",
       body: JSON.stringify({ reason }),
     }),

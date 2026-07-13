@@ -1,12 +1,25 @@
 import prisma from "./prisma.js";
 import { ApiError, toDateOnly } from "./api-utils.js";
-import { acquireAttendanceFeeAdvisoryLocks } from "./attendance-lock-transaction.js";
+import {
+  acquireAttendanceFeeAdvisoryLocks,
+  acquireClassMonthRosterAdvisoryLocks,
+} from "./attendance-lock-transaction.js";
+import { reopenClassMonthPlan } from "./class-month-plan.js";
 
 type PrismaLike = typeof prisma;
 
 type AttendanceReopenDb = Pick<
   PrismaLike,
-  "attendance" | "attendancePeriod" | "monthlyFeeLine" | "activityLog" | "$queryRaw"
+  | "attendance"
+  | "attendancePeriod"
+  | "enrollmentPeriod"
+  | "monthlyFee"
+  | "monthlyFeeLine"
+  | "studentClass"
+  | "activityLog"
+  | "classMonthPlan"
+  | "classMonthPlanRevision"
+  | "$queryRaw"
 >;
 
 export const ATTENDANCE_REOPEN_FINANCIAL_CONFLICT =
@@ -54,7 +67,7 @@ export async function assertAttendanceDatesEditable(
 export async function assertAttendancePeriodReopenSafe(
   classId: string,
   month: string,
-  db: Pick<AttendanceReopenDb, "monthlyFeeLine"> = prisma,
+  db: Pick<AttendanceReopenDb, "monthlyFee" | "monthlyFeeLine"> = prisma,
 ) {
   const protectedLine = await db.monthlyFeeLine.findFirst({
     where: {
@@ -80,6 +93,63 @@ export async function assertAttendancePeriodReopenSafe(
       409,
     );
   }
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const monthStart = new Date(Date.UTC(year, monthNumber - 1, 1));
+  const nextMonthStart = new Date(Date.UTC(year, monthNumber, 1));
+  const protectedAggregate = await db.monthlyFee.findFirst({
+    where: {
+      month,
+      OR: [
+        { status: { in: ["confirmed", "paid"] } },
+        { receiptId: { not: null } },
+        { paidAt: { not: null } },
+      ],
+      student: {
+        OR: [
+          {
+            attendance: {
+              some: {
+                classId,
+                attendanceDate: { gte: monthStart, lt: nextMonthStart },
+              },
+            },
+          },
+          {
+            enrollmentPeriods: {
+              some: {
+                classId,
+                startedAt: { lt: nextMonthStart },
+                OR: [
+                  { endedAt: null },
+                  { endedAt: { gt: monthStart } },
+                ],
+              },
+            },
+          },
+          {
+            enrollmentPeriods: { none: { classId } },
+            studentClasses: {
+              some: {
+                classId,
+                status: "active",
+                enrollmentDate: { lt: nextMonthStart },
+              },
+            },
+          },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  if (protectedAggregate) {
+    throw new ApiError(
+      ATTENDANCE_REOPEN_FINANCIAL_CONFLICT,
+      "Cannot reopen attendance because confirmed or paid tuition depends on this period",
+      409,
+    );
+  }
 }
 
 export async function reopenAttendancePeriod(
@@ -92,28 +162,65 @@ export async function reopenAttendancePeriod(
     reason: string;
     ipAddress?: string;
     userAgent?: string;
+    allowedStatuses?: Array<"submitted" | "approved" | "locked">;
   },
 ) {
   const [year, monthNumber] = input.month.split("-").map(Number);
   const startDate = new Date(Date.UTC(year, monthNumber - 1, 1));
-  const endDate = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59, 999));
-  const attendanceStudents = await db.attendance.findMany({
-    where: {
-      classId: input.classId,
-      attendanceDate: { gte: startDate, lte: endDate },
-    },
-    distinct: ["studentId"],
-    select: { studentId: true },
-  });
+  const nextMonthStart = new Date(Date.UTC(year, monthNumber, 1));
+  await acquireClassMonthRosterAdvisoryLocks(
+    db,
+    [input.classId],
+    [input.month],
+  );
+  const [attendanceStudents, enrollmentStudents, legacyStudents] = await Promise.all([
+    db.attendance.findMany({
+      where: {
+        classId: input.classId,
+        attendanceDate: { gte: startDate, lt: nextMonthStart },
+      },
+      distinct: ["studentId"],
+      select: { studentId: true },
+    }),
+    db.enrollmentPeriod.findMany({
+      where: {
+        classId: input.classId,
+        startedAt: { lt: nextMonthStart },
+        OR: [
+          { endedAt: null },
+          { endedAt: { gt: startDate } },
+        ],
+      },
+      distinct: ["studentId"],
+      select: { studentId: true },
+    }),
+    db.studentClass.findMany({
+      where: {
+        classId: input.classId,
+        status: "active",
+        enrollmentDate: { lt: nextMonthStart },
+        student: {
+          enrollmentPeriods: { none: { classId: input.classId } },
+        },
+      },
+      distinct: ["studentId"],
+      select: { studentId: true },
+    }),
+  ]);
   await acquireAttendanceFeeAdvisoryLocks(
     db,
-    attendanceStudents.map((row) => row.studentId),
+    [...attendanceStudents, ...enrollmentStudents, ...legacyStudents].map(
+      (row) => row.studentId,
+    ),
     input.month,
   );
   await assertAttendancePeriodReopenSafe(input.classId, input.month, db);
 
   const updated = await db.attendancePeriod.updateMany({
-    where: { id: input.periodId, status: "locked" },
+    where: {
+      id: input.periodId,
+      status: { in: input.allowedStatuses || ["locked"] },
+    },
     data: {
       status: "open",
       submittedById: null,
@@ -122,11 +229,22 @@ export async function reopenAttendancePeriod(
       approvedAt: null,
       lockedById: null,
       lockedAt: null,
+      totalSessions: 0,
+      totalPresent: 0,
+      totalAbsentFee: 0,
+      totalAbsentNoFee: 0,
+      totalHoliday: 0,
     },
   });
   if (updated.count !== 1) {
     throw new ApiError("ATTENDANCE_REOPEN_STATE_CONFLICT", "Attendance period changed while reopening", 409);
   }
+  await reopenClassMonthPlan(db, {
+    classId: input.classId,
+    billingMonth: input.month,
+    actorId: input.userId,
+    reason: input.reason,
+  });
   const period = await db.attendancePeriod.findUniqueOrThrow({
     where: { id: input.periodId },
   });

@@ -1,7 +1,96 @@
+import { ApiError } from "./api-utils.js";
+import { acquireClassMonthRosterAdvisoryLocks } from "./attendance-lock-transaction.js";
+
 type EnrollmentPeriodLike = {
   startedAt: Date;
   endedAt?: Date | null;
 };
+
+type StudentClassSnapshot = {
+  id: string;
+  classId: string;
+  status?: string | null;
+};
+
+function rosterSnapshot(links: StudentClassSnapshot[]) {
+  return links
+    .map((link) => `${link.id}:${link.classId}:${link.status || ""}`)
+    .sort();
+}
+
+function assertRosterSnapshotStable(
+  before: StudentClassSnapshot[],
+  after: StudentClassSnapshot[],
+) {
+  const beforeSnapshot = rosterSnapshot(before);
+  const afterSnapshot = rosterSnapshot(after);
+  if (
+    beforeSnapshot.length === afterSnapshot.length &&
+    beforeSnapshot.every((value, index) => value === afterSnapshot[index])
+  ) {
+    return;
+  }
+
+  throw new ApiError(
+    "ENROLLMENT_ROSTER_CHANGED",
+    "Enrollment roster changed concurrently; retry the operation",
+    409,
+    {
+      retryable: true,
+      before: beforeSnapshot,
+      after: afterSnapshot,
+    },
+  );
+}
+
+function monthKey(date: Date) {
+  return date.toISOString().slice(0, 7);
+}
+
+function affectedMonthKeys(effectiveAt: Date, now: Date) {
+  const start = new Date(Date.UTC(effectiveAt.getUTCFullYear(), effectiveAt.getUTCMonth(), 1));
+  const endSource = effectiveAt > now ? effectiveAt : now;
+  const end = new Date(Date.UTC(endSource.getUTCFullYear(), endSource.getUTCMonth(), 1));
+  const months: string[] = [];
+  for (const cursor = new Date(start); cursor <= end; cursor.setUTCMonth(cursor.getUTCMonth() + 1)) {
+    months.push(monthKey(cursor));
+  }
+  return months;
+}
+
+export async function assertEnrollmentMutationWritable(
+  tx: any,
+  classIds: string[],
+  effectiveAt = new Date(),
+  now = new Date(),
+) {
+  const uniqueClassIds = [...new Set(classIds.filter(Boolean))];
+  if (uniqueClassIds.length === 0) return;
+  const months = affectedMonthKeys(effectiveAt, now);
+  await acquireClassMonthRosterAdvisoryLocks(tx, uniqueClassIds, months);
+  if (!tx.attendancePeriod?.findFirst) return;
+
+  const lockedPeriod = await tx.attendancePeriod.findFirst({
+    where: {
+      classId: { in: uniqueClassIds },
+      periodMonth: { gte: months[0], lte: months[months.length - 1] },
+      status: "locked",
+    },
+    select: { classId: true, periodMonth: true, status: true },
+    orderBy: { periodMonth: "asc" },
+  });
+  if (lockedPeriod) {
+    throw new ApiError(
+      "ENROLLMENT_PERIOD_LOCKED",
+      `Enrollment cannot change because attendance ${lockedPeriod.periodMonth} is locked`,
+      409,
+      {
+        class_id: lockedPeriod.classId,
+        period_month: lockedPeriod.periodMonth,
+      },
+    );
+  }
+}
 
 export function enrollmentOverlapsRange(
   period: EnrollmentPeriodLike,
@@ -28,6 +117,21 @@ export async function syncStudentEnrollmentPeriods(
   const effectiveAt = input.effectiveAt || new Date();
   const desiredClassIds = [...new Set(input.desiredClassIds.filter(Boolean))];
   const desired = new Set(desiredClassIds);
+  const initialLinks = await tx.studentClass.findMany({
+    where: { studentId: input.studentId },
+    select: {
+      id: true,
+      studentId: true,
+      classId: true,
+      status: true,
+      enrollmentDate: true,
+    },
+  });
+  await assertEnrollmentMutationWritable(
+    tx,
+    [...desiredClassIds, ...initialLinks.map((link: any) => link.classId)],
+    effectiveAt,
+  );
   const links = await tx.studentClass.findMany({
     where: { studentId: input.studentId },
     select: {
@@ -38,6 +142,7 @@ export async function syncStudentEnrollmentPeriods(
       enrollmentDate: true,
     },
   });
+  assertRosterSnapshotStable(initialLinks, links);
   const byClass = new Map(links.map((link: any) => [link.classId, link]));
   let activated = 0;
   let deactivated = 0;
@@ -122,12 +227,51 @@ export async function deactivateEnrollmentPeriods(
   where: { studentId?: string; classId?: string },
   effectiveAt = new Date(),
 ) {
-  await tx.studentClass.updateMany({
-    where: { ...where, status: "active" },
-    data: { status: "inactive" },
-  });
+  const initialLinks = tx.studentClass?.findMany
+    ? await tx.studentClass.findMany({
+        where: { ...where, status: "active" },
+        select: { id: true, classId: true, status: true },
+      })
+    : where.classId
+      ? [{ id: `class:${where.classId}`, classId: where.classId, status: "active" }]
+      : [];
+  await assertEnrollmentMutationWritable(
+    tx,
+    initialLinks.map((link: { classId: string }) => link.classId),
+    effectiveAt,
+  );
+
+  const currentLinks = tx.studentClass?.findMany
+    ? await tx.studentClass.findMany({
+        where: { ...where, status: "active" },
+        select: { id: true, classId: true, status: true },
+      })
+    : initialLinks;
+  assertRosterSnapshotStable(initialLinks, currentLinks);
+  const linkIds = currentLinks
+    .map((link: { id: string }) => link.id)
+    .filter((id: string) => !id.startsWith("class:"));
+  const classIds = [...new Set(currentLinks.map((link: { classId: string }) => link.classId))];
+
+  if (linkIds.length > 0) {
+    await tx.studentClass.updateMany({
+      where: { id: { in: linkIds }, status: "active" },
+      data: { status: "inactive" },
+    });
+  } else if (where.classId && !tx.studentClass?.findMany) {
+    await tx.studentClass.updateMany({
+      where: { ...where, status: "active" },
+      data: { status: "inactive" },
+    });
+  }
+
+  if (classIds.length === 0) return;
   await tx.enrollmentPeriod.updateMany({
-    where: { ...where, endedAt: null },
+    where: {
+      ...where,
+      classId: { in: classIds },
+      endedAt: null,
+    },
     data: { endedAt: effectiveAt },
   });
 }

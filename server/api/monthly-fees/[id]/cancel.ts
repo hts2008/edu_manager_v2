@@ -13,6 +13,8 @@ import {
   logActivity,
   sendApiError,
 } from "../../../../lib/api-utils.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -23,29 +25,62 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const released = await prisma.monthlyFee.updateMany({
-      where: {
-        id,
-        status: "confirmed",
-        receiptId: null,
-        paidAt: null,
-      },
-      data: { status: "ready" },
-    });
+    const updated = await runSerializableTransaction(prisma, async (tx) => {
+      const feeIdentity = await tx.monthlyFee.findUnique({
+        where: { id },
+        select: { studentId: true, month: true },
+      });
+      if (!feeIdentity) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
 
-    if (released.count !== 1) {
-      const current = await prisma.monthlyFee.findUnique({ where: { id } });
-      if (!current) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
-      throw new ApiError(
-        current.status === "paid"
-          ? "MONTHLY_FEE_STATE_CONFLICT"
-          : "INVALID_STATUS",
-        `Cannot cancel: current status is ${current.status}`,
-        current.status === "paid" || current.receiptId || current.paidAt ? 409 : 400
+      await acquireAttendanceFeeAdvisoryLocks(
+        tx,
+        [feeIdentity.studentId],
+        feeIdentity.month,
       );
-    }
+      const current = await tx.monthlyFee.findUnique({ where: { id } });
+      if (!current) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+      if (
+        current.status !== "confirmed" ||
+        current.receiptId ||
+        current.paidAt
+      ) {
+        throw new ApiError(
+          current.status === "paid"
+            ? "MONTHLY_FEE_STATE_CONFLICT"
+            : "INVALID_STATUS",
+          `Cannot cancel: current status is ${current.status}`,
+          current.status === "paid" || current.receiptId || current.paidAt ? 409 : 400,
+        );
+      }
 
-    const updated = await prisma.monthlyFee.findUniqueOrThrow({ where: { id } });
+      const released = await tx.monthlyFee.updateMany({
+        where: {
+          id,
+          status: "confirmed",
+          receiptId: null,
+          paidAt: null,
+        },
+        data: { status: "ready" },
+      });
+      if (released.count !== 1) {
+        throw new ApiError(
+          "MONTHLY_FEE_STATE_CONFLICT",
+          "Monthly fee changed while it was being cancelled",
+          409,
+          { retryable: true },
+        );
+      }
+
+      return tx.monthlyFee.findUniqueOrThrow({ where: { id } });
+    }, {
+      maxAttempts: 3,
+      baseDelayMs: 20,
+      transactionOptions: {
+        isolationLevel: "Serializable",
+        maxWait: 5_000,
+        timeout: 15_000,
+      },
+    });
     await logActivity(req, req.user.id, "CANCEL_MONTHLY_FEE", "monthly_fee", id);
 
     return successResponse(res, { id: updated.id, status: updated.status });

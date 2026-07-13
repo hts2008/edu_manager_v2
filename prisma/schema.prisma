@@ -29,23 +29,27 @@ model User {
   tokenVersion Int       @default(0) @map("token_version")
 
   // Relations
-  templates             Template[]
-  receipts              Receipt[]
-  payments              Payment[]
-  activityLogs          ActivityLog[]
-  progressCreated       StudentProgressMonth[]      @relation("ProgressCreatedBy")
-  progressUpdated       StudentProgressMonth[]      @relation("ProgressUpdatedBy")
-  progressDailyEntries  StudentProgressDailyEntry[] @relation("ProgressDailyCreatedBy")
-  progressRevisions     StudentProgressRevision[]   @relation("ProgressRevisionActor")
-  attendanceCreated     Attendance[]                @relation("AttendanceCreator")
-  classSessionsCreated  ClassSession[]              @relation("ClassSessionCreatedBy")
-  classSessionsUpdated  ClassSession[]              @relation("ClassSessionUpdatedBy")
-  feeLineRevisions      MonthlyFeeLineRevision[]    @relation("MonthlyFeeLineRevisionActor")
-  periodSubmitted       AttendancePeriod[]          @relation("PeriodSubmitter")
-  periodApproved        AttendancePeriod[]          @relation("PeriodApprover")
-  periodLocked          AttendancePeriod[]          @relation("PeriodLocker")
-  authSessions          AuthSession[]
-  bulkFeePaymentBatches BulkFeePaymentBatch[]
+  templates               Template[]
+  receipts                Receipt[]
+  payments                Payment[]
+  activityLogs            ActivityLog[]
+  progressCreated         StudentProgressMonth[]      @relation("ProgressCreatedBy")
+  progressUpdated         StudentProgressMonth[]      @relation("ProgressUpdatedBy")
+  progressDailyEntries    StudentProgressDailyEntry[] @relation("ProgressDailyCreatedBy")
+  progressRevisions       StudentProgressRevision[]   @relation("ProgressRevisionActor")
+  attendanceCreated       Attendance[]                @relation("AttendanceCreator")
+  classSessionsCreated    ClassSession[]              @relation("ClassSessionCreatedBy")
+  classSessionsUpdated    ClassSession[]              @relation("ClassSessionUpdatedBy")
+  classMonthPlansCreated  ClassMonthPlan[]            @relation("ClassMonthPlanCreatedBy")
+  classMonthPlansUpdated  ClassMonthPlan[]            @relation("ClassMonthPlanUpdatedBy")
+  classMonthPlansFrozen   ClassMonthPlan[]            @relation("ClassMonthPlanFrozenBy")
+  classMonthPlanRevisions ClassMonthPlanRevision[]    @relation("ClassMonthPlanRevisionActor")
+  feeLineRevisions        MonthlyFeeLineRevision[]    @relation("MonthlyFeeLineRevisionActor")
+  periodSubmitted         AttendancePeriod[]          @relation("PeriodSubmitter")
+  periodApproved          AttendancePeriod[]          @relation("PeriodApprover")
+  periodLocked            AttendancePeriod[]          @relation("PeriodLocker")
+  authSessions            AuthSession[]
+  bulkFeePaymentBatches   BulkFeePaymentBatch[]
 
   @@index([username])
   @@index([role])
@@ -226,6 +230,7 @@ model Class {
   progressMonths    StudentProgressMonth[]
   enrollmentPeriods EnrollmentPeriod[]
   classSessions     ClassSession[]
+  classMonthPlans   ClassMonthPlan[]
 
   @@index([teacherId])
   @@index([status])
@@ -286,6 +291,58 @@ model ClassSession {
   @@index([createdById])
   @@index([updatedById])
   @@map("class_sessions")
+}
+
+enum ClassMonthPlanState {
+  open
+  frozen
+}
+
+model ClassMonthPlan {
+  id           String              @id @default(cuid())
+  classId      String              @map("class_id")
+  billingMonth String              @map("billing_month")
+  state        ClassMonthPlanState @default(open)
+  revision     Int                 @default(1)
+  createdById  String?             @map("created_by")
+  updatedById  String?             @map("updated_by")
+  frozenById   String?             @map("frozen_by")
+  frozenAt     DateTime?           @map("frozen_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  class     Class                    @relation(fields: [classId], references: [id], onDelete: Restrict)
+  createdBy User?                    @relation("ClassMonthPlanCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?                    @relation("ClassMonthPlanUpdatedBy", fields: [updatedById], references: [id])
+  frozenBy  User?                    @relation("ClassMonthPlanFrozenBy", fields: [frozenById], references: [id])
+  revisions ClassMonthPlanRevision[]
+
+  @@unique([classId, billingMonth])
+  @@index([billingMonth, state])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([frozenById])
+  @@map("class_month_plans")
+}
+
+model ClassMonthPlanRevision {
+  id        String              @id @default(cuid())
+  planId    String              @map("plan_id")
+  revision  Int
+  state     ClassMonthPlanState
+  eventType String              @map("event_type")
+  reason    String?
+  snapshot  Json
+  actorId   String?             @map("actor_id")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  plan  ClassMonthPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  actor User?          @relation("ClassMonthPlanRevisionActor", fields: [actorId], references: [id])
+
+  @@unique([planId, revision])
+  @@index([planId, createdAt])
+  @@index([actorId])
+  @@map("class_month_plan_revisions")
 }
 
 // ========================================

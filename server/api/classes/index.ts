@@ -12,6 +12,7 @@ import {
   validateBody,
 } from "../../../lib/validation.js";
 import {
+  assertEnrollmentMutationWritable,
   deactivateEnrollmentPeriods,
 } from "../../../lib/enrollment.js";
 import { sendApiError } from "../../../lib/api-utils.js";
@@ -34,6 +35,9 @@ export async function enrollStudentsInClass(
   if (!uniqueIds.length) {
     return { requested: 0, enrolled: 0, reactivated: 0, skipped: 0 };
   }
+
+  const effectiveAt = new Date();
+  await assertEnrollmentMutationWritable(tx, [classId], effectiveAt);
 
   const classData = await tx.class.findUnique({
     where: { id: classId },
@@ -70,7 +74,6 @@ export async function enrollStudentsInClass(
     throw new Error("CLASS_CAPACITY_EXCEEDED");
   }
 
-  const effectiveAt = new Date();
   const newStudentIds = idsToActivate.filter(
     (studentId) => !existingByStudent.has(studentId)
   );
@@ -448,7 +451,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       return successResponse(res, { message: "Class archived successfully" });
     } catch (error) {
       console.error("Delete class error:", error);
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      return sendApiError(res, error, "CLASS_DELETE_ERROR");
     }
   }
 

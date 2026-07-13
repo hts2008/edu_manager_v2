@@ -7,11 +7,13 @@ import { logApiError } from "./observability.js";
 export class ApiError extends Error {
   code: string;
   status: number;
+  details?: unknown;
 
-  constructor(code: string, message: string, status = 400) {
+  constructor(code: string, message: string, status = 400, details?: unknown) {
     super(message);
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -22,13 +24,14 @@ export function sendApiError(
   fallbackMessage = "Internal server error"
 ) {
   if (error instanceof ApiError) {
-    return errorResponse(res, error.code, error.message, error.status);
+    return errorResponse(res, error.code, error.message, error.status, error.details);
   }
 
   const maybeApiError = error as {
     code?: unknown;
     message?: unknown;
     status?: unknown;
+    details?: unknown;
   };
   if (
     typeof maybeApiError.code === "string" &&
@@ -39,7 +42,8 @@ export function sendApiError(
       res,
       maybeApiError.code,
       maybeApiError.message,
-      maybeApiError.status
+      maybeApiError.status,
+      maybeApiError.details,
     );
   }
 

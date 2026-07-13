@@ -227,11 +227,16 @@ export function errorResponse(
   res: VercelResponse,
   code: string,
   message: string,
-  status = 400
+  status = 400,
+  details?: unknown,
 ) {
   return res.status(status).json({
     success: false,
-    error: { code, message },
+    error: {
+      code,
+      message,
+      ...(details === undefined ? {} : { details }),
+    },
   });
 }
 

@@ -17,6 +17,8 @@ import {
 } from "../../../lib/api-utils.js";
 import { receiptCreateSchema, validateBody } from "../../../lib/validation.js";
 import { detectReceiptAnomaly } from "../../../lib/finance-corrections.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
 
 export function assertAggregateReceiptAllowed(monthlyFee: any) {
   if (monthlyFee?.lines?.length) {
@@ -151,7 +153,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         body.template_id
       );
 
-      const receipt = await prisma.$transaction(async (tx) => {
+      const receipt = await runSerializableTransaction(prisma, async (tx) => {
+        await acquireAttendanceFeeAdvisoryLocks(
+          tx,
+          [body.student_id],
+          body.month,
+        );
         let monthlyFee = null;
         if (body.monthly_fee_id) {
           monthlyFee = await tx.monthlyFee.findFirst({
@@ -260,6 +267,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
 
         return createdReceipt;
+      }, {
+        maxAttempts: 3,
+        baseDelayMs: 20,
+        transactionOptions: {
+          isolationLevel: "Serializable",
+          maxWait: 5_000,
+          timeout: 15_000,
+        },
       });
 
       await logActivity(req, req.user.id, "CREATE_RECEIPT", "receipt", receipt.id);

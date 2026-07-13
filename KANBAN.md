@@ -14,6 +14,22 @@
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
+## IN PROGRESS - ATTENDANCE MONTH-LEDGER CORRECTION (2026-07-13)
+
+**Objective:** eliminate phantom planned sessions and partial-week billing ambiguity, make attendance submit/approve/lock fail before mutation with actionable typed diagnostics, and preserve exact monthly-package tuition through an explicit month session ledger.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| ATLC-2026-07-13-01 | Add readiness preflight before submit/approve/lock and reopen-for-correction workflow | IN PROGRESS | Focused regression tests `30/30`; TypeScript pass |
+| ATLC-2026-07-13-02 | Remove attendance-generated phantom sessions and converge all fee generation on Tuition V3 | IN PROGRESS | Regression tests and full suite pending |
+| ATLC-2026-07-13-03 | Add monotonic `ClassMonthPlan` state/revision and immutable snapshots | IN PROGRESS | Additive migration and backfill dry-run pending |
+| ATLC-2026-07-13-04 | Add operator preflight/correction/month-plan UX with loading and typed blockers | IN PROGRESS | Frontend worker active; browser evidence pending |
+| ATLC-2026-07-13-05 | Dry-run production repair, migrate/deploy, and authenticated Chrome smoke | PLANNED | Blocked on ATLC-01..04 |
+
+**Billing invariant:** a visual calendar week never owns tuition. Each session belongs to the month of its actual date; a monthly package is allocated in whole VND across regular sessions in that month. `sessions_per_week` remains cadence guidance only.
+
+**Runtime degradation:** Context+ and EDU-scoped Neural Memory tools are not exposed in this Codex palette; direct code inspection and workspace markdown memory are being used, and this does not relax test/runtime gates.
+
 ## IMPLEMENTED - TUITION V3 MONTH SESSION LEDGER (2026-07-12)
 
 **Objective:** make monthly-package tuition independent from partial calendar weeks by using the actual class-session ledger inside each billing month, while preserving independent class lines and immutable financial history.

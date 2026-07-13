@@ -2,9 +2,13 @@ import type { VercelResponse } from "../../../lib/vercel-types.js";
 import prisma from "../../../lib/prisma.js";
 import { type AuthedRequest, errorResponse, requireAuth, successResponse } from "../../../lib/auth.js";
 import { ApiError, getRequiredString, sendApiError } from "../../../lib/api-utils.js";
+import {
+  claimClassMonthPlan,
+  ensureClassMonthPlan,
+  type AttendancePeriodPlanStatus,
+} from "../../../lib/class-month-plan.js";
 import { normalizeScheduleDays } from "../../../lib/tuition.js";
 import {
-  assertExpectedVersion,
   assertNoAttendanceForRemovedSessions,
   assertMonthMutable,
   assertRowVersions,
@@ -15,6 +19,7 @@ import {
   CLASS_SESSION_STATUSES,
   classSessionToDto,
   ClassSessionError,
+  dateOnly,
   enumValue,
   EXTRA_FEE_MODES,
   monthBounds,
@@ -34,8 +39,34 @@ function requestIdentity(req: AuthedRequest) {
   return { classId, month };
 }
 
-function planVersion(rows: Array<{ version: number }>) {
+function expectedRevision(value: unknown) {
+  const revision = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+  if (!Number.isInteger(revision) || Number(revision) < 1) {
+    throw new ClassSessionError(
+      "VERSION_REQUIRED",
+      "expected_version must be a positive integer",
+      400,
+    );
+  }
+  return Number(revision);
+}
+
+function maxSessionVersion(rows: Array<{ version: number }>) {
   return rows.reduce((max, row) => Math.max(max, row.version), 0);
+}
+
+function assertPlanSessionMonthInvariant(rows: any[], classId: string, month: string) {
+  for (const row of rows) {
+    const sessionMonth = dateOnly(row.sessionDate).slice(0, 7);
+    if (row.classId !== classId || sessionMonth !== month || row.billingMonth !== sessionMonth) {
+      throw new ClassSessionError(
+        "BILLING_MONTH_MISMATCH",
+        "Every session_date must belong to its class month plan and match billing_month",
+        409,
+        { session_id: row.id, session_month: sessionMonth, billing_month: row.billingMonth },
+      );
+    }
+  }
 }
 
 async function loadPlan(db: any, classId: string, month: string) {
@@ -45,13 +76,39 @@ async function loadPlan(db: any, classId: string, month: string) {
   });
 }
 
+async function ensurePlanAggregate(
+  db: any,
+  classId: string,
+  month: string,
+  actorId?: string | null,
+) {
+  const period = await db.attendancePeriod.findUnique({
+    where: { classId_periodMonth: { classId, periodMonth: month } },
+    select: { status: true },
+  });
+  return ensureClassMonthPlan(db, {
+    classId,
+    billingMonth: month,
+    attendancePeriodStatus: (period?.status ?? "open") as AttendancePeriodPlanStatus,
+    actorId,
+    snapshot: { source: "class_session_month_plan_route" },
+  });
+}
+
 async function getMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const { classId, month } = requestIdentity(req);
-  const rows = await loadPlan(prisma, classId, month);
+  const classData = await prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
+  if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
+  const [aggregate, rows] = await Promise.all([
+    ensurePlanAggregate(prisma, classId, month, req.user.userId),
+    loadPlan(prisma, classId, month),
+  ]);
+  assertPlanSessionMonthInvariant(rows, classId, month);
   return successResponse(res, {
     class_id: classId,
     month,
-    version: planVersion(rows),
+    state: aggregate.state,
+    version: aggregate.revision,
     sessions: rows.map(classSessionToDto),
   });
 }
@@ -64,6 +121,7 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
   });
   if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
   const body = req.body || {};
+  const aggregateVersion = expectedRevision(body.expected_version);
   const plan = buildMonthPlan({
     class_id: classId,
     month,
@@ -72,23 +130,53 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
     dates: body.dates,
     sessions_per_week: body.sessions_per_week ?? classData.sessionsPerWeek,
   });
+  const existingAggregate = await ensurePlanAggregate(prisma, classId, month, req.user.userId);
+  const snapshot: Record<string, unknown> = {
+    operation: "replace",
+    requested_dates: plan.dates,
+  };
+  let rows: any[] = [];
 
-  const rows = await prisma.$transaction(async (tx) => {
+  const aggregate = await claimClassMonthPlan(prisma, {
+    planId: existingAggregate.id,
+    expectedRevision: aggregateVersion,
+    actorId: req.user.userId,
+    eventType: "month_plan_replace",
+    targetState: "open",
+    snapshot,
+  }, async (tx) => {
     await assertMonthMutable(tx, classId, month);
     const current = await loadPlan(tx, classId, month);
-    assertExpectedVersion(planVersion(current), body.expected_version);
+    assertPlanSessionMonthInvariant(current, classId, month);
     assertRowVersions(current, body.row_versions);
-    if (current.some((row: any) => row.kind !== "regular" && !plan.dates.includes(row.sessionDate.toISOString().slice(0, 10)))) {
+    const requestedDateSet = new Set(plan.dates);
+    const kindConflict = current.find(
+      (row: any) => row.kind !== "regular" && requestedDateSet.has(dateOnly(row.sessionDate)),
+    );
+    if (kindConflict) {
+      throw new ClassSessionError(
+        "SESSION_KIND_CONFLICT",
+        "PUT cannot replace a makeup or extra session with a regular session; use PATCH",
+        409,
+        {
+          session_id: kindConflict.id,
+          session_date: dateOnly(kindConflict.sessionDate),
+          existing_kind: kindConflict.kind,
+          requested_kind: "regular",
+        },
+      );
+    }
+    if (current.some((row: any) => row.kind !== "regular" && !plan.dates.includes(dateOnly(row.sessionDate)))) {
       throw new ClassSessionError(
         "NON_REGULAR_SESSION_REQUIRES_PATCH",
         "PUT cannot remove makeup, extra, or holiday sessions; use PATCH",
         409,
       );
     }
-    const nextVersion = planVersion(current) + 1;
+    const nextRowVersion = maxSessionVersion(current) + 1;
     const retainedDates = new Set(plan.dates);
     const removedRegularSessions = current.filter(
-      (row: any) => row.kind === "regular" && !retainedDates.has(row.sessionDate.toISOString().slice(0, 10)),
+      (row: any) => row.kind === "regular" && !retainedDates.has(dateOnly(row.sessionDate)),
     );
     await assertNoAttendanceForRemovedSessions(tx, removedRegularSessions);
     await tx.classSession.deleteMany({
@@ -100,29 +188,37 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
       },
     });
     for (const date of plan.dates) {
+      const billingMonth = billingMonthForDate(date, month);
       await tx.classSession.upsert({
         where: { classId_sessionDate: { classId, sessionDate: parseDateOnly(date) } },
         create: {
           classId,
           sessionDate: parseDateOnly(date),
-          billingMonth: billingMonthForDate(date, month),
+          billingMonth,
           kind: "regular",
           status: "planned",
-          version: nextVersion,
+          version: nextRowVersion,
           source: "month_plan",
           createdById: req.user.userId,
           updatedById: req.user.userId,
         },
-        update: { version: nextVersion, updatedById: req.user.userId },
+        update: {
+          billingMonth,
+          version: nextRowVersion,
+          updatedById: req.user.userId,
+        },
       });
     }
-    return loadPlan(tx, classId, month);
-  }, { isolationLevel: "Serializable" });
+    rows = await loadPlan(tx, classId, month);
+    assertPlanSessionMonthInvariant(rows, classId, month);
+    snapshot.sessions = rows.map(classSessionToDto);
+  });
 
   return successResponse(res, {
     class_id: classId,
     month,
-    version: planVersion(rows),
+    state: aggregate.state,
+    version: aggregate.revision,
     warnings: plan.warnings,
     sessions: rows.map(classSessionToDto),
   });
@@ -131,6 +227,7 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
 async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const { classId, month } = requestIdentity(req);
   const body = req.body || {};
+  const aggregateVersion = expectedRevision(body.expected_version);
   const additions = Array.isArray(body.add_sessions) ? body.add_sessions : [];
   const removeIds: string[] = Array.isArray(body.remove_session_ids)
     ? Array.from(new Set<string>((body.remove_session_ids as unknown[]).filter((id): id is string => typeof id === "string")))
@@ -139,10 +236,27 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     throw new ClassSessionError("EMPTY_PATCH", "add_sessions or remove_session_ids is required", 400);
   }
 
-  const rows = await prisma.$transaction(async (tx) => {
+  const classData = await prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
+  if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
+  const existingAggregate = await ensurePlanAggregate(prisma, classId, month, req.user.userId);
+  const snapshot: Record<string, unknown> = {
+    operation: "patch",
+    add_sessions: additions,
+    remove_session_ids: removeIds,
+  };
+  let rows: any[] = [];
+
+  const aggregate = await claimClassMonthPlan(prisma, {
+    planId: existingAggregate.id,
+    expectedRevision: aggregateVersion,
+    actorId: req.user.userId,
+    eventType: "month_plan_patch",
+    targetState: "open",
+    snapshot,
+  }, async (tx) => {
     await assertMonthMutable(tx, classId, month);
     const current = await loadPlan(tx, classId, month);
-    assertExpectedVersion(planVersion(current), body.expected_version);
+    assertPlanSessionMonthInvariant(current, classId, month);
     assertRowVersions(current, body.row_versions);
     const currentById = new Map(current.map((row: any) => [row.id, row]));
     if (removeIds.some((id) => !currentById.has(id))) {
@@ -154,7 +268,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     );
     const retained = current.filter((row: any) => !removeIds.includes(row.id));
     assertUniqueMakeupReplacements(retained, additions);
-    const nextVersion = planVersion(current) + 1;
+    const nextRowVersion = maxSessionVersion(current) + 1;
     if (removeIds.length) {
       await tx.classSession.deleteMany({ where: { classId, id: { in: removeIds } } });
     }
@@ -176,7 +290,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
         }
         validateMakeupDate(original.sessionDate, date);
       }
-      await (tx.classSession as any).create({
+      await tx.classSession.create({
         data: {
           classId,
           sessionDate: parseDateOnly(date),
@@ -186,7 +300,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
           extraFeeMode,
           replacementForId: replacementForSessionId,
           notes: addition.notes || null,
-          version: nextVersion,
+          version: nextRowVersion,
           source: "month_plan_patch",
           createdById: req.user.userId,
           updatedById: req.user.userId,
@@ -195,15 +309,18 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     }
     await tx.classSession.updateMany({
       where: { classId, sessionDate: monthBounds(month) },
-      data: { version: nextVersion, updatedById: req.user.userId },
+      data: { version: nextRowVersion, updatedById: req.user.userId },
     });
-    return loadPlan(tx, classId, month);
-  }, { isolationLevel: "Serializable" });
+    rows = await loadPlan(tx, classId, month);
+    assertPlanSessionMonthInvariant(rows, classId, month);
+    snapshot.sessions = rows.map(classSessionToDto);
+  });
 
   return successResponse(res, {
     class_id: classId,
     month,
-    version: planVersion(rows),
+    state: aggregate.state,
+    version: aggregate.revision,
     sessions: rows.map(classSessionToDto),
   });
 }

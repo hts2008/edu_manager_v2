@@ -97,7 +97,8 @@ test("attendance lock refreshes only the locked class line and recomputes the ag
   const endpoint = source("server/api/attendance-periods/[id]/index.ts");
   const helper = source("lib/attendance-lock-transaction.ts");
 
-  assert.match(endpoint, /prisma\.\$transaction/);
+  assert.match(endpoint, /runSerializableTransaction/);
+  assert.doesNotMatch(endpoint, /prisma\.\$transaction/);
   assert.match(endpoint, /lockAttendancePeriodAndSyncFees/);
   assert.match(helper, /calculateStudentMonthlyTuition/);
   assert.match(helper, /targetClassId: input\.classId/);

@@ -15,6 +15,8 @@ import {
   sendApiError,
 } from "../../../lib/api-utils.js";
 import { logApiError } from "../../../lib/observability.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
 import {
   canonicalizeBulkFeePayment,
   hashBulkFeePaymentPayload,
@@ -24,6 +26,11 @@ import {
 
 const ITEMS_PER_INVOCATION = 50;
 const TERMINAL_ITEM_STATUSES = ["paid", "already_paid", "failed"];
+const BULK_PAY_TRANSACTION_OPTIONS = {
+  isolationLevel: "Serializable",
+  maxWait: 5_000,
+  timeout: 15_000,
+} as const;
 
 function idempotencyKey(req: AuthedRequest) {
   const value = req.headers?.["idempotency-key"];
@@ -97,7 +104,7 @@ async function findOrCreateBatch(
   if (existing) return existing;
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await runSerializableTransaction(prisma, async (tx) => {
       const batch = await tx.bulkFeePaymentBatch.create({
         data: {
           actorId,
@@ -133,7 +140,7 @@ async function findOrCreateBatch(
 
 async function collectItem(batch: any, item: any, userId: string) {
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await runSerializableTransaction(prisma, async (tx) => {
       const claimedItem = await tx.bulkFeePaymentItem.updateMany({
         where: { id: item.id, status: "pending" },
         data: { status: "processing" },
@@ -141,6 +148,18 @@ async function collectItem(batch: any, item: any, userId: string) {
       if (claimedItem.count !== 1) {
         return tx.bulkFeePaymentItem.findUniqueOrThrow({ where: { id: item.id } });
       }
+
+      // Resolve only the lock identity, then re-read authoritative fee state under the lock.
+      const lineIdentity = await tx.monthlyFeeLine.findUnique({
+        where: { id: item.lineId },
+        select: { studentId: true, month: true },
+      });
+      if (!lineIdentity) throw new ApiError("NOT_FOUND", "Monthly fee line not found", 404);
+      await acquireAttendanceFeeAdvisoryLocks(
+        tx,
+        [lineIdentity.studentId],
+        lineIdentity.month,
+      );
 
       const line = await tx.monthlyFeeLine.findUnique({
         where: { id: item.lineId },
@@ -243,7 +262,7 @@ async function collectItem(batch: any, item: any, userId: string) {
         where: { id: item.id },
         data: { status: "paid", receiptId: receipt.id, result, processedAt: new Date() },
       });
-    });
+    }, { transactionOptions: BULK_PAY_TRANSACTION_OPTIONS });
   } catch (error: any) {
     return prisma.bulkFeePaymentItem.update({
       where: { id: item.id },

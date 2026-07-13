@@ -9,6 +9,15 @@ import {
 import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
 import { sendApiError } from "../../../lib/api-utils.js";
 import { resolveAttendanceSessionPolicy } from "../../../lib/tuition.js";
+import {
+  assertBulkAttendanceDateScopeEditable,
+  buildAttendanceSessionUpdate,
+  reconcileClearedAttendanceSessions,
+  validateBulkAttendanceRecords,
+  validateBulkAttendanceDateScope,
+} from "../../../lib/attendance-session-lifecycle.js";
+import { recordClassMonthPlanWrite } from "../../../lib/class-month-plan.js";
+import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -38,18 +47,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       );
     }
 
-    if (!dates || !Array.isArray(dates) || dates.length === 0) {
-      return errorResponse(
-        res,
-        "MISSING_DATES",
-        "dates array is required",
-        400
-      );
-    }
-
     // Allow empty records (user cleared all attendance for the week)
-    const recordsArray = records || [];
-    const validStatuses = ["present", "absent_with_fee", "absent_no_fee", "holiday"];
+    const dateScope = validateBulkAttendanceDateScope(dates, records);
+    const recordsArray = validateBulkAttendanceRecords(records, class_id);
     const classRecord = await prisma.class.findUnique({
       where: { id: class_id },
       select: { scheduleDays: true, sessionsPerWeek: true },
@@ -58,16 +58,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
     }
 
-    // Filter and transform valid records
+    // Transform only after every row has passed strict request validation.
     const validRecords = recordsArray
-      .filter(
-        (r: any) =>
-          r.status &&
-          validStatuses.includes(r.status) &&
-          r.student_id &&
-          r.class_id === class_id &&
-          r.attendance_date
-      )
       .map((r: any) => {
         const sessionPolicy = resolveAttendanceSessionPolicy(
           classRecord,
@@ -81,7 +73,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return {
           studentId: r.student_id,
           classId: class_id,
-          attendanceDate: new Date(r.attendance_date),
+          attendanceDate: new Date(`${r.attendance_date}T00:00:00.000Z`),
           status: r.status as
             | "present"
             | "absent_with_fee"
@@ -95,10 +87,28 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       });
 
     // Convert ALL dates to Date objects for deletion (not just from records)
-    const dateObjects = dates.map((d: string) => new Date(d));
+    const dateObjects = dateScope.dateObjects;
     // Use transaction for atomic delete + insert
-    await prisma.$transaction(async (tx) => {
-      await assertAttendanceDatesEditable(class_id, dateObjects, tx as typeof prisma);
+    await runSerializableTransaction(prisma, async (tx) => {
+      await assertBulkAttendanceDateScopeEditable(dateScope, (touchedDates) =>
+        assertAttendanceDatesEditable(class_id, touchedDates, tx as typeof prisma)
+      );
+      const datesByMonth = new Map<string, string[]>();
+      for (const date of dateScope.dates) {
+        const month = date.slice(0, 7);
+        const monthDates = datesByMonth.get(month) || [];
+        monthDates.push(date);
+        datesByMonth.set(month, monthDates);
+      }
+      for (const [month, monthDates] of datesByMonth) {
+        await recordClassMonthPlanWrite(tx, {
+          classId: class_id,
+          billingMonth: month,
+          actorId: req.user.userId,
+          eventType: "attendance_bulk",
+          snapshot: { dates: monthDates },
+        });
+      }
       const recordsByDate = new Map<string, typeof validRecords>();
       for (const record of validRecords) {
         const key = record.attendanceDate.toISOString().slice(0, 10);
@@ -110,31 +120,42 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       for (const [date, rows] of recordsByDate) {
         const isMakeUp = rows.some((row: any) => row.isMakeUp);
         const allHoliday = rows.every((row: any) => row.status === "holiday");
-        const session = await tx.classSession.upsert({
+        const sessionDate = new Date(`${date}T00:00:00.000Z`);
+        const existingSession = await tx.classSession.findUnique({
           where: {
-            classId_sessionDate: {
-              classId: class_id,
-              sessionDate: new Date(`${date}T00:00:00.000Z`),
-            },
+            classId_sessionDate: { classId: class_id, sessionDate },
           },
-          create: {
-            classId: class_id,
-            sessionDate: new Date(`${date}T00:00:00.000Z`),
-            billingMonth: date.slice(0, 7),
-            kind: isMakeUp ? "makeup" : "regular",
-            status: allHoliday ? "holiday" : "held",
-            source: "attendance_bulk",
-            createdById: req.user.userId,
-            updatedById: req.user.userId,
+          select: {
+            id: true,
+            source: true,
+            replacementSessions: { select: { id: true }, take: 1 },
           },
-          update: {
-            kind: isMakeUp ? "makeup" : "regular",
-            status: allHoliday ? "holiday" : "held",
-            updatedById: req.user.userId,
-            version: { increment: 1 },
-          },
-          select: { id: true },
         });
+        const inferredKind = isMakeUp ? "makeup" : "regular";
+        const status = allHoliday ? "holiday" : "held";
+        const session = existingSession
+          ? await tx.classSession.update({
+              where: { id: existingSession.id },
+              data: buildAttendanceSessionUpdate(existingSession, {
+                inferredKind,
+                status,
+                userId: req.user.userId,
+              }),
+              select: { id: true },
+            })
+          : await tx.classSession.create({
+              data: {
+                classId: class_id,
+                sessionDate,
+                billingMonth: date.slice(0, 7),
+                kind: inferredKind,
+                status,
+                source: "attendance_bulk",
+                createdById: req.user.userId,
+                updatedById: req.user.userId,
+              },
+              select: { id: true },
+            });
         sessionIdsByDate.set(date, session.id);
       }
       // 1. Delete ALL existing records for this class and these dates
@@ -151,13 +172,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         (date) => !populatedDates.has(date.toISOString().slice(0, 10)),
       );
       if (clearedDates.length > 0) {
-        await tx.classSession.updateMany({
-          where: { classId: class_id, sessionDate: { in: clearedDates } },
-          data: {
-            status: "planned",
-            updatedById: req.user.userId,
-            version: { increment: 1 },
-          },
+        await reconcileClearedAttendanceSessions(tx, {
+          classId: class_id,
+          dates: clearedDates,
+          userId: req.user.userId,
         });
       }
 
@@ -172,13 +190,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           })),
         });
       }
-    }, { isolationLevel: "Serializable" });
+    });
 
     return successResponse(res, {
       message:
         validRecords.length > 0
           ? `Saved ${validRecords.length} attendance records`
-          : `Cleared attendance for ${dates.length} dates`,
+          : `Cleared attendance for ${dateScope.dates.length} dates`,
       count: validRecords.length,
     });
   } catch (error) {

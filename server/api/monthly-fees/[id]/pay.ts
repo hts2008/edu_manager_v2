@@ -15,6 +15,8 @@ import {
   resolveTemplateId,
   sendApiError,
 } from "../../../../lib/api-utils.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 
 export function assertAggregatePaymentAllowed(fee: any) {
   if (fee.lines?.length) {
@@ -50,7 +52,18 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       "receipt",
       body.template_id || body.templateId
     );
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(prisma, async (tx) => {
+      const feeIdentity = await tx.monthlyFee.findUnique({
+        where: { id },
+        select: { studentId: true, month: true },
+      });
+      if (!feeIdentity) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+
+      await acquireAttendanceFeeAdvisoryLocks(
+        tx,
+        [feeIdentity.studentId],
+        feeIdentity.month,
+      );
       const fee = await tx.monthlyFee.findUnique({
         where: { id },
         include: { student: true, lines: { select: { id: true }, take: 1 } },
@@ -144,6 +157,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       });
 
       return { fee: updatedFee, receipt };
+    }, {
+      maxAttempts: 3,
+      baseDelayMs: 20,
+      transactionOptions: {
+        isolationLevel: "Serializable",
+        maxWait: 5_000,
+        timeout: 15_000,
+      },
     });
 
     await logActivity(req, req.user.id, "COLLECT_FEE", "monthly_fee", id);

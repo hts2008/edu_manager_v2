@@ -2,11 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  acquireClassMonthRosterAdvisoryLocks,
   attendanceFeeAdvisoryLockKeys,
   buildAttendanceLockFeePlan,
+  classMonthRosterAdvisoryLockKeys,
   isAttendanceLockTimeout,
   lockAttendancePeriodAndSyncFees,
 } from "../lib/attendance-lock-transaction.js";
+import {
+  isPrismaSerializationConflict,
+  runSerializableTransaction,
+} from "../lib/serializable-transaction.js";
 
 function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -42,7 +48,69 @@ const activeStudentClasses = [
 ];
 
 describe("attendance lock fee plan", () => {
-  it("preserves confirmed, paid, and receipt-linked fee records and lines", () => {
+  it("orders and deduplicates class-month roster advisory locks", async () => {
+    assert.deepEqual(
+      classMonthRosterAdvisoryLockKeys(
+        ["class-b", "class-a", "class-a"],
+        ["2026-07", "2026-06"],
+      ),
+      [
+        "attendance-roster:2026-06:class-a",
+        "attendance-roster:2026-06:class-b",
+        "attendance-roster:2026-07:class-a",
+        "attendance-roster:2026-07:class-b",
+      ],
+    );
+
+    let queryCount = 0;
+    await acquireClassMonthRosterAdvisoryLocks(
+      { $queryRaw: async () => { queryCount += 1; } },
+      ["class-a"],
+      ["2026-06"],
+    );
+    assert.equal(queryCount, 1);
+  });
+
+  it("retries serialization conflicts and returns a typed retryable error", async () => {
+    let attempts = 0;
+    const db = {
+      $transaction: async (work: (tx: any) => Promise<string>, options: any) => {
+        attempts += 1;
+        assert.equal(options.isolationLevel, "Serializable");
+        if (attempts < 3) throw Object.assign(new Error("write conflict"), { code: "P2034" });
+        return work({ attempt: attempts });
+      },
+    };
+
+    const value = await runSerializableTransaction(
+      db as any,
+      async (tx) => `ok-${tx.attempt}`,
+      { sleep: async () => undefined },
+    );
+    assert.equal(value, "ok-3");
+    assert.equal(attempts, 3);
+    assert.equal(isPrismaSerializationConflict({ code: "P2034" }), true);
+
+    await assert.rejects(
+      runSerializableTransaction(
+        {
+          $transaction: async () => {
+            throw Object.assign(new Error("write conflict"), { code: "P2034" });
+          },
+        } as any,
+        async () => null,
+        { maxAttempts: 2, sleep: async () => undefined },
+      ),
+      (error: any) => {
+        assert.equal(error.code, "SERIALIZABLE_TRANSACTION_CONFLICT");
+        assert.equal(error.status, 503);
+        assert.equal(error.details.retryable, true);
+        return true;
+      },
+    );
+  });
+
+  it("preserves protected fee aggregates and all related lines", () => {
     const protectedFees = [
       {
         id: "fee-confirmed",
@@ -51,43 +119,70 @@ describe("attendance lock fee plan", () => {
         status: "confirmed",
         receiptId: null,
         paidAt: null,
-        lines: [],
-      },
-      {
-        id: "fee-receipt-line",
-        studentId: "student-2",
-        month: "2026-06",
-        status: "ready",
-        receiptId: null,
-        paidAt: null,
         lines: [
           {
-            id: "line-2",
+            id: "line-confirmed",
             allocationKey: "class:class-1",
             status: "ready",
             receiptId: null,
             paidAt: null,
-            receiptLines: [{ id: "receipt-line-2" }],
+            receiptLines: [],
           },
         ],
       },
       {
         id: "fee-paid",
-        studentId: "student-3",
+        studentId: "student-2",
         month: "2026-06",
         status: "paid",
         receiptId: null,
-        paidAt: new Date("2026-06-20T00:00:00.000Z"),
-        lines: [],
+        paidAt: null,
+        lines: [
+          {
+            id: "line-paid",
+            allocationKey: "class:class-1",
+            status: "ready",
+            receiptId: null,
+            paidAt: null,
+            receiptLines: [],
+          },
+        ],
       },
       {
         id: "fee-receipt",
+        studentId: "student-3",
+        month: "2026-06",
+        status: "ready",
+        receiptId: "receipt-3",
+        paidAt: null,
+        lines: [
+          {
+            id: "line-receipt",
+            allocationKey: "class:class-1",
+            status: "ready",
+            receiptId: null,
+            paidAt: null,
+            receiptLines: [],
+          },
+        ],
+      },
+      {
+        id: "fee-paid-at",
         studentId: "student-4",
         month: "2026-06",
         status: "ready",
-        receiptId: "receipt-4",
-        paidAt: null,
-        lines: [],
+        receiptId: null,
+        paidAt: new Date("2026-06-20T00:00:00.000Z"),
+        lines: [
+          {
+            id: "line-paid-at",
+            allocationKey: "class:class-1",
+            status: "ready",
+            receiptId: null,
+            paidAt: null,
+            receiptLines: [],
+          },
+        ],
       },
     ];
 
@@ -95,7 +190,10 @@ describe("attendance lock fee plan", () => {
       month: "2026-06",
       targetClassId: "class-1",
       studentIds: ["student-1", "student-2", "student-3", "student-4"],
-      activeStudentClasses,
+      activeStudentClasses: protectedFees.map((fee) => ({
+        ...activeStudentClasses[0],
+        studentId: fee.studentId,
+      })),
       attendanceCounts: [
         { studentId: "student-1", classId: "class-1", _count: { status: 8 } },
         { studentId: "student-2", classId: "class-1", _count: { status: 7 } },
@@ -106,12 +204,12 @@ describe("attendance lock fee plan", () => {
     });
 
     assert.deepEqual(plan.mutableLineIds, []);
-    assert.deepEqual(plan.affectedFeeIds, ["fee-receipt-line"]);
+    assert.deepEqual(plan.affectedFeeIds, []);
     assert.deepEqual(plan.feeRows, []);
     assert.deepEqual(plan.lineRows, []);
-    assert.equal(plan.metrics.fees_preserved, 3);
+    assert.equal(plan.metrics.fees_preserved, 4);
     assert.equal(plan.metrics.fees_created, 0);
-    assert.equal(plan.metrics.fees_updated, 1);
+    assert.equal(plan.metrics.fees_updated, 0);
   });
 
   it("replaces mutable fee aggregates and lines in one set-based plan while retaining fee ids", () => {
@@ -199,7 +297,7 @@ describe("attendance lock fee plan", () => {
           id: "fee-existing",
           studentId: "student-1",
           month: "2026-06",
-          status: "confirmed",
+          status: "ready",
           receiptId: null,
           paidAt: null,
           lines: [
@@ -317,18 +415,25 @@ describe("attendance lock transaction", () => {
       createId: () => "generated",
     });
 
-    assert.equal(calls[0], "attendancePeriod.updateMany");
+    assert.equal(calls[0], "$queryRaw");
     assert.ok(
-      calls.indexOf("$queryRaw") > calls.indexOf("studentClass.findMany"),
-      "student ids must be discovered before acquiring their advisory locks",
+      calls.indexOf("$queryRaw") < calls.indexOf("attendancePeriod.updateMany"),
+      "class-month roster lock must be held before claiming and reading the period",
     );
     assert.ok(
-      calls.indexOf("$queryRaw") < calls.indexOf("monthlyFee.findMany"),
-      "advisory locks must be held before reading monthly fees",
+      calls.lastIndexOf("$queryRaw") > calls.indexOf("studentClass.findMany"),
+      "student ids must be discovered before acquiring student-month locks",
     );
-    assert.equal(advisoryQueries.length, 1);
+    assert.ok(
+      calls.lastIndexOf("$queryRaw") < calls.indexOf("monthlyFee.findMany"),
+      "student-month locks must be held before reading monthly fees",
+    );
+    assert.equal(advisoryQueries.length, 2);
     assert.notEqual(typeof advisoryQueries[0], "string");
     assert.deepEqual(advisoryQueries[0].values, [
+      "attendance-roster:2026-06:class-1",
+    ]);
+    assert.deepEqual(advisoryQueries[1].values, [
       "attendance-fee:2026-06:student-1",
     ]);
     assert.equal(calls.filter((call) => call === "monthlyFee.findMany").length, 1);
@@ -370,6 +475,79 @@ describe("attendance lock transaction", () => {
       (error: any) => error?.code === "ATTENDANCE_PERIOD_STATE_CONFLICT",
     );
     assert.equal(reads, 0);
+  });
+
+  it("preflights missing regular-session attendance before mutating an approved period", async () => {
+    const mutations: string[] = [];
+    const tx = {
+      attendancePeriod: {
+        updateMany: async () => {
+          mutations.push("attendancePeriod.updateMany");
+          return { count: 1 };
+        },
+      },
+      studentClass: {
+        findMany: async (args: any) => args.select
+          ? [{ studentId: "student-1" }]
+          : activeStudentClasses.slice(0, 1),
+      },
+      $queryRaw: async () => [],
+      attendance: {
+        groupBy: async () => [],
+        findMany: async () => [],
+      },
+      monthlyFee: {
+        findMany: async () => [],
+        createMany: async () => {
+          mutations.push("monthlyFee.createMany");
+          return { count: 1 };
+        },
+      },
+      monthlyFeeLine: {
+        deleteMany: async () => {
+          mutations.push("monthlyFeeLine.deleteMany");
+          return { count: 0 };
+        },
+        createMany: async () => {
+          mutations.push("monthlyFeeLine.createMany");
+          return { count: 1 };
+        },
+      },
+      classSession: {
+        findMany: async () => [{
+          id: "regular-planned-1",
+          classId: "class-1",
+          sessionDate: new Date("2026-06-08T00:00:00.000Z"),
+          kind: "regular",
+          status: "planned",
+          extraFeeMode: "included",
+          replacementForId: null,
+        }],
+      },
+      $executeRaw: async () => {
+        mutations.push("$executeRaw");
+        return 1;
+      },
+    };
+
+    await assert.rejects(
+      lockAttendancePeriodAndSyncFees(tx as any, {
+        periodId: "period-approved",
+        classId: "class-1",
+        month: "2026-06",
+        userId: "admin-1",
+      }),
+      (error: any) => {
+        assert.equal(error?.code, "SESSION_UNRESOLVED");
+        assert.equal(error?.status, 409);
+        return true;
+      },
+    );
+    assert.deepEqual(
+      mutations,
+      [],
+      "attendance completeness must block before the approved period is claimed or fees are written",
+    );
   });
 });
 

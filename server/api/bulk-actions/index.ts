@@ -9,6 +9,9 @@ import {
 } from "../../../lib/auth.js";
 import { ApiError, logActivity, sendApiError } from "../../../lib/api-utils.js";
 import { bulkActionSchema, validateBody } from "../../../lib/validation.js";
+import { deactivateEnrollmentPeriods } from "../../../lib/enrollment.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
 
 type BulkResource = "students" | "parents" | "receipts" | "payments";
 type BulkAction = "archive" | "delete";
@@ -25,6 +28,16 @@ const supportedActions: Record<BulkResource, BulkAction[]> = {
   parents: ["delete"],
   receipts: ["delete"],
   payments: ["delete"],
+};
+
+const BULK_ACTION_TRANSACTION_OPTIONS = {
+  maxAttempts: 3,
+  baseDelayMs: 20,
+  transactionOptions: {
+    isolationLevel: "Serializable" as const,
+    maxWait: 5_000,
+    timeout: 15_000,
+  },
 };
 
 function dependencyError(id: string, action: BulkAction, message: string): BulkResult {
@@ -54,7 +67,10 @@ async function archiveStudent(id: string): Promise<BulkResult> {
   });
   if (!student) return notFound(id, "archive");
 
-  await prisma.student.update({ where: { id }, data: { status: "inactive" } });
+  await runSerializableTransaction(prisma, async (tx) => {
+    await deactivateEnrollmentPeriods(tx, { studentId: id });
+    await tx.student.update({ where: { id }, data: { status: "inactive" } });
+  }, BULK_ACTION_TRANSACTION_OPTIONS);
   return { id, action: "archive", success: true };
 }
 
@@ -65,16 +81,13 @@ async function deleteStudent(id: string): Promise<BulkResult> {
   });
   if (!student) return notFound(id, "delete");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.studentClass.updateMany({
-      where: { studentId: id, status: "active" },
-      data: { status: "inactive" },
-    });
+  await runSerializableTransaction(prisma, async (tx) => {
+    await deactivateEnrollmentPeriods(tx, { studentId: id });
     await tx.student.update({
       where: { id },
       data: { status: "inactive", deletedAt: new Date() },
     });
-  });
+  }, BULK_ACTION_TRANSACTION_OPTIONS);
   return { id, action: "delete", success: true };
 }
 
@@ -96,20 +109,58 @@ async function deleteParent(id: string): Promise<BulkResult> {
 }
 
 async function deleteReceipt(id: string): Promise<BulkResult> {
-  const receipt = await prisma.receipt.findFirst({
-    where: { id, deletedAt: null },
-    select: { id: true },
-  });
-  if (!receipt) return notFound(id, "delete");
+  return runSerializableTransaction(prisma, async (tx) => {
+    const receiptIdentity = await tx.receipt.findFirst({
+      where: { id, deletedAt: null },
+      select: { studentId: true, month: true },
+    });
+    if (!receiptIdentity) return notFound(id, "delete");
 
-  await prisma.$transaction(async (tx) => {
+    await acquireAttendanceFeeAdvisoryLocks(
+      tx,
+      [receiptIdentity.studentId],
+      receiptIdentity.month,
+    );
+    const receipt = await tx.receipt.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!receipt) return notFound(id, "delete");
+    if (
+      receipt.studentId !== receiptIdentity.studentId ||
+      receipt.month !== receiptIdentity.month
+    ) {
+      throw new ApiError(
+        "RECEIPT_STATE_CONFLICT",
+        "Receipt identity changed while it was being deleted",
+        409,
+        { retryable: true },
+      );
+    }
+
     await tx.monthlyFee.updateMany({
-      where: { receiptId: id },
+      where: { receiptId: receipt.id },
       data: { receiptId: null, status: "confirmed", paidAt: null },
     });
-    await tx.receipt.update({ where: { id }, data: { deletedAt: new Date() } });
-  });
-  return { id, action: "delete", success: true };
+    const claimed = await tx.receipt.updateMany({
+      where: {
+        id: receipt.id,
+        deletedAt: null,
+        studentId: receiptIdentity.studentId,
+        month: receiptIdentity.month,
+      },
+      data: { deletedAt: new Date() },
+    });
+    if (claimed.count !== 1) {
+      throw new ApiError(
+        "RECEIPT_STATE_CONFLICT",
+        "Receipt changed while it was being deleted",
+        409,
+        { retryable: true },
+      );
+    }
+
+    return { id, action: "delete", success: true };
+  }, BULK_ACTION_TRANSACTION_OPTIONS);
 }
 
 async function deletePayment(id: string): Promise<BulkResult> {

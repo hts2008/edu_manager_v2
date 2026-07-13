@@ -73,7 +73,7 @@ describe("Tuition V3 slot ledger", () => {
     if (!result.ok) return;
     assert.equal(result.summary.plannedRegularSlots, 14);
     assert.equal(result.summary.eligibleRegularSlots, 8);
-    assert.equal(result.totalAmount, 514_286);
+    assert.equal(result.totalAmount, 514_284);
   });
 
   it("charges present and absent_with_fee, while waiving absent_no_fee", () => {
@@ -195,5 +195,51 @@ describe("Tuition V3 slot ledger", () => {
       ["x", "included_extra"],
       ["b", "charged"],
     ]);
+  });
+
+  it("allocates a 1,000,000 monthly package evenly across eight regular slots", () => {
+    const result = calculateTuitionV3({
+      month: "2026-06",
+      plan: { mode: "monthly_prorated", monthlyAmount: 1_000_000 },
+      slots: regularSlots(Array.from(
+        { length: 8 },
+        (_, index) => `2026-06-${String(index + 1).padStart(2, "0")}`,
+      )),
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.ledger.map((row) => row.amount), Array(8).fill(125_000));
+    assert.equal(result.ledger.reduce((sum, row) => sum + row.amount, 0), 1_000_000);
+    assert.equal(result.totalAmount, 1_000_000);
+  });
+
+  it("allocates a 1,000,000 monthly package as deterministic integer amounts across nine slots", () => {
+    const slots = regularSlots(Array.from(
+      { length: 9 },
+      (_, index) => `2026-06-${String(index + 1).padStart(2, "0")}`,
+    ));
+    const forward = calculateTuitionV3({
+      month: "2026-06",
+      plan: { mode: "monthly_prorated", monthlyAmount: 1_000_000 },
+      slots,
+    });
+    const reverse = calculateTuitionV3({
+      month: "2026-06",
+      plan: { mode: "monthly_prorated", monthlyAmount: 1_000_000 },
+      slots: [...slots].reverse(),
+    });
+
+    assert.equal(forward.ok, true);
+    assert.equal(reverse.ok, true);
+    if (!forward.ok || !reverse.ok) return;
+    assert.deepEqual(forward, reverse);
+    assert.deepEqual(
+      forward.ledger.map((row) => row.amount),
+      [111_112, 111_111, 111_111, 111_111, 111_111, 111_111, 111_111, 111_111, 111_111],
+    );
+    assert.ok(forward.ledger.every((row) => Number.isInteger(row.amount)));
+    assert.equal(forward.ledger.reduce((sum, row) => sum + row.amount, 0), 1_000_000);
+    assert.equal(forward.totalAmount, 1_000_000);
   });
 });

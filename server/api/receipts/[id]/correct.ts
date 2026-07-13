@@ -20,6 +20,8 @@ import {
   detectMonthlyFeeAnomaly,
   detectReceiptAnomaly,
 } from "../../../../lib/finance-corrections.js";
+import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
+import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 
 function feeToDto(fee: any) {
   return {
@@ -58,12 +60,30 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await runSerializableTransaction(prisma, async (tx) => {
+      const receiptIdentity = await tx.receipt.findFirst({
+        where: { id, deletedAt: null },
+        select: { studentId: true, month: true },
+      });
+      if (!receiptIdentity) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
+
+      await acquireAttendanceFeeAdvisoryLocks(
+        tx,
+        [receiptIdentity.studentId],
+        receiptIdentity.month,
+      );
       const receipt = await tx.receipt.findFirst({
         where: { id, deletedAt: null },
         include: { monthlyFees: true },
       });
-      if (!receipt) throw new ApiError("NOT_FOUND", "Receipt not found", 404);
+      if (!receipt) {
+        throw new ApiError(
+          "RECEIPT_STATE_CONFLICT",
+          "Receipt changed while it was being corrected",
+          409,
+          { retryable: true },
+        );
+      }
 
       const linkedFee =
         receipt.monthlyFees.find((fee: any) => fee.receiptId === receipt.id) ||
@@ -169,6 +189,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         fee,
         breakdown: calculated.breakdown,
       };
+    }, {
+      maxAttempts: 3,
+      baseDelayMs: 20,
+      transactionOptions: {
+        isolationLevel: "Serializable",
+        maxWait: 5_000,
+        timeout: 15_000,
+      },
     });
 
     await logActivity(req, req.user.id, "CORRECT_RECEIPT", "receipt", id);

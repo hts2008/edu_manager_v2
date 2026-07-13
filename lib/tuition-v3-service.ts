@@ -1,5 +1,10 @@
 import { ApiError } from "./api-utils.js";
-import { calculateTuitionV3, type TuitionSlot, type TuitionSlotStatus } from "./tuition-v3.js";
+import {
+  calculateTuitionV3,
+  isEnrollmentEligible,
+  type TuitionSlot,
+  type TuitionSlotStatus,
+} from "./tuition-v3.js";
 
 export const TUITION_V3_CALCULATION_VERSION = "tuition-v3-session-ledger";
 
@@ -50,21 +55,47 @@ function attendanceStatus(session: SessionRow, attendance?: AttendanceRow): Tuit
 export function buildStudentTuitionV3(input: {
   month: string;
   classData: ClassData;
-  enrollment: { startedAt?: Date | string | null; endedAt?: Date | string | null };
+  enrollment: {
+    startedAt?: Date | string | null;
+    endedAt?: Date | string | null;
+    periods?: Array<{
+      startedAt?: Date | string | null;
+      endedAt?: Date | string | null;
+    }>;
+  };
   sessions: SessionRow[];
   attendance: AttendanceRow[];
 }) {
   const attendanceBySession = new Map(
     input.attendance.filter((row) => row.classSessionId).map((row) => [row.classSessionId, row]),
   );
-  const slots: TuitionSlot[] = input.sessions.map((session) => ({
-    id: session.id,
-    date: dateOnly(session.sessionDate),
-    kind: session.kind as TuitionSlot["kind"],
-    status: attendanceStatus(session, attendanceBySession.get(session.id)),
-    replacesSlotId: session.replacementForId || undefined,
-    extraFeeMode: session.extraFeeMode === "surcharge" ? "surcharge" : "included",
-  }));
+  const attendanceByDate = new Map(
+    input.attendance
+      .filter((row) => !row.classSessionId)
+      .map((row) => [dateOnly(row.attendanceDate), row]),
+  );
+  const enrollment = {
+    startDate: input.enrollment.startedAt ? dateOnly(input.enrollment.startedAt) : undefined,
+    endDate: input.enrollment.endedAt ? dateOnly(input.enrollment.endedAt) : undefined,
+    periods: input.enrollment.periods?.map((period) => ({
+      startDate: period.startedAt ? dateOnly(period.startedAt) : undefined,
+      endDate: period.endedAt ? dateOnly(period.endedAt) : undefined,
+    })),
+  };
+  const slots: TuitionSlot[] = input.sessions.map((session) => {
+    const date = dateOnly(session.sessionDate);
+    const attendance = attendanceBySession.get(session.id) || attendanceByDate.get(date);
+    return {
+      id: session.id,
+      date,
+      kind: session.kind as TuitionSlot["kind"],
+      status: isEnrollmentEligible(date, enrollment)
+        ? attendanceStatus(session, attendance)
+        : "absent_no_fee",
+      replacesSlotId: session.replacementForId || undefined,
+      extraFeeMode: session.extraFeeMode === "surcharge" ? "surcharge" : "included",
+    };
+  });
   const billingPolicy = input.classData.billingPolicy || "per_session";
   const amount = Number(input.classData.feePerDay || 0);
   const regularSlotCount = slots.filter((slot) => slot.kind === "regular").length;
@@ -77,10 +108,7 @@ export function buildStudentTuitionV3(input: {
       ? { mode: "monthly_prorated", monthlyAmount: amount }
       : { mode: "per_session", sessionAmount: amount },
     slots,
-    enrollment: {
-      startDate: input.enrollment.startedAt ? dateOnly(input.enrollment.startedAt) : undefined,
-      endDate: input.enrollment.endedAt ? dateOnly(input.enrollment.endedAt) : undefined,
-    },
+    enrollment,
     extraSurchargePerSlot,
   });
   if (!result.ok) throw new ApiError(result.error.code, result.error.message, 409);

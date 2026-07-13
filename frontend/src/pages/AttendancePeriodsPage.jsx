@@ -4,7 +4,11 @@ import DataTable from "../components/ui/DataTable";
 import SelectField from "../components/ui/SelectField";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
-import AttendanceReviewModal from "../components/AttendanceReviewModal";
+import AttendanceReviewModal from "../components/attendance/AttendanceReviewModal";
+import AttendanceLockPreflightModal from "../components/attendance/AttendanceLockPreflightModal";
+import AttendanceCorrectionModal from "../components/attendance/AttendanceCorrectionModal";
+import AttendanceReadinessIssuePanel from "../components/attendance/AttendanceReadinessIssuePanel";
+import useAttendancePeriodWorkflow from "../hooks/useAttendancePeriodWorkflow";
 
 // VI: Quản lý chốt điểm danh - Xem và duyệt các kỳ điểm danh
 
@@ -28,12 +32,14 @@ export default function AttendancePeriodsPage() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [classListError, setClassListError] = useState(null);
+  const [periodListError, setPeriodListError] = useState(null);
   const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const toast = useToast();
   const { isAdmin } = useAuth();
-  const [reviewPeriodId, setReviewPeriodId] = useState(null);
+  const [reviewPeriod, setReviewPeriod] = useState(null);
+  const [correctionTarget, setCorrectionTarget] = useState(null);
   const loadRequestRef = useRef(0);
 
   useEffect(() => {
@@ -48,6 +54,7 @@ export default function AttendancePeriodsPage() {
     loadRequestRef.current = requestId;
     setLoading(true);
     setClassListError(null);
+    setPeriodListError(null);
 
     const params = {};
     if (filterClass) params.class_id = filterClass;
@@ -67,50 +74,47 @@ export default function AttendancePeriodsPage() {
     }
     if (periodRes.success) {
       setPeriods(periodRes.data.periods || []);
+    } else {
+      setPeriods([]);
+      setPeriodListError(periodRes.error?.message || "Không thể tải danh sách kỳ điểm danh");
     }
     setLoading(false);
   };
 
+  const workflow = useAttendancePeriodWorkflow({ onChanged: loadData, toast });
+
   const handleSubmit = async (period) => {
-    const res = await attendancePeriodsService.submit(period.id);
-    if (res.success) {
-      toast.success(`Đã nộp điểm danh ${period.period_month}`);
-      loadData();
-    } else {
-      toast.error(res.error?.message || "Lỗi nộp điểm danh");
-    }
+    await workflow.runAction({
+      key: `submit:${period.id}`,
+      operation: () => attendancePeriodsService.submit(period.id),
+      successMessage: `Đã nộp điểm danh ${period.period_month}`,
+      errorMessage: "Lỗi nộp điểm danh",
+      issueContext: {
+        action: "submit",
+        period,
+        month: period.period_month,
+      },
+    });
   };
 
   const handleApprove = async (period) => {
-    const res = await attendancePeriodsService.approve(period.id);
-    if (res.success) {
-      toast.success(`Đã duyệt điểm danh ${period.period_month}`);
-      loadData();
-    } else {
-      toast.error(res.error?.message || "Lỗi duyệt điểm danh");
-    }
+    return workflow.runAction({
+      key: `approve:${period.id}`,
+      operation: () => attendancePeriodsService.approve(period.id),
+      successMessage: `Đã duyệt điểm danh ${period.period_month}`,
+      errorMessage: "Lỗi duyệt điểm danh",
+      issueContext: {
+        action: "approve",
+        period,
+        month: period.period_month,
+      },
+    });
   };
 
-  const handleLock = async (period) => {
-    const res = await attendancePeriodsService.lock(period.id);
-    if (res.success) {
-      toast.success(
-        `🔒 Đã chốt điểm danh ${period.period_month} - Sẵn sàng thu học phí!`,
-      );
-      loadData();
-    } else {
-      toast.error(res.error?.message || "Lỗi chốt điểm danh");
-    }
-  };
-
-  const handleUnlock = async (period) => {
-    const res = await attendancePeriodsService.unlock(period.id);
-    if (res.success) {
-      toast.success(`Đã mở lại điểm danh ${period.period_month}`);
-      loadData();
-    } else {
-      toast.error(res.error?.message || "Lỗi mở lại điểm danh");
-    }
+  const handleUnlockConfirm = async (reason) => {
+    const response = await workflow.reopenPeriodForCorrection(correctionTarget, reason);
+    if (response.success) setCorrectionTarget(null);
+    return response;
   };
 
   // Summary stats
@@ -181,42 +185,66 @@ export default function AttendancePeriodsPage() {
           {row.status === "open" && (
             <button
               onClick={() => handleSubmit(row)}
-              className="px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600"
+              disabled={workflow.isBusy}
+              aria-busy={workflow.activeAction === `submit:${row.id}` || undefined}
+              className="px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              📤 Nộp
+              {workflow.activeAction === `submit:${row.id}` ? "Đang nộp..." : "📤 Nộp"}
             </button>
           )}
           {row.status === "submitted" && isAdmin() && (
             <>
               <button
-                onClick={() => setReviewPeriodId(row.id)}
-                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                onClick={() => setReviewPeriod(row)}
+                disabled={workflow.isBusy}
+                className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 👁️ Xem
               </button>
               <button
                 onClick={() => handleApprove(row)}
-                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                disabled={workflow.isBusy}
+                aria-busy={workflow.activeAction === `approve:${row.id}` || undefined}
+                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ✓ Duyệt
+                {workflow.activeAction === `approve:${row.id}` ? "Đang duyệt..." : "✓ Duyệt"}
+              </button>
+              <button
+                onClick={() => setCorrectionTarget(row)}
+                disabled={workflow.isBusy}
+                className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Sửa
               </button>
             </>
           )}
           {row.status === "approved" && isAdmin() && (
-            <button
-              onClick={() => handleLock(row)}
-              className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600"
-            >
-              🔒 Chốt
-            </button>
+            <>
+              <button
+                onClick={() => workflow.openLockPreflight(row)}
+                disabled={workflow.isBusy}
+                aria-busy={workflow.activeAction === `preflight:${row.id}` || undefined}
+                className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {workflow.activeAction === `preflight:${row.id}` ? "Đang kiểm tra..." : "🔒 Chốt"}
+              </button>
+              <button
+                onClick={() => setCorrectionTarget(row)}
+                disabled={workflow.isBusy}
+                className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Sửa
+              </button>
+            </>
           )}
           {row.status === "locked" && (
             <>
               <span className="text-xs text-gray-500">✅ Hoàn tất</span>
               {isAdmin() && (
                 <button
-                  onClick={() => handleUnlock(row)}
-                  className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
+                  onClick={() => setCorrectionTarget(row)}
+                  disabled={workflow.isBusy}
+                  className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   🔓 Mở lại
                 </button>
@@ -364,7 +392,33 @@ export default function AttendancePeriodsPage() {
         </div>
       </div>
 
+      <AttendanceReadinessIssuePanel
+        state={workflow.readinessIssue}
+        canReopen={Boolean(
+          isAdmin() &&
+            workflow.readinessIssue?.period?.id &&
+            ["submitted", "approved", "locked"].includes(
+              workflow.readinessIssue.period.status,
+            ),
+        )}
+        onReopen={() => setCorrectionTarget(workflow.readinessIssue?.period)}
+        onDismiss={workflow.dismissReadinessIssue}
+      />
+
       {/* Periods Table */}
+      {periodListError && (
+        <div className="flex flex-col gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <span className="font-semibold">{periodListError}</span>
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={loading}
+            className="self-start rounded-md border border-rose-300 bg-white px-3 py-2 font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60 sm:self-auto"
+          >
+            Thử tải lại
+          </button>
+        </div>
+      )}
       <DataTable
         columns={columns}
         data={periods}
@@ -374,10 +428,26 @@ export default function AttendancePeriodsPage() {
 
       {/* Review Modal */}
       <AttendanceReviewModal
-        isOpen={!!reviewPeriodId}
-        onClose={() => setReviewPeriodId(null)}
-        periodId={reviewPeriodId}
+        isOpen={Boolean(reviewPeriod)}
+        onClose={() => setReviewPeriod(null)}
+        periodId={reviewPeriod?.id}
+        onApprove={() => handleApprove(reviewPeriod)}
         onActionComplete={loadData}
+      />
+      <AttendanceLockPreflightModal
+        dialog={workflow.lockDialog}
+        onClose={workflow.closeLockPreflight}
+        onRetry={workflow.retryLockPreflight}
+        onConfirmLock={workflow.confirmLock}
+        onReopenForCorrection={workflow.reopenForCorrection}
+      />
+      <AttendanceCorrectionModal
+        period={correctionTarget}
+        busy={workflow.activeAction === `reopen:${correctionTarget?.id}`}
+        onClose={() => {
+          if (!workflow.isBusy) setCorrectionTarget(null);
+        }}
+        onConfirm={handleUnlockConfirm}
       />
     </div>
   );
