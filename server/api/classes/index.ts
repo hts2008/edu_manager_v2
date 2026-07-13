@@ -13,10 +13,23 @@ import {
 } from "../../../lib/validation.js";
 import {
   deactivateEnrollmentPeriods,
-  syncStudentEnrollmentPeriods,
 } from "../../../lib/enrollment.js";
+import { sendApiError } from "../../../lib/api-utils.js";
 
-async function enrollStudentsInClass(tx: any, classId: string, studentIds: string[] = []) {
+export const CLASS_WRITE_TRANSACTION_OPTIONS = {
+  maxWait: 5_000,
+  timeout: 15_000,
+} as const;
+
+export function isClassWriteTimeout(error: unknown) {
+  return (error as { code?: unknown })?.code === "P2028";
+}
+
+export async function enrollStudentsInClass(
+  tx: any,
+  classId: string,
+  studentIds: string[] = []
+) {
   const uniqueIds = [...new Set(studentIds.filter(Boolean))];
   if (!uniqueIds.length) {
     return { requested: 0, enrolled: 0, reactivated: 0, skipped: 0 };
@@ -37,8 +50,11 @@ async function enrollStudentsInClass(tx: any, classId: string, studentIds: strin
   const validIds = new Set(validStudents.map((student: any) => student.id));
   const existingLinks = await tx.studentClass.findMany({
     where: { classId, studentId: { in: uniqueIds } },
-    select: { studentId: true, status: true },
+    select: { id: true, studentId: true, status: true, enrollmentDate: true },
   });
+  const existingByStudent = new Map(
+    existingLinks.map((link: any) => [link.studentId, link])
+  );
   const activeIds = new Set(
     existingLinks
       .filter((link: any) => link.status === "active")
@@ -54,28 +70,65 @@ async function enrollStudentsInClass(tx: any, classId: string, studentIds: strin
     throw new Error("CLASS_CAPACITY_EXCEEDED");
   }
 
-  let enrolled = 0;
-  let reactivated = 0;
-  for (const studentId of idsToActivate) {
-    const existing = existingLinks.find((link: any) => link.studentId === studentId);
-    const activeLinks = await tx.studentClass.findMany({
-      where: { studentId, status: "active" },
-      select: { classId: true },
+  const effectiveAt = new Date();
+  const newStudentIds = idsToActivate.filter(
+    (studentId) => !existingByStudent.has(studentId)
+  );
+  const reactivatedStudentIds = idsToActivate.filter((studentId) => {
+    const link: any = existingByStudent.get(studentId);
+    return link && link.status !== "active";
+  });
+
+  if (newStudentIds.length) {
+    await tx.studentClass.createMany({
+      data: newStudentIds.map((studentId) => ({
+        studentId,
+        classId,
+        enrollmentDate: effectiveAt,
+        status: "active",
+      })),
     });
-    await syncStudentEnrollmentPeriods(tx, {
-      studentId,
-      desiredClassIds: [...activeLinks.map((link: any) => link.classId), classId],
-      source: "class_bulk_enroll",
+  }
+  if (reactivatedStudentIds.length) {
+    await tx.studentClass.updateMany({
+      where: { classId, studentId: { in: reactivatedStudentIds } },
+      data: { status: "active", enrollmentDate: effectiveAt },
     });
-    if (!existing) enrolled += 1;
-    else if (existing.status !== "active") reactivated += 1;
+  }
+
+  const openPeriods = await tx.enrollmentPeriod.findMany({
+    where: {
+      classId,
+      studentId: { in: idsToActivate },
+      endedAt: null,
+    },
+    select: { studentId: true },
+  });
+  const studentsWithOpenPeriod = new Set(
+    openPeriods.map((period: any) => period.studentId)
+  );
+  const periodRows = idsToActivate
+    .filter((studentId) => !studentsWithOpenPeriod.has(studentId))
+    .map((studentId) => {
+      const existing: any = existingByStudent.get(studentId);
+      const wasActive = existing?.status === "active";
+      return {
+        studentId,
+        classId,
+        startedAt: wasActive ? existing.enrollmentDate : effectiveAt,
+        source: wasActive ? "projection_backfill" : "class_bulk_enroll",
+      };
+    });
+  if (periodRows.length) {
+    await tx.enrollmentPeriod.createMany({ data: periodRows });
   }
 
   return {
     requested: uniqueIds.length,
-    enrolled,
-    reactivated,
-    skipped: uniqueIds.length - idsToActivate.length + activeIds.size,
+    enrolled: newStudentIds.length,
+    reactivated: reactivatedStudentIds.length,
+    skipped:
+      uniqueIds.length - newStudentIds.length - reactivatedStudentIds.length,
   };
 }
 
@@ -213,8 +266,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         const studentIds = Array.isArray(req.body?.student_ids)
           ? req.body.student_ids
           : [req.body?.student_id].filter(Boolean);
-        const result = await prisma.$transaction((tx) =>
-          enrollStudentsInClass(tx, id, studentIds)
+        const result = await prisma.$transaction(
+          (tx) => enrollStudentsInClass(tx, id, studentIds),
+          CLASS_WRITE_TRANSACTION_OPTIONS
         );
         return successResponse(res, result);
       }
@@ -237,18 +291,21 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           notes: body.notes,
       };
 
-      const result = await prisma.$transaction(async (tx) => {
-        const newClass = await tx.class.create({
-          data,
-          include: { teacher: true },
-        });
-        const enrollment = await enrollStudentsInClass(
-          tx,
-          newClass.id,
-          body.student_ids
-        );
-        return { newClass, enrollment };
-      });
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const newClass = await tx.class.create({
+            data,
+            include: { teacher: true },
+          });
+          const enrollment = await enrollStudentsInClass(
+            tx,
+            newClass.id,
+            body.student_ids
+          );
+          return { newClass, enrollment };
+        },
+        CLASS_WRITE_TRANSACTION_OPTIONS
+      );
 
       return res.status(201).json({
         success: true,
@@ -267,7 +324,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if ((error as Error).message === "CLASS_NOT_FOUND") {
         return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
       }
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      if (isClassWriteTimeout(error)) {
+        return errorResponse(
+          res,
+          "CLASS_WRITE_TIMEOUT",
+          "Class save timed out; please retry",
+          503
+        );
+      }
+      return sendApiError(res, error, "CLASS_CREATE_ERROR");
     }
   }
 
@@ -304,19 +369,22 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           ...(body.notes !== undefined && { notes: body.notes }),
       };
 
-      const result = await prisma.$transaction(async (tx) => {
-        const updatedClass = await tx.class.update({
-          where: { id },
-          data,
-          include: { teacher: true },
-        });
-        const enrollment = await enrollStudentsInClass(
-          tx,
-          id,
-          body.student_ids || []
-        );
-        return { updatedClass, enrollment };
-      });
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const updatedClass = await tx.class.update({
+            where: { id },
+            data,
+            include: { teacher: true },
+          });
+          const enrollment = await enrollStudentsInClass(
+            tx,
+            id,
+            body.student_ids || []
+          );
+          return { updatedClass, enrollment };
+        },
+        CLASS_WRITE_TRANSACTION_OPTIONS
+      );
 
       return successResponse(res, {
         class: result.updatedClass,
@@ -335,7 +403,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if ((error as Error).message === "CLASS_NOT_FOUND") {
         return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
       }
-      return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+      if (isClassWriteTimeout(error)) {
+        return errorResponse(
+          res,
+          "CLASS_WRITE_TIMEOUT",
+          "Class save timed out; please retry",
+          503
+        );
+      }
+      return sendApiError(res, error, "CLASS_UPDATE_ERROR");
     }
   }
 
