@@ -503,7 +503,7 @@
 ## 2026-07-15 Handoff - Historical Enrollment / Attendance Closed
 
 - `ENRT-2026-07-14-01..04` are implemented and production-live.
-- Runtime source: code commit `bb5168e`; Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`; alias `https://edu-manager-gules.vercel.app`.
+- Runtime source: code commit `bb5168e`, release-control commit `d766ab6`; Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`; alias `https://edu-manager-gules.vercel.app`.
 - Preserve the temporal invariant: attendance is valid only inside the student's authoritative half-open `EnrollmentPeriod`; historical enrollment needs an explicit effective date and operator reason.
 - Preserve concurrency order: global roster locks before class-month roster locks, then canonical finance locks before fingerprint/preflight/mutation. Keep these paths inside serializable retry.
 - Preserve the billing denominator: month-plan/session snapshots must not coerce missing legacy or V3 denominators to zero.

@@ -778,7 +778,7 @@
 
 - **Objective**: complete; no active ENRT task remains.
 - **Code source**: `bb5168e` (`fix: harden historical attendance lifecycle`).
-- **Production**: `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **Production**: release `d766ab6`, deployment `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
 - **Completed**: effective-date/reason contract, enrollment audit trail, pre-mutation attendance guard, month snapshot denominator compatibility, canonical serializable roster/finance locks, reconciliation race hardening, corrective class/attendance UX and regression tests.
 - **Runtime acceptance**: `QA HIST 20260715 A` completed create/backdate → 10 June sessions → submit → approve → lock; final release readback showed `10 buổi / 900.000đ`, `Sẵn sàng`, and zero Chrome console errors.
 - **Gates**: unit `377/377`, TypeScript, lint, build, audit and diff-check passed.

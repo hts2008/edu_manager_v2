@@ -3,8 +3,9 @@
 **Date:** 2026-07-15
 **Track:** `ENRT-2026-07-14-01..04`
 **Code commit:** `bb5168e`
+**Release-control commit:** `d766ab6`
 **Production:** `https://edu-manager-gules.vercel.app`
-**Vercel deployment:** `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4` (`READY`, production)
+**Vercel deployment:** `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL` (`READY`, production)
 
 ## Objective
 
@@ -50,6 +51,8 @@ Controlled class: `QA HIST 20260715 A` (`cmrkzqbof00028havdu0endd2`).
 6. Verified Fee Workbench kept the class as one independent class line at `10 buổi / 900.000đ`; July remained `0 / 0đ` because no July attendance was submitted.
 
 The final release deployment was then opened in authenticated Google Chrome. Attendance showed monthly fee `900.000đ`, applied fee/session `90.000đ / 10 buổi trong tháng`, June status `Đã chốt`, and `Sẵn sàng thu phí`. Fee Workbench showed the exact June row at `10 buổi / 900.000đ`. Chrome console errors: `0`.
+
+The clean-source redeploy reports Git SHA `d766ab6`, target `production`, state `READY`, and no alias error. Final anonymous probes returned root HTTP `200` and protected `/api/classes` HTTP `401`. Vercel runtime-error inspection found no application error attributed to the new deployment; the only grouped item was a pre-existing Node `url.parse()` deprecation warning whose latest deployment was the superseded `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`.
 
 ## Review Findings Closed
 

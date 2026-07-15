@@ -1004,6 +1004,6 @@
 - **Regression coverage**: added enrollment guard, audit, historical workflow, historical UI guard and month schedule snapshot suites; expanded attendance, class-session, lock, readiness, reconcile and bulk-enrollment tests.
 - **Verification**: full unit `377/377` across 61 suites, `npx tsc --noEmit`, frontend lint, `npm run build`, `npm audit --omit=dev --audit-level=high`, and `git diff --check` passed.
 - **Production lifecycle**: `QA HIST 20260715 A` used enrollment start `2026-06-01`; all 10 June regular sessions were saved, then the month was submitted, approved and locked. Fee Workbench showed the independent class line at `10 buổi / 900.000đ`.
-- **Release**: code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, alias `https://edu-manager-gules.vercel.app`; final Chrome readback had zero console errors.
+- **Release**: code commit `bb5168e`, release-control commit `d766ab6`, Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, alias `https://edu-manager-gules.vercel.app`; final Chrome readback of the release code had zero console errors.
 - **Evidence**: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
 - **Boundary**: the local real-router integration suite remains environment-guarded without `TEST_DATABASE_URL`; no current production blocker was observed in the verified lifecycle.

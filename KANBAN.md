@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, authenticated Chrome smoke passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, code commit `bb5168e`, release `d766ab6`, Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, authenticated Chrome smoke passed |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -25,7 +25,7 @@
 | ENRT-2026-07-14-03 | Add effective-date, loading, error and corrective UX to class/attendance workflows | IMPLEMENTED | Class modal supports effective-date correction; attendance surfaces typed corrective errors without partial writes |
 | ENRT-2026-07-14-04 | Run full static gates and authenticated production lifecycle smoke | IMPLEMENTED | Unit `377/377`; typecheck, lint, build, audit and diff-check pass; Chrome verified `QA HIST 20260715 A` at `10 buổi / 900.000đ` |
 
-**Production:** code commit `bb5168e` is deployed as `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4` and aliased to `https://edu-manager-gules.vercel.app`. The production lifecycle created `QA HIST 20260715 A`, backdated enrollment to `2026-06-01`, completed 10 June sessions, then submit → approve → lock. Final Chrome verification on the release deployment showed the exact class/month row at `10 buổi / 900.000đ`, status `Sẵn sàng`, with zero console errors.
+**Production:** code commit `bb5168e` and release-control commit `d766ab6` are deployed as `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL` and aliased to `https://edu-manager-gules.vercel.app`. The production lifecycle created `QA HIST 20260715 A`, backdated enrollment to `2026-06-01`, completed 10 June sessions, then submit → approve → lock. Final Chrome verification on the release code showed the exact class/month row at `10 buổi / 900.000đ`, status `Sẵn sàng`, with zero console errors.
 
 **Concurrency and ledger safety:** enrollment/attendance writers use serializable retries and canonical advisory lock ordering; historical reconciliation acquires roster and finance locks before fingerprint/preflight/mutation; persisted month-plan snapshots retain legacy and V3 denominators without coercing missing values to zero.
 

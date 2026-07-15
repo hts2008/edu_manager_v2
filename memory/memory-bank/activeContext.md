@@ -418,7 +418,7 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 
 ## 2026-07-15 Current Context - Historical Enrollment / Attendance Closeout
 
-- `ENRT-2026-07-14-01..04` are `IMPLEMENTED` and production-live from code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, alias `https://edu-manager-gules.vercel.app`.
+- `ENRT-2026-07-14-01..04` are `IMPLEMENTED` and production-live from code commit `bb5168e`, release `d766ab6`, Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, alias `https://edu-manager-gules.vercel.app`.
 - Explicit enrollment effective dates are now a first-class API/UI contract. Historical starts require a reason, update `EnrollmentPeriod` and the current `StudentClass` projection atomically, and emit audit evidence.
 - Attendance writes enforce the authoritative half-open enrollment interval before mutation. Historical corrections no longer create attendance before enrollment or leave partial session data.
 - Reconciliation and attendance locking share canonical roster/finance advisory locks inside serializable retries. Month-plan snapshots preserve the persisted monthly denominator across V3 and legacy payloads without converting absent values to zero.
