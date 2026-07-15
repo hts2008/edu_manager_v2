@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   isStudentEligibleOnDate,
   resolveEnrollmentCorrection,
+  resolveEnrollmentCorrectionStudents,
   validateEnrollmentCorrectionResult,
 } from "../frontend/src/utils/attendanceEnrollmentCorrection.js";
 
@@ -53,13 +54,15 @@ describe("historical attendance UI and schedule guards", () => {
     });
 
     assert.equal(correction.effectiveDate, "2026-07-15");
+    assert.equal(correction.suggestedEffectiveDate, "2026-07-15");
+    assert.equal(correction.effectiveDateSource, "ledger");
     assert.deepEqual(
       correction.students.map((student) => student.id),
       ["starts-after-first-session"],
     );
   });
 
-  it("does not invent an enrollment correction date without a regular ledger session", () => {
+  it("offers an explicit admin-confirmed correction date without treating makeup or cancelled sessions as authoritative", () => {
     const weekDates = [
       { dateStr: "2026-07-13", isScheduleDay: true },
       { dateStr: "2026-07-14", isScheduleDay: true },
@@ -74,38 +77,99 @@ describe("historical attendance UI and schedule guards", () => {
       },
     ];
 
+    const correction = resolveEnrollmentCorrection({
+      weekDates,
+      students,
+      ledgerSessions: [
+        { date: "2026-07-14", kind: "makeup", status: "held" },
+        { date: "2026-07-15", kind: "regular", status: "cancelled" },
+      ],
+    });
+
+    assert.equal(correction.effectiveDate, "");
+    assert.equal(correction.suggestedEffectiveDate, "2026-07-13");
+    assert.equal(correction.effectiveDateSource, "week_selection");
+    assert.deepEqual(correction.students.map((student) => student.id), [
+      "future-enrollment",
+    ]);
+  });
+
+  it("keeps the correction action available when a historical week has no session ledger yet", () => {
+    const correction = resolveEnrollmentCorrection({
+      weekDates: [
+        { dateStr: "2026-06-01", isScheduleDay: true },
+        { dateStr: "2026-06-02", isScheduleDay: false },
+      ],
+      ledgerSessions: [],
+      students: [
+        {
+          id: "future-enrollment",
+          enrollment_status: "active",
+          enrollment_date: "2026-07-15",
+          enrollment_periods: [{ started_at: "2026-07-15", ended_at: null }],
+        },
+      ],
+    });
+
+    assert.equal(correction.effectiveDate, "");
+    assert.equal(correction.suggestedEffectiveDate, "2026-06-01");
+    assert.equal(correction.effectiveDateSource, "week_selection");
+    assert.deepEqual(correction.students.map((student) => student.id), [
+      "future-enrollment",
+    ]);
+  });
+
+  it("recomputes the correction cohort when the admin changes the effective date", () => {
+    const students = [
+      {
+        id: "starts-june-03",
+        enrollment_status: "active",
+        enrollment_periods: [{ started_at: "2026-06-03", ended_at: null }],
+      },
+      {
+        id: "starts-july-15",
+        enrollment_status: "active",
+        enrollment_periods: [{ started_at: "2026-07-15", ended_at: null }],
+      },
+    ];
+
     assert.deepEqual(
-      resolveEnrollmentCorrection({
-        weekDates,
-        students,
-        ledgerSessions: [
-          { date: "2026-07-14", kind: "makeup", status: "held" },
-          { date: "2026-07-15", kind: "regular", status: "cancelled" },
-        ],
-      }),
-      { effectiveDate: "", students: [] },
+      resolveEnrollmentCorrectionStudents(students, "2026-06-01").map(
+        (student) => student.id,
+      ),
+      ["starts-june-03", "starts-july-15"],
+    );
+    assert.deepEqual(
+      resolveEnrollmentCorrectionStudents(students, "2026-06-04").map(
+        (student) => student.id,
+      ),
+      ["starts-july-15"],
     );
   });
 
-  it("does not fall back to the calendar when the authoritative session ledger is empty", () => {
-    assert.deepEqual(
-      resolveEnrollmentCorrection({
-        weekDates: [
-          { dateStr: "2026-07-13", isScheduleDay: true },
-          { dateStr: "2026-07-14", isScheduleDay: true },
-        ],
-        ledgerSessions: [],
-        students: [
-          {
-            id: "future-enrollment",
-            enrollment_status: "active",
-            enrollment_date: "2026-07-20",
-            enrollment_periods: [{ started_at: "2026-07-20", ended_at: null }],
-          },
-        ],
-      }),
-      { effectiveDate: "", students: [] },
-    );
+  it("keeps the correction action visible when the suggested date has no affected students but a later week date does", () => {
+    const correction = resolveEnrollmentCorrection({
+      weekDates: [
+        { dateStr: "2026-06-01", isScheduleDay: true },
+        { dateStr: "2026-06-04", isScheduleDay: true },
+      ],
+      ledgerSessions: [],
+      students: [
+        {
+          id: "re-enrolled",
+          enrollment_status: "active",
+          enrollment_periods: [
+            { started_at: "2026-06-01", ended_at: "2026-06-03" },
+            { started_at: "2026-07-15", ended_at: null },
+          ],
+        },
+      ],
+    });
+
+    assert.equal(correction.suggestedEffectiveDate, "2026-06-01");
+    assert.deepEqual(correction.students.map((student) => student.id), [
+      "re-enrolled",
+    ]);
   });
 
   it("wires the selected weeks authoritative sessions into enrollment correction", () => {
@@ -137,6 +201,11 @@ describe("historical attendance UI and schedule guards", () => {
     assert.match(enrollmentCorrectionModal, /import Modal from "\.\.\/ui\/Modal"/);
     assert.match(enrollmentCorrectionModal, /<Modal/);
     assert.match(enrollmentCorrectionModal, /confirmOnClose/);
+    assert.match(enrollmentCorrectionModal, /type="date"/);
+    assert.match(enrollmentCorrectionModal, /min=\{minDate\}/);
+    assert.match(enrollmentCorrectionModal, /max=\{maxDate\}/);
+    assert.match(enrollmentCorrectionModal, /onConfirm\(\{[\s\S]*effectiveDate:\s*correctionDate,/);
+    assert.match(enrollmentCorrectionModal, /studentIds:\s*affectedStudents\.map/);
   });
 
   it("asks for an audit reason when creating a class with historical enrollment", () => {
@@ -181,6 +250,10 @@ describe("historical attendance UI and schedule guards", () => {
     assert.match(attendancePage, /Hiệu chỉnh ngày ghi danh/);
     assert.match(attendancePage, /isAdmin\(\)/);
     assert.match(attendancePage, /period\.status !== "open"/);
+    assert.match(attendancePage, /suggestedEffectiveDate/);
+    assert.match(attendancePage, /handleEnrollmentCorrection = async \(\{ effectiveDate, reason \}\)/);
+    assert.match(attendancePage, /resolveEnrollmentCorrectionStudents\(students, effectiveDate\)/);
+    assert.match(attendancePage, /minDate=\{enrollmentCorrectionMinDate\}/);
   });
 
   it("does not create a period or ledger scope when no student is eligible", () => {

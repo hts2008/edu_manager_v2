@@ -25,14 +25,29 @@ function hasLaterActiveEnrollment(student, effectiveDate) {
   );
 }
 
+export function resolveEnrollmentCorrectionStudents(students = [], effectiveDate = "") {
+  if (!effectiveDate) return [];
+  return students.filter((student) => {
+    if (student.enrollment_status && student.enrollment_status !== "active") {
+      return false;
+    }
+    return (
+      !isStudentEligibleOnDate(student, effectiveDate) &&
+      hasLaterActiveEnrollment(student, effectiveDate)
+    );
+  });
+}
+
 export function resolveEnrollmentCorrection({
   weekDates = [],
   students = [],
   ledgerSessions = [],
+  maxEffectiveDate = "",
 }) {
-  const weekDateKeys = new Set(
-    weekDates.map((item) => item.dateStr).filter(Boolean),
-  );
+  const selectableWeekDateKeys = weekDates
+    .map((item) => item.dateStr)
+    .filter((dateStr) => dateStr && (!maxEffectiveDate || dateStr <= maxEffectiveDate));
+  const weekDateKeys = new Set(selectableWeekDateKeys);
   const effectiveDate = ledgerSessions
     .filter(
       (session) =>
@@ -44,20 +59,39 @@ export function resolveEnrollmentCorrection({
     .map((session) => session.date)
     .filter(Boolean)
     .sort()[0] || "";
+  const suggestedEffectiveDate =
+    effectiveDate ||
+    weekDates.find(
+      (item) => item.isScheduleDay && weekDateKeys.has(item.dateStr),
+    )?.dateStr ||
+    selectableWeekDateKeys[0] ||
+    "";
 
-  if (!effectiveDate) return { effectiveDate: "", students: [] };
+  if (!suggestedEffectiveDate) {
+    return {
+      effectiveDate: "",
+      suggestedEffectiveDate: "",
+      effectiveDateSource: "none",
+      students: [],
+    };
+  }
+
+  const correctionDateKeys = effectiveDate
+    ? selectableWeekDateKeys.filter((dateStr) => dateStr >= effectiveDate)
+    : selectableWeekDateKeys;
+  const affectedStudentIds = new Set(
+    correctionDateKeys.flatMap((dateStr) =>
+      resolveEnrollmentCorrectionStudents(students, dateStr).map(
+        (student) => student.id,
+      ),
+    ),
+  );
 
   return {
     effectiveDate,
-    students: students.filter((student) => {
-      if (student.enrollment_status && student.enrollment_status !== "active") {
-        return false;
-      }
-      return (
-        !isStudentEligibleOnDate(student, effectiveDate) &&
-        hasLaterActiveEnrollment(student, effectiveDate)
-      );
-    }),
+    suggestedEffectiveDate,
+    effectiveDateSource: effectiveDate ? "ledger" : "week_selection",
+    students: students.filter((student) => affectedStudentIds.has(student.id)),
   };
 }
 

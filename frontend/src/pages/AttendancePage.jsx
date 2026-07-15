@@ -27,6 +27,7 @@ import {
 import {
   isStudentEligibleOnDate,
   resolveEnrollmentCorrection,
+  resolveEnrollmentCorrectionStudents,
   validateEnrollmentCorrectionResult,
 } from "../utils/attendanceEnrollmentCorrection";
 
@@ -387,17 +388,32 @@ export default function AttendancePage() {
     [classSessionsByMonth, selectedWeekMonthKeys],
   );
 
+  const selectedWeekMinDate = weekDates[0]?.dateStr || "";
+  const enrollmentCorrectionMaxDate = [
+    weekDates[weekDates.length - 1]?.dateStr,
+    toDateKey(today),
+  ].filter(Boolean).sort()[0] || "";
   const enrollmentCorrection = useMemo(
     () =>
       resolveEnrollmentCorrection({
         weekDates,
         students,
         ledgerSessions: selectedWeekLedgerSessions,
+        maxEffectiveDate: enrollmentCorrectionMaxDate,
       }),
-    [selectedWeekLedgerSessions, students, weekDates],
+    [enrollmentCorrectionMaxDate, selectedWeekLedgerSessions, students, weekDates],
   );
   const enrollmentCorrectionEffectiveDate = enrollmentCorrection.effectiveDate;
+  const enrollmentCorrectionSuggestedDate = enrollmentCorrection.suggestedEffectiveDate;
+  const enrollmentCorrectionDateSource = enrollmentCorrection.effectiveDateSource;
   const studentsNeedingEnrollmentBackdate = enrollmentCorrection.students;
+  const enrollmentCorrectionMinDate =
+    enrollmentCorrectionEffectiveDate || selectedWeekMinDate;
+  const canCorrectEnrollmentInSelectedWeek = Boolean(
+    enrollmentCorrectionSuggestedDate &&
+      enrollmentCorrectionMinDate &&
+      enrollmentCorrectionMinDate <= enrollmentCorrectionMaxDate,
+  );
 
   const weekSessionLimit = useMemo(() => {
     if (!selectedWeek || !classSchedule) return sessionsPerWeek;
@@ -898,19 +914,25 @@ export default function AttendancePage() {
     });
   };
 
-  const handleEnrollmentCorrection = async (reason) => {
+  const handleEnrollmentCorrection = async ({ effectiveDate, reason }) => {
+    const affectedStudents = resolveEnrollmentCorrectionStudents(students, effectiveDate);
     if (
       !selectedClass ||
       !selectedWeek ||
-      !enrollmentCorrectionEffectiveDate ||
-      studentsNeedingEnrollmentBackdate.length === 0
-    ) return;
-    const expectedCount = studentsNeedingEnrollmentBackdate.length;
+      !effectiveDate ||
+      effectiveDate < enrollmentCorrectionMinDate ||
+      effectiveDate > enrollmentCorrectionMaxDate ||
+      affectedStudents.length === 0
+    ) {
+      toast.error("Ngày hiệu lực phải nằm trong tuần đã chọn và không được ở tương lai");
+      return;
+    }
+    const expectedCount = affectedStudents.length;
     setEnrollmentCorrecting(true);
     try {
       const response = await classesService.update(selectedClass, {
-        student_ids: studentsNeedingEnrollmentBackdate.map((student) => student.id),
-        enrollment_effective_date: enrollmentCorrectionEffectiveDate,
+        student_ids: affectedStudents.map((student) => student.id),
+        enrollment_effective_date: effectiveDate,
         adjust_existing_enrollment_start: true,
         enrollment_backdate_reason: reason,
       });
@@ -933,7 +955,7 @@ export default function AttendancePage() {
       }
       setEnrollmentCorrectionOpen(false);
       toast.success(
-        `Đã mở điểm danh từ ${enrollmentCorrectionEffectiveDate} cho ${expectedCount} học viên`,
+        `Đã mở điểm danh từ ${effectiveDate} cho ${expectedCount} học viên`,
       );
     } finally {
       setEnrollmentCorrecting(false);
@@ -1494,7 +1516,7 @@ export default function AttendancePage() {
                           Các ô tương ứng được khóa để tránh tạo điểm danh ngoài lịch sử ghi danh. Admin có thể hiệu chỉnh có kiểm toán nếu ngày nhập học thực tế sớm hơn.
                         </p>
                       </div>
-                      {isAdmin() && !nonEditableSelectedMonth && (
+                      {isAdmin() && !nonEditableSelectedMonth && canCorrectEnrollmentInSelectedWeek && (
                         <button
                           type="button"
                           onClick={() => setEnrollmentCorrectionOpen(true)}
@@ -1780,7 +1802,11 @@ export default function AttendancePage() {
       <AttendanceEnrollmentCorrectionModal
         open={enrollmentCorrectionOpen}
         effectiveDate={enrollmentCorrectionEffectiveDate}
-        students={studentsNeedingEnrollmentBackdate}
+        suggestedEffectiveDate={enrollmentCorrectionSuggestedDate}
+        effectiveDateSource={enrollmentCorrectionDateSource}
+        minDate={enrollmentCorrectionMinDate}
+        maxDate={enrollmentCorrectionMaxDate}
+        students={students}
         busy={enrollmentCorrecting}
         onClose={() => {
           if (!enrollmentCorrecting) setEnrollmentCorrectionOpen(false);
