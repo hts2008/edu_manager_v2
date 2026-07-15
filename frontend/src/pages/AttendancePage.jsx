@@ -15,6 +15,7 @@ import SelectField from "../components/ui/SelectField";
 import AttendanceLockPreflightModal from "../components/attendance/AttendanceLockPreflightModal";
 import AttendanceCorrectionModal from "../components/attendance/AttendanceCorrectionModal";
 import AttendanceReadinessIssuePanel from "../components/attendance/AttendanceReadinessIssuePanel";
+import AttendanceEnrollmentCorrectionModal from "../components/attendance/AttendanceEnrollmentCorrectionModal";
 import useAttendancePeriodWorkflow from "../hooks/useAttendancePeriodWorkflow";
 import {
   countMonthBoundedWeeklySessions,
@@ -158,6 +159,11 @@ function resolvePlannedSessionsForMonth({
     : regularLedgerSessions;
 }
 
+function formatWeekRangeLabel(weekRange) {
+  if (!weekRange) return "";
+  return `${weekRange.start.toLocaleDateString("vi-VN")} - ${weekRange.end.toLocaleDateString("vi-VN")}`;
+}
+
 export default function AttendancePage() {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
@@ -178,6 +184,8 @@ export default function AttendancePage() {
   const [loadedWeekKey, setLoadedWeekKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [correctionTarget, setCorrectionTarget] = useState(null);
+  const [enrollmentCorrectionOpen, setEnrollmentCorrectionOpen] = useState(false);
+  const [enrollmentCorrecting, setEnrollmentCorrecting] = useState(false);
   const classDataRequestRef = useRef(0);
   const classListRequestRef = useRef(0);
   const weekAttendanceRequestRef = useRef(0);
@@ -380,6 +388,21 @@ export default function AttendancePage() {
       }),
     [periods, selectedWeekMonthKeys],
   );
+
+  const studentsNeedingEnrollmentBackdate = useMemo(() => {
+    if (!selectedWeek) return [];
+    const effectiveDate = toDateKey(selectedWeek.start);
+    return students.filter((student) => {
+      if (student.enrollment_status && student.enrollment_status !== "active") return false;
+      if (isStudentEligibleOnDate(student, effectiveDate)) return false;
+      const enrollmentPeriods = student.enrollment_periods || [];
+      return (
+        enrollmentPeriods.some(
+          (period) => !period.ended_at && period.started_at > effectiveDate,
+        ) || Boolean(student.enrollment_date && student.enrollment_date > effectiveDate)
+      );
+    });
+  }, [selectedWeek, students]);
 
   const weekSessionLimit = useMemo(() => {
     if (!selectedWeek || !classSchedule) return sessionsPerWeek;
@@ -619,6 +642,7 @@ export default function AttendancePage() {
           calendarData[dateKey].total++;
         });
       setCalendarAttendance(calendarData);
+      return classRes.data;
     } catch (error) {
       if (classDataRequestRef.current === requestId) {
         setLoadError(error?.message || "Không thể tải dữ liệu điểm danh");
@@ -628,6 +652,7 @@ export default function AttendancePage() {
         setLoading(false);
       }
     }
+    return null;
   };
 
   const workflow = useAttendancePeriodWorkflow({ onChanged: loadClassData, toast });
@@ -876,6 +901,31 @@ export default function AttendancePage() {
         month: monthKey,
       },
     });
+  };
+
+  const handleEnrollmentCorrection = async (reason) => {
+    if (!selectedClass || !selectedWeek || studentsNeedingEnrollmentBackdate.length === 0) return;
+    const effectiveDate = toDateKey(selectedWeek.start);
+    setEnrollmentCorrecting(true);
+    try {
+      const response = await classesService.update(selectedClass, {
+        student_ids: studentsNeedingEnrollmentBackdate.map((student) => student.id),
+        enrollment_effective_date: effectiveDate,
+        adjust_existing_enrollment_start: true,
+        enrollment_backdate_reason: reason,
+      });
+      if (!response.success) {
+        toast.error(response.error?.message || "Không thể hiệu chỉnh ngày ghi danh");
+        return;
+      }
+      const refreshedClass = await loadClassData();
+      const refreshedStudents = refreshedClass?.students || [];
+      await loadWeekAttendance(selectedClass, selectedWeek, refreshedStudents);
+      setEnrollmentCorrectionOpen(false);
+      toast.success(`Đã mở điểm danh từ ${effectiveDate} cho ${studentsNeedingEnrollmentBackdate.length} học viên`);
+    } finally {
+      setEnrollmentCorrecting(false);
+    }
   };
 
   const handleApprove = async (monthKey) => {
@@ -1152,6 +1202,16 @@ export default function AttendancePage() {
                                   weekEnd &&
                                   handleWeekClick(weekStart, weekEnd)
                                 }
+                                onKeyDown={(event) => {
+                                  if ((event.key === "Enter" || event.key === " ") && weekStart && weekEnd) {
+                                    event.preventDefault();
+                                    handleWeekClick(weekStart, weekEnd);
+                                  }
+                                }}
+                                tabIndex={0}
+                                aria-label={`Chọn tuần ${formatWeekRangeLabel(weekRange)}`}
+                                aria-selected={Boolean(isSelected)}
+                                data-testid={`attendance-week-${key}-${wi + 1}`}
                                 className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                                   isSelected ? "bg-primary-100" : ""
                                 }`}
@@ -1407,6 +1467,30 @@ export default function AttendancePage() {
                       <span className={nonEditableSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
                         {nonEditableSelectedMonth ? `Tháng ${nonEditableSelectedMonth} không ở trạng thái mở - chỉ xem` : isWeekReady ? "Đã tải xong - có thể thao tác" : "Đang chờ dữ liệu tuần"}
                       </span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedWeek && studentsNeedingEnrollmentBackdate.length > 0 && (
+                  <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3" role="status">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-sm font-black text-amber-950">
+                          {studentsNeedingEnrollmentBackdate.length} học viên chưa có hiệu lực ghi danh ở tuần này
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-amber-800">
+                          Các ô tương ứng được khóa để tránh tạo điểm danh ngoài lịch sử ghi danh. Admin có thể hiệu chỉnh có kiểm toán nếu ngày nhập học thực tế sớm hơn.
+                        </p>
+                      </div>
+                      {isAdmin() && !nonEditableSelectedMonth && (
+                        <button
+                          type="button"
+                          onClick={() => setEnrollmentCorrectionOpen(true)}
+                          className="shrink-0 rounded-xl bg-amber-900 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-amber-950"
+                        >
+                          Hiệu chỉnh ngày ghi danh
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1680,6 +1764,16 @@ export default function AttendancePage() {
           if (!workflow.isBusy) setCorrectionTarget(null);
         }}
         onConfirm={handleUnlockConfirm}
+      />
+      <AttendanceEnrollmentCorrectionModal
+        open={enrollmentCorrectionOpen}
+        effectiveDate={selectedWeek ? toDateKey(selectedWeek.start) : ""}
+        students={studentsNeedingEnrollmentBackdate}
+        busy={enrollmentCorrecting}
+        onClose={() => {
+          if (!enrollmentCorrecting) setEnrollmentCorrectionOpen(false);
+        }}
+        onConfirm={handleEnrollmentCorrection}
       />
     </Motion.div>
   );

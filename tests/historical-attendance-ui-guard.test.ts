@@ -31,6 +31,27 @@ describe("historical attendance UI and schedule guards", () => {
     );
   });
 
+  it("exposes every calendar week as an explicit past or future selection target", () => {
+    assert.match(attendancePage, /aria-label=\{`Chọn tuần \$\{formatWeekRangeLabel\(weekRange\)\}`\}/);
+    assert.match(attendancePage, /tabIndex=\{0\}/);
+    assert.match(attendancePage, /onKeyDown=\{\(event\) =>/);
+
+    const weekClickBranch = attendancePage.slice(
+      attendancePage.indexOf("const handleWeekClick"),
+      attendancePage.indexOf("const handleCellClick"),
+    );
+    assert.doesNotMatch(weekClickBranch, /today|new Date\(\)/);
+  });
+
+  it("lets an admin backdate enrollment with an audited reason instead of writing outside enrollment", () => {
+    assert.match(attendancePage, /adjust_existing_enrollment_start: true/);
+    assert.match(attendancePage, /enrollment_backdate_reason:/);
+    assert.match(attendancePage, /classesService\.update\(/);
+    assert.match(attendancePage, /Hiệu chỉnh ngày ghi danh/);
+    assert.match(attendancePage, /isAdmin\(\)/);
+    assert.match(attendancePage, /period\.status !== "open"/);
+  });
+
   it("does not create a period or ledger scope when no student is eligible", () => {
     const saveBranch = attendancePage.slice(
       attendancePage.indexOf("const handleSave"),
