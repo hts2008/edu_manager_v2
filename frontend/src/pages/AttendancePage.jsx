@@ -24,6 +24,11 @@ import {
   toDateKey,
   toMonthKey,
 } from "../utils/dateKeys";
+import {
+  isStudentEligibleOnDate,
+  resolveEnrollmentCorrection,
+  validateEnrollmentCorrectionResult,
+} from "../utils/attendanceEnrollmentCorrection";
 
 // VI: Điểm danh kiểu SAP Timesheet - Hiển thị 3 tháng, chọn tuần để điểm danh
 
@@ -60,21 +65,6 @@ const STATUS_LABELS = {
 const MAKE_UP_REASON = "Hoc bu ngoai lich";
 const buildWeekKey = (classId, week) =>
   classId && week ? `${classId}:${toDateKey(week.start)}:${toDateKey(week.end)}` : "";
-const isStudentEligibleOnDate = (student, dateStr) => {
-  const periods = student?.enrollment_periods;
-  if (Array.isArray(periods) && periods.length > 0) {
-    return periods.some(
-      (period) =>
-        period.started_at <= dateStr &&
-        (!period.ended_at || dateStr < period.ended_at),
-    );
-  }
-  if (student?.enrollment_status && student.enrollment_status !== "active") {
-    return false;
-  }
-  return !student?.enrollment_date || dateStr >= student.enrollment_date;
-};
-
 const isStudentEligibleInMonth = (student, monthKey) => {
   const monthStart = `${monthKey}-01`;
   const nextMonth = new Date(`${monthStart}T00:00:00.000Z`);
@@ -389,20 +379,25 @@ export default function AttendancePage() {
     [periods, selectedWeekMonthKeys],
   );
 
-  const studentsNeedingEnrollmentBackdate = useMemo(() => {
-    if (!selectedWeek) return [];
-    const effectiveDate = toDateKey(selectedWeek.start);
-    return students.filter((student) => {
-      if (student.enrollment_status && student.enrollment_status !== "active") return false;
-      if (isStudentEligibleOnDate(student, effectiveDate)) return false;
-      const enrollmentPeriods = student.enrollment_periods || [];
-      return (
-        enrollmentPeriods.some(
-          (period) => !period.ended_at && period.started_at > effectiveDate,
-        ) || Boolean(student.enrollment_date && student.enrollment_date > effectiveDate)
-      );
-    });
-  }, [selectedWeek, students]);
+  const selectedWeekLedgerSessions = useMemo(
+    () =>
+      selectedWeekMonthKeys.flatMap(
+        (monthKey) => classSessionsByMonth[monthKey] || [],
+      ),
+    [classSessionsByMonth, selectedWeekMonthKeys],
+  );
+
+  const enrollmentCorrection = useMemo(
+    () =>
+      resolveEnrollmentCorrection({
+        weekDates,
+        students,
+        ledgerSessions: selectedWeekLedgerSessions,
+      }),
+    [selectedWeekLedgerSessions, students, weekDates],
+  );
+  const enrollmentCorrectionEffectiveDate = enrollmentCorrection.effectiveDate;
+  const studentsNeedingEnrollmentBackdate = enrollmentCorrection.students;
 
   const weekSessionLimit = useMemo(() => {
     if (!selectedWeek || !classSchedule) return sessionsPerWeek;
@@ -904,13 +899,18 @@ export default function AttendancePage() {
   };
 
   const handleEnrollmentCorrection = async (reason) => {
-    if (!selectedClass || !selectedWeek || studentsNeedingEnrollmentBackdate.length === 0) return;
-    const effectiveDate = toDateKey(selectedWeek.start);
+    if (
+      !selectedClass ||
+      !selectedWeek ||
+      !enrollmentCorrectionEffectiveDate ||
+      studentsNeedingEnrollmentBackdate.length === 0
+    ) return;
+    const expectedCount = studentsNeedingEnrollmentBackdate.length;
     setEnrollmentCorrecting(true);
     try {
       const response = await classesService.update(selectedClass, {
         student_ids: studentsNeedingEnrollmentBackdate.map((student) => student.id),
-        enrollment_effective_date: effectiveDate,
+        enrollment_effective_date: enrollmentCorrectionEffectiveDate,
         adjust_existing_enrollment_start: true,
         enrollment_backdate_reason: reason,
       });
@@ -918,11 +918,23 @@ export default function AttendancePage() {
         toast.error(response.error?.message || "Không thể hiệu chỉnh ngày ghi danh");
         return;
       }
+      const correctionResult = validateEnrollmentCorrectionResult(
+        response.data?.enrollment,
+        expectedCount,
+      );
       const refreshedClass = await loadClassData();
       const refreshedStudents = refreshedClass?.students || [];
       await loadWeekAttendance(selectedClass, selectedWeek, refreshedStudents);
+      if (!correctionResult.complete) {
+        toast.error(
+          `Chỉ hiệu chỉnh ${correctionResult.adjusted}/${expectedCount} học viên; ${correctionResult.skipped} bản ghi bị bỏ qua. Danh sách đã được tải lại để kiểm tra.`,
+        );
+        return;
+      }
       setEnrollmentCorrectionOpen(false);
-      toast.success(`Đã mở điểm danh từ ${effectiveDate} cho ${studentsNeedingEnrollmentBackdate.length} học viên`);
+      toast.success(
+        `Đã mở điểm danh từ ${enrollmentCorrectionEffectiveDate} cho ${expectedCount} học viên`,
+      );
     } finally {
       setEnrollmentCorrecting(false);
     }
@@ -1767,7 +1779,7 @@ export default function AttendancePage() {
       />
       <AttendanceEnrollmentCorrectionModal
         open={enrollmentCorrectionOpen}
-        effectiveDate={selectedWeek ? toDateKey(selectedWeek.start) : ""}
+        effectiveDate={enrollmentCorrectionEffectiveDate}
         students={studentsNeedingEnrollmentBackdate}
         busy={enrollmentCorrecting}
         onClose={() => {

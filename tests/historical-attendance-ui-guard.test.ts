@@ -1,17 +1,144 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import {
+  isStudentEligibleOnDate,
+  resolveEnrollmentCorrection,
+  validateEnrollmentCorrectionResult,
+} from "../frontend/src/utils/attendanceEnrollmentCorrection.js";
 
 function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
 const attendancePage = source("frontend/src/pages/AttendancePage.jsx");
+const enrollmentCorrectionModal = source(
+  "frontend/src/components/attendance/AttendanceEnrollmentCorrectionModal.jsx",
+);
 const classesPage = source("frontend/src/pages/ClassesPage.jsx");
 const attendanceApi = source("server/api/attendance/index.ts");
 const classesApi = source("server/api/classes/index.ts");
 
 describe("historical attendance UI and schedule guards", () => {
+  it("anchors enrollment correction to the first regular class session, not the calendar row start", () => {
+    const correction = resolveEnrollmentCorrection({
+      weekDates: [
+        { dateStr: "2026-07-13", isScheduleDay: true },
+        { dateStr: "2026-07-14", isScheduleDay: true },
+        { dateStr: "2026-07-15", isScheduleDay: true },
+        { dateStr: "2026-07-17", isScheduleDay: true },
+      ],
+      ledgerSessions: [
+        { date: "2026-07-15", kind: "regular", status: "held" },
+        { date: "2026-07-17", kind: "regular", status: "planned" },
+      ],
+      students: [
+        {
+          id: "eligible-from-first-session",
+          enrollment_status: "active",
+          enrollment_date: "2026-07-15",
+          enrollment_periods: [
+            { started_at: "2026-07-15", ended_at: null },
+          ],
+        },
+        {
+          id: "starts-after-first-session",
+          enrollment_status: "active",
+          enrollment_date: "2026-07-16",
+          enrollment_periods: [
+            { started_at: "2026-07-16", ended_at: null },
+          ],
+        },
+      ],
+    });
+
+    assert.equal(correction.effectiveDate, "2026-07-15");
+    assert.deepEqual(
+      correction.students.map((student) => student.id),
+      ["starts-after-first-session"],
+    );
+  });
+
+  it("does not invent an enrollment correction date without a regular ledger session", () => {
+    const weekDates = [
+      { dateStr: "2026-07-13", isScheduleDay: true },
+      { dateStr: "2026-07-14", isScheduleDay: true },
+      { dateStr: "2026-07-15", isScheduleDay: true },
+    ];
+    const students = [
+      {
+        id: "future-enrollment",
+        enrollment_status: "active",
+        enrollment_date: "2026-07-20",
+        enrollment_periods: [{ started_at: "2026-07-20", ended_at: null }],
+      },
+    ];
+
+    assert.deepEqual(
+      resolveEnrollmentCorrection({
+        weekDates,
+        students,
+        ledgerSessions: [
+          { date: "2026-07-14", kind: "makeup", status: "held" },
+          { date: "2026-07-15", kind: "regular", status: "cancelled" },
+        ],
+      }),
+      { effectiveDate: "", students: [] },
+    );
+  });
+
+  it("does not fall back to the calendar when the authoritative session ledger is empty", () => {
+    assert.deepEqual(
+      resolveEnrollmentCorrection({
+        weekDates: [
+          { dateStr: "2026-07-13", isScheduleDay: true },
+          { dateStr: "2026-07-14", isScheduleDay: true },
+        ],
+        ledgerSessions: [],
+        students: [
+          {
+            id: "future-enrollment",
+            enrollment_status: "active",
+            enrollment_date: "2026-07-20",
+            enrollment_periods: [{ started_at: "2026-07-20", ended_at: null }],
+          },
+        ],
+      }),
+      { effectiveDate: "", students: [] },
+    );
+  });
+
+  it("wires the selected weeks authoritative sessions into enrollment correction", () => {
+    assert.match(attendancePage, /selectedWeekLedgerSessions/);
+    assert.match(
+      attendancePage,
+      /ledgerSessions:\s*selectedWeekLedgerSessions/,
+    );
+  });
+
+  it("rejects partial or no-op enrollment correction responses", () => {
+    assert.deepEqual(
+      validateEnrollmentCorrectionResult(
+        { adjusted: 2, skipped: 0 },
+        2,
+      ),
+      { complete: true, adjusted: 2, skipped: 0 },
+    );
+    assert.deepEqual(
+      validateEnrollmentCorrectionResult(
+        { adjusted: 1, skipped: 1 },
+        2,
+      ),
+      { complete: false, adjusted: 1, skipped: 1 },
+    );
+  });
+
+  it("uses the shared focus-safe modal for enrollment corrections", () => {
+    assert.match(enrollmentCorrectionModal, /import Modal from "\.\.\/ui\/Modal"/);
+    assert.match(enrollmentCorrectionModal, /<Modal/);
+    assert.match(enrollmentCorrectionModal, /confirmOnClose/);
+  });
+
   it("asks for an audit reason when creating a class with historical enrollment", () => {
     assert.match(
       classesPage,
@@ -22,13 +149,17 @@ describe("historical attendance UI and schedule guards", () => {
   });
 
   it("uses authoritative half-open enrollment periods in the attendance grid", () => {
-    assert.match(attendancePage, /Array\.isArray\(periods\) && periods\.length > 0/);
-    assert.match(attendancePage, /period\.started_at <= dateStr/);
-    assert.match(attendancePage, /dateStr < period\.ended_at/);
-    assert.match(
-      attendancePage,
-      /student\?\.enrollment_status && student\.enrollment_status !== "active"/,
-    );
+    const student = {
+      enrollment_status: "active",
+      enrollment_date: "2026-06-01",
+      enrollment_periods: [
+        { started_at: "2026-06-10", ended_at: "2026-06-20" },
+      ],
+    };
+    assert.equal(isStudentEligibleOnDate(student, "2026-06-09"), false);
+    assert.equal(isStudentEligibleOnDate(student, "2026-06-10"), true);
+    assert.equal(isStudentEligibleOnDate(student, "2026-06-19"), true);
+    assert.equal(isStudentEligibleOnDate(student, "2026-06-20"), false);
   });
 
   it("exposes every calendar week as an explicit past or future selection target", () => {

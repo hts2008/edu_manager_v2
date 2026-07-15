@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import Modal from "../ui/Modal";
+import ActionProgressButton from "../ui/ActionProgressButton";
 
 export default function AttendanceEnrollmentCorrectionModal({
   open,
@@ -14,45 +16,28 @@ export default function AttendanceEnrollmentCorrectionModal({
     if (open) setReason("");
   }, [open, effectiveDate]);
 
-  if (!open) return null;
-
   const canSubmit = reason.trim().length >= 10 && !busy;
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !busy) onClose();
-      }}
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title="Hiệu chỉnh ngày ghi danh"
+      size="md"
+      busy={busy}
+      busyLabel="Đang hiệu chỉnh ngày ghi danh..."
+      confirmOnClose
+      confirmCloseMessage="Lý do hiệu chỉnh chưa được gửi. Đóng hộp thoại sẽ bỏ nội dung này."
     >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="attendance-enrollment-correction-title"
-        className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl"
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
-          <div>
-            <h2 id="attendance-enrollment-correction-title" className="text-lg font-black text-slate-950">
-              Hiệu chỉnh ngày ghi danh
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Mở quyền điểm danh từ {effectiveDate} cho {students.length} học viên.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Đóng"
-            className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl text-slate-500 transition hover:bg-slate-200 disabled:opacity-50"
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="space-y-4 px-6 py-5">
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-primary-100 bg-primary-50 px-4 py-3">
+          <p className="text-sm font-black text-primary-950">
+            Ngày hiệu lực mới: {effectiveDate}
+          </p>
+          <p className="mt-1 text-xs font-medium text-primary-800">
+            Ngày này là buổi học chính khóa đầu tiên trong tuần đã chọn, không phải ngày đầu hàng lịch.
+          </p>
+        </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Thao tác này thay đổi lịch sử ghi danh và được lưu vào nhật ký kiểm toán. Kỳ đã chốt hoặc đã phát sinh học phí bảo vệ sẽ bị hệ thống từ chối.
           </div>
@@ -77,22 +62,21 @@ export default function AttendanceEnrollmentCorrectionModal({
             className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-primary-400 focus:ring-4 focus:ring-primary-100 disabled:bg-slate-100"
           />
           <p className="text-xs text-slate-500">Nhập tối thiểu 10 ký tự để tạo bằng chứng kiểm toán.</p>
-        </div>
-
-        <footer className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <button type="button" onClick={onClose} disabled={busy} className="btn-secondary">
             Hủy
           </button>
-          <button
-            type="button"
+          <ActionProgressButton
             onClick={() => onConfirm(reason.trim())}
+            loading={busy}
+            loadingLabel="Đang hiệu chỉnh..."
             disabled={!canSubmit}
             className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? "Đang hiệu chỉnh..." : "Xác nhận hiệu chỉnh"}
-          </button>
-        </footer>
-      </section>
-    </div>
+            Xác nhận hiệu chỉnh
+          </ActionProgressButton>
+        </div>
+      </div>
+    </Modal>
   );
 }
