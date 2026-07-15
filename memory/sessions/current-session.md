@@ -795,3 +795,12 @@
 - **Pending validation**: none for the reported blocker. The correction modal's invalid-data branch is covered by behavioral tests because current production data has no stale invalid attendance pair to invoke it safely.
 - **Expected next action**: start a new KANBAN item for any new product request.
 - **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown-only mode used.
+
+## 2026-07-15 FLYER B6 Historical Correction Follow-up
+
+- **Objective**: complete; the exact reported FLYER B6 June lock is closed.
+- **Runtime source**: commit `1d1ec50`; Vercel `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx`; alias `https://edu-manager-gules.vercel.app`.
+- **Production evidence**: three students changed from enrollment start `2026-07-15` to audited start `2026-06-01`; June and future weeks became editable; reload and DB readback persisted the correction; console errors `0`.
+- **Safety boundary**: this is not a global bypass. Locked periods and dates outside authoritative half-open enrollment intervals remain fail-closed; correction requires admin role and a reason.
+- **Mutation boundary**: the smoke did not save attendance or create/recalculate fees.
+- **Pending validation**: none for this reported blocker.

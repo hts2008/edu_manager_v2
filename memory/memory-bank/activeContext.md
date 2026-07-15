@@ -440,3 +440,13 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Gates**: focused `13/13`, full unit `385/385`, TypeScript, lint zero warnings, build, diff-check and independent reviewer `GO`.
 - **Evidence**: `receipts/2026-07-15-historical-attendance-admin-correction.md`; `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.
 - **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only mode used.
+
+## 2026-07-15 FLYER B6 Historical Enrollment Correction Production Verification
+
+- `ATAC-2026-07-15-05` is `IMPLEMENTED` and production-live at commit `1d1ec50`, deployment `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx`.
+- Exact RCA: FLYER B6 June attendance cells were disabled because three authoritative enrollment periods started on `2026-07-15`; navigation itself already supported past and future weeks.
+- Admin correction now also handles a selected historical week without a regular session ledger, requires an explicit reason, constrains the effective date to the selected week, and updates both `EnrollmentPeriod` history and `StudentClass` projection atomically.
+- Authenticated Chrome corrected Võ Gia Quang, Vũ Bảo Ngọc and Vũ Gia Long to `2026-06-01`; June controls became editable, an August future week was editable, reload preserved the correction, and console errors were empty.
+- Read-only DB evidence confirmed all three open periods use `source=class_bulk_backdate`, `startedAt=2026-06-01`, with matching active `StudentClass.enrollmentDate` projections.
+- No attendance mark or financial record was created during this verification; only the approved enrollment effective-date correction was persisted.
+- Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md` and `receipts/artifacts/historical-attendance-enrollment-correction-production-2026-07-15.png`.

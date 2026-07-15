@@ -522,3 +522,12 @@
 - Chrome production evidence includes a persisted historical write (`1/2`, `90.000đ`), editable future week, locked-month protection, pre-enrollment protection and zero console errors.
 - Evidence: `receipts/2026-07-15-historical-attendance-admin-correction.md`.
 - Context+/EDU Neural Memory unavailable in the callable palette; markdown memory is current.
+
+## 2026-07-15 Handoff - FLYER B6 Exact Production Blocker Closed
+
+- Runtime source is commit `1d1ec50`, deployment `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx`, alias `https://edu-manager-gules.vercel.app`.
+- The exact FLYER B6 cohort from the report is corrected and persisted: Võ Gia Quang, Vũ Bảo Ngọc and Vũ Gia Long now have authoritative enrollment start `2026-06-01` instead of `2026-07-15`.
+- Preserve the invariant: past/future week navigation is allowed, but attendance remains disabled outside the authoritative enrollment interval or in a non-open period.
+- For a no-ledger historical week, use the audited admin effective-date correction; do not reintroduce an implicit current-date or Monday fallback.
+- Chrome verified June editability, future August editability, reload persistence and zero console errors. DB verified matching period/history and live projection dates.
+- Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md`.

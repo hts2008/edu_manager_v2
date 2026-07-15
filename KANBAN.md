@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - audited admin attendance correction for past/current/future weeks deployed and Chrome-verified on 2026-07-15
+> **Status**: PRODUCTION LIVE - audited historical/future attendance correction, including no-ledger enrollment repair, deployed and Chrome-verified on 2026-07-15
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commits `7c3dead` + `e29f081`, Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`, authenticated Chrome mutation/persistence smoke passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commit `1d1ec50`, Vercel `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx`, authenticated Chrome correction/reload/future-week smoke passed |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -24,12 +24,13 @@
 | ATAC-2026-07-15-02 | Add audited enrollment correction based only on the first authoritative regular class session | IMPLEMENTED | No calendar fallback; makeup/cancelled-only weeks are rejected; focused behavioral tests `13/13` |
 | ATAC-2026-07-15-03 | Preserve period locks and half-open enrollment guards | IMPLEMENTED | June locked week remained read-only; FLYER B6 pre-enrollment cells remained disabled with `Chưa ghi danh` |
 | ATAC-2026-07-15-04 | Deploy and verify a real historical attendance write through Chrome | IMPLEMENTED | `QA HIST 20260715 A`, July 15 present, persisted after reload as `1/2` and `90.000đ`; zero console errors |
+| ATAC-2026-07-15-05 | Correct historical enrollment for flexible/no-regular-ledger weeks without disabling temporal guards | IMPLEMENTED | Production FLYER B6 corrected 3 students from `2026-07-15` to `2026-06-01`; June and future-week controls enabled; reload and DB projection/history readback passed |
 
-**Production:** commits `7c3dead` and `e29f081` are deployed as `dpl_BRX8FseRns6MKNkdydVFsah2g4VV` and aliased to `https://edu-manager-gules.vercel.app`. The release keeps locked periods fail-closed while allowing open past/future weeks to load and edit.
+**Production:** commit `1d1ec50` is deployed as `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx` and aliased to `https://edu-manager-gules.vercel.app`. The release keeps locked periods fail-closed while allowing open past/future weeks to load and edit, and gives admins an audited effective-date correction path when the selected historical week has no regular session ledger.
 
-**Quality gates:** independent reviewer `GO`; focused historical UI tests `13/13`; full unit `385/385`; TypeScript, frontend lint with zero warnings, production build and `git diff --check` passed.
+**Quality gates:** independent reviewer `GO`; focused historical UI tests `15/15`; full unit `387/387`; TypeScript, frontend lint with zero warnings, production build and `git diff --check` passed. Production Chrome reproduced the exact FLYER B6 cohort, corrected all three enrollment periods, verified a future August week is editable, reloaded persistence and found zero console errors.
 
-**Evidence:** `receipts/2026-07-15-historical-attendance-admin-correction.md`; screenshot `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.
+**Evidence:** `receipts/2026-07-15-historical-attendance-admin-correction.md`; `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md`; screenshots `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png` and `receipts/artifacts/historical-attendance-enrollment-correction-production-2026-07-15.png`.
 
 **Runtime degradation:** Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in the callable palette; manual blast-radius inspection and workspace markdown memory were used without relaxing gates.
 

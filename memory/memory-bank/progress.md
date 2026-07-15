@@ -1017,3 +1017,13 @@
 - Pushed commits `7c3dead` and `e29f081`; deployed Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV` to `https://edu-manager-gules.vercel.app`.
 - Authenticated Chrome wrote and persisted attendance for historical week `12/7/2026 - 18/7/2026` (`1/2`, `90.000đ`), opened future week `9/8/2026 - 15/8/2026`, preserved June read-only locking and pre-enrollment cell guards, and reported zero console errors.
 - Evidence: `receipts/2026-07-15-historical-attendance-admin-correction.md` and `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.
+
+## 2026-07-15 - Exact FLYER B6 historical attendance blocker closed
+
+- Reproduced the reported production state: three FLYER B6 students had authoritative enrollment start `2026-07-15`, so all June 1-6 attendance cells correctly failed closed.
+- Extended the audited correction workflow for historical weeks with no regular-session ledger while retaining period, enrollment and finance protections.
+- Passed focused tests `15/15`, full unit `387/387`, TypeScript, lint zero warnings, build, diff-check and independent reviewer `GO`.
+- Pushed commit `1d1ec50`; deployed `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx` to `https://edu-manager-gules.vercel.app`.
+- Authenticated Chrome corrected all three students to `2026-06-01`, verified June and future August controls, reload persistence and zero console errors.
+- DB readback confirmed matching `EnrollmentPeriod` and `StudentClass` dates; no attendance or finance data was mutated in the smoke.
+- Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md`.
