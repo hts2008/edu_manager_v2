@@ -428,3 +428,15 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Evidence: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
 - Remaining test boundary: there is no single locally stateful real-PostgreSQL handler test spanning the entire lifecycle because `TEST_DATABASE_URL` is not configured; production lifecycle evidence plus focused transaction/workflow tests cover the verified scope.
 - Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only graceful degradation was recorded without relaxing runtime gates.
+
+## 2026-07-15 Admin Historical / Future Attendance Correction Closeout
+
+- **Objective**: complete; `ATAC-2026-07-15-01..04` are production-live.
+- **Code source**: commits `7c3dead` and `e29f081`.
+- **Production**: Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`, Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- **RCA**: the calendar already permitted non-current weeks; disabled cells came from authoritative enrollment/period guards. The remaining correction path incorrectly inferred a Monday fallback for flexible classes instead of using the real regular ClassSession ledger.
+- **Fix**: correction derives its effective date only from the first regular, non-cancelled, non-holiday session inside the selected week. Empty, makeup-only and cancelled-only ledgers do not fabricate a correction date. Partial/no-op backend corrections fail visibly and keep the modal open.
+- **Runtime acceptance**: Chrome saved July 15 attendance for `QA HIST 20260715 A`, then reloaded and read back `1/2` and `90.000đ`; August future week was editable; June locked week stayed read-only; FLYER B6 pre-enrollment cells stayed disabled; console errors were empty.
+- **Gates**: focused `13/13`, full unit `385/385`, TypeScript, lint zero warnings, build, diff-check and independent reviewer `GO`.
+- **Evidence**: `receipts/2026-07-15-historical-attendance-admin-correction.md`; `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.
+- **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only mode used.

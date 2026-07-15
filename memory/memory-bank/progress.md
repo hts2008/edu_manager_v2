@@ -1007,3 +1007,13 @@
 - **Release**: code commit `bb5168e`, release-control commit `d766ab6`, Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, alias `https://edu-manager-gules.vercel.app`; final Chrome readback of the release code had zero console errors.
 - **Evidence**: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
 - **Boundary**: the local real-router integration suite remains environment-guarded without `TEST_DATABASE_URL`; no current production blocker was observed in the verified lifecycle.
+
+## 2026-07-15 - Admin historical/future attendance correction production closeout
+
+- Removed the residual current-week assumption from the operator workflow while preserving authoritative period and enrollment locks.
+- Added a ledger-only enrollment correction resolver: first regular session in the selected week, no Monday/calendar fallback, no correction for makeup/cancelled-only or empty ledgers.
+- Added safe correction modal behavior and rejected incomplete backend correction results.
+- Passed focused historical UI tests `13/13`, full unit `385/385`, TypeScript, lint zero warnings, build, diff-check and independent reviewer `GO`.
+- Pushed commits `7c3dead` and `e29f081`; deployed Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV` to `https://edu-manager-gules.vercel.app`.
+- Authenticated Chrome wrote and persisted attendance for historical week `12/7/2026 - 18/7/2026` (`1/2`, `90.000đ`), opened future week `9/8/2026 - 15/8/2026`, preserved June read-only locking and pre-enrollment cell guards, and reported zero console errors.
+- Evidence: `receipts/2026-07-15-historical-attendance-admin-correction.md` and `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.

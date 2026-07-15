@@ -512,3 +512,13 @@
 - Optional follow-up: add one isolated real-PostgreSQL stateful handler test for the entire lifecycle when `TEST_DATABASE_URL` is available.
 - Evidence: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
 - Context+/EDU Neural Memory unavailable in the callable palette; markdown memory is current.
+
+## 2026-07-15 Handoff - Admin Historical / Future Attendance Correction Closed
+
+- `ATAC-2026-07-15-01..04` are production-live at commits `7c3dead` and `e29f081`, Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`.
+- Admins can load and edit open weeks in past and future months. Do not restore any current-date restriction.
+- Keep period-state, half-open enrollment and protected-finance guards fail-closed.
+- Enrollment correction must use the first authoritative regular ClassSession in the selected week; never use Monday or another calendar fallback.
+- Chrome production evidence includes a persisted historical write (`1/2`, `90.000đ`), editable future week, locked-month protection, pre-enrollment protection and zero console errors.
+- Evidence: `receipts/2026-07-15-historical-attendance-admin-correction.md`.
+- Context+/EDU Neural Memory unavailable in the callable palette; markdown memory is current.

@@ -357,3 +357,10 @@
 **Decision**: Every historical enrollment requires an explicit effective date and operator reason. `EnrollmentPeriod` is authoritative with half-open `[startedAt, endedAt)` semantics; `StudentClass` remains the current projection. Attendance writes validate every student/session pair against the authoritative period before mutation. Enrollment, attendance, reconciliation and finance writers use serializable retry plus canonical advisory lock ordering, and historical reconciliation acquires finance locks before protected-row fingerprinting or mutation.
 **Rationale**: Temporal validity must be established when membership is created, not inferred later from attendance. Early rejection prevents partial historical data; audit reasons make backdating accountable; shared lock ordering prevents stale-roster and fee races.
 **Status**: IMPLEMENTED in code commit `bb5168e` and production-verified on release deployment `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`.
+
+### ADR-52: Admin Attendance Correction Uses The Authoritative Session Ledger, Never Calendar Guessing
+**Date**: 2026-07-15
+**Context**: Admins need to correct past and future attendance weeks, but flexible/session-count classes mark broad calendar days as selectable. Inferring the enrollment correction date from a Monday fallback could backdate membership to a day with no real class session.
+**Decision**: Open attendance months may be edited regardless of whether their week is past, current or future. Enrollment correction is offered only when the selected week contains an authoritative regular `ClassSession`; the earliest regular, non-cancelled, non-holiday session is the effective date. Empty, makeup-only and cancelled-only ledgers produce no correction. Locked/approved periods and protected finance remain fail-closed.
+**Rationale**: Calendar navigation is presentation; `ClassSession`, `EnrollmentPeriod` and attendance-period state own domain validity. This keeps admin correction flexible without inventing sessions, bypassing audits or reopening immutable finance.
+**Status**: IMPLEMENTED in commits `7c3dead` and `e29f081`; production-verified on `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`.

@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - historical enrollment/attendance contract deployed and authenticated Chrome-smoked on 2026-07-15
+> **Status**: PRODUCTION LIVE - audited admin attendance correction for past/current/future weeks deployed and Chrome-verified on 2026-07-15
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,9 +10,28 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, code commit `bb5168e`, release `d766ab6`, Vercel `dpl_r3nvW3xWK1cN53qbzHTCXen7BpQL`, authenticated Chrome smoke passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commits `7c3dead` + `e29f081`, Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`, authenticated Chrome mutation/persistence smoke passed |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
+
+## IMPLEMENTED - ADMIN HISTORICAL / FUTURE ATTENDANCE CORRECTION (2026-07-15)
+
+**Objective:** let admins select and edit any week in an open attendance month, including past and future months, without bypassing enrollment, period-state, audit or finance protections.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| ATAC-2026-07-15-01 | Remove current-week-only UI restriction and keep selected visual row aligned with the loaded week | IMPLEMENTED | Chrome selected `12/7/2026 - 18/7/2026` and `9/8/2026 - 15/8/2026`; heading/data matched each row |
+| ATAC-2026-07-15-02 | Add audited enrollment correction based only on the first authoritative regular class session | IMPLEMENTED | No calendar fallback; makeup/cancelled-only weeks are rejected; focused behavioral tests `13/13` |
+| ATAC-2026-07-15-03 | Preserve period locks and half-open enrollment guards | IMPLEMENTED | June locked week remained read-only; FLYER B6 pre-enrollment cells remained disabled with `Chưa ghi danh` |
+| ATAC-2026-07-15-04 | Deploy and verify a real historical attendance write through Chrome | IMPLEMENTED | `QA HIST 20260715 A`, July 15 present, persisted after reload as `1/2` and `90.000đ`; zero console errors |
+
+**Production:** commits `7c3dead` and `e29f081` are deployed as `dpl_BRX8FseRns6MKNkdydVFsah2g4VV` and aliased to `https://edu-manager-gules.vercel.app`. The release keeps locked periods fail-closed while allowing open past/future weeks to load and edit.
+
+**Quality gates:** independent reviewer `GO`; focused historical UI tests `13/13`; full unit `385/385`; TypeScript, frontend lint with zero warnings, production build and `git diff --check` passed.
+
+**Evidence:** `receipts/2026-07-15-historical-attendance-admin-correction.md`; screenshot `receipts/artifacts/historical-attendance-admin-production-2026-07-15.png`.
+
+**Runtime degradation:** Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in the callable palette; manual blast-radius inspection and workspace markdown memory were used without relaxing gates.
 
 ## IMPLEMENTED - HISTORICAL ENROLLMENT / ATTENDANCE CONTRACT (2026-07-15)
 

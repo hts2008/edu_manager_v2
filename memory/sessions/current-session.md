@@ -785,3 +785,13 @@
 - **Pending validation**: optional isolated real-PostgreSQL whole-handler lifecycle once `TEST_DATABASE_URL` is provisioned; this is a coverage boundary, not an observed production blocker.
 - **Evidence**: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
 - **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown-only mode used.
+
+## 2026-07-15 Admin Historical / Future Attendance Correction
+
+- **Objective**: complete; no active ATAC task remains.
+- **Runtime source**: commits `7c3dead`, `e29f081`; Vercel `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`; alias `https://edu-manager-gules.vercel.app`.
+- **Completed**: past/current/future week selection, authoritative ledger-based enrollment correction, modal safety, incomplete-correction rejection, regression tests, independent review, deploy and Chrome mutation/persistence smoke.
+- **Browser evidence**: historical July attendance persisted after reload as `1/2` and `90.000đ`; future August week was editable; locked June stayed read-only; pre-enrollment cells stayed disabled; zero console errors.
+- **Pending validation**: none for the reported blocker. The correction modal's invalid-data branch is covered by behavioral tests because current production data has no stale invalid attendance pair to invoke it safely.
+- **Expected next action**: start a new KANBAN item for any new product request.
+- **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown-only mode used.
