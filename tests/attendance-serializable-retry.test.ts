@@ -31,7 +31,7 @@ describe("attendance serializable retry boundaries", () => {
     const script = source("scripts/reconcile-attendance-month-ledger.ts");
     const transaction = script.indexOf("runSerializableTransaction(db");
     const rosterLock = script.indexOf("await acquireClassMonthRosterAdvisoryLocks(");
-    const planRead = script.indexOf("await readPlan(tx, options)", rosterLock);
+    const planRead = script.indexOf("await readPlan(tx, options, false)", rosterLock);
 
     assert.ok(transaction >= 0);
     assert.ok(rosterLock > transaction);

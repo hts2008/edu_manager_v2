@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  assertClassDefinitionWritable,
   assertEnrollmentMutationWritable,
   deactivateEnrollmentPeriods,
   enrollmentOverlapsRange,
@@ -8,6 +9,38 @@ import {
 } from "../lib/enrollment.js";
 
 describe("time-bounded enrollment ledger", () => {
+  it("locks the class globally and rejects schedule or billing edits after any protected historical month", async () => {
+    const calls: string[] = [];
+    const tx: any = {
+      $queryRaw: async () => {
+        calls.push("global-lock");
+      },
+      attendancePeriod: {
+        findFirst: async ({ where }: any) => {
+          calls.push("period-check");
+          assert.deepEqual(where.status.in, ["submitted", "approved", "locked"]);
+          return {
+            classId: "class-1",
+            periodMonth: "2026-05",
+            status: "locked",
+          };
+        },
+      },
+      classMonthPlan: { findFirst: async () => null },
+    };
+
+    await assert.rejects(
+      assertClassDefinitionWritable(tx, ["class-1"]),
+      (error: any) => {
+        assert.equal(error.code, "CLASS_DEFINITION_LOCKED");
+        assert.equal(error.status, 409);
+        assert.equal(error.details.period_month, "2026-05");
+        return true;
+      },
+    );
+    assert.deepEqual(calls, ["global-lock", "period-check"]);
+  });
+
   it("takes class-month roster locks and rejects enrollment changes that touch locked months", async () => {
     const calls: string[] = [];
     const tx: any = {
@@ -30,13 +63,72 @@ describe("time-bounded enrollment ledger", () => {
         new Date("2026-07-13T00:00:00.000Z"),
       ),
       (error: any) => {
-        assert.equal(error.code, "ENROLLMENT_PERIOD_LOCKED");
+        assert.match(error.code, /^ENROLLMENT_PERIOD_(?:LOCKED|PROTECTED)$/);
         assert.equal(error.status, 409);
         return true;
       },
     );
     assert.equal(calls[0], "lock");
     assert.equal(calls.at(-1), "period-check");
+  });
+
+  for (const protectedStatus of ["submitted", "approved"]) {
+    it(`rejects backdates when the attendance period is ${protectedStatus}`, async () => {
+      const tx: any = {
+        $queryRaw: async () => undefined,
+        attendancePeriod: {
+          findFirst: async ({ where }: any) => {
+            const acceptedStatuses = Array.isArray(where.status?.in)
+              ? where.status.in
+              : [where.status];
+            return acceptedStatuses.includes(protectedStatus)
+              ? { classId: "class-1", periodMonth: "2026-06", status: protectedStatus }
+              : null;
+          },
+        },
+        classMonthPlan: { findFirst: async () => null },
+      };
+
+      await assert.rejects(
+        assertEnrollmentMutationWritable(
+          tx,
+          ["class-1"],
+          new Date("2026-06-01T00:00:00.000Z"),
+          new Date("2026-07-14T00:00:00.000Z"),
+        ),
+        (error: any) => {
+          assert.match(error.code, /^ENROLLMENT_PERIOD_(?:LOCKED|PROTECTED)$/);
+          assert.equal(error.status, 409);
+          return true;
+        },
+      );
+    });
+  }
+
+  it("rejects backdates when any affected ClassMonthPlan is frozen", async () => {
+    const tx: any = {
+      $queryRaw: async () => undefined,
+      attendancePeriod: { findFirst: async () => null },
+      classMonthPlan: {
+        findFirst: async ({ where }: any) => where.state === "frozen"
+          ? { classId: "class-1", billingMonth: "2026-06", state: "frozen" }
+          : null,
+      },
+    };
+
+    await assert.rejects(
+      assertEnrollmentMutationWritable(
+        tx,
+        ["class-1"],
+        new Date("2026-06-01T00:00:00.000Z"),
+        new Date("2026-07-14T00:00:00.000Z"),
+      ),
+      (error: any) => {
+        assert.match(error.code, /^(?:CLASS|ENROLLMENT)_MONTH_PLAN_FROZEN$/);
+        assert.equal(error.status, 409);
+        return true;
+      },
+    );
   });
 
   it("fails closed when the class membership set changes after roster locks are acquired", async () => {

@@ -188,6 +188,7 @@ describe("attendance period reopen", () => {
       },
     });
     assert.deepEqual(advisoryQueries[0].values, [
+      "attendance-roster:global:class-1",
       "attendance-roster:2026-06:class-1",
     ]);
     assert.deepEqual(advisoryQueries[1].values, [

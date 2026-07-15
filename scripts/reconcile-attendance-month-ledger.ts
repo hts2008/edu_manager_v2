@@ -1,23 +1,38 @@
 import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import {
   ATTENDANCE_GENERATED_SOURCES,
   dateKey,
+  findAttendanceOutsideEnrollmentPeriods,
   findEnrollmentStartCorrections,
   findStudentsWithoutEnrollmentPeriod,
   isRealAttendanceEvidence,
   monthBounds,
   parseReconciliationArgs,
+  type AttendanceOutsideEnrollmentPeriod,
   type EnrollmentPeriodRow,
   type EnrollmentStartCorrection,
   type ReconciliationOptions,
 } from "./attendance-month-ledger-reconcile-helpers.js";
 import { readProtectedFinanceFingerprint } from "./backfill-class-month-plans.js";
-import { acquireClassMonthRosterAdvisoryLocks } from "../lib/attendance-lock-transaction.js";
+import {
+  attendanceFeeAdvisoryLockKeys,
+  acquireClassMonthRosterAdvisoryLocks,
+  classMonthRosterAdvisoryLockKeys,
+} from "../lib/attendance-lock-transaction.js";
+import {
+  assertAttendancePeriodReopenSafe,
+  ATTENDANCE_REOPEN_FINANCIAL_CONFLICT,
+} from "../lib/attendance-lock.js";
 import { runSerializableTransaction } from "../lib/serializable-transaction.js";
 
-export { findEnrollmentStartCorrections, parseReconciliationArgs } from
+export {
+  findAttendanceOutsideEnrollmentPeriods,
+  findEnrollmentStartCorrections,
+  parseReconciliationArgs,
+} from
   "./attendance-month-ledger-reconcile-helpers.js";
 
 type PhantomSession = { id: string; sessionDate: Date; source: string };
@@ -25,10 +40,144 @@ type FinanceFingerprint = { fingerprint: string; row_count: string };
 type ReconciliationPlan = {
   phantomSessions: PhantomSession[];
   enrollmentCorrections: EnrollmentStartCorrection[];
+  attendanceOutsideEnrollmentPeriods: AttendanceOutsideEnrollmentPeriod[];
   enrollmentVersions: Map<string, { startedAt: Date; endedAt: Date | null }>;
   studentsWithoutEnrollmentPeriod: string[];
   finance: FinanceFingerprint;
 };
+
+function monthsInClosedRange(startMonth: string, endMonth: string) {
+  const [startYear, startNumber] = startMonth.split("-").map(Number);
+  const [endYear, endNumber] = endMonth.split("-").map(Number);
+  const cursor = new Date(Date.UTC(startYear, startNumber - 1, 1));
+  const end = new Date(Date.UTC(endYear, endNumber - 1, 1));
+  const months: string[] = [];
+  while (cursor <= end) {
+    months.push(`${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return months;
+}
+
+export function reconciliationAffectedMonths(
+  targetMonth: string,
+  corrections: EnrollmentStartCorrection[],
+) {
+  const months = new Set([targetMonth]);
+  for (const correction of corrections) {
+    const proposedMonth = correction.proposed_started_at.slice(0, 7);
+    const currentMonth = correction.current_started_at.slice(0, 7);
+    for (const month of monthsInClosedRange(proposedMonth, currentMonth)) months.add(month);
+  }
+  return [...months].sort();
+}
+
+async function acquireAffectedClassMonthRosterAdvisoryLocks(
+  tx: any,
+  classId: string,
+  months: string[],
+) {
+  const globalLockKeys = new Set(classMonthRosterAdvisoryLockKeys([classId], []));
+  const lockKeys = classMonthRosterAdvisoryLockKeys([classId], months)
+    .filter((lockKey) => !globalLockKeys.has(lockKey));
+  if (lockKeys.length === 0 || typeof tx.$queryRaw !== "function") return;
+
+  await tx.$queryRaw(
+    Prisma.sql`
+      WITH ordered_keys(lock_key) AS MATERIALIZED (
+        SELECT lock_key
+        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[]) AS keys(lock_key)
+        ORDER BY lock_key
+      )
+      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
+      FROM ordered_keys
+      ORDER BY lock_key
+    `,
+  );
+}
+
+async function readAffectedFinanceStudentIds(
+  tx: any,
+  classId: string,
+  months: string[],
+) {
+  const firstMonth = monthBounds(months[0]);
+  const lastMonth = monthBounds(months.at(-1) || months[0]);
+  const [attendanceStudents, enrollmentStudents, legacyStudents, feeLineStudents] =
+    await Promise.all([
+      tx.attendance.findMany({
+        where: {
+          classId,
+          attendanceDate: {
+            gte: firstMonth.startDate,
+            lt: lastMonth.nextMonth,
+          },
+        },
+        distinct: ["studentId"],
+        select: { studentId: true },
+      }),
+      tx.enrollmentPeriod.findMany({
+        where: {
+          classId,
+          startedAt: { lt: lastMonth.nextMonth },
+          OR: [
+            { endedAt: null },
+            { endedAt: { gt: firstMonth.startDate } },
+          ],
+        },
+        distinct: ["studentId"],
+        select: { studentId: true },
+      }),
+      tx.studentClass.findMany({
+        where: {
+          classId,
+          status: "active",
+          enrollmentDate: { lt: lastMonth.nextMonth },
+          student: { enrollmentPeriods: { none: { classId } } },
+        },
+        distinct: ["studentId"],
+        select: { studentId: true },
+      }),
+      tx.monthlyFeeLine.findMany({
+        where: { classId, month: { in: months } },
+        distinct: ["studentId"],
+        select: { studentId: true },
+      }),
+    ]);
+
+  return [
+    ...new Set(
+      [...attendanceStudents, ...enrollmentStudents, ...legacyStudents, ...feeLineStudents]
+        .map((row) => row.studentId),
+    ),
+  ].sort();
+}
+
+async function acquireAffectedAttendanceFeeAdvisoryLocks(
+  tx: any,
+  studentIds: string[],
+  months: string[],
+) {
+  const lockKeys = [
+    ...new Set(
+      months.flatMap((month) => attendanceFeeAdvisoryLockKeys(studentIds, month)),
+    ),
+  ].sort();
+  if (lockKeys.length === 0 || typeof tx.$queryRaw !== "function") return;
+
+  await tx.$queryRaw(
+    Prisma.sql`
+      WITH ordered_keys(lock_key) AS MATERIALIZED (
+        SELECT lock_key
+        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[]) AS keys(lock_key)
+        ORDER BY lock_key
+      )
+      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
+      FROM ordered_keys
+      ORDER BY lock_key
+    `,
+  );
+}
 
 export type AttendanceMonthLedgerReconciliationResult = {
   mode: "dry-run" | "apply";
@@ -45,11 +194,17 @@ export type AttendanceMonthLedgerReconciliationResult = {
   enrollment_periods_to_update: number;
   enrollment_periods_updated: number;
   enrollment_period_changes: EnrollmentStartCorrection[];
+  attendance_outside_enrollment_periods_count: number;
+  attendance_outside_enrollment_periods: AttendanceOutsideEnrollmentPeriod[];
   students_without_enrollment_period: string[];
   audit_rows_created: number;
 };
 
-async function readPlan(db: any, options: ReconciliationOptions): Promise<ReconciliationPlan> {
+async function readPlan(
+  db: any,
+  options: ReconciliationOptions,
+  includeFinance = true,
+): Promise<ReconciliationPlan> {
   const targetClass = await db.class.findUnique({
     where: { id: options.classId },
     select: { id: true },
@@ -88,7 +243,9 @@ async function readPlan(db: any, options: ReconciliationOptions): Promise<Reconc
       },
       orderBy: [{ studentId: "asc" }, { attendanceDate: "asc" }, { id: "asc" }],
     }),
-    readProtectedFinanceFingerprint(db),
+    includeFinance
+      ? readProtectedFinanceFingerprint(db)
+      : Promise.resolve({ fingerprint: "pending-lock", row_count: "0" }),
   ]);
   const attendanceEvidence = attendance.map((row: any) => ({
     id: row.id,
@@ -113,9 +270,15 @@ async function readPlan(db: any, options: ReconciliationOptions): Promise<Reconc
         orderBy: [{ studentId: "asc" }, { startedAt: "asc" }, { id: "asc" }],
       });
   const enrollmentCorrections = findEnrollmentStartCorrections(validAttendanceEvidence, periods);
+  const attendanceOutsideEnrollmentPeriods = findAttendanceOutsideEnrollmentPeriods(
+    validAttendanceEvidence,
+    periods,
+    enrollmentCorrections,
+  );
   return {
     phantomSessions,
     enrollmentCorrections,
+    attendanceOutsideEnrollmentPeriods,
     enrollmentVersions: new Map(
       periods.map((period: EnrollmentPeriodRow) => [
         period.id,
@@ -170,6 +333,9 @@ function resultFromPlan(
     enrollment_periods_to_update: plan.enrollmentCorrections.length,
     enrollment_periods_updated: 0,
     enrollment_period_changes: plan.enrollmentCorrections,
+    attendance_outside_enrollment_periods_count:
+      plan.attendanceOutsideEnrollmentPeriods.length,
+    attendance_outside_enrollment_periods: plan.attendanceOutsideEnrollmentPeriods,
     students_without_enrollment_period: plan.studentsWithoutEnrollmentPeriod,
     audit_rows_created: 0,
   };
@@ -262,6 +428,51 @@ async function assertFinanceUnchanged(tx: any, before: FinanceFingerprint) {
   return after;
 }
 
+async function assertReconciliationTargetMutable(
+  tx: any,
+  options: ReconciliationOptions,
+  month = options.month,
+) {
+  const protectedPeriod = await tx.attendancePeriod.findFirst({
+    where: {
+      classId: options.classId,
+      periodMonth: month,
+      status: { in: ["submitted", "approved", "locked"] },
+    },
+    select: { id: true, status: true },
+  });
+  if (protectedPeriod) {
+    throw new Error(
+      `Attendance period ${month} is ${protectedPeriod.status}; refusing reconciliation apply`,
+    );
+  }
+
+  const frozenPlan = await tx.classMonthPlan.findFirst({
+    where: {
+      classId: options.classId,
+      billingMonth: month,
+      state: "frozen",
+    },
+    select: { id: true, state: true },
+  });
+  if (frozenPlan) {
+    throw new Error(
+      `Class month plan ${month} is frozen; refusing reconciliation apply`,
+    );
+  }
+
+  try {
+    await assertAttendancePeriodReopenSafe(options.classId, month, tx);
+  } catch (error) {
+    if ((error as { code?: string })?.code !== ATTENDANCE_REOPEN_FINANCIAL_CONFLICT) {
+      throw error;
+    }
+    throw new Error(
+      `Protected finance exists for class ${options.classId} month ${month}; refusing reconciliation apply`,
+    );
+  }
+}
+
 async function applyPlan(
   tx: any,
   options: ReconciliationOptions,
@@ -298,12 +509,37 @@ export async function runAttendanceMonthLedgerReconciliation(
   const runId = `attendance-month-ledger-${options.month}-${randomUUID()}`;
   if (!options.apply) return resultFromPlan(options, runId, await readPlan(db, options));
   return runSerializableTransaction(db, async (tx: any) => {
+    // Stabilize the plan-derived month set before taking its ordered month locks.
     await acquireClassMonthRosterAdvisoryLocks(
       tx,
       [options.classId],
-      [options.month],
+      [],
     );
-    return applyPlan(tx, options, runId, await readPlan(tx, options));
+    const plan = await readPlan(tx, options, false);
+    const affectedMonths = reconciliationAffectedMonths(
+      options.month,
+      plan.enrollmentCorrections,
+    );
+    await acquireAffectedClassMonthRosterAdvisoryLocks(
+      tx,
+      options.classId,
+      affectedMonths,
+    );
+    const financeStudentIds = await readAffectedFinanceStudentIds(
+      tx,
+      options.classId,
+      affectedMonths,
+    );
+    await acquireAffectedAttendanceFeeAdvisoryLocks(
+      tx,
+      financeStudentIds,
+      affectedMonths,
+    );
+    plan.finance = await readProtectedFinanceFingerprint(tx);
+    for (const month of affectedMonths) {
+      await assertReconciliationTargetMutable(tx, options, month);
+    }
+    return applyPlan(tx, options, runId, plan);
   }, {
     maxAttempts: 3,
     baseDelayMs: 20,

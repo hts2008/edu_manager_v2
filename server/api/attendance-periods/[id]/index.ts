@@ -7,6 +7,7 @@ import {
   successResponse,
 } from "../../../../lib/auth.js";
 import {
+  acquireClassMonthRosterAdvisoryLocks,
   isAttendanceLockTimeout,
   lockAttendancePeriodAndSyncFees,
 } from "../../../../lib/attendance-lock-transaction.js";
@@ -22,6 +23,7 @@ import {
   ensureClassMonthPlan,
   freezeClassMonthPlan,
 } from "../../../../lib/class-month-plan.js";
+import { scheduleSnapshotForWrite } from "../../../../lib/class-month-schedule-snapshot.js";
 
 function attendanceMonthRange(periodMonth: string) {
   const [year, month] = periodMonth.split("-").map(Number);
@@ -200,6 +202,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
 
         const totals = await runSerializableTransaction(prisma, async (tx) => {
+          await acquireClassMonthRosterAdvisoryLocks(
+            tx,
+            [period.classId],
+            [period.periodMonth],
+          );
           const current = await tx.attendancePeriod.findUnique({ where: { id } });
           if (!current || current.status !== "open") {
             throw new ApiError(
@@ -214,12 +221,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               month: period.periodMonth,
             }),
           );
+          const classSchedule = await tx.class.findUnique({
+            where: { id: period.classId },
+            select: { scheduleDays: true, sessionsPerWeek: true },
+          });
+          if (!classSchedule) {
+            throw new ApiError("CLASS_NOT_FOUND", "Class not found while submitting", 404);
+          }
+          const scheduleSnapshot = await scheduleSnapshotForWrite(
+            tx,
+            period.classId,
+            period.periodMonth,
+            classSchedule,
+          );
           const plan = await ensureClassMonthPlan(tx, {
             classId: period.classId,
             billingMonth: period.periodMonth,
             attendancePeriodStatus: "open",
             actorId: req.user.id,
-            snapshot: { attendance_period_id: id },
+            snapshot: { attendance_period_id: id, ...scheduleSnapshot },
           });
           const nextTotals = await calculatePeriodStats(
             tx,
@@ -233,6 +253,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             reason: "attendance_period_submitted",
             snapshot: {
               attendance_period_id: id,
+              ...scheduleSnapshot,
               totals: nextTotals,
             },
           });
@@ -284,6 +305,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
 
         await runSerializableTransaction(prisma, async (tx) => {
+          await acquireClassMonthRosterAdvisoryLocks(
+            tx,
+            [period.classId],
+            [period.periodMonth],
+          );
           const current = await tx.attendancePeriod.findUnique({ where: { id } });
           if (!current || current.status !== "submitted") {
             throw new ApiError(

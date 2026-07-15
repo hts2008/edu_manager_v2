@@ -8,14 +8,17 @@ import {
 } from "../../../lib/auth.js";
 import {
   classCreateSchema,
+  classEnrollmentActionSchema,
   classUpdateSchema,
   validateBody,
 } from "../../../lib/validation.js";
 import {
+  assertClassDefinitionWritable,
   assertEnrollmentMutationWritable,
   deactivateEnrollmentPeriods,
 } from "../../../lib/enrollment.js";
-import { sendApiError } from "../../../lib/api-utils.js";
+import { ApiError, sendApiError } from "../../../lib/api-utils.js";
+import { parseDateOnly } from "../../../lib/class-sessions.js";
 
 export const CLASS_WRITE_TRANSACTION_OPTIONS = {
   maxWait: 5_000,
@@ -26,17 +29,206 @@ export function isClassWriteTimeout(error: unknown) {
   return (error as { code?: unknown })?.code === "P2028";
 }
 
+function businessDateKey(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+export function resolveEnrollmentEffectiveAt(value?: string, now = new Date()) {
+  const effectiveAt = parseDateOnly(
+    value || businessDateKey(now),
+    "enrollment_effective_date",
+  );
+  const today = parseDateOnly(businessDateKey(now), "current_business_date");
+  if (effectiveAt > today) {
+    throw new ApiError(
+      "ENROLLMENT_EFFECTIVE_DATE_IN_FUTURE",
+      "Enrollment effective date cannot be in the future",
+      400,
+    );
+  }
+  return effectiveAt;
+}
+
+function isHistoricalEnrollment(effectiveAt: Date, now = new Date()) {
+  const today = parseDateOnly(businessDateKey(now), "current_business_date");
+  return effectiveAt < today;
+}
+
+export function assertHistoricalEnrollmentAllowed(
+  role: "admin" | "receptionist" | undefined,
+  effectiveAt: Date,
+  adjustExistingEnrollmentStart = false,
+  backdateReason?: string | null,
+  now = new Date(),
+) {
+  const requiresHistoricalControls =
+    isHistoricalEnrollment(effectiveAt, now) || adjustExistingEnrollmentStart;
+  if (!requiresHistoricalControls) return;
+  if (role !== "admin") {
+    throw new ApiError(
+      "FORBIDDEN",
+      "Only administrators can backdate or correct enrollment periods",
+      403,
+    );
+  }
+  if (!backdateReason?.trim()) {
+    throw new ApiError(
+      "BACKDATE_REASON_REQUIRED",
+      "A reason is required for historical enrollment changes",
+      400,
+    );
+  }
+}
+
+type BulkEnrollmentOptions = {
+  adjustExistingEnrollmentStart?: boolean;
+  backdateReason?: string | null;
+  actorId?: string;
+  actorRole?: "admin" | "receptionist";
+  now?: Date;
+};
+
+type StudentDetails = {
+  id: string;
+  fullName: string;
+  dateOfBirth?: Date | null;
+  gender?: string | null;
+  phone?: string | null;
+  parentId?: string | null;
+};
+
+type StudentClassRosterRow = {
+  studentId: string;
+  status: string;
+  enrollmentDate: Date;
+  student: StudentDetails;
+};
+
+type EnrollmentPeriodRosterRow = {
+  studentId: string;
+  startedAt: Date;
+  endedAt?: Date | null;
+  student: StudentDetails;
+};
+
+function dateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function buildHistoricalClassRoster(
+  studentClasses: StudentClassRosterRow[],
+  enrollmentPeriods: EnrollmentPeriodRosterRow[],
+) {
+  const roster = new Map<string, { row: any; hasProjection: boolean }>();
+  const studentFields = (student: StudentDetails) => ({
+    id: student.id,
+    full_name: student.fullName,
+    date_of_birth: student.dateOfBirth ?? null,
+    gender: student.gender ?? null,
+    phone: student.phone ?? null,
+    parent_id: student.parentId ?? null,
+  });
+
+  for (const link of studentClasses) {
+    roster.set(link.studentId, {
+      hasProjection: true,
+      row: {
+        ...studentFields(link.student),
+        enrollment_status: link.status,
+        enrollment_date: dateOnly(link.enrollmentDate),
+        enrollment_periods: [],
+      },
+    });
+  }
+
+  for (const period of enrollmentPeriods) {
+    let entry = roster.get(period.studentId);
+    if (!entry) {
+      entry = {
+        hasProjection: false,
+        row: {
+          ...studentFields(period.student),
+          enrollment_status: "inactive",
+          enrollment_date: dateOnly(period.startedAt),
+          enrollment_periods: [],
+        },
+      };
+      roster.set(period.studentId, entry);
+    }
+    entry.row.enrollment_periods.push({
+      started_at: dateOnly(period.startedAt),
+      ended_at: period.endedAt ? dateOnly(period.endedAt) : null,
+    });
+    if (!entry.hasProjection) {
+      if (period.endedAt == null) entry.row.enrollment_status = "active";
+      if (dateOnly(period.startedAt) > entry.row.enrollment_date) {
+        entry.row.enrollment_date = dateOnly(period.startedAt);
+      }
+    }
+  }
+
+  return [...roster.values()]
+    .map(({ row }) => ({
+      ...row,
+      enrollment_periods: row.enrollment_periods.sort(
+        (a: { started_at: string }, b: { started_at: string }) =>
+          a.started_at.localeCompare(b.started_at),
+      ),
+    }))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
+}
+
+const CLASS_MONTH_ROSTER_IMPACT_FIELDS = [
+  "schedule_days",
+  "schedule_required",
+  "sessions_per_week",
+  "session_required",
+  "start_time",
+  "end_time",
+  "billing_policy",
+  "fee_per_day",
+] as const;
+
+export function hasClassMonthRosterImpact(body: Record<string, unknown>) {
+  return CLASS_MONTH_ROSTER_IMPACT_FIELDS.some((field) => body[field] !== undefined);
+}
+
 export async function enrollStudentsInClass(
   tx: any,
   classId: string,
-  studentIds: string[] = []
+  studentIds: string[] = [],
+  effectiveAt = resolveEnrollmentEffectiveAt(),
+  options: BulkEnrollmentOptions = {},
 ) {
   const uniqueIds = [...new Set(studentIds.filter(Boolean))];
   if (!uniqueIds.length) {
-    return { requested: 0, enrolled: 0, reactivated: 0, skipped: 0 };
+    return { requested: 0, enrolled: 0, reactivated: 0, adjusted: 0, skipped: 0 };
   }
 
-  const effectiveAt = new Date();
+  const requiresHistoricalControls =
+    isHistoricalEnrollment(effectiveAt, options.now) ||
+    Boolean(options.adjustExistingEnrollmentStart);
+  assertHistoricalEnrollmentAllowed(
+    options.actorRole,
+    effectiveAt,
+    options.adjustExistingEnrollmentStart,
+    options.backdateReason,
+    options.now,
+  );
+  if (requiresHistoricalControls && !options.actorId) {
+    throw new ApiError(
+      "BACKDATE_ACTOR_REQUIRED",
+      "An authenticated actor is required for historical enrollment changes",
+      400,
+    );
+  }
   await assertEnrollmentMutationWritable(tx, [classId], effectiveAt);
 
   const classData = await tx.class.findUnique({
@@ -82,6 +274,86 @@ export async function enrollStudentsInClass(
     return link && link.status !== "active";
   });
 
+  const openPeriods = await tx.enrollmentPeriod.findMany({
+    where: {
+      classId,
+      studentId: { in: idsToActivate },
+      endedAt: null,
+    },
+    select: { id: true, studentId: true, startedAt: true },
+  });
+  const openPeriodByStudent = new Map(
+    openPeriods.map((period: any) => [period.studentId, period]),
+  );
+  const studentsWithOpenPeriod = new Set(
+    openPeriods.map((period: any) => period.studentId)
+  );
+
+  const activeStudentIdsToAdjust = options.adjustExistingEnrollmentStart
+    ? idsToActivate.filter((studentId) => {
+        if (!activeIds.has(studentId)) return false;
+        const period: any = openPeriodByStudent.get(studentId);
+        return period && period.startedAt > effectiveAt;
+      })
+    : [];
+  const activeStudentsWithoutPeriodToAdjust = options.adjustExistingEnrollmentStart
+    ? idsToActivate.filter((studentId) => {
+        if (!activeIds.has(studentId) || studentsWithOpenPeriod.has(studentId)) return false;
+        const link: any = existingByStudent.get(studentId);
+        return link?.enrollmentDate > effectiveAt;
+      })
+    : [];
+  const projectionStudentIdsToAdjust = [
+    ...activeStudentIdsToAdjust,
+    ...activeStudentsWithoutPeriodToAdjust,
+  ];
+  const adjustmentBeforeByStudent = new Map(
+    projectionStudentIdsToAdjust.map((studentId) => {
+      const period: any = openPeriodByStudent.get(studentId);
+      const link: any = existingByStudent.get(studentId);
+      return [studentId, period?.startedAt || link?.enrollmentDate];
+    }),
+  );
+
+  const periodRows = idsToActivate
+    .filter((studentId) => !studentsWithOpenPeriod.has(studentId))
+    .map((studentId) => {
+      const existing: any = existingByStudent.get(studentId);
+      const wasActive = existing?.status === "active";
+      return {
+        studentId,
+        classId,
+        startedAt: wasActive && !options.adjustExistingEnrollmentStart
+          ? existing.enrollmentDate
+          : effectiveAt,
+        source: wasActive ? "projection_backfill" : "class_bulk_enroll",
+      };
+    });
+  const overlap = periodRows.length > 0 &&
+      typeof tx.enrollmentPeriod.findFirst === "function"
+    ? await tx.enrollmentPeriod.findFirst({
+        where: {
+          classId,
+          OR: periodRows.map((row) => ({
+            studentId: row.studentId,
+            OR: [
+              { endedAt: null },
+              { endedAt: { gt: row.startedAt } },
+            ],
+          })),
+        },
+        select: { id: true, studentId: true, startedAt: true, endedAt: true },
+      })
+    : null;
+  if (overlap) {
+    throw new ApiError(
+      "ENROLLMENT_OVERLAP",
+      "The requested enrollment start date overlaps existing enrollment history",
+      409,
+      { student_id: overlap.studentId },
+    );
+  }
+
   if (newStudentIds.length) {
     await tx.studentClass.createMany({
       data: newStudentIds.map((studentId) => ({
@@ -98,40 +370,129 @@ export async function enrollStudentsInClass(
       data: { status: "active", enrollmentDate: effectiveAt },
     });
   }
-
-  const openPeriods = await tx.enrollmentPeriod.findMany({
-    where: {
-      classId,
-      studentId: { in: idsToActivate },
-      endedAt: null,
-    },
-    select: { studentId: true },
-  });
-  const studentsWithOpenPeriod = new Set(
-    openPeriods.map((period: any) => period.studentId)
-  );
-  const periodRows = idsToActivate
-    .filter((studentId) => !studentsWithOpenPeriod.has(studentId))
-    .map((studentId) => {
-      const existing: any = existingByStudent.get(studentId);
-      const wasActive = existing?.status === "active";
-      return {
-        studentId,
+  if (activeStudentIdsToAdjust.length > 0) {
+    const openPeriodIds = activeStudentIdsToAdjust.map(
+      (studentId) => (openPeriodByStudent.get(studentId) as any).id,
+    );
+    const overlap = await tx.enrollmentPeriod.findFirst({
+      where: {
         classId,
-        startedAt: wasActive ? existing.enrollmentDate : effectiveAt,
-        source: wasActive ? "projection_backfill" : "class_bulk_enroll",
-      };
+        studentId: { in: activeStudentIdsToAdjust },
+        id: { notIn: openPeriodIds },
+        OR: [{ endedAt: null }, { endedAt: { gt: effectiveAt } }],
+      },
+      select: { id: true, studentId: true, startedAt: true, endedAt: true },
     });
+    if (overlap) {
+      throw new ApiError(
+        "ENROLLMENT_OVERLAP",
+        "The requested enrollment start date overlaps existing enrollment history",
+        409,
+        { student_id: overlap.studentId },
+      );
+    }
+    await tx.enrollmentPeriod.updateMany({
+      where: { id: { in: openPeriodIds }, startedAt: { gt: effectiveAt } },
+      data: { startedAt: effectiveAt, source: "class_bulk_backdate" },
+    });
+  }
+  if (projectionStudentIdsToAdjust.length > 0) {
+    await tx.studentClass.updateMany({
+      where: {
+        classId,
+        studentId: { in: projectionStudentIdsToAdjust },
+        status: "active",
+        enrollmentDate: { gt: effectiveAt },
+      },
+      data: { enrollmentDate: effectiveAt },
+    });
+  }
+
   if (periodRows.length) {
     await tx.enrollmentPeriod.createMany({ data: periodRows });
+  }
+
+  const historicalAuditStudentIds = isHistoricalEnrollment(effectiveAt, options.now)
+    ? [
+        ...newStudentIds,
+        ...reactivatedStudentIds,
+        ...periodRows.map((row) => row.studentId),
+      ]
+    : [];
+  const auditStudentIds = [
+    ...new Set([
+      ...historicalAuditStudentIds,
+      ...projectionStudentIdsToAdjust,
+    ]),
+  ];
+  if (auditStudentIds.length > 0) {
+    const auditPeriods = await tx.enrollmentPeriod.findMany({
+      where: {
+        classId,
+        studentId: { in: auditStudentIds },
+        startedAt: { lte: effectiveAt },
+        OR: [{ endedAt: null }, { endedAt: { gt: effectiveAt } }],
+      },
+      select: { id: true, studentId: true },
+      orderBy: { startedAt: "desc" },
+    });
+    const auditPeriodByStudent = new Map<string, { id: string; studentId: string }>();
+    for (const period of auditPeriods) {
+      if (!auditPeriodByStudent.has(period.studentId)) {
+        auditPeriodByStudent.set(period.studentId, period);
+      }
+    }
+    const adjusted = new Set(projectionStudentIdsToAdjust);
+    const newlyEnrolled = new Set(newStudentIds);
+    const reactivated = new Set(reactivatedStudentIds);
+    await tx.activityLog.createMany({
+      data: auditStudentIds.map((studentId) => {
+        const period = auditPeriodByStudent.get(studentId);
+        const link: any = existingByStudent.get(studentId);
+        if (!period) {
+          throw new ApiError(
+            "ENROLLMENT_AUDIT_TARGET_MISSING",
+            "Enrollment history was written but its audit target could not be resolved",
+            500,
+            { student_id: studentId, class_id: classId },
+          );
+        }
+        const before = adjusted.has(studentId)
+          ? adjustmentBeforeByStudent.get(studentId) as Date
+          : link?.enrollmentDate as Date | undefined;
+        const action = adjusted.has(studentId)
+          ? "ENROLLMENT_START_CORRECTED"
+          : newlyEnrolled.has(studentId)
+            ? "HISTORICAL_ENROLLMENT_CREATED"
+            : reactivated.has(studentId)
+              ? "HISTORICAL_ENROLLMENT_REACTIVATED"
+              : "HISTORICAL_ENROLLMENT_PERIOD_BACKFILLED";
+        return {
+          userId: options.actorId,
+          action: JSON.stringify({
+            action,
+            actor_id: options.actorId,
+            reason: options.backdateReason?.trim(),
+            student_id: studentId,
+            class_id: classId,
+            before: before?.toISOString() ?? null,
+            after: effectiveAt.toISOString(),
+          }),
+          entityType: "EnrollmentPeriod",
+          entityId: period.id,
+        };
+      }),
+    });
   }
 
   return {
     requested: uniqueIds.length,
     enrolled: newStudentIds.length,
     reactivated: reactivatedStudentIds.length,
+    adjusted: projectionStudentIdsToAdjust.length,
     skipped:
-      uniqueIds.length - newStudentIds.length - reactivatedStudentIds.length,
+      uniqueIds.length - newStudentIds.length - reactivatedStudentIds.length -
+      projectionStudentIdsToAdjust.length,
   };
 }
 
@@ -157,7 +518,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           include: {
             teacher: { select: { id: true, fullName: true } },
             studentClasses: {
-              where: { status: "active" },
               include: {
                 student: {
                   select: {
@@ -170,6 +530,21 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                   },
                 },
               },
+            },
+            enrollmentPeriods: {
+              include: {
+                student: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    dateOfBirth: true,
+                    gender: true,
+                    phone: true,
+                    parentId: true,
+                  },
+                },
+              },
+              orderBy: { startedAt: "asc" },
             },
           },
         });
@@ -195,16 +570,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           notes: classData.notes,
           teacher_id: classData.teacherId,
           teacher_name: classData.teacher?.fullName || null,
-          students: classData.studentClasses.map((sc: any) => ({
-            id: sc.student.id,
-            full_name: sc.student.fullName,
-            date_of_birth: sc.student.dateOfBirth,
-            gender: sc.student.gender,
-            phone: sc.student.phone,
-            parent_id: sc.student.parentId,
-            enrollment_status: sc.status,
-          })),
-          student_count: classData.studentClasses.length,
+          students: buildHistoricalClassRoster(
+            classData.studentClasses,
+            classData.enrollmentPeriods,
+          ),
+          student_count: classData.studentClasses.filter(
+            (sc: any) => sc.status === "active",
+          ).length,
           created_at: classData.createdAt,
         };
 
@@ -266,17 +638,42 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const id = typeof req.query.id === "string" ? req.query.id : null;
       const action = req.body?.action;
       if (id && ["enroll", "bulk_enroll"].includes(action)) {
-        const studentIds = Array.isArray(req.body?.student_ids)
-          ? req.body.student_ids
-          : [req.body?.student_id].filter(Boolean);
+        const actionBody = validateBody(classEnrollmentActionSchema, req.body);
+        const studentIds = actionBody.student_ids.length > 0
+          ? actionBody.student_ids
+          : [actionBody.student_id].filter(Boolean) as string[];
+        const effectiveAt = resolveEnrollmentEffectiveAt(
+          actionBody.enrollment_effective_date,
+        );
+        assertHistoricalEnrollmentAllowed(
+          req.user.role,
+          effectiveAt,
+          actionBody.adjust_existing_enrollment_start,
+          actionBody.enrollment_backdate_reason,
+        );
         const result = await prisma.$transaction(
-          (tx) => enrollStudentsInClass(tx, id, studentIds),
+          (tx) => enrollStudentsInClass(tx, id, studentIds, effectiveAt, {
+            adjustExistingEnrollmentStart:
+              actionBody.adjust_existing_enrollment_start,
+            backdateReason: actionBody.enrollment_backdate_reason,
+            actorId: req.user.userId,
+            actorRole: req.user.role,
+          }),
           CLASS_WRITE_TRANSACTION_OPTIONS
         );
         return successResponse(res, result);
       }
 
       const body = validateBody(classCreateSchema, req.body);
+      const enrollmentEffectiveAt = resolveEnrollmentEffectiveAt(
+        body.enrollment_effective_date,
+      );
+      assertHistoricalEnrollmentAllowed(
+        req.user.role,
+        enrollmentEffectiveAt,
+        body.adjust_existing_enrollment_start,
+        body.enrollment_backdate_reason,
+      );
 
       const data: any = {
           className: body.class_name,
@@ -303,7 +700,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           const enrollment = await enrollStudentsInClass(
             tx,
             newClass.id,
-            body.student_ids
+            body.student_ids,
+            enrollmentEffectiveAt,
+            {
+              adjustExistingEnrollmentStart:
+                body.adjust_existing_enrollment_start,
+              backdateReason: body.enrollment_backdate_reason,
+              actorId: req.user.userId,
+              actorRole: req.user.role,
+            },
           );
           return { newClass, enrollment };
         },
@@ -349,6 +754,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const body = validateBody(classUpdateSchema, req.body);
+      const hasEnrollmentMutation =
+        body.student_ids !== undefined || body.adjust_existing_enrollment_start;
+      const enrollmentEffectiveAt = resolveEnrollmentEffectiveAt(
+        body.enrollment_effective_date,
+      );
+      if (hasEnrollmentMutation) {
+        assertHistoricalEnrollmentAllowed(
+          req.user.role,
+          enrollmentEffectiveAt,
+          body.adjust_existing_enrollment_start,
+          body.enrollment_backdate_reason,
+        );
+      }
 
       const data: any = {
           ...(body.class_name && { className: body.class_name }),
@@ -374,16 +792,35 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const result = await prisma.$transaction(
         async (tx) => {
+          if (hasClassMonthRosterImpact(body)) {
+            await assertClassDefinitionWritable(tx, [id]);
+          }
           const updatedClass = await tx.class.update({
             where: { id },
             data,
             include: { teacher: true },
           });
-          const enrollment = await enrollStudentsInClass(
-            tx,
-            id,
-            body.student_ids || []
-          );
+          const enrollment = hasEnrollmentMutation
+            ? await enrollStudentsInClass(
+                tx,
+                id,
+                body.student_ids || [],
+                enrollmentEffectiveAt,
+                {
+                  adjustExistingEnrollmentStart:
+                    body.adjust_existing_enrollment_start,
+                  backdateReason: body.enrollment_backdate_reason,
+                  actorId: req.user.userId,
+                  actorRole: req.user.role,
+                },
+              )
+            : {
+                requested: 0,
+                enrolled: 0,
+                reactivated: 0,
+                adjusted: 0,
+                skipped: 0,
+              };
           return { updatedClass, enrollment };
         },
         CLASS_WRITE_TRANSACTION_OPTIONS

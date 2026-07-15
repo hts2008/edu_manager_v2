@@ -59,6 +59,39 @@ const STATUS_LABELS = {
 const MAKE_UP_REASON = "Hoc bu ngoai lich";
 const buildWeekKey = (classId, week) =>
   classId && week ? `${classId}:${toDateKey(week.start)}:${toDateKey(week.end)}` : "";
+const isStudentEligibleOnDate = (student, dateStr) => {
+  const periods = student?.enrollment_periods;
+  if (Array.isArray(periods) && periods.length > 0) {
+    return periods.some(
+      (period) =>
+        period.started_at <= dateStr &&
+        (!period.ended_at || dateStr < period.ended_at),
+    );
+  }
+  if (student?.enrollment_status && student.enrollment_status !== "active") {
+    return false;
+  }
+  return !student?.enrollment_date || dateStr >= student.enrollment_date;
+};
+
+const isStudentEligibleInMonth = (student, monthKey) => {
+  const monthStart = `${monthKey}-01`;
+  const nextMonth = new Date(`${monthStart}T00:00:00.000Z`);
+  nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+  const monthEndExclusive = nextMonth.toISOString().slice(0, 10);
+  const periods = student?.enrollment_periods;
+  if (Array.isArray(periods) && periods.length > 0) {
+    return periods.some(
+      (period) =>
+        period.started_at < monthEndExclusive &&
+        (!period.ended_at || period.ended_at > monthStart),
+    );
+  }
+  if (student?.enrollment_status && student.enrollment_status !== "active") {
+    return false;
+  }
+  return !student?.enrollment_date || student.enrollment_date < monthEndExclusive;
+};
 
 function getCalendarRowWeekRange(weekStart, weekEnd) {
   const start = new Date(weekStart);
@@ -76,6 +109,55 @@ const LEGEND = [
   { status: "today", label: "Hôm nay", color: "border-2 border-primary-600" },
 ];
 
+function resolvePlannedSessionsForMonth({
+  classSchedule,
+  monthKey,
+  scheduleDayNumbers,
+  ledgerSessions,
+  monthPlan,
+}) {
+  const regularLedgerSessions = (ledgerSessions || []).filter(
+    (session) => session.kind === "regular",
+  ).length;
+  if (classSchedule?.billing_policy !== "monthly_prorated") {
+    return regularLedgerSessions;
+  }
+
+  const persistedExpectedSessions = Number(monthPlan?.expected_regular_sessions);
+  if (Number.isInteger(persistedExpectedSessions) && persistedExpectedSessions >= 0) {
+    return persistedExpectedSessions > 0
+      ? Math.max(persistedExpectedSessions, regularLedgerSessions)
+      : regularLedgerSessions;
+  }
+
+  const [year, monthNumber] = String(monthKey || "").split("-").map(Number);
+  if (!Number.isInteger(year) || !Number.isInteger(monthNumber)) {
+    return regularLedgerSessions;
+  }
+
+  let expectedSessions = 0;
+  if (scheduleDayNumbers.length > 0) {
+    expectedSessions = countScheduleDaysInMonth(
+      year,
+      monthNumber - 1,
+      scheduleDayNumbers,
+    );
+  } else {
+    const sessionsPerWeek = Number(classSchedule.sessions_per_week || 0);
+    if (sessionsPerWeek > 0) {
+      expectedSessions = countMonthBoundedWeeklySessions(
+        year,
+        monthNumber - 1,
+        sessionsPerWeek,
+      );
+    }
+  }
+
+  return expectedSessions > 0
+    ? Math.max(expectedSessions, regularLedgerSessions)
+    : regularLedgerSessions;
+}
+
 export default function AttendancePage() {
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
@@ -86,6 +168,7 @@ export default function AttendancePage() {
   const [periods, setPeriods] = useState({});
   const [classSchedule, setClassSchedule] = useState(null);
   const [classSessionsByMonth, setClassSessionsByMonth] = useState({});
+  const [classMonthPlansByMonth, setClassMonthPlansByMonth] = useState({});
   const [classListLoading, setClassListLoading] = useState(false);
   const [classListError, setClassListError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -184,22 +267,20 @@ export default function AttendancePage() {
   const plannedSessionsInMonth = useMemo(() => {
     if (!classSchedule) return 0;
     const activeMonthKey = toMonthKey(activeFeeMonth);
-    const hasLedgerResponse = Object.prototype.hasOwnProperty.call(
-      classSessionsByMonth,
-      activeMonthKey,
-    );
-    const ledgerSessions = classSessionsByMonth[activeMonthKey] || [];
-    const regularLedgerSessions = ledgerSessions.filter((session) => session.kind === "regular");
-    if (hasLedgerResponse) return regularLedgerSessions.length;
-    const year = activeFeeMonth.getFullYear();
-    const month = activeFeeMonth.getMonth();
-    if (scheduleDayNumbers.length) {
-      return countScheduleDaysInMonth(year, month, scheduleDayNumbers);
-    }
-    const sessions = Number(classSchedule.sessions_per_week || 0);
-    if (sessions > 0) return countMonthBoundedWeeklySessions(year, month, sessions);
-    return 0;
-  }, [activeFeeMonth, classSchedule, classSessionsByMonth, scheduleDayNumbers]);
+    return resolvePlannedSessionsForMonth({
+      classSchedule,
+      monthKey: activeMonthKey,
+      scheduleDayNumbers,
+      ledgerSessions: classSessionsByMonth[activeMonthKey] || [],
+      monthPlan: classMonthPlansByMonth[activeMonthKey],
+    });
+  }, [
+    activeFeeMonth,
+    classSchedule,
+    classMonthPlansByMonth,
+    classSessionsByMonth,
+    scheduleDayNumbers,
+  ]);
 
   // Calculate fee per session from monthly tuition and the real month calendar.
   const feePerSession = useMemo(() => {
@@ -253,15 +334,26 @@ export default function AttendancePage() {
   const feePerSessionByMonth = useMemo(() => {
     if (!classSchedule) return {};
     return Object.fromEntries(selectedWeekMonthKeys.map((monthKey) => {
-      const plannedSessions = (classSessionsByMonth[monthKey] || [])
-        .filter((session) => session.kind === "regular").length;
+      const plannedSessions = resolvePlannedSessionsForMonth({
+        classSchedule,
+        monthKey,
+        scheduleDayNumbers,
+        ledgerSessions: classSessionsByMonth[monthKey] || [],
+        monthPlan: classMonthPlansByMonth[monthKey],
+      });
       return [monthKey, calculateTuitionSessionFee({
         billingPolicy: classSchedule.billing_policy,
         feeAmount: classSchedule.fee_per_day,
         plannedSessions,
       })];
     }));
-  }, [classSchedule, classSessionsByMonth, selectedWeekMonthKeys]);
+  }, [
+    classSchedule,
+    classMonthPlansByMonth,
+    classSessionsByMonth,
+    scheduleDayNumbers,
+    selectedWeekMonthKeys,
+  ]);
 
   const selectedWeekKey = useMemo(
     () => buildWeekKey(selectedClass, selectedWeek),
@@ -315,6 +407,7 @@ export default function AttendancePage() {
       let fee = 0;
 
       weekDates.forEach(({ dateStr }) => {
+        if (!isStudentEligibleOnDate(student, dateStr)) return;
         const status = studentAtt[dateStr];
         if (status === "present") {
           presentDays++;
@@ -367,6 +460,7 @@ export default function AttendancePage() {
       setPeriods({});
       setClassSchedule(null);
       setClassSessionsByMonth({});
+      setClassMonthPlansByMonth({});
       setLoading(false);
       setLoadError(null);
       setWeekLoading(false);
@@ -458,6 +552,7 @@ export default function AttendancePage() {
 
       if (!classRes.success) {
         setClassSchedule(null);
+        setClassMonthPlansByMonth({});
         setStudents([]);
         setPeriods({});
         setCalendarAttendance({});
@@ -494,13 +589,16 @@ export default function AttendancePage() {
       });
       setPeriods(periodsMap);
       const sessionMap = {};
+      const monthPlanMap = {};
       sessionResults.forEach(({ month, response }) => {
         if (!response.success || !Array.isArray(response.data?.sessions)) {
           throw new Error(`Không thể tải sổ buổi học tháng ${month}. Không dùng lịch dự phòng để tính học phí.`);
         }
         sessionMap[month] = response.data.sessions.map(normalizeTuitionSession);
+        monthPlanMap[month] = response.data;
       });
       setClassSessionsByMonth(sessionMap);
+      setClassMonthPlansByMonth(monthPlanMap);
 
       const calendarData = {};
       calendarResults
@@ -629,6 +727,12 @@ export default function AttendancePage() {
       return;
     }
 
+    const student = students.find((item) => item.id === studentId);
+    if (!isStudentEligibleOnDate(student, dateStr)) {
+      toast.error("Học viên chưa ghi danh vào ngày này");
+      return;
+    }
+
     const currentStatus = attendance[studentId]?.[dateStr] || "empty";
     const currentIdx = STATUS_CYCLE.indexOf(currentStatus);
     const nextStatus =
@@ -663,10 +767,24 @@ export default function AttendancePage() {
       return;
     }
 
+    const eligibleDates = weekDates.filter(({ dateStr }) =>
+      students.some((student) => isStudentEligibleOnDate(student, dateStr)),
+    );
+    if (eligibleDates.length === 0) {
+      toast.error(
+        "Tuần này không có học viên nào trong thời gian ghi danh. Hãy sửa ngày hiệu lực ghi danh trước khi điểm danh.",
+      );
+      return;
+    }
+
+    const eligibleMonthKeys = new Set(
+      eligibleDates.map(({ dateStr }) => dateStr.slice(0, 7)),
+    );
     setSaving(true);
 
     try {
       for (const monthKey of selectedWeekMonthKeys) {
+        if (!eligibleMonthKeys.has(monthKey)) continue;
         if (periods[monthKey]) continue;
         const createRes = await attendancePeriodsService.create({
           class_id: selectedClass,
@@ -686,45 +804,57 @@ export default function AttendancePage() {
       }
 
       const records = [];
-      const allDates = weekDates.map((w) => w.dateStr); // All dates in the week for deletion
+      const allDates = eligibleDates.map((w) => w.dateStr);
+      const replacementScope = [];
 
       students.forEach((student) => {
-      const studentAtt = attendance[student.id] || {};
-      weekDates.forEach(({ dateStr, isMakeUpDate }) => {
-        const status = studentAtt[dateStr];
-        if (status && STATUS_CYCLE.includes(status)) {
-          records.push({
+        const studentAtt = attendance[student.id] || {};
+        weekDates.forEach(({ dateStr, isMakeUpDate }) => {
+          if (!isStudentEligibleOnDate(student, dateStr)) return;
+          replacementScope.push({
             student_id: student.id,
-            class_id: selectedClass,
             attendance_date: dateStr,
-            status,
-            is_make_up: Boolean(isMakeUpDate),
-            make_up_reason: isMakeUpDate ? MAKE_UP_REASON : null,
           });
-        }
+          const status = studentAtt[dateStr];
+          if (status && STATUS_CYCLE.includes(status)) {
+            records.push({
+              student_id: student.id,
+              class_id: selectedClass,
+              attendance_date: dateStr,
+              status,
+              is_make_up: Boolean(isMakeUpDate),
+              make_up_reason: isMakeUpDate ? MAKE_UP_REASON : null,
+            });
+          }
+        });
       });
-    });
 
-    // Pass class_id and all dates so backend can delete the full range
-    const response = await attendanceService.bulkCreate(
-      records,
-      selectedClass,
-      allDates,
-    );
+      const response = await attendanceService.bulkCreate(
+        records,
+        selectedClass,
+        allDates,
+        replacementScope,
+      );
 
-    if (response.success) {
-      toast.success(`Đã lưu ${records.length} bản ghi điểm danh`);
-      await loadClassData();
-      await loadWeekAttendance();
-    } else {
-      toast.error(response.error?.message || "Không thể lưu điểm danh");
-    }
+      if (response.success) {
+        toast.success(`Đã lưu ${records.length} bản ghi điểm danh`);
+        await loadClassData();
+        await loadWeekAttendance();
+      } else {
+        toast.error(response.error?.message || "Không thể lưu điểm danh");
+      }
     } finally {
       setSaving(false);
     }
   };
 
   const handleSubmit = async (monthKey) => {
+    if (!students.some((student) => isStudentEligibleInMonth(student, monthKey))) {
+      toast.error(
+        "Tháng này không có học viên nào trong thời gian ghi danh. Không thể tạo hoặc nộp kỳ điểm danh.",
+      );
+      return;
+    }
     const period = periods[monthKey];
     await workflow.runAction({
       key: `submit:${period?.id || monthKey}`,
@@ -1298,11 +1428,14 @@ export default function AttendancePage() {
                             Học viên
                           </th>
                           {weekDates.map(({ dateStr, dayOfWeek, dayNum, isMakeUpDate }) => {
+                            const eligibleStudents = students.filter((student) =>
+                              isStudentEligibleOnDate(student, dateStr),
+                            );
                             // Check if all students are marked present for this date
-                            const allPresent = students.every(
+                            const allPresent = eligibleStudents.length > 0 && eligibleStudents.every(
                               (s) => attendance[s.id]?.[dateStr] === "present",
                             );
-                            const anyMarked = students.some(
+                            const anyMarked = eligibleStudents.some(
                               (s) => attendance[s.id]?.[dateStr],
                             );
                             const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
@@ -1339,7 +1472,7 @@ export default function AttendancePage() {
                                         : "present";
                                       setAttendance((prev) => {
                                         const updated = { ...prev };
-                                        students.forEach((s) => {
+                                        eligibleStudents.forEach((s) => {
                                           if (!updated[s.id])
                                             updated[s.id] = {};
                                           updated[s.id] = {
@@ -1350,18 +1483,26 @@ export default function AttendancePage() {
                                         return updated;
                                       });
                                     }}
-                                    disabled={!isWeekReady || isDateReadOnly}
+                                    disabled={
+                                      !isWeekReady ||
+                                      isDateReadOnly ||
+                                      eligibleStudents.length === 0
+                                    }
                                     className={`px-2 py-1 text-[10px] rounded font-medium transition-colors ${
                                       allPresent
                                         ? "bg-green-500 text-white"
-                                        : !isWeekReady || isDateReadOnly
+                                        : !isWeekReady ||
+                                            isDateReadOnly ||
+                                            eligibleStudents.length === 0
                                           ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                                           : anyMarked
                                           ? "bg-yellow-200 text-yellow-800"
                                           : "bg-gray-200 text-gray-600 hover:bg-gray-300"
                                     }`}
                                     title={
-                                      allPresent
+                                      eligibleStudents.length === 0
+                                        ? "Chưa có học viên đủ điều kiện ghi danh"
+                                        : allPresent
                                         ? "Bỏ chọn tất cả"
                                         : "Chọn tất cả có mặt"
                                     }
@@ -1399,17 +1540,25 @@ export default function AttendancePage() {
                                     <p className="font-medium text-gray-900 text-sm">
                                       {student.full_name}
                                     </p>
+                                    {student.enrollment_date && (
+                                      <p className="text-[11px] text-slate-500">
+                                        Ghi danh: {student.enrollment_date}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </td>
                               {weekDates.map(({ dateStr, isMakeUpDate }) => {
                                 const status =
                                   attendance[student.id]?.[dateStr];
+                                const isBeforeEnrollment =
+                                  !isStudentEligibleOnDate(student, dateStr);
                                 const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
                                 const isDateReadOnly = Boolean(
                                   datePeriodStatus && datePeriodStatus !== "open",
                                 );
-                                const isCellDisabled = !isWeekReady || isDateReadOnly;
+                                const isCellDisabled =
+                                  !isWeekReady || isDateReadOnly || isBeforeEnrollment;
                                 return (
                                   <td
                                     key={dateStr}
@@ -1422,7 +1571,9 @@ export default function AttendancePage() {
                                       disabled={isCellDisabled}
                                       className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all cursor-pointer
                                         ${
-                                          status === "present"
+                                          isBeforeEnrollment
+                                            ? "bg-slate-100 text-slate-300"
+                                            : status === "present"
                                             ? "bg-green-100 hover:bg-green-200"
                                             : status === "absent_with_fee"
                                               ? "bg-yellow-100 hover:bg-yellow-200"
@@ -1434,12 +1585,16 @@ export default function AttendancePage() {
                                         ${isCellDisabled ? "cursor-not-allowed opacity-60 hover:bg-gray-100" : ""}
                                       `}
                                       title={
-                                        status
+                                        isBeforeEnrollment
+                                          ? "Chưa ghi danh"
+                                          : status
                                           ? STATUS_LABELS[status]
                                           : "Click để điểm danh"
                                       }
                                     >
-                                      {status
+                                      {isBeforeEnrollment
+                                        ? STATUS_ICONS.empty
+                                        : status
                                         ? STATUS_ICONS[status]
                                         : STATUS_ICONS.empty}
                                     </button>

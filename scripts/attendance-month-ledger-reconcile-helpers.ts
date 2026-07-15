@@ -38,6 +38,15 @@ export type EnrollmentStartCorrection = {
   evidence_attendance_status: string;
 };
 
+export type AttendanceOutsideEnrollmentPeriod = {
+  attendance_id: string;
+  student_id: string;
+  attendance_date: string;
+  attendance_status: string;
+  resolution: "adjust_enrollment_start" | "unresolved";
+  enrollment_period_id: string | null;
+};
+
 const VALUE_ARGUMENTS = ["class-id", "month", "reason", "actor-id"] as const;
 const REAL_ATTENDANCE_STATUSES = new Set(["present", "absent_with_fee", "absent_no_fee"]);
 
@@ -101,20 +110,23 @@ export function monthBounds(month: string) {
   };
 }
 
-function earliestRealAttendance(attendance: AttendanceRow[]) {
-  const earliest = new Map<string, AttendanceRow>();
-  for (const row of attendance) {
-    if (!isRealAttendanceEvidence(row)) continue;
-    const current = earliest.get(row.studentId);
-    if (
-      !current ||
-      row.attendanceDate < current.attendanceDate ||
-      (row.attendanceDate.getTime() === current.attendanceDate.getTime() && row.id < current.id)
-    ) {
-      earliest.set(row.studentId, row);
-    }
-  }
-  return earliest;
+function compareAttendance(left: AttendanceRow, right: AttendanceRow) {
+  return left.studentId.localeCompare(right.studentId) ||
+    left.attendanceDate.getTime() - right.attendanceDate.getTime() ||
+    left.id.localeCompare(right.id);
+}
+
+function realAttendanceOutsidePeriods(
+  attendance: AttendanceRow[],
+  periods: EnrollmentPeriodRow[],
+) {
+  const grouped = periodsByStudent(periods);
+  return attendance
+    .filter(isRealAttendanceEvidence)
+    .sort(compareAttendance)
+    .filter((row) =>
+      !(grouped.get(row.studentId) || []).some((period) =>
+        periodCovers(period, row.attendanceDate)));
 }
 
 function periodsByStudent(periods: EnrollmentPeriodRow[]) {
@@ -137,33 +149,66 @@ export function findEnrollmentStartCorrections(
   attendance: AttendanceRow[],
   periods: EnrollmentPeriodRow[],
 ): EnrollmentStartCorrection[] {
-  const earliest = earliestRealAttendance(attendance);
   const grouped = periodsByStudent(periods);
-  const corrections: EnrollmentStartCorrection[] = [];
+  const correctionEvidence = new Map<
+    string,
+    { period: EnrollmentPeriodRow; evidence: AttendanceRow }
+  >();
 
-  for (const [studentId, evidence] of [...earliest].sort(([left], [right]) =>
-    left.localeCompare(right),
-  )) {
+  for (const evidence of realAttendanceOutsidePeriods(attendance, periods)) {
+    const studentId = evidence.studentId;
     const attendanceDate = evidence.attendanceDate;
     const studentPeriods = grouped.get(studentId) || [];
-    if (studentPeriods.some((period) => periodCovers(period, attendanceDate))) continue;
     const laterPeriod = studentPeriods.find(
       (period) =>
         period.startedAt > attendanceDate &&
         (period.endedAt === null || attendanceDate < period.endedAt),
     );
     if (!laterPeriod) continue;
-    corrections.push({
-      enrollment_period_id: laterPeriod.id,
-      student_id: studentId,
-      current_started_at: dateKey(laterPeriod.startedAt),
-      proposed_started_at: dateKey(attendanceDate),
-      source: laterPeriod.source,
+    const current = correctionEvidence.get(laterPeriod.id);
+    if (!current || compareAttendance(evidence, current.evidence) < 0) {
+      correctionEvidence.set(laterPeriod.id, { period: laterPeriod, evidence });
+    }
+  }
+  return [...correctionEvidence.values()]
+    .sort((left, right) =>
+      compareAttendance(left.evidence, right.evidence) ||
+      left.period.id.localeCompare(right.period.id))
+    .map(({ period, evidence }) => ({
+      enrollment_period_id: period.id,
+      student_id: evidence.studentId,
+      current_started_at: dateKey(period.startedAt),
+      proposed_started_at: dateKey(evidence.attendanceDate),
+      source: period.source,
       evidence_attendance_id: evidence.id,
       evidence_attendance_status: evidence.status,
+    }));
+}
+
+export function findAttendanceOutsideEnrollmentPeriods(
+  attendance: AttendanceRow[],
+  periods: EnrollmentPeriodRow[],
+  corrections: EnrollmentStartCorrection[],
+): AttendanceOutsideEnrollmentPeriod[] {
+  const periodsById = new Map(periods.map((period) => [period.id, period]));
+  return realAttendanceOutsidePeriods(attendance, periods).map((row) => {
+    const correction = corrections.find((candidate) => {
+      if (candidate.student_id !== row.studentId) return false;
+      const period = periodsById.get(candidate.enrollment_period_id);
+      if (!period) return false;
+      const correctedStart = new Date(`${candidate.proposed_started_at}T00:00:00.000Z`);
+      return correctedStart <= row.attendanceDate &&
+        (period.endedAt === null || row.attendanceDate < period.endedAt);
     });
-  }
-  return corrections;
+    return {
+      attendance_id: row.id,
+      student_id: row.studentId,
+      attendance_date: dateKey(row.attendanceDate),
+      attendance_status: row.status,
+      resolution: correction ? "adjust_enrollment_start" : "unresolved",
+      enrollment_period_id: correction?.enrollment_period_id || null,
+    };
+  });
 }
 
 export function findStudentsWithoutEnrollmentPeriod(
@@ -171,15 +216,9 @@ export function findStudentsWithoutEnrollmentPeriod(
   periods: EnrollmentPeriodRow[],
   corrections: EnrollmentStartCorrection[],
 ) {
-  const earliest = earliestRealAttendance(attendance);
-  const corrected = new Set(corrections.map((row) => row.student_id));
-  return [...earliest.keys()]
-    .filter((studentId) => {
-      if (corrected.has(studentId)) return false;
-      const attendanceDate = earliest.get(studentId)!.attendanceDate;
-      return !periods.some(
-        (period) => period.studentId === studentId && periodCovers(period, attendanceDate),
-      );
-    })
-    .sort();
+  return [...new Set(
+    findAttendanceOutsideEnrollmentPeriods(attendance, periods, corrections)
+      .filter((row) => row.resolution === "unresolved")
+      .map((row) => row.student_id),
+  )].sort();
 }

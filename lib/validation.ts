@@ -14,6 +14,20 @@ const optionalNumber = z.preprocess(
   z.coerce.number().optional()
 );
 
+const dateOnlySchema = (fieldName: string) => z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, `${fieldName} must be YYYY-MM-DD`)
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }, `${fieldName} must be a valid calendar date`);
+
 function firstIssueMessage(error: z.ZodError) {
   const issue = error.issues[0];
   if (!issue) return "Invalid request body";
@@ -89,27 +103,74 @@ export const studentUpdateSchema = studentCreateSchema
   })
   .partial();
 
-export const classCreateSchema = z.object({
+const classFieldsSchema = z.object({
   class_name: z.string().trim().min(1, "class_name is required"),
   schedule_days: z.unknown().optional().nullable(),
-  schedule_required: z.coerce.boolean().optional().default(false),
+  schedule_required: z.coerce.boolean().optional(),
   sessions_per_week: optionalNumber,
-  session_required: z.coerce.boolean().optional().default(false),
+  session_required: z.coerce.boolean().optional(),
   start_time: z.string().trim().min(1, "start_time is required"),
   end_time: z.string().trim().min(1, "end_time is required"),
   fee_per_day: z.coerce.number().positive("fee_per_day must be greater than 0"),
   billing_policy: z.enum(["monthly_prorated", "per_session"]).optional(),
-  max_students: z.coerce.number().int().positive().optional().default(50),
+  max_students: z.coerce.number().int().positive().optional(),
   teacher_id: optionalNullableText,
   notes: optionalNullableText,
-  student_ids: z.array(z.string().trim().min(1)).optional().default([]),
+  student_ids: z.array(z.string().trim().min(1)).optional(),
+  enrollment_effective_date: dateOnlySchema("enrollment_effective_date").optional(),
+  adjust_existing_enrollment_start: z.boolean().optional(),
+  enrollment_backdate_reason: optionalNullableText,
 });
 
-export const classUpdateSchema = classCreateSchema
+function requireEnrollmentBackdateReason(
+  data: {
+    adjust_existing_enrollment_start?: boolean;
+    enrollment_backdate_reason?: string | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (
+    data.adjust_existing_enrollment_start &&
+    !data.enrollment_backdate_reason?.trim()
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["enrollment_backdate_reason"],
+      message: "enrollment_backdate_reason is required when adjusting enrollment start",
+    });
+  }
+}
+
+export const classCreateSchema = classFieldsSchema.superRefine(
+  requireEnrollmentBackdateReason,
+);
+
+export const classUpdateSchema = classFieldsSchema
   .extend({
     status: z.enum(["active", "inactive"]).optional(),
   })
-  .partial();
+  .partial()
+  .superRefine(requireEnrollmentBackdateReason);
+
+export const classEnrollmentActionSchema = z
+  .object({
+    action: z.enum(["enroll", "bulk_enroll"]),
+    student_id: optionalText,
+    student_ids: z.array(z.string().trim().min(1)).optional().default([]),
+    enrollment_effective_date: dateOnlySchema("enrollment_effective_date").optional(),
+    adjust_existing_enrollment_start: z.boolean().optional().default(false),
+    enrollment_backdate_reason: optionalNullableText,
+  })
+  .superRefine((data, ctx) => {
+    requireEnrollmentBackdateReason(data, ctx);
+    if (!data.student_id && data.student_ids.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["student_ids"],
+        message: "student_id or student_ids is required",
+      });
+    }
+  });
 
 export const centerSettingsSchema = z.object({
   center_name: z.string().trim().min(1, "center_name is required").optional(),

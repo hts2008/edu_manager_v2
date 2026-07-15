@@ -55,6 +55,8 @@ describe("attendance lock fee plan", () => {
         ["2026-07", "2026-06"],
       ),
       [
+        "attendance-roster:global:class-a",
+        "attendance-roster:global:class-b",
         "attendance-roster:2026-06:class-a",
         "attendance-roster:2026-06:class-b",
         "attendance-roster:2026-07:class-a",
@@ -332,6 +334,98 @@ describe("attendance lock fee plan", () => {
     assert.equal(plan.metrics.fees_preserved, 0);
     assert.equal(plan.metrics.fees_updated, 1);
   });
+
+  it("adds a missing class line to a protected aggregate and keeps relock idempotent", () => {
+    for (const protectedStatus of ["confirmed", "paid"]) {
+      const protectedLine = {
+        id: `line-a-${protectedStatus}`,
+        allocationKey: "class:class-a",
+        status: protectedStatus,
+        receiptId: `receipt-a-${protectedStatus}`,
+        paidAt: protectedStatus === "paid"
+          ? new Date("2026-06-20T00:00:00.000Z")
+          : null,
+        receiptLines: [{ id: `receipt-line-a-${protectedStatus}` }],
+      };
+      const protectedLineSnapshot = structuredClone(protectedLine);
+      const existingFee = {
+        id: `fee-${protectedStatus}`,
+        studentId: "student-1",
+        month: "2026-06",
+        status: protectedStatus,
+        receiptId: `receipt-a-${protectedStatus}`,
+        paidAt: protectedLine.paidAt,
+        lines: [protectedLine],
+      };
+      const classB = {
+        studentId: "student-1",
+        classId: "class-b",
+        class: {
+          className: "Flyers B",
+          feePerDay: 120_000,
+          scheduleDays: "2,4",
+          sessionsPerWeek: 2,
+          teacher: { fullName: "Teacher B" },
+        },
+      };
+
+      const firstLock = buildAttendanceLockFeePlan({
+        month: "2026-06",
+        targetClassId: "class-b",
+        studentIds: ["student-1"],
+        activeStudentClasses: [classB],
+        attendanceCounts: [
+          { studentId: "student-1", classId: "class-b", _count: { status: 4 } },
+        ],
+        makeUpCounts: [],
+        existingFees: [existingFee],
+        createId: () => `line-b-${protectedStatus}`,
+      });
+
+      assert.deepEqual(firstLock.mutableLineIds, []);
+      assert.deepEqual(firstLock.affectedFeeIds, []);
+      assert.deepEqual(firstLock.feeRows, []);
+      assert.equal(firstLock.lineRows.length, 1);
+      assert.equal(firstLock.lineRows[0].id, `line-b-${protectedStatus}`);
+      assert.equal(firstLock.lineRows[0].monthlyFeeId, existingFee.id);
+      assert.equal(firstLock.lineRows[0].classId, "class-b");
+      assert.deepEqual(protectedLine, protectedLineSnapshot);
+
+      const relock = buildAttendanceLockFeePlan({
+        month: "2026-06",
+        targetClassId: "class-b",
+        studentIds: ["student-1"],
+        activeStudentClasses: [classB],
+        attendanceCounts: [
+          { studentId: "student-1", classId: "class-b", _count: { status: 4 } },
+        ],
+        makeUpCounts: [],
+        existingFees: [{
+          ...existingFee,
+          lines: [
+            protectedLine,
+            {
+              ...firstLock.lineRows[0],
+              allocationKey: "class:class-b",
+              status: "ready",
+              receiptId: null,
+              paidAt: null,
+              receiptLines: [],
+            },
+          ],
+        }],
+        createId: () => {
+          throw new Error("relock must not create another class-b line");
+        },
+      });
+
+      assert.deepEqual(relock.mutableLineIds, []);
+      assert.deepEqual(relock.affectedFeeIds, []);
+      assert.deepEqual(relock.feeRows, []);
+      assert.deepEqual(relock.lineRows, []);
+      assert.deepEqual(protectedLine, protectedLineSnapshot);
+    }
+  });
 });
 
 describe("attendance lock transaction", () => {
@@ -431,6 +525,7 @@ describe("attendance lock transaction", () => {
     assert.equal(advisoryQueries.length, 2);
     assert.notEqual(typeof advisoryQueries[0], "string");
     assert.deepEqual(advisoryQueries[0].values, [
+      "attendance-roster:global:class-1",
       "attendance-roster:2026-06:class-1",
     ]);
     assert.deepEqual(advisoryQueries[1].values, [

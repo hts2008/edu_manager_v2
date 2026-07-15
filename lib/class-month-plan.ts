@@ -1,4 +1,6 @@
 import { ApiError } from "./api-utils.js";
+import { acquireClassMonthRosterAdvisoryLocks } from "./attendance-lock-transaction.js";
+import { runSerializableTransaction } from "./serializable-transaction.js";
 
 export type AttendancePeriodPlanStatus = "open" | "submitted" | "approved" | "locked";
 export type ClassMonthPlanState = "open" | "frozen";
@@ -42,6 +44,22 @@ export class ClassMonthPlanError extends ApiError {
 
 function inTransaction<T>(db: any, work: (tx: any) => Promise<T>): Promise<T> {
   return typeof db.$transaction === "function" ? db.$transaction(work) : work(db);
+}
+
+export async function withClassMonthPlanRosterWrite<T>(
+  db: any,
+  classId: string,
+  billingMonth: string,
+  work: (tx: any) => Promise<T>,
+) {
+  return runSerializableTransaction(db, async (tx) => {
+    await acquireClassMonthRosterAdvisoryLocks(
+      tx,
+      [classId],
+      [billingMonth],
+    );
+    return work(tx);
+  });
 }
 
 export function mapAttendancePeriodStatusToPlanState(

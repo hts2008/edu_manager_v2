@@ -7,7 +7,7 @@ import {
   successResponse,
 } from "../../../lib/auth.js";
 import { assertAttendanceDatesEditable } from "../../../lib/attendance-lock.js";
-import { sendApiError } from "../../../lib/api-utils.js";
+import { ApiError, sendApiError } from "../../../lib/api-utils.js";
 import { resolveAttendanceSessionPolicy } from "../../../lib/tuition.js";
 import { recordClassMonthPlanWrite } from "../../../lib/class-month-plan.js";
 import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
@@ -16,6 +16,9 @@ import {
   parseAttendanceDate,
   validateBulkAttendanceRecords,
 } from "../../../lib/attendance-session-lifecycle.js";
+import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
+import { acquireClassMonthRosterAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
+import { scheduleSnapshotForWrite } from "../../../lib/class-month-schedule-snapshot.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -69,9 +72,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if (date) where.attendanceDate = new Date(date as string);
       if (month) {
         const [year, m] = (month as string).split("-");
-        const startDate = new Date(parseInt(year), parseInt(m) - 1, 1);
-        const endDate = new Date(parseInt(year), parseInt(m), 0);
-        where.attendanceDate = { gte: startDate, lte: endDate };
+        const startDate = new Date(Date.UTC(parseInt(year), parseInt(m) - 1, 1));
+        const nextMonthStart = new Date(Date.UTC(parseInt(year), parseInt(m), 1));
+        where.attendanceDate = { gte: startDate, lt: nextMonthStart };
       }
 
       const records = await prisma.attendance.findMany({
@@ -115,31 +118,44 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const dateOnly = attendanceDate.toISOString().slice(0, 10);
       const billingMonth = dateOnly.slice(0, 7);
 
-      const classRecord = await prisma.class.findUnique({
-        where: { id: class_id },
-        select: { scheduleDays: true, sessionsPerWeek: true },
-      });
-      if (!classRecord) {
-        return errorResponse(res, "CLASS_NOT_FOUND", "Class not found", 404);
-      }
-
-      const sessionPolicy = resolveAttendanceSessionPolicy(
-        classRecord,
-        attendance_date,
-        {
-          isMakeUp: toOptionalBoolean(req.body.is_make_up ?? req.body.isMakeUp),
-          makeUpReason: req.body.make_up_reason ?? req.body.makeUpReason,
-        }
-      );
-
       const record = await runSerializableTransaction(prisma, async (tx) => {
+        await acquireClassMonthRosterAdvisoryLocks(
+          tx,
+          [class_id],
+          [billingMonth],
+        );
+        const classRecord = await tx.class.findUnique({
+          where: { id: class_id },
+          select: { scheduleDays: true, sessionsPerWeek: true },
+        });
+        if (!classRecord) {
+          throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
+        }
+        const sessionPolicy = resolveAttendanceSessionPolicy(
+          classRecord,
+          attendance_date,
+          {
+            isMakeUp: toOptionalBoolean(req.body.is_make_up ?? req.body.isMakeUp),
+            makeUpReason: req.body.make_up_reason ?? req.body.makeUpReason,
+          },
+        );
         await assertAttendanceDatesEditable(class_id, [attendanceDate], tx as typeof prisma);
+        await assertAttendanceWriteEnrollment(tx, {
+          classId: class_id,
+          records: [{ studentId: student_id, attendanceDate }],
+        });
+        const scheduleSnapshot = await scheduleSnapshotForWrite(
+          tx,
+          class_id,
+          billingMonth,
+          classRecord,
+        );
         await recordClassMonthPlanWrite(tx, {
           classId: class_id,
           billingMonth,
           actorId: req.user.userId,
           eventType: "attendance_single",
-          snapshot: { date: dateOnly },
+          snapshot: { date: dateOnly, ...scheduleSnapshot },
         });
         const existingSession = await tx.classSession.findUnique({
           where: {

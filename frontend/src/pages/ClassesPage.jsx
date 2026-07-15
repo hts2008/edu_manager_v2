@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, GraduationCap, Plus, School, Users } from "lucide-react";
+import {
+  CalendarDays,
+  GraduationCap,
+  Plus,
+  RefreshCw,
+  School,
+  Users,
+} from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { classesService, studentsService, teachersService } from "../services/api";
@@ -7,6 +14,7 @@ import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { classFormSchema } from "../utils/formValidation";
+import { toDateKey } from "../utils/dateKeys";
 import {
   ListPanel,
   MetricGrid,
@@ -449,6 +457,7 @@ function ClassForm({
   onSuccess,
   onCancel,
 }) {
+  const defaultEnrollmentDate = toDateKey(new Date());
   const [formData, setFormData] = useState({
     class_name: classData?.class_name || "",
     teacher_id: classData?.teacher_id || "",
@@ -473,11 +482,23 @@ function ClassForm({
     billing_policy: classData?.billing_policy || "monthly_prorated",
     max_students: classData?.max_students || 20,
     status: classData?.status || "active",
+    enrollment_effective_date:
+      classData?.enrollment_effective_date || defaultEnrollmentDate,
+    adjust_existing_enrollment_start: false,
+    enrollment_backdate_reason: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [currentRosterIds, setCurrentRosterIds] = useState([]);
+  const [studentEnrollmentDates, setStudentEnrollmentDates] = useState({});
+  const [currentRosterLoading, setCurrentRosterLoading] = useState(false);
+  const [currentRosterLoaded, setCurrentRosterLoaded] = useState(
+    !classData?.id,
+  );
+  const [currentRosterError, setCurrentRosterError] = useState("");
+  const [rosterLoadAttempt, setRosterLoadAttempt] = useState(0);
   const {
     handleSubmit: handleValidatedSubmit,
     setValue,
@@ -487,6 +508,9 @@ function ClassForm({
     defaultValues: {
       class_name: formData.class_name,
       teacher_id: formData.teacher_id,
+      enrollment_effective_date: formData.enrollment_effective_date,
+      adjust_existing_enrollment_start: false,
+      enrollment_backdate_reason: "",
       start_time: formData.start_time,
       end_time: formData.end_time,
       fee_per_day: formData.fee_per_day,
@@ -502,26 +526,85 @@ function ClassForm({
   const [useSessionCount, setUseSessionCount] = useState(
     !!classData?.sessions_per_week
   );
+  const requiresBackdateReason =
+    formData.adjust_existing_enrollment_start ||
+    formData.enrollment_effective_date < defaultEnrollmentDate;
 
   useEffect(() => {
     let ignore = false;
     async function loadCurrentStudents() {
       if (!classData?.id) {
         setSelectedStudentIds([]);
+        setCurrentRosterIds([]);
+        setStudentEnrollmentDates({});
+        setCurrentRosterLoading(false);
+        setCurrentRosterLoaded(true);
+        setCurrentRosterError("");
         return;
       }
-      const response = await classesService.getById(classData.id);
-      if (!ignore && response.success) {
-        setSelectedStudentIds(
-          (response.data.students || []).map((student) => student.id),
+
+      setSelectedStudentIds([]);
+      setCurrentRosterIds([]);
+      setStudentEnrollmentDates({});
+      setCurrentRosterLoading(true);
+      setCurrentRosterLoaded(false);
+      setCurrentRosterError("");
+
+      try {
+        const response = await classesService.getById(classData.id);
+        if (ignore) return;
+
+        if (!response.success) {
+          setCurrentRosterError(
+            response.error?.message || "Không thể tải học viên hiện có của lớp",
+          );
+          return;
+        }
+
+        const detailedClass = response.data?.class || response.data;
+        const currentStudents = (detailedClass?.students || []).filter(
+          (student) => student.enrollment_status === "active",
         );
+        const currentIds = currentStudents.map((student) => student.id);
+        const effectiveDate = defaultEnrollmentDate;
+
+        setSelectedStudentIds(currentIds);
+        setCurrentRosterIds(currentIds);
+        setStudentEnrollmentDates(
+          Object.fromEntries(
+            currentStudents.map((student) => [
+              student.id,
+              student.enrollment_date || null,
+            ]),
+          ),
+        );
+        setFormData((current) => ({
+          ...current,
+          enrollment_effective_date: effectiveDate,
+          adjust_existing_enrollment_start: false,
+          enrollment_backdate_reason: "",
+        }));
+        setValue("enrollment_effective_date", effectiveDate, {
+          shouldValidate: true,
+        });
+        setValue("adjust_existing_enrollment_start", false);
+        setValue("enrollment_backdate_reason", "");
+        setCurrentRosterLoaded(true);
+      } catch (loadError) {
+        if (!ignore) {
+          setCurrentRosterError(
+            loadError?.message || "Không thể tải học viên hiện có của lớp",
+          );
+        }
+      } finally {
+        if (!ignore) setCurrentRosterLoading(false);
       }
     }
     loadCurrentStudents();
     return () => {
       ignore = true;
     };
-  }, [classData?.id]);
+  }, [classData?.id, defaultEnrollmentDate, rosterLoadAttempt, setValue]);
 
   const filteredStudents = useMemo(() => {
     const keyword = studentSearch.trim().toLowerCase();
@@ -575,6 +658,11 @@ function ClassForm({
   const handleSubmit = async () => {
     setError("");
 
+    if (classData?.id && !currentRosterLoaded) {
+      setError("Vui lòng tải xong học viên hiện có trước khi cập nhật lớp");
+      return;
+    }
+
     if (!formData.class_name.trim()) {
       setError("Vui lòng nhập tên lớp");
       return;
@@ -603,7 +691,15 @@ function ClassForm({
 
     setLoading(true);
     try {
-      const payload = {
+      const addedStudentIds = selectedStudentIds.filter(
+        (studentId) => !currentRosterIds.includes(studentId),
+      );
+      const submittedStudentIds = classData
+        ? formData.adjust_existing_enrollment_start
+          ? [...new Set([...selectedStudentIds, ...currentRosterIds])]
+          : addedStudentIds
+        : selectedStudentIds;
+      const fullPayload = {
         class_name: formData.class_name,
         teacher_id: formData.teacher_id,
         schedule_days: useWeekdays ? formData.schedule_days : null,
@@ -618,8 +714,68 @@ function ClassForm({
         billing_policy: formData.billing_policy,
         max_students: formData.max_students,
         status: formData.status,
-        student_ids: selectedStudentIds,
+        student_ids: submittedStudentIds,
+        enrollment_effective_date: formData.enrollment_effective_date,
+        adjust_existing_enrollment_start:
+          Boolean(classData) && formData.adjust_existing_enrollment_start,
+        enrollment_backdate_reason: requiresBackdateReason
+          ? formData.enrollment_backdate_reason.trim()
+          : null,
       };
+
+      let payload = fullPayload;
+      if (classData) {
+        const numericFields = new Set([
+          "sessions_per_week",
+          "fee_per_day",
+          "max_students",
+        ]);
+        const comparable = (field, value) => {
+          if (field === "schedule_days") {
+            return JSON.stringify([...(value || [])].sort());
+          }
+          if (numericFields.has(field)) {
+            return value === null || value === "" || value === undefined
+              ? null
+              : Number(value);
+          }
+          return value ?? null;
+        };
+        const classFields = [
+          "class_name",
+          "teacher_id",
+          "schedule_days",
+          "schedule_required",
+          "sessions_per_week",
+          "session_required",
+          "start_time",
+          "end_time",
+          "fee_per_day",
+          "billing_policy",
+          "max_students",
+          "status",
+        ];
+        payload = Object.fromEntries(
+          classFields
+            .filter(
+              (field) =>
+                comparable(field, fullPayload[field]) !==
+                comparable(field, classData[field]),
+            )
+            .map((field) => [field, fullPayload[field]]),
+        );
+
+        const hasRosterAdditions = addedStudentIds.length > 0;
+        if (hasRosterAdditions || formData.adjust_existing_enrollment_start) {
+          payload.student_ids = submittedStudentIds;
+          payload.enrollment_effective_date =
+            fullPayload.enrollment_effective_date;
+          payload.adjust_existing_enrollment_start =
+            fullPayload.adjust_existing_enrollment_start;
+          payload.enrollment_backdate_reason =
+            fullPayload.enrollment_backdate_reason;
+        }
+      }
 
       const response = classData
         ? await classesService.update(classData.id, payload)
@@ -680,7 +836,70 @@ function ClassForm({
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ngày ghi danh hiệu lực *
+          </label>
+          <input
+            type="date"
+            value={formData.enrollment_effective_date}
+            max={defaultEnrollmentDate}
+            onChange={(event) =>
+              updateField("enrollment_effective_date", event.target.value)
+            }
+            className="input"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Áp dụng cho học viên mới được thêm vào lớp.
+          </p>
+        </div>
       </div>
+
+      {(classData || requiresBackdateReason) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          {classData && (
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={formData.adjust_existing_enrollment_start}
+                disabled={!currentRosterLoaded || currentRosterIds.length === 0}
+                onChange={(event) =>
+                  updateField(
+                    "adjust_existing_enrollment_start",
+                    event.target.checked,
+                  )
+                }
+                className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-amber-950">
+                  Điều chỉnh ngày bắt đầu của học viên hiện có
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-amber-800">
+                  Khi bật, hệ thống sẽ lùi ngày bắt đầu của roster hiện tại về
+                  ngày ghi danh hiệu lực ở trên. Không bật nếu chỉ thêm học viên mới.
+                </span>
+              </span>
+            </label>
+          )}
+          {requiresBackdateReason && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-amber-950 mb-1">
+                Lý do ghi danh hồi tố *
+              </label>
+              <textarea
+                rows={2}
+                value={formData.enrollment_backdate_reason}
+                onChange={(event) =>
+                  updateField("enrollment_backdate_reason", event.target.value)
+                }
+                className="input"
+                placeholder="VD: Bổ sung ngày ghi danh thực tế theo hồ sơ nhập học"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Schedule Options Section */}
       <div className="border border-gray-200 rounded-lg p-4 space-y-4 bg-gray-50">
@@ -870,6 +1089,33 @@ function ClassForm({
             {selectedStudentIds.length} đã chọn
           </span>
         </div>
+        {classData && currentRosterLoading && (
+          <div className="mb-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            Đang tải roster hiện tại và ngày ghi danh...
+          </div>
+        )}
+        {classData && currentRosterError && !currentRosterLoading && (
+          <div
+            className="mb-3 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"
+            role="alert"
+          >
+            <span>{currentRosterError}</span>
+            <button
+              type="button"
+              onClick={() => setRosterLoadAttempt((attempt) => attempt + 1)}
+              className="btn-secondary inline-flex items-center justify-center gap-2"
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+              Thử lại
+            </button>
+          </div>
+        )}
+        {classData && currentRosterLoaded && !currentRosterError && (
+          <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Đã tải {currentRosterIds.length} học viên hiện có. Ngày ghi danh được
+            giữ nguyên nếu không bật điều chỉnh ở trên.
+          </div>
+        )}
         <input
           type="search"
           value={studentSearch}
@@ -890,6 +1136,8 @@ function ClassForm({
           )}
           {filteredStudents.map((student) => {
             const checked = selectedStudentIds.includes(student.id);
+            const enrollmentDate =
+              studentEnrollmentDates[student.id] || student.enrollment_date;
             const studentName =
               student.full_name || student.fullName || student.label || "";
             return (
@@ -909,6 +1157,11 @@ function ClassForm({
                     {student.parent_name || "Chưa có phụ huynh"} ·{" "}
                     {student.parent_phone || student.phone || "Chưa có SĐT"}
                   </span>
+                  {enrollmentDate && (
+                    <span className="mt-1 block text-xs font-medium text-primary-700">
+                      Ghi danh từ {enrollmentDate}
+                    </span>
+                  )}
                 </span>
                 <input
                   type="checkbox"
@@ -932,7 +1185,11 @@ function ClassForm({
         <button type="button" onClick={onCancel} data-modal-close className="btn-secondary">
           Hủy
         </button>
-        <button type="submit" disabled={loading} className="btn-primary">
+        <button
+          type="submit"
+          disabled={loading || (Boolean(classData?.id) && !currentRosterLoaded)}
+          className="btn-primary"
+        >
           {loading ? "Đang lưu..." : classData ? "Cập nhật" : "Thêm mới"}
         </button>
       </div>

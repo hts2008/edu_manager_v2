@@ -201,6 +201,8 @@ describe("class session API contract", () => {
     assert.match(byId, /claimClassMonthPlan/);
     assert.match(byId, /eventType:\s*"class_session_patch"/);
     assert.match(byId, /eventType:\s*"class_session_delete"/);
+    assert.match(monthPlan, /withClassMonthPlanRosterWrite/);
+    assert.match(byId, /withClassMonthPlanRosterWrite/);
     assert.equal((monthPlan.match(/expectedRevision:\s*aggregateVersion/g) || []).length, 2);
     assert.equal((byId.match(/expectedRevision:\s*aggregateVersion/g) || []).length, 2);
     assert.doesNotMatch(monthPlan, /prisma\.\$transaction/);

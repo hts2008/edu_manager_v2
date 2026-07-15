@@ -13,6 +13,21 @@ const optionalNullableText = z.preprocess(
 const positiveNumber = (fieldName) =>
   z.coerce.number().positive(`${fieldName} must be greater than 0`);
 
+const dateOnly = (fieldName) =>
+  z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, `${fieldName} phai theo dinh dang YYYY-MM-DD`)
+    .refine((value) => {
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return (
+        date.getUTCFullYear() === year &&
+        date.getUTCMonth() === month - 1 &&
+        date.getUTCDate() === day
+      );
+    }, `${fieldName} khong phai ngay hop le`);
+
 export const paymentFormSchema = z.object({
   category: z.enum(["salary", "utility", "office", "other"]),
   recipient_name: z.string().trim().min(1, "Vui long nhap nguoi nhan"),
@@ -44,12 +59,33 @@ export const studentFormSchema = z.object({
   status: z.enum(["active", "inactive"]).optional(),
 });
 
-export const classFormSchema = z.object({
-  class_name: z.string().trim().min(1, "Vui long nhap ten lop"),
-  teacher_id: optionalText,
-  start_time: z.string().trim().min(1, "Vui long nhap gio bat dau"),
-  end_time: z.string().trim().min(1, "Vui long nhap gio ket thuc"),
-  fee_per_day: positiveNumber("Hoc phi"),
-  max_students: z.coerce.number().int().positive("So hoc vien toi da khong hop le"),
-  status: z.enum(["active", "inactive"]).optional(),
-});
+export const classFormSchema = z
+  .object({
+    class_name: z.string().trim().min(1, "Vui long nhap ten lop"),
+    teacher_id: optionalText,
+    enrollment_effective_date: dateOnly("Ngay ghi danh hieu luc"),
+    adjust_existing_enrollment_start: z.boolean().optional().default(false),
+    enrollment_backdate_reason: optionalNullableText,
+    start_time: z.string().trim().min(1, "Vui long nhap gio bat dau"),
+    end_time: z.string().trim().min(1, "Vui long nhap gio ket thuc"),
+    fee_per_day: positiveNumber("Hoc phi"),
+    max_students: z.coerce.number().int().positive("So hoc vien toi da khong hop le"),
+    status: z.enum(["active", "inactive"]).optional(),
+  })
+  .superRefine((data, context) => {
+    const now = new Date();
+    const localToday = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 10);
+    if (
+      (data.adjust_existing_enrollment_start ||
+        data.enrollment_effective_date < localToday) &&
+      !data.enrollment_backdate_reason?.trim()
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["enrollment_backdate_reason"],
+        message: "Vui long nhap ly do ghi danh hoi to",
+      });
+    }
+  });

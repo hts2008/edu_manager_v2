@@ -68,25 +68,100 @@ export async function assertEnrollmentMutationWritable(
   if (uniqueClassIds.length === 0) return;
   const months = affectedMonthKeys(effectiveAt, now);
   await acquireClassMonthRosterAdvisoryLocks(tx, uniqueClassIds, months);
-  if (!tx.attendancePeriod?.findFirst) return;
-
-  const lockedPeriod = await tx.attendancePeriod.findFirst({
+  const protectedPeriod = tx.attendancePeriod?.findFirst
+    ? await tx.attendancePeriod.findFirst({
     where: {
       classId: { in: uniqueClassIds },
       periodMonth: { gte: months[0], lte: months[months.length - 1] },
-      status: "locked",
+      status: { in: ["submitted", "approved", "locked"] },
     },
     select: { classId: true, periodMonth: true, status: true },
     orderBy: { periodMonth: "asc" },
-  });
-  if (lockedPeriod) {
+  })
+    : null;
+  if (protectedPeriod) {
     throw new ApiError(
       "ENROLLMENT_PERIOD_LOCKED",
-      `Enrollment cannot change because attendance ${lockedPeriod.periodMonth} is locked`,
+      `Enrollment cannot change because attendance ${protectedPeriod.periodMonth} is ${protectedPeriod.status}`,
       409,
       {
-        class_id: lockedPeriod.classId,
-        period_month: lockedPeriod.periodMonth,
+        class_id: protectedPeriod.classId,
+        period_month: protectedPeriod.periodMonth,
+        status: protectedPeriod.status,
+      },
+    );
+  }
+
+  const frozenPlan = tx.classMonthPlan?.findFirst
+    ? await tx.classMonthPlan.findFirst({
+        where: {
+          classId: { in: uniqueClassIds },
+          billingMonth: { gte: months[0], lte: months[months.length - 1] },
+          state: "frozen",
+        },
+        select: { classId: true, billingMonth: true, state: true },
+        orderBy: { billingMonth: "asc" },
+      })
+    : null;
+  if (frozenPlan) {
+    throw new ApiError(
+      "CLASS_MONTH_PLAN_FROZEN",
+      `Enrollment cannot change because class month plan ${frozenPlan.billingMonth} is frozen`,
+      409,
+      {
+        class_id: frozenPlan.classId,
+        billing_month: frozenPlan.billingMonth,
+      },
+    );
+  }
+}
+
+export async function assertClassDefinitionWritable(
+  tx: any,
+  classIds: string[],
+) {
+  const uniqueClassIds = [...new Set(classIds.filter(Boolean))].sort();
+  if (uniqueClassIds.length === 0) return;
+
+  await acquireClassMonthRosterAdvisoryLocks(tx, uniqueClassIds, []);
+  const protectedPeriod = tx.attendancePeriod?.findFirst
+    ? await tx.attendancePeriod.findFirst({
+        where: {
+          classId: { in: uniqueClassIds },
+          status: { in: ["submitted", "approved", "locked"] },
+        },
+        select: { classId: true, periodMonth: true, status: true },
+        orderBy: { periodMonth: "asc" },
+      })
+    : null;
+  if (protectedPeriod) {
+    throw new ApiError(
+      "CLASS_DEFINITION_LOCKED",
+      `Class schedule or billing cannot change because attendance ${protectedPeriod.periodMonth} is ${protectedPeriod.status}`,
+      409,
+      {
+        class_id: protectedPeriod.classId,
+        period_month: protectedPeriod.periodMonth,
+        status: protectedPeriod.status,
+      },
+    );
+  }
+
+  const frozenPlan = tx.classMonthPlan?.findFirst
+    ? await tx.classMonthPlan.findFirst({
+        where: { classId: { in: uniqueClassIds }, state: "frozen" },
+        select: { classId: true, billingMonth: true, state: true },
+        orderBy: { billingMonth: "asc" },
+      })
+    : null;
+  if (frozenPlan) {
+    throw new ApiError(
+      "CLASS_DEFINITION_LOCKED",
+      `Class schedule or billing cannot change because class month plan ${frozenPlan.billingMonth} is frozen`,
+      409,
+      {
+        class_id: frozenPlan.classId,
+        billing_month: frozenPlan.billingMonth,
       },
     );
   }

@@ -132,13 +132,20 @@ export function classMonthRosterAdvisoryLockKeys(
   classIds: string[],
   months: string[],
 ) {
-  return [
+  const globalKeys = [
+    ...new Set(
+      classIds.map((classId) => `attendance-roster:global:${classId}`),
+    ),
+  ].sort();
+  const monthKeys = [
     ...new Set(
       months.flatMap((month) =>
         classIds.map((classId) => `attendance-roster:${month}:${classId}`),
       ),
     ),
   ].sort();
+
+  return [...globalKeys, ...monthKeys];
 }
 
 export async function acquireClassMonthRosterAdvisoryLocks(
@@ -151,14 +158,14 @@ export async function acquireClassMonthRosterAdvisoryLocks(
 
   await tx.$queryRaw(
     Prisma.sql`
-      WITH ordered_keys(lock_key) AS MATERIALIZED (
-        SELECT lock_key
-        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[]) AS keys(lock_key)
-        ORDER BY lock_key
+      WITH ordered_keys(lock_key, lock_position) AS MATERIALIZED (
+        SELECT lock_key, lock_position
+        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[])
+          WITH ORDINALITY AS keys(lock_key, lock_position)
       )
       SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
       FROM ordered_keys
-      ORDER BY lock_key
+      ORDER BY lock_position
     `,
   );
 }
@@ -197,7 +204,11 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
 
   for (const studentId of input.studentIds) {
     const existing = existingByStudent.get(studentId);
-    if (existing && isProtectedFee(existing)) {
+    const protectedExisting = Boolean(existing && isProtectedFee(existing));
+    const existingTargetLine = existing?.lines?.find(
+      (line) => line.allocationKey === targetAllocationKey,
+    );
+    if (protectedExisting && existingTargetLine) {
       feesPreserved += 1;
       continue;
     }
@@ -239,7 +250,7 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
     const feeId = existing?.id || createId();
 
     if (existing) {
-      affectedFeeIds.push(existing.id);
+      if (!protectedExisting) affectedFeeIds.push(existing.id);
       feesUpdated += 1;
     } else {
       feesCreated += 1;

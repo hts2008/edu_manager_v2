@@ -1,4 +1,6 @@
 import { ApiError } from "./api-utils.js";
+import { loadPersistedScheduleSnapshot } from "./class-month-schedule-snapshot.js";
+import { expectedSessionsForClass } from "./tuition.js";
 
 export type AttendanceReadinessIssueCode =
   | "MISSING_PUBLISHED_PLAN"
@@ -12,6 +14,8 @@ export type AttendanceReadinessIssue = {
   session_id?: string;
   session_date?: string;
   student_ids?: string[];
+  expected_sessions?: number;
+  actual_sessions?: number;
   recommended_action?: string;
 };
 
@@ -20,6 +24,7 @@ export type AttendancePeriodReadiness = {
   class_id: string;
   month: string;
   summary: {
+    expected_regular_sessions: number;
     regular_sessions: number;
     resolved_sessions: number;
     expected_students: number;
@@ -87,10 +92,23 @@ export function analyzeAttendancePeriodReadiness(input: {
   attendance: AttendanceRow[];
   enrollmentPeriods: EnrollmentRow[];
   projections: ProjectionRow[];
+  expectedRegularSessions?: number;
 }): AttendancePeriodReadiness {
   const regularSessions = input.sessions.filter((session) => session.kind === "regular");
   const issues: AttendanceReadinessIssue[] = [];
-  if (regularSessions.length === 0) {
+  const expectedRegularSessions = Math.max(
+    0,
+    Math.trunc(Number(input.expectedRegularSessions) || 0),
+  );
+  if (expectedRegularSessions > 0 && regularSessions.length !== expectedRegularSessions) {
+    issues.push({
+      code: "MISSING_PUBLISHED_PLAN",
+      message: `Regular session plan for ${input.month} is incomplete: expected ${expectedRegularSessions}, found ${regularSessions.length}`,
+      expected_sessions: expectedRegularSessions,
+      actual_sessions: regularSessions.length,
+      recommended_action: "Record every scheduled week in the month before submitting attendance",
+    });
+  } else if (regularSessions.length === 0) {
     issues.push({
       code: "MISSING_PUBLISHED_PLAN",
       message: `No regular session plan exists for ${input.month}`,
@@ -183,6 +201,7 @@ export function analyzeAttendancePeriodReadiness(input: {
     class_id: input.classId,
     month: input.month,
     summary: {
+      expected_regular_sessions: expectedRegularSessions,
       regular_sessions: regularSessions.length,
       resolved_sessions: resolvedSessions,
       expected_students: expectedStudentIds.size,
@@ -202,6 +221,7 @@ export async function getAttendancePeriodReadiness(
       class_id: input.classId,
       month: input.month,
       summary: {
+        expected_regular_sessions: 0,
         regular_sessions: 0,
         resolved_sessions: 0,
         expected_students: 0,
@@ -216,7 +236,7 @@ export async function getAttendancePeriodReadiness(
     where: { classId: input.classId, billingMonth: input.month },
     orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
   });
-  const [attendance, enrollmentPeriods, projections] = await Promise.all([
+  const [attendance, enrollmentPeriods, projections, classRecord, monthPlan] = await Promise.all([
     db.attendance.findMany({
       where: {
         classId: input.classId,
@@ -247,7 +267,38 @@ export async function getAttendancePeriodReadiness(
         student: { select: { status: true } },
       },
     }),
+    db.class?.findUnique
+      ? db.class.findUnique({
+          where: { id: input.classId },
+          select: { scheduleDays: true, sessionsPerWeek: true },
+        })
+      : null,
+    db.classMonthPlan?.findUnique
+      ? db.classMonthPlan.findUnique({
+          where: {
+            classId_billingMonth: {
+              classId: input.classId,
+              billingMonth: input.month,
+            },
+          },
+          select: { id: true, revision: true },
+        })
+      : null,
   ]);
+
+  const persistedScheduleSnapshot = monthPlan
+    ? await loadPersistedScheduleSnapshot(db, monthPlan)
+    : null;
+  const expectedRegularSessions = persistedScheduleSnapshot?.expected_regular_sessions
+    ?? (classRecord
+      ? expectedSessionsForClass(
+          {
+            scheduleDays: classRecord.scheduleDays,
+            sessionsPerWeek: classRecord.sessionsPerWeek,
+          },
+          input.month,
+        ).expectedSessions
+      : undefined);
 
   return analyzeAttendancePeriodReadiness({
     classId: input.classId,
@@ -256,6 +307,7 @@ export async function getAttendancePeriodReadiness(
     attendance,
     enrollmentPeriods,
     projections,
+    expectedRegularSessions,
   });
 }
 

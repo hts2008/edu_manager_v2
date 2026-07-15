@@ -6,7 +6,9 @@ import {
   bumpClassMonthPlan,
   freezeClassMonthPlan,
   mapAttendancePeriodStatusToPlanState,
+  withClassMonthPlanRosterWrite,
 } from "../lib/class-month-plan.js";
+import { classMonthRosterAdvisoryLockKeys } from "../lib/attendance-lock-transaction.js";
 import { runClassMonthPlanBackfill } from "../scripts/backfill-class-month-plans.js";
 
 const schemaSource = readFileSync(new URL("../prisma/schema.prisma", import.meta.url), "utf8");
@@ -116,6 +118,59 @@ function createPlanDb(initial: { revision: number; state: PlanState }) {
 }
 
 describe("ClassMonthPlan optimistic revision helper", () => {
+  it("orders global roster locks before sorted class-month locks", () => {
+    assert.deepEqual(
+      classMonthRosterAdvisoryLockKeys(
+        ["class-b", "class-a", "class-b"],
+        ["2026-07", "2026-06"],
+      ),
+      [
+        "attendance-roster:global:class-a",
+        "attendance-roster:global:class-b",
+        "attendance-roster:2026-06:class-a",
+        "attendance-roster:2026-06:class-b",
+        "attendance-roster:2026-07:class-a",
+        "attendance-roster:2026-07:class-b",
+      ],
+    );
+  });
+
+  it("takes global and month roster locks before class-session plan reads", async () => {
+    const calls: string[] = [];
+    const tx = {
+      $queryRaw: async ({ strings, values }: any) => {
+        calls.push(`lock:${values.join(",")}`);
+        calls.push(
+          `ordered:${strings.join(" ").includes("WITH ORDINALITY") && strings.join(" ").includes("ORDER BY lock_position")}`,
+        );
+      },
+    };
+    const db = {
+      $transaction: async (work: (client: typeof tx) => Promise<string>) => {
+        calls.push("transaction");
+        return work(tx);
+      },
+    };
+
+    const result = await withClassMonthPlanRosterWrite(
+      db,
+      "class-1",
+      "2026-06",
+      async () => {
+        calls.push("read-class-plan");
+        return "ok";
+      },
+    );
+
+    assert.equal(result, "ok");
+    assert.deepEqual(calls, [
+      "transaction",
+      "lock:attendance-roster:global:class-1,attendance-roster:2026-06:class-1",
+      "ordered:true",
+      "read-class-plan",
+    ]);
+  });
+
   it("maps only open periods to an open plan", () => {
     assert.equal(mapAttendancePeriodStatusToPlanState("open"), "open");
     for (const status of ["submitted", "approved", "locked"] as const) {

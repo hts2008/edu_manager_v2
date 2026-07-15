@@ -6,6 +6,7 @@ import {
   claimClassMonthPlan,
   ensureClassMonthPlan,
   type AttendancePeriodPlanStatus,
+  withClassMonthPlanRosterWrite,
 } from "../../../lib/class-month-plan.js";
 import {
   assertMonthMutable,
@@ -78,9 +79,27 @@ async function ensurePlanAggregate(
 }
 
 async function getSession(req: AuthedRequest, id: string, res: VercelResponse) {
-  const session = await getExisting(prisma, id);
-  const month = assertSessionMonthInvariant(session);
-  const aggregate = await ensurePlanAggregate(prisma, session.classId, month, req.user.userId);
+  const initial = await getExisting(prisma, id);
+  const month = assertSessionMonthInvariant(initial);
+  const { aggregate, session } = await withClassMonthPlanRosterWrite(
+    prisma,
+    initial.classId,
+    month,
+    async (tx) => {
+      const session = await getExisting(tx, id);
+      const currentMonth = assertSessionMonthInvariant(session);
+      if (session.classId !== initial.classId || currentMonth !== month) {
+        throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
+      }
+      const aggregate = await ensurePlanAggregate(
+        tx,
+        session.classId,
+        month,
+        req.user.userId,
+      );
+      return { aggregate, session };
+    },
+  );
   return successResponse(res, {
     state: aggregate.state,
     version: aggregate.revision,
@@ -94,29 +113,38 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
   const aggregateVersion = integerVersion(body.expected_version, "expected_version", 1);
   const initial = await getExisting(prisma, id);
   const originalMonth = assertSessionMonthInvariant(initial);
-  const existingAggregate = await ensurePlanAggregate(
-    prisma,
-    initial.classId,
-    originalMonth,
-    req.user.userId,
-  );
   const snapshot: Record<string, unknown> = {
     operation: "patch",
     session_id: id,
     before: classSessionToDto(initial),
   };
-  let saved: any;
-
-  const aggregate = await claimClassMonthPlan(prisma, {
-    planId: existingAggregate.id,
-    expectedRevision: aggregateVersion,
-    actorId: req.user.userId,
-    eventType: "class_session_patch",
-    targetState: "open",
-    snapshot,
-  }, async (tx) => {
-    await assertMonthMutable(tx, initial.classId, originalMonth);
-    const existing = await getExisting(tx, id);
+  const { aggregate, saved } = await withClassMonthPlanRosterWrite(
+    prisma,
+    initial.classId,
+    originalMonth,
+    async (tx) => {
+      const currentIdentity = await getExisting(tx, id);
+      const identityMonth = assertSessionMonthInvariant(currentIdentity);
+      if (currentIdentity.classId !== initial.classId || identityMonth !== originalMonth) {
+        throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
+      }
+      const existingAggregate = await ensurePlanAggregate(
+        tx,
+        initial.classId,
+        originalMonth,
+        req.user.userId,
+      );
+      let saved: any;
+      const aggregate = await claimClassMonthPlan(tx, {
+        planId: existingAggregate.id,
+        expectedRevision: aggregateVersion,
+        actorId: req.user.userId,
+        eventType: "class_session_patch",
+        targetState: "open",
+        snapshot,
+      }, async (claimTx) => {
+    await assertMonthMutable(claimTx, initial.classId, originalMonth);
+    const existing = await getExisting(claimTx, id);
     const currentMonth = assertSessionMonthInvariant(existing);
     if (existing.classId !== initial.classId || currentMonth !== originalMonth) {
       throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
@@ -137,7 +165,7 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
       existing.replacementForId,
     );
     if (nextKind === "makeup") {
-      const original = await tx.classSession.findUnique({ where: { id: replacementForSessionId } });
+      const original = await claimTx.classSession.findUnique({ where: { id: replacementForSessionId } });
       if (!original || original.classId !== existing.classId || original.kind !== "regular") {
         throw new ClassSessionError("INVALID_REPLACEMENT_SESSION", "replacement_for_session_id must reference a regular session in this class", 400);
       }
@@ -145,7 +173,7 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
       validateMakeupDate(original.sessionDate, nextDate);
     }
 
-    const updated = await tx.classSession.updateMany({
+    const updated = await claimTx.classSession.updateMany({
       where: { id, version: rowVersion },
       data: {
         ...(body.session_date !== undefined && { sessionDate: nextDate }),
@@ -162,10 +190,13 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
     if (updated.count !== 1) {
       throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
     }
-    saved = await getExisting(tx, id);
+    saved = await getExisting(claimTx, id);
     assertSessionMonthInvariant(saved);
     snapshot.after = classSessionToDto(saved);
-  });
+      });
+      return { aggregate, saved };
+    },
+  );
 
   return successResponse(res, {
     state: aggregate.state,
@@ -183,41 +214,53 @@ async function deleteSession(req: AuthedRequest, id: string, res: VercelResponse
   );
   const initial = await getExisting(prisma, id);
   const month = assertSessionMonthInvariant(initial);
-  const existingAggregate = await ensurePlanAggregate(
-    prisma,
-    initial.classId,
-    month,
-    req.user.userId,
-  );
   const snapshot = {
     operation: "delete",
     session_id: id,
     deleted_session: classSessionToDto(initial),
   };
 
-  const aggregate = await claimClassMonthPlan(prisma, {
-    planId: existingAggregate.id,
-    expectedRevision: aggregateVersion,
-    actorId: req.user.userId,
-    eventType: "class_session_delete",
-    targetState: "open",
-    snapshot,
-  }, async (tx) => {
-    await assertMonthMutable(tx, initial.classId, month);
-    const existing = await getExisting(tx, id);
+  const aggregate = await withClassMonthPlanRosterWrite(
+    prisma,
+    initial.classId,
+    month,
+    async (tx) => {
+      const currentIdentity = await getExisting(tx, id);
+      const identityMonth = assertSessionMonthInvariant(currentIdentity);
+      if (currentIdentity.classId !== initial.classId || identityMonth !== month) {
+        throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
+      }
+      const existingAggregate = await ensurePlanAggregate(
+        tx,
+        initial.classId,
+        month,
+        req.user.userId,
+      );
+      return claimClassMonthPlan(tx, {
+        planId: existingAggregate.id,
+        expectedRevision: aggregateVersion,
+        actorId: req.user.userId,
+        eventType: "class_session_delete",
+        targetState: "open",
+        snapshot,
+      }, async (claimTx) => {
+    await assertMonthMutable(claimTx, initial.classId, month);
+    const existing = await getExisting(claimTx, id);
     const currentMonth = assertSessionMonthInvariant(existing);
     if (existing.classId !== initial.classId || currentMonth !== month) {
       throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
     }
-    const attendanceCount = await tx.attendance.count({ where: { classSessionId: id } });
+    const attendanceCount = await claimTx.attendance.count({ where: { classSessionId: id } });
     if (attendanceCount > 0) {
       throw new ClassSessionError("SESSION_HAS_ATTENDANCE", "A session with attendance cannot be deleted", 409);
     }
-    const deleted = await tx.classSession.deleteMany({ where: { id, version: rowVersion } });
+    const deleted = await claimTx.classSession.deleteMany({ where: { id, version: rowVersion } });
     if (deleted.count !== 1) {
       throw new ClassSessionError("VERSION_CONFLICT", "The class session changed; reload and retry", 409);
     }
-  });
+      });
+    },
+  );
 
   return successResponse(res, {
     state: aggregate.state,
