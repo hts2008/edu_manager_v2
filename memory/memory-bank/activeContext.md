@@ -415,3 +415,16 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Fresh gates: unit `306/306`, TypeScript, frontend lint with zero warnings, Prisma validate/status, build, root/frontend audits and diff-check passed. Integration command exited 0 but skipped because `TEST_DATABASE_URL` is not configured locally.
 - Evidence: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md` and `receipts/artifacts/tuition-v3-production-closeout-fee-workbench.png`.
 - Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in this callable tool palette; workspace markdown memory remained authoritative.
+
+## 2026-07-15 Current Context - Historical Enrollment / Attendance Closeout
+
+- `ENRT-2026-07-14-01..04` are `IMPLEMENTED` and production-live from code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, alias `https://edu-manager-gules.vercel.app`.
+- Explicit enrollment effective dates are now a first-class API/UI contract. Historical starts require a reason, update `EnrollmentPeriod` and the current `StudentClass` projection atomically, and emit audit evidence.
+- Attendance writes enforce the authoritative half-open enrollment interval before mutation. Historical corrections no longer create attendance before enrollment or leave partial session data.
+- Reconciliation and attendance locking share canonical roster/finance advisory locks inside serializable retries. Month-plan snapshots preserve the persisted monthly denominator across V3 and legacy payloads without converting absent values to zero.
+- Controlled production lifecycle: class `QA HIST 20260715 A`, enrollment start `2026-06-01`, 10 June regular sessions, submit → approve → lock, Fee Workbench class line `10 buổi / 900.000đ`.
+- Final release-deployment Chrome verification repeated the Attendance and Fee Workbench reads, found the class line in `Sẵn sàng` state, and observed zero console errors.
+- Fresh gates: unit `377/377` (61 suites), TypeScript, frontend lint, production build, root audit with zero high vulnerabilities, and diff-check.
+- Evidence: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
+- Remaining test boundary: there is no single locally stateful real-PostgreSQL handler test spanning the entire lifecycle because `TEST_DATABASE_URL` is not configured; production lifecycle evidence plus focused transaction/workflow tests cover the verified scope.
+- Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only graceful degradation was recorded without relaxing runtime gates.

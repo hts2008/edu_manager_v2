@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - attendance month-ledger correction deployed and authenticated Chrome-smoked on 2026-07-14
+> **Status**: PRODUCTION LIVE - historical enrollment/attendance contract deployed and authenticated Chrome-smoked on 2026-07-15
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,9 +10,28 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commit `5627779`, Vercel `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj`, authenticated Chrome smoke passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, authenticated Chrome smoke passed |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
+
+## IMPLEMENTED - HISTORICAL ENROLLMENT / ATTENDANCE CONTRACT (2026-07-15)
+
+**Objective:** make enrollment effective dates explicit, prevent historical attendance from being written outside a student's enrollment period, and verify the complete create-class → attendance → submit → approve → lock → fee workflow on production.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| ENRT-2026-07-14-01 | Add explicit class enrollment effective date contract and safe backdate handling | IMPLEMENTED | Historical start date + reason are validated, audited and written atomically with the live projection |
+| ENRT-2026-07-14-02 | Reject attendance writes outside authoritative enrollment periods before mutation | IMPLEMENTED | Shared half-open enrollment guard; regression and workflow tests cover pre-enrollment rejection |
+| ENRT-2026-07-14-03 | Add effective-date, loading, error and corrective UX to class/attendance workflows | IMPLEMENTED | Class modal supports effective-date correction; attendance surfaces typed corrective errors without partial writes |
+| ENRT-2026-07-14-04 | Run full static gates and authenticated production lifecycle smoke | IMPLEMENTED | Unit `377/377`; typecheck, lint, build, audit and diff-check pass; Chrome verified `QA HIST 20260715 A` at `10 buổi / 900.000đ` |
+
+**Production:** code commit `bb5168e` is deployed as `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4` and aliased to `https://edu-manager-gules.vercel.app`. The production lifecycle created `QA HIST 20260715 A`, backdated enrollment to `2026-06-01`, completed 10 June sessions, then submit → approve → lock. Final Chrome verification on the release deployment showed the exact class/month row at `10 buổi / 900.000đ`, status `Sẵn sàng`, with zero console errors.
+
+**Concurrency and ledger safety:** enrollment/attendance writers use serializable retries and canonical advisory lock ordering; historical reconciliation acquires roster and finance locks before fingerprint/preflight/mutation; persisted month-plan snapshots retain legacy and V3 denominators without coercing missing values to zero.
+
+**Evidence:** `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
+
+**Runtime degradation:** Context+ and EDU-scoped Neural Memory tools are not exposed in this Codex palette; manual blast-radius inspection, workspace memory and runtime evidence are used without relaxing gates.
 
 ## IMPLEMENTED - ATTENDANCE MONTH-LEDGER CORRECTION (2026-07-14)
 

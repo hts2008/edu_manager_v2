@@ -350,3 +350,10 @@
 **Decision**: `ClassSession` is the denominator and audit ledger. Monthly packages divide by regular sessions whose `billingMonth` matches the fee month; `sessions_per_week` is only cadence validation. Present and `absent_with_fee` are chargeable; `absent_no_fee`, center cancellation and holiday are credited unless replaced by a same-month makeup; included extras are free and surcharge extras use the derived unit rate. Confirmed, paid, receipt-linked and receipt-line-linked rows are immutable.
 **Rationale**: Calendar boundaries no longer affect the agreed monthly package, while every deduction and replacement remains explainable by a dated session row.
 **Status**: IMPLEMENTED and production-verified in Vercel deployment `dpl_Bt3mwxpAymEHBLYe2Gf756JjFoLr`.
+
+### ADR-51: Historical Attendance Must Be Bounded By Explicit Enrollment Time
+**Date**: 2026-07-15
+**Context**: Class creation previously used server request time as the enrollment start while operators could open and edit older attendance months. This allowed the UI to present a historical schedule that the domain correctly considered outside enrollment, causing late workflow failure.
+**Decision**: Every historical enrollment requires an explicit effective date and operator reason. `EnrollmentPeriod` is authoritative with half-open `[startedAt, endedAt)` semantics; `StudentClass` remains the current projection. Attendance writes validate every student/session pair against the authoritative period before mutation. Enrollment, attendance, reconciliation and finance writers use serializable retry plus canonical advisory lock ordering, and historical reconciliation acquires finance locks before protected-row fingerprinting or mutation.
+**Rationale**: Temporal validity must be established when membership is created, not inferred later from attendance. Early rejection prevents partial historical data; audit reasons make backdating accountable; shared lock ordering prevents stale-roster and fee races.
+**Status**: IMPLEMENTED in code commit `bb5168e` and production-verified on `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`.

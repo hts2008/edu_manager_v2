@@ -994,3 +994,16 @@
 - Pushed app commit `5627779`; Vercel production deployment `dpl_8EyP7uK3AgWhkm7uyR4U8cHe1FVj` reached READY and is aliased to `https://edu-manager-gules.vercel.app`.
 - Authenticated Chrome ran the real Flyer VB3 June close: readiness `8/8`, 3 students, 0 missing; Fee Workbench showed 3 independent lines at 8 sessions and 1.000.000 VND each; zero console errors/warnings and no horizontal overflow.
 - Receipt: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md`.
+
+---
+
+## 2026-07-15 - Historical Enrollment / Attendance Contract Closed
+
+- **RCA**: class creation stamped enrollment at request time while the attendance UI allowed historical months. A newly created class could therefore display historical sessions but reject submission because attendance preceded the authoritative enrollment interval.
+- **Implementation**: added explicit effective-date/reason handling, atomic period/projection updates, audit rows, a shared attendance enrollment guard, corrective UI, persisted month-plan denominator compatibility, and canonical serializable roster/finance locking for reconciliation and fee synchronization.
+- **Regression coverage**: added enrollment guard, audit, historical workflow, historical UI guard and month schedule snapshot suites; expanded attendance, class-session, lock, readiness, reconcile and bulk-enrollment tests.
+- **Verification**: full unit `377/377` across 61 suites, `npx tsc --noEmit`, frontend lint, `npm run build`, `npm audit --omit=dev --audit-level=high`, and `git diff --check` passed.
+- **Production lifecycle**: `QA HIST 20260715 A` used enrollment start `2026-06-01`; all 10 June regular sessions were saved, then the month was submitted, approved and locked. Fee Workbench showed the independent class line at `10 buổi / 900.000đ`.
+- **Release**: code commit `bb5168e`, Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`, alias `https://edu-manager-gules.vercel.app`; final Chrome readback had zero console errors.
+- **Evidence**: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
+- **Boundary**: the local real-router integration suite remains environment-guarded without `TEST_DATABASE_URL`; no current production blocker was observed in the verified lifecycle.

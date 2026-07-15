@@ -499,3 +499,16 @@
 - Fresh quality gates passed except the isolated integration suite was skipped by its explicit missing-`TEST_DATABASE_URL` guard.
 - Evidence: `receipts/2026-07-14-attendance-month-ledger-correction-closeout.md` and `receipts/artifacts/tuition-v3-production-closeout-fee-workbench.png`.
 - Context+ and EDU Neural Memory/MCPProxy were unavailable in this tool palette; markdown memory was updated instead.
+
+## 2026-07-15 Handoff - Historical Enrollment / Attendance Closed
+
+- `ENRT-2026-07-14-01..04` are implemented and production-live.
+- Runtime source: code commit `bb5168e`; Vercel `dpl_5Q4GBfkMNPyDEXazExe6WiqxwKk4`; alias `https://edu-manager-gules.vercel.app`.
+- Preserve the temporal invariant: attendance is valid only inside the student's authoritative half-open `EnrollmentPeriod`; historical enrollment needs an explicit effective date and operator reason.
+- Preserve concurrency order: global roster locks before class-month roster locks, then canonical finance locks before fingerprint/preflight/mutation. Keep these paths inside serializable retry.
+- Preserve the billing denominator: month-plan/session snapshots must not coerce missing legacy or V3 denominators to zero.
+- Production evidence: `QA HIST 20260715 A` completed the June lifecycle and Fee Workbench shows `10 buổi / 900.000đ`; final Chrome release readback found zero console errors.
+- Gates: 377/377 unit, TypeScript, lint, build, audit and diff-check.
+- Optional follow-up: add one isolated real-PostgreSQL stateful handler test for the entire lifecycle when `TEST_DATABASE_URL` is available.
+- Evidence: `receipts/2026-07-15-historical-enrollment-attendance-closeout.md`.
+- Context+/EDU Neural Memory unavailable in the callable palette; markdown memory is current.
