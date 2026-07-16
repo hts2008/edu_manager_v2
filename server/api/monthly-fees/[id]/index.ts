@@ -10,13 +10,51 @@ import {
 import {
   ApiError,
   getRequiredString,
-  parseMonthRange,
   sendApiError,
 } from "../../../../lib/api-utils.js";
-import {
-  calculateTuitionForClass,
-  CHARGEABLE_ATTENDANCE_STATUSES,
-} from "../../../../lib/tuition.js";
+
+export function requirePersistedMonthlyFeeLines<T>(lines: T[], monthlyFeeId: string): T[] {
+  if (lines.length === 0) {
+    throw new ApiError(
+      "MONTHLY_FEE_LINES_MISSING",
+      "Monthly fee detail is unavailable because its persisted class lines are missing",
+      409,
+      { monthly_fee_id: monthlyFeeId },
+    );
+  }
+  return lines;
+}
+
+export function monthlyFeeLineToBreakdown(line: any) {
+  return {
+    monthly_fee_line_id: line.id,
+    class_id: line.classId,
+    class_name: line.classNameSnapshot,
+    teacher_name: line.teacherNameSnapshot,
+    fee_per_day: line.feePerSession,
+    fee_per_session: line.feePerSession,
+    days_count: line.chargedSessions,
+    charged_sessions: line.chargedSessions,
+    expected_sessions: line.expectedSessions,
+    make_up_sessions: line.makeUpSessions,
+    extra_sessions: line.extraSessions,
+    billing_mode: line.billingMode,
+    schedule_mode: line.scheduleMode,
+    monthly_tuition: line.monthlyTuition,
+    amount: line.amount,
+    status: line.status,
+    receipt_id: line.receiptId,
+    paid_at: line.paidAt,
+    allocation_confidence: line.allocationConfidence,
+    contract_sessions: line.contractSessions,
+    eligible_sessions: line.eligibleSessions,
+    delivered_sessions: line.deliveredSessions,
+    center_credit_sessions: line.centerCreditSessions,
+    student_waived_sessions: line.studentWaivedSessions,
+    calculation_version: line.calculationVersion,
+    calculation_snapshot: line.calculationSnapshot,
+  };
+}
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -33,45 +71,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         student: {
           include: {
             parent: { select: { fullName: true, phone: true } },
-            studentClasses: {
-              where: { status: "active" },
-              include: { class: true },
-            },
           },
         },
         receipt: true,
+        lines: { orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }] },
       },
     });
 
     if (!fee) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
 
-    const { startDate, endDate } = parseMonthRange(fee.month);
-    const breakdown = await Promise.all(
-      fee.student.studentClasses.map(async (enrollment) => {
-        const daysCount = await prisma.attendance.count({
-          where: {
-            studentId: fee.studentId,
-            classId: enrollment.classId,
-            attendanceDate: { gte: startDate, lte: endDate },
-            status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
-          },
-        });
-        const tuition = calculateTuitionForClass(
-          enrollment.class,
-          fee.month,
-          daysCount
-        );
-        return {
-          class_id: enrollment.classId,
-          class_name: enrollment.class.className,
-          fee_per_day: tuition.feePerSession,
-          days_count: daysCount,
-          expected_sessions: tuition.expectedSessions,
-          billing_mode: tuition.billingMode,
-          monthly_tuition: tuition.monthlyTuition,
-          amount: tuition.totalAmount,
-        };
-      })
+    const breakdown = requirePersistedMonthlyFeeLines(fee.lines, fee.id).map(
+      monthlyFeeLineToBreakdown,
     );
 
     return successResponse(res, {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion as Motion } from "framer-motion";
+import { CalendarRange } from "lucide-react";
 import {
   classesService,
   attendanceService,
@@ -8,7 +9,13 @@ import {
 } from "../services/api";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
-import { calculateTuitionSessionFee, normalizeTuitionSession } from "../utils/tuitionV3";
+import {
+  buildMondayCalendarWeeks,
+  calculateTuitionCharge,
+  calculateTuitionSessionFee,
+  classifyAttendanceDate,
+  normalizeTuitionSession,
+} from "../utils/tuitionV3";
 import ActionProgressButton from "../components/ui/ActionProgressButton";
 import LongOperationStatus from "../components/ui/LongOperationStatus";
 import SelectField from "../components/ui/SelectField";
@@ -16,6 +23,7 @@ import AttendanceLockPreflightModal from "../components/attendance/AttendanceLoc
 import AttendanceCorrectionModal from "../components/attendance/AttendanceCorrectionModal";
 import AttendanceReadinessIssuePanel from "../components/attendance/AttendanceReadinessIssuePanel";
 import AttendanceEnrollmentCorrectionModal from "../components/attendance/AttendanceEnrollmentCorrectionModal";
+import AttendanceMonthPlanEditor from "../components/attendance/AttendanceMonthPlanEditor";
 import useAttendancePeriodWorkflow from "../hooks/useAttendancePeriodWorkflow";
 import {
   countMonthBoundedWeeklySessions,
@@ -30,6 +38,10 @@ import {
   resolveEnrollmentCorrectionStudents,
   validateEnrollmentCorrectionResult,
 } from "../utils/attendanceEnrollmentCorrection";
+import {
+  getAttendanceWeekMetadataState,
+  getEditableAttendanceDates,
+} from "../components/attendance/attendanceReadiness";
 
 // VI: Điểm danh kiểu SAP Timesheet - Hiển thị 3 tháng, chọn tuần để điểm danh
 
@@ -87,7 +99,10 @@ const isStudentEligibleInMonth = (student, monthKey) => {
 
 function getCalendarRowWeekRange(weekStart, weekEnd) {
   const start = new Date(weekStart);
-  const end = new Date(weekEnd || weekStart);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  if (weekEnd && Number.isNaN(new Date(weekEnd).getTime())) return null;
   return { start, end };
 }
 
@@ -173,7 +188,9 @@ export default function AttendancePage() {
   const [weekLoading, setWeekLoading] = useState(false);
   const [weekError, setWeekError] = useState(null);
   const [loadedWeekKey, setLoadedWeekKey] = useState("");
+  const [weekMonthMetadata, setWeekMonthMetadata] = useState({});
   const [saving, setSaving] = useState(false);
+  const [monthPlanEditorMonth, setMonthPlanEditorMonth] = useState("");
   const [correctionTarget, setCorrectionTarget] = useState(null);
   const [enrollmentCorrectionOpen, setEnrollmentCorrectionOpen] = useState(false);
   const [enrollmentCorrecting, setEnrollmentCorrecting] = useState(false);
@@ -182,6 +199,8 @@ export default function AttendancePage() {
   const weekAttendanceRequestRef = useRef(0);
   const toast = useToast();
   const { isAdmin } = useAuth();
+  const canManageMonthPlan = isAdmin();
+  const attendanceControlsDisabled = Boolean(loading || weekLoading || saving);
 
   // Get today and calculate the visible 3-month window.
   const today = useMemo(() => new Date(), []);
@@ -206,52 +225,6 @@ export default function AttendancePage() {
       };
     });
   }, [baseMonth]);
-
-  // Generate calendar grids for each month
-  const generateMonthCalendar = (year, month, scheduleDays = []) => {
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startWeekday = firstDay.getDay(); // 0 = Sunday
-
-    const weeks = [];
-    let currentWeek = [];
-
-    // Fill empty days at start
-    for (let i = 0; i < startWeekday; i++) {
-      currentWeek.push(null);
-    }
-
-    // Fill days
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const isScheduleDay =
-        scheduleDays.length === 0 || scheduleDays.includes(date.getDay());
-      currentWeek.push({
-        day,
-        date,
-        dateStr: toDateKey(date),
-        isScheduleDay,
-        isToday: date.toDateString() === today.toDateString(),
-        weekday: date.getDay(),
-      });
-
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-    }
-
-    // Fill empty days at end
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) {
-        currentWeek.push(null);
-      }
-      weeks.push(currentWeek);
-    }
-
-    return weeks;
-  };
 
   // Get schedule days as numbers
   const scheduleDayNumbers = useMemo(
@@ -300,84 +273,103 @@ export default function AttendancePage() {
     if (!selectedWeek) return [];
     const dates = [];
     const current = new Date(selectedWeek.start);
-    const hasScheduleDays = scheduleDayNumbers.length > 0;
 
     while (current <= selectedWeek.end) {
-      const dayOfWeek = current.getDay();
-      const isWeekday = dayOfWeek !== 0;
-      const isScheduleDay =
-        !hasScheduleDays || scheduleDayNumbers.includes(dayOfWeek);
-      const shouldInclude = isWeekday;
-
-      if (shouldInclude) {
-        dates.push({
-          date: new Date(current),
-          dateStr: toDateKey(current),
-          dayOfWeek: current.toLocaleDateString("vi-VN", { weekday: "short" }),
-          dayNum: current.getDate(),
-          isScheduleDay,
-          isMakeUpDate: hasScheduleDays && !isScheduleDay,
-        });
-      }
+      const dateStr = toDateKey(current);
+      const classification = classifyAttendanceDate({
+        date: dateStr,
+        monthPlan: classMonthPlansByMonth[dateStr.slice(0, 7)],
+        scheduleDays: scheduleDayNumbers,
+      });
+      dates.push({
+        date: new Date(current),
+        dateStr,
+        dayOfWeek: current.toLocaleDateString("vi-VN", { weekday: "short" }),
+        dayNum: current.getDate(),
+        isScheduleDay: classification.kind === "regular",
+        isMakeUpDate: classification.kind === "makeup",
+        sessionKind: classification.kind,
+      });
       current.setDate(current.getDate() + 1);
     }
 
     return dates;
-  }, [selectedWeek, scheduleDayNumbers]);
+  }, [classMonthPlansByMonth, selectedWeek, scheduleDayNumbers]);
 
   const selectedWeekMonthKeys = useMemo(
     () => [...new Set(weekDates.map(({ dateStr }) => dateStr.slice(0, 7)))],
     [weekDates],
   );
 
-  const feePerSessionByMonth = useMemo(() => {
-    if (!classSchedule) return {};
-    return Object.fromEntries(selectedWeekMonthKeys.map((monthKey) => {
-      const plannedSessions = resolvePlannedSessionsForMonth({
-        classSchedule,
-        monthKey,
-        scheduleDayNumbers,
-        ledgerSessions: classSessionsByMonth[monthKey] || [],
-        monthPlan: classMonthPlansByMonth[monthKey],
-      });
-      return [monthKey, calculateTuitionSessionFee({
-        billingPolicy: classSchedule.billing_policy,
-        feeAmount: classSchedule.fee_per_day,
-        plannedSessions,
-      })];
-    }));
-  }, [
-    classSchedule,
-    classMonthPlansByMonth,
-    classSessionsByMonth,
-    scheduleDayNumbers,
-    selectedWeekMonthKeys,
-  ]);
-
   const selectedWeekKey = useMemo(
     () => buildWeekKey(selectedClass, selectedWeek),
     [selectedClass, selectedWeek],
   );
+  const attendanceContextRef = useRef({ classId: "", weekKey: "" });
+  attendanceContextRef.current = { classId: selectedClass, weekKey: selectedWeekKey };
+  const isAttendanceContextCurrent = (context) =>
+    attendanceContextRef.current.classId === context.classId &&
+    attendanceContextRef.current.weekKey === context.weekKey;
+
+  const selectedWeekMetadataState = useMemo(
+    () => getAttendanceWeekMetadataState(weekDates, weekMonthMetadata),
+    [weekDates, weekMonthMetadata],
+  );
 
   const isWeekReady = Boolean(
-    selectedWeek && selectedWeekKey && loadedWeekKey === selectedWeekKey && !weekLoading && !weekError,
+    selectedWeek &&
+      selectedWeekKey &&
+      loadedWeekKey === selectedWeekKey &&
+      selectedWeekMetadataState.ready &&
+      !weekLoading &&
+      !weekError,
   );
 
   const nonEditableSelectedMonth = useMemo(
-    () => selectedWeekMonthKeys.find((monthKey) => {
-      const status = periods[monthKey]?.status;
-      return status && status !== "open";
-    }),
-    [periods, selectedWeekMonthKeys],
+    () =>
+      selectedWeekMetadataState.pendingMonths[0] ||
+      selectedWeekMetadataState.nonOpenMonths[0] ||
+      "",
+    [selectedWeekMetadataState],
   );
+  const pendingSelectedMonth = selectedWeekMetadataState.pendingMonths[0] || "";
+  const missingPeriodSelectedMonth =
+    selectedWeekMetadataState.missingPeriodMonths[0] || "";
+  const closedSelectedMonth = selectedWeekMetadataState.nonOpenMonths[0] || "";
 
   const selectedWeekPeriodLabels = useMemo(
     () =>
       selectedWeekMonthKeys.map((monthKey) => {
-        const status = periods[monthKey]?.status || "open";
-        return `${monthKey}: ${PERIOD_STATUS[status]?.label || "Đang mở"}`;
+        const metadata = weekMonthMetadata[monthKey];
+        if (weekError) return `${monthKey}: Không tải được metadata`;
+        if (
+          !metadata ||
+          !metadata.periodLoaded ||
+          !metadata.readinessLoaded ||
+          !metadata.planLoaded
+        ) {
+          return `${monthKey}: Đang tải metadata`;
+        }
+        if (!metadata.period) return `${monthKey}: Chưa có kỳ điểm danh`;
+        const status = metadata.period.status;
+        return `${monthKey}: ${PERIOD_STATUS[status]?.label || "Trạng thái không xác định"}`;
       }),
-    [periods, selectedWeekMonthKeys],
+    [selectedWeekMonthKeys, weekError, weekMonthMetadata],
+  );
+
+  const editableWeekDates = useMemo(
+    () => getEditableAttendanceDates(weekDates, periods, weekMonthMetadata),
+    [periods, weekDates, weekMonthMetadata],
+  );
+
+  const editableWeekDateKeys = useMemo(
+    () => new Set(editableWeekDates.map(({ dateStr }) => dateStr)),
+    [editableWeekDates],
+  );
+
+  const editableSelectedMonthKeys = useMemo(
+    () => [...new Set(editableWeekDates.map(({ dateStr }) => dateStr.slice(0, 7)))],
+    [editableWeekDates],
   );
 
   const selectedWeekLedgerSessions = useMemo(
@@ -386,6 +378,10 @@ export default function AttendancePage() {
         (monthKey) => classSessionsByMonth[monthKey] || [],
       ),
     [classSessionsByMonth, selectedWeekMonthKeys],
+  );
+  const selectedWeekDateKeys = useMemo(
+    () => new Set(weekDates.map(({ dateStr }) => dateStr)),
+    [weekDates],
   );
 
   const selectedWeekMinDate = weekDates[0]?.dateStr || "";
@@ -416,18 +412,15 @@ export default function AttendancePage() {
   );
 
   const weekSessionLimit = useMemo(() => {
-    if (!selectedWeek || !classSchedule) return sessionsPerWeek;
-    const sessions = Number(classSchedule.sessions_per_week || 0);
-    const eligibleDatesInMonth = weekDates.filter(
-      ({ date, isScheduleDay }) =>
-        date.getFullYear() === activeFeeMonth.getFullYear() &&
-        date.getMonth() === activeFeeMonth.getMonth() &&
-        (!scheduleDayNumbers.length || isScheduleDay)
-    ).length;
-    if (scheduleDayNumbers.length) return eligibleDatesInMonth;
-    if (sessions > 0) return Math.max(1, Math.min(sessions, eligibleDatesInMonth || sessions));
-    return sessionsPerWeek;
-  }, [activeFeeMonth, classSchedule, scheduleDayNumbers, selectedWeek, sessionsPerWeek, weekDates]);
+    if (!selectedWeek) return sessionsPerWeek;
+    const regularSessionDates = new Set(
+      selectedWeekLedgerSessions
+        .filter((session) => session.kind === "regular")
+        .map((session) => String(session.date || session.session_date || "").slice(0, 10))
+        .filter((date) => selectedWeekDateKeys.has(date)),
+    );
+    return regularSessionDates.size;
+  }, [selectedWeek, selectedWeekDateKeys, selectedWeekLedgerSessions, sessionsPerWeek]);
 
   // Calculate fee summary per student for selected week
   const feeSummary = useMemo(() => {
@@ -439,16 +432,29 @@ export default function AttendancePage() {
       let absentNoFee = 0;
       let holidayDays = 0;
       let fee = 0;
+      const chargeableDatesByMonth = {};
 
-      weekDates.forEach(({ dateStr }) => {
+      weekDates.forEach(({ dateStr, sessionKind }) => {
         if (!isStudentEligibleOnDate(student, dateStr)) return;
         const status = studentAtt[dateStr];
         if (status === "present") {
           presentDays++;
-          fee += feePerSessionByMonth[dateStr.slice(0, 7)] || 0;
+          if (sessionKind === "regular") {
+            const monthKey = dateStr.slice(0, 7);
+            chargeableDatesByMonth[monthKey] = [
+              ...(chargeableDatesByMonth[monthKey] || []),
+              dateStr,
+            ];
+          }
         } else if (status === "absent_with_fee") {
           absentWithFee++;
-          fee += feePerSessionByMonth[dateStr.slice(0, 7)] || 0;
+          if (sessionKind === "regular") {
+            const monthKey = dateStr.slice(0, 7);
+            chargeableDatesByMonth[monthKey] = [
+              ...(chargeableDatesByMonth[monthKey] || []),
+              dateStr,
+            ];
+          }
         }
         else if (status === "absent_no_fee") absentNoFee++;
         else if (status === "holiday") holidayDays++;
@@ -456,6 +462,16 @@ export default function AttendancePage() {
 
       // Holiday doesn't count towards fees
       const totalDays = presentDays + absentWithFee;
+      fee = Object.entries(chargeableDatesByMonth).reduce(
+        (sum, [monthKey, chargedSessionDates]) =>
+          sum + calculateTuitionCharge({
+            billingPolicy: classSchedule?.billing_policy,
+            feeAmount: classSchedule?.fee_per_day,
+            regularSessions: classSessionsByMonth[monthKey] || [],
+            chargedSessionDates,
+          }),
+        0,
+      );
       // Check if exceeding the limit
       const isExceeding = totalDays > weekSessionLimit;
       const extraSessions = isExceeding ? totalDays - weekSessionLimit : 0;
@@ -473,7 +489,14 @@ export default function AttendancePage() {
       };
     });
     return summary;
-  }, [students, attendance, weekDates, feePerSessionByMonth, weekSessionLimit]);
+  }, [
+    attendance,
+    classSchedule,
+    classSessionsByMonth,
+    students,
+    weekDates,
+    weekSessionLimit,
+  ]);
 
   const totalFee = useMemo(() => {
     return Object.values(feeSummary).reduce((sum, s) => sum + s.fee, 0);
@@ -500,13 +523,17 @@ export default function AttendancePage() {
       setWeekLoading(false);
       setWeekError(null);
       setLoadedWeekKey("");
+      setWeekMonthMetadata({});
       return;
     }
 
+    weekAttendanceRequestRef.current += 1;
     setSelectedWeek(null);
     setAttendance({});
     setWeekError(null);
     setLoadedWeekKey("");
+    setWeekMonthMetadata({});
+    setMonthPlanEditorMonth("");
     loadClassData(selectedClass, threeMonths);
   }, [selectedClass, visibleMonthKey]);
 
@@ -514,7 +541,7 @@ export default function AttendancePage() {
     if (selectedClass && selectedWeek) {
       loadWeekAttendance(selectedClass, selectedWeek, students);
     }
-  }, [selectedClass, selectedWeek]);
+  }, [selectedClass, selectedWeek, students]);
 
   const loadClasses = async () => {
     const requestId = classListRequestRef.current + 1;
@@ -681,6 +708,7 @@ export default function AttendancePage() {
     setWeekLoading(true);
     setWeekError(null);
     setLoadedWeekKey("");
+    setWeekMonthMetadata({});
 
     const allAttendance = {};
     studentList.forEach((s) => {
@@ -698,16 +726,47 @@ export default function AttendancePage() {
     try {
       const monthResults = await Promise.all(
         months.map(async (month) => {
-          const response = await attendanceService.getMonth(classId, month, {
-            cache: "no-store",
-            skipCache: true,
-          });
+          const [attendanceResponse, periodResponse, planResponse] = await Promise.all([
+            attendanceService.getMonth(classId, month, {
+              cache: "no-store",
+              skipCache: true,
+            }),
+            attendancePeriodsService.getAll({ class_id: classId, month }),
+            classSessionsService.getMonthPlan(classId, month, {
+              cache: "no-store",
+              skipCache: true,
+            }),
+          ]);
+          const periodList = periodResponse.success && Array.isArray(periodResponse.data?.periods)
+            ? periodResponse.data.periods
+            : null;
+          const period = periodList?.[0] || null;
+          const readinessResponse = period
+            ? await attendancePeriodsService.getLockPreflight(period.id, {
+                cache: "no-store",
+                skipCache: true,
+              })
+            : { success: Boolean(periodList), data: null };
+          const failures = [
+            !attendanceResponse.success &&
+              (attendanceResponse.error?.message || "Không thể tải điểm danh"),
+            !periodList &&
+              (periodResponse.error?.message || "Không thể tải kỳ điểm danh"),
+            (!planResponse.success || !Array.isArray(planResponse.data?.sessions)) &&
+              (planResponse.error?.message || "Không thể tải kế hoạch tháng"),
+            (!readinessResponse.success || (period && !readinessResponse.data)) &&
+              (readinessResponse.error?.message || "Không thể tải readiness của kỳ"),
+          ].filter(Boolean);
+
           return {
             month,
-            error: response.success
-              ? null
-              : response.error?.message || "API không trả về dữ liệu điểm danh",
-            attendance: response.success ? response.data?.attendance || [] : [],
+            error: failures.length ? failures.join("; ") : null,
+            attendance: attendanceResponse.success
+              ? attendanceResponse.data?.attendance || []
+              : [],
+            period,
+            readiness: readinessResponse.data,
+            plan: planResponse.success ? planResponse.data : null,
           };
         }),
       );
@@ -717,9 +776,9 @@ export default function AttendancePage() {
       const failedMonths = monthResults.filter((result) => result.error);
       if (failedMonths.length) {
         setWeekError(
-          `Không thể tải điểm danh tháng ${failedMonths
-            .map((item) => item.month)
-            .join(", ")}. Vui lòng thử lại trước khi lưu.`,
+          `Không thể tải đủ metadata tháng ${failedMonths
+            .map((item) => `${item.month} (${item.error})`)
+            .join(", ")}. Các ô điểm danh được khóa; vui lòng thử lại.`,
         );
         return;
       }
@@ -731,8 +790,50 @@ export default function AttendancePage() {
         allAttendance[a.student_id][a.attendance_date] = a.status;
       });
 
+      const metadataMap = Object.fromEntries(
+        monthResults.map(({ month, period, readiness, plan }) => [
+          month,
+          {
+            periodLoaded: true,
+            readinessLoaded: true,
+            planLoaded: true,
+            period,
+            readiness,
+            plan,
+          },
+        ]),
+      );
+      setWeekMonthMetadata(metadataMap);
+      setPeriods((previous) => {
+        const next = { ...previous };
+        monthResults.forEach(({ month, period }) => {
+          if (period) next[month] = period;
+          else delete next[month];
+        });
+        return next;
+      });
+      setClassMonthPlansByMonth((previous) => ({
+        ...previous,
+        ...Object.fromEntries(monthResults.map(({ month, plan }) => [month, plan])),
+      }));
+      setClassSessionsByMonth((previous) => ({
+        ...previous,
+        ...Object.fromEntries(
+          monthResults.map(({ month, plan }) => [
+            month,
+            plan.sessions.map(normalizeTuitionSession),
+          ]),
+        ),
+      }));
       setAttendance(allAttendance);
       setLoadedWeekKey(nextWeekKey);
+    } catch (error) {
+      if (weekAttendanceRequestRef.current === requestId) {
+        setWeekError(
+          error?.message ||
+            "Không thể tải đủ period, readiness và month-plan cho tuần đã chọn.",
+        );
+      }
     } finally {
       if (weekAttendanceRequestRef.current === requestId) {
         setWeekLoading(false);
@@ -741,7 +842,9 @@ export default function AttendancePage() {
   };
 
   const handleWeekClick = (weekStart, weekEnd = weekStart) => {
+    if (attendanceControlsDisabled) return;
     const rowRange = getCalendarRowWeekRange(weekStart, weekEnd);
+    if (!rowRange) return;
     setAttendance({});
     setWeekError(null);
     setLoadedWeekKey("");
@@ -758,8 +861,8 @@ export default function AttendancePage() {
     }
     const monthKey = dateStr.slice(0, 7);
     const period = periods[monthKey];
-    if (period?.status && period.status !== "open") {
-      toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
+    if (!editableWeekDateKeys.has(dateStr) || (period && period.status !== "open")) {
+      toast.error("Chỉ có thể sửa khi metadata đã tải đủ và kỳ điểm danh đang mở");
       return;
     }
 
@@ -788,6 +891,7 @@ export default function AttendancePage() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     if (!selectedWeek) {
       toast.error("Vui lòng chọn tuần để lưu");
       return;
@@ -798,12 +902,7 @@ export default function AttendancePage() {
       return;
     }
 
-    if (nonEditableSelectedMonth) {
-      toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
-      return;
-    }
-
-    const eligibleDates = weekDates.filter(({ dateStr }) =>
+    const eligibleDates = editableWeekDates.filter(({ dateStr }) =>
       students.some((student) => isStudentEligibleOnDate(student, dateStr)),
     );
     if (eligibleDates.length === 0) {
@@ -816,28 +915,51 @@ export default function AttendancePage() {
     const eligibleMonthKeys = new Set(
       eligibleDates.map(({ dateStr }) => dateStr.slice(0, 7)),
     );
+    const saveContext = {
+      classId: selectedClass,
+      weekKey: selectedWeekKey,
+      week: selectedWeek,
+      monthsWindow: threeMonths,
+    };
     setSaving(true);
 
     try {
-      for (const monthKey of selectedWeekMonthKeys) {
+      const savePeriods = { ...periods };
+      for (const monthKey of editableSelectedMonthKeys) {
         if (!eligibleMonthKeys.has(monthKey)) continue;
-        if (periods[monthKey]) continue;
-        const createRes = await attendancePeriodsService.create({
-          class_id: selectedClass,
-          month: monthKey,
-        });
-        if (!createRes.success) {
-          toast.error(createRes.error?.message || "Không thể tạo kỳ điểm danh");
-          return;
+        if (!savePeriods[monthKey]) {
+          const createResponse = await attendancePeriodsService.create({
+            class_id: saveContext.classId,
+            month: monthKey,
+          });
+          const createdPeriod = createResponse.success
+            ? createResponse.data?.period
+            : null;
+          if (!createdPeriod) {
+            toast.error(
+              createResponse.error?.message ||
+                `Không thể tạo kỳ điểm danh tháng ${monthKey}`,
+            );
+            return;
+          }
+          savePeriods[monthKey] = createdPeriod;
         }
-        if (
-          createRes.data?.period?.status &&
-          createRes.data.period.status !== "open"
-        ) {
-          toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
+        if (savePeriods[monthKey]?.status !== "open") {
+          toast.error("Metadata kỳ điểm danh đã thay đổi. Hãy tải lại tuần trước khi lưu.");
           return;
         }
       }
+
+      if (!isAttendanceContextCurrent(saveContext)) return;
+      setPeriods((previous) => ({ ...previous, ...savePeriods }));
+      setWeekMonthMetadata((previous) => {
+        const next = { ...previous };
+        for (const [monthKey, period] of Object.entries(savePeriods)) {
+          if (!next[monthKey]) continue;
+          next[monthKey] = { ...next[monthKey], period };
+        }
+        return next;
+      });
 
       const records = [];
       const allDates = eligibleDates.map((w) => w.dateStr);
@@ -845,7 +967,7 @@ export default function AttendancePage() {
 
       students.forEach((student) => {
         const studentAtt = attendance[student.id] || {};
-        weekDates.forEach(({ dateStr, isMakeUpDate }) => {
+        editableWeekDates.forEach(({ dateStr, isMakeUpDate }) => {
           if (!isStudentEligibleOnDate(student, dateStr)) return;
           replacementScope.push({
             student_id: student.id,
@@ -874,8 +996,17 @@ export default function AttendancePage() {
 
       if (response.success) {
         toast.success(`Đã lưu ${records.length} bản ghi điểm danh`);
-        await loadClassData();
-        await loadWeekAttendance();
+        if (!isAttendanceContextCurrent(saveContext)) return;
+        const refreshedClass = await loadClassData(
+          saveContext.classId,
+          saveContext.monthsWindow,
+        );
+        if (!refreshedClass || !isAttendanceContextCurrent(saveContext)) return;
+        await loadWeekAttendance(
+          saveContext.classId,
+          saveContext.week,
+          refreshedClass.students || [],
+        );
       } else {
         toast.error(response.error?.message || "Không thể lưu điểm danh");
       }
@@ -1060,6 +1191,7 @@ export default function AttendancePage() {
               <SelectField
                 label="Chọn lớp"
                 aria-label="Chon lop"
+                disabled={attendanceControlsDisabled}
                 value={selectedClass}
                 onChange={(e) => {
                   setSelectedClass(e.target.value);
@@ -1109,13 +1241,13 @@ export default function AttendancePage() {
 
       {initialClassLoading ? (
         <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
-          <div className="card-body text-center py-12">
+          <div className="card-body text-center py-12" role="status" aria-live="polite" aria-busy="true">
             <div className="spinner w-8 h-8 mx-auto mb-4"></div>
             <p className="text-gray-500">Đang tải...</p>
           </div>
         </Motion.div>
       ) : loadError && selectedClass ? (
-        <Motion.div variants={itemVariants} className="rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
+        <Motion.div variants={itemVariants} className="rounded-3xl border border-rose-100 bg-rose-50 p-5 shadow-sm" role="alert">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-black text-rose-800">Không thể tải dữ liệu điểm danh</p>
@@ -1151,19 +1283,19 @@ export default function AttendancePage() {
                   📅 Lịch điểm danh - Chọn tuần
                 </h3>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => shiftVisibleMonths(-3)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                  <button type="button" onClick={() => shiftVisibleMonths(-3)} disabled={attendanceControlsDisabled} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
                     ← 3 tháng
                   </button>
-                  <button type="button" onClick={() => shiftVisibleMonths(-1)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                  <button type="button" onClick={() => shiftVisibleMonths(-1)} disabled={attendanceControlsDisabled} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
                     Tháng trước
                   </button>
-                  <button type="button" onClick={resetVisibleMonths} className="rounded-xl bg-primary-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 hover:bg-primary-700">
+                  <button type="button" onClick={resetVisibleMonths} disabled={attendanceControlsDisabled} className="rounded-xl bg-primary-600 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-primary-600/20 transition hover:-translate-y-0.5 hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
                     Hôm nay
                   </button>
-                  <button type="button" onClick={() => shiftVisibleMonths(1)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                  <button type="button" onClick={() => shiftVisibleMonths(1)} disabled={attendanceControlsDisabled} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
                     Tháng sau
                   </button>
-                  <button type="button" onClick={() => shiftVisibleMonths(3)} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700">
+                  <button type="button" onClick={() => shiftVisibleMonths(3)} disabled={attendanceControlsDisabled} className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
                     3 tháng →
                   </button>
                 </div>
@@ -1179,47 +1311,73 @@ export default function AttendancePage() {
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
                 {threeMonths.map(({ year, month, key }) => {
-                  const calendar = generateMonthCalendar(
+                  const calendar = buildMondayCalendarWeeks(
                     year,
                     month,
                     scheduleDayNumbers,
-                  );
+                    today,
+                  ).map((week) => week.map((day) => {
+                    const classification = classifyAttendanceDate({
+                      date: day.dateStr,
+                      monthPlan: classMonthPlansByMonth[day.dateStr.slice(0, 7)],
+                      scheduleDays: scheduleDayNumbers,
+                    });
+                    return {
+                      ...day,
+                      isScheduleDay: classification.kind === "regular",
+                    };
+                  }));
                   const period = periods[key];
 
                   return (
                     <div key={key} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="mb-3 flex items-start justify-between gap-2">
                         <h4 className="font-medium text-gray-800">
                           {formatMonthName(year, month)}
                         </h4>
-                        {period && (
-                          <span
-                            className={`px-2 py-0.5 text-xs rounded-full ${
-                              PERIOD_STATUS[period.status]?.color
-                            }`}
-                          >
-                            {PERIOD_STATUS[period.status]?.label}
-                          </span>
-                        )}
+                        <div className="flex flex-col items-end gap-1.5">
+                          {period && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs ${
+                                PERIOD_STATUS[period.status]?.color
+                              }`}
+                            >
+                              {PERIOD_STATUS[period.status]?.label}
+                            </span>
+                          )}
+                          {canManageMonthPlan && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setMonthPlanEditorMonth(key);
+                              }}
+                              disabled={attendanceControlsDisabled}
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              aria-label={`Chỉnh kế hoạch tháng ${key}`}
+                            >
+                              <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
+                              Kế hoạch
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <table className="w-full text-center text-sm">
                         <thead>
                           <tr className="text-gray-500 text-xs">
-                            <th className="py-1">CN</th>
                             <th className="py-1">T2</th>
                             <th className="py-1">T3</th>
                             <th className="py-1">T4</th>
                             <th className="py-1">T5</th>
                             <th className="py-1">T6</th>
                             <th className="py-1">T7</th>
+                            <th className="py-1">CN</th>
                           </tr>
                         </thead>
                         <tbody>
                           {calendar.map((week, wi) => {
-                            const weekStart = week.find((d) => d)?.date;
-                            const weekEnd = [...week]
-                              .reverse()
-                              .find((d) => d)?.date;
+                            const weekStart = week[0]?.date;
+                            const weekEnd = week[6]?.date;
                             const weekRange = weekStart && weekEnd
                               ? getCalendarRowWeekRange(weekStart, weekEnd)
                               : null;
@@ -1237,16 +1395,18 @@ export default function AttendancePage() {
                                   handleWeekClick(weekStart, weekEnd)
                                 }
                                 onKeyDown={(event) => {
+                                  if (event.target !== event.currentTarget) return;
                                   if ((event.key === "Enter" || event.key === " ") && weekStart && weekEnd) {
                                     event.preventDefault();
                                     handleWeekClick(weekStart, weekEnd);
                                   }
                                 }}
-                                tabIndex={0}
+                                tabIndex={attendanceControlsDisabled ? -1 : 0}
                                 aria-label={`Chọn tuần ${formatWeekRangeLabel(weekRange)}`}
                                 aria-selected={Boolean(isSelected)}
+                                aria-disabled={attendanceControlsDisabled}
                                 data-testid={`attendance-week-${key}-${wi + 1}`}
-                                className={`cursor-pointer hover:bg-gray-50 transition-colors ${
+                                className={`${attendanceControlsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-gray-50"} transition-colors ${
                                   isSelected ? "bg-primary-100" : ""
                                 }`}
                               >
@@ -1279,7 +1439,9 @@ export default function AttendancePage() {
                                           ${isSelected ? "bg-primary-200" : ""}
                                         `}
                                           >
-                                            {d.day}
+                                            <span className={d.isCurrentMonth ? "" : "opacity-45"}>
+                                              {d.day}
+                                            </span>
                                           </div>
                                           {/* Attendance marker dot */}
                                           {hasAttendance && (
@@ -1318,7 +1480,7 @@ export default function AttendancePage() {
                               e.stopPropagation();
                               handleSubmit(key);
                             }}
-                            disabled={workflow.isBusy}
+                            disabled={workflow.isBusy || attendanceControlsDisabled}
                             aria-busy={workflow.activeAction === `submit:${period?.id || key}` || undefined}
                             className="w-full py-2 text-xs bg-green-500 text-white rounded hover:bg-green-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
                           >
@@ -1336,7 +1498,7 @@ export default function AttendancePage() {
                                 e.stopPropagation();
                                 handleApprove(key);
                               }}
-                              disabled={workflow.isBusy}
+                              disabled={workflow.isBusy || attendanceControlsDisabled}
                               aria-busy={workflow.activeAction === `approve:${period.id}` || undefined}
                               className="w-full py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -1349,7 +1511,7 @@ export default function AttendancePage() {
                                 e.stopPropagation();
                                 setCorrectionTarget(period);
                               }}
-                              disabled={workflow.isBusy}
+                              disabled={workflow.isBusy || attendanceControlsDisabled}
                               className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Mở lại để chỉnh sửa
@@ -1365,7 +1527,7 @@ export default function AttendancePage() {
                                 e.stopPropagation();
                                 workflow.openLockPreflight(period);
                               }}
-                              disabled={workflow.isBusy}
+                              disabled={workflow.isBusy || attendanceControlsDisabled}
                               aria-busy={workflow.activeAction === `preflight:${period.id}` || undefined}
                               className="w-full py-2 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 font-medium disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -1378,7 +1540,7 @@ export default function AttendancePage() {
                                 e.stopPropagation();
                                 setCorrectionTarget(period);
                               }}
-                              disabled={workflow.isBusy}
+                              disabled={workflow.isBusy || attendanceControlsDisabled}
                               className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               Mở lại để chỉnh sửa
@@ -1398,7 +1560,7 @@ export default function AttendancePage() {
                                   e.stopPropagation();
                                   setCorrectionTarget(period);
                                 }}
-                                disabled={workflow.isBusy}
+                                disabled={workflow.isBusy || attendanceControlsDisabled}
                                 className="w-full py-1.5 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 Mở lại để chỉnh sửa
@@ -1424,6 +1586,14 @@ export default function AttendancePage() {
                 ),
             )}
             onReopen={() => setCorrectionTarget(workflow.readinessIssue?.period)}
+            onEditMonthPlan={canManageMonthPlan ? () =>
+              setMonthPlanEditorMonth(
+                workflow.readinessIssue?.month ||
+                  workflow.readinessIssue?.period?.period_month ||
+                  workflow.readinessIssue?.readiness?.month ||
+                  "",
+              ) : undefined
+            }
             onDismiss={workflow.dismissReadinessIssue}
           />
 
@@ -1464,7 +1634,7 @@ export default function AttendancePage() {
                       onClick={handleSave}
                       loading={saving}
                       loadingLabel="Đang lưu điểm danh..."
-                      disabled={!isWeekReady || Boolean(nonEditableSelectedMonth) || students.length === 0}
+                       disabled={attendanceControlsDisabled || !isWeekReady || editableWeekDates.length === 0 || students.length === 0}
                       className="btn-primary"
                     >
                       Luu diem danh
@@ -1474,10 +1644,10 @@ export default function AttendancePage() {
 
                 {weekLoading && (
                   <LongOperationStatus
-                    title="Đang tải điểm danh của tuần"
-                    message="Đang lấy dữ liệu theo từng tháng trong tuần được chọn. Nút lưu và các ô điểm danh tạm khóa để tránh ghi đè dữ liệu cũ."
-                    steps={selectedWeekMonthKeys.length > 1 ? ["Tai thang dau", "Tai thang tiep noi", "San sang sua"] : ["Tai diem danh", "Kiem tra ky", "San sang sua"]}
-                    activeStep={selectedWeekMonthKeys.length > 1 ? 1 : 0}
+                    title="Đang tải metadata của tuần"
+                    message="Đang tải điểm danh, kỳ, readiness và kế hoạch cho mọi tháng trong tuần. Nút lưu và các ô điểm danh tạm khóa đến khi toàn bộ metadata sẵn sàng."
+                    steps={["Tải kỳ điểm danh", "Kiểm tra readiness và kế hoạch", "Sẵn sàng sửa"]}
+                    activeStep={1}
                   />
                 )}
 
@@ -1498,8 +1668,18 @@ export default function AttendancePage() {
                       <span>
                         Trang thai ky: {selectedWeekPeriodLabels.join(" | ")}
                       </span>
-                      <span className={nonEditableSelectedMonth ? "text-rose-700" : "text-emerald-700"}>
-                        {nonEditableSelectedMonth ? `Tháng ${nonEditableSelectedMonth} không ở trạng thái mở - chỉ xem` : isWeekReady ? "Đã tải xong - có thể thao tác" : "Đang chờ dữ liệu tuần"}
+                      <span className={editableWeekDates.length ? "text-emerald-700" : "text-rose-700"}>
+                        {pendingSelectedMonth
+                          ? `Đang chờ metadata tháng ${pendingSelectedMonth} - toàn bộ tuần tạm khóa`
+                          : missingPeriodSelectedMonth
+                            ? `Tháng ${missingPeriodSelectedMonth} chưa có kỳ điểm danh - hệ thống sẽ tạo kỳ mở khi lưu`
+                            : closedSelectedMonth && editableWeekDates.length
+                              ? `Tháng ${closedSelectedMonth} chỉ xem; ngày thuộc tháng mở vẫn có thể lưu`
+                              : closedSelectedMonth
+                                ? `Tháng ${closedSelectedMonth} không ở trạng thái mở - chỉ xem`
+                                : isWeekReady
+                                  ? "Đã tải đủ metadata - có thể thao tác"
+                                  : "Đang chờ dữ liệu tuần"}
                       </span>
                     </div>
                   </div>
@@ -1556,10 +1736,7 @@ export default function AttendancePage() {
                             const anyMarked = eligibleStudents.some(
                               (s) => attendance[s.id]?.[dateStr],
                             );
-                            const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
-                            const isDateReadOnly = Boolean(
-                              datePeriodStatus && datePeriodStatus !== "open",
-                            );
+                            const isDateReadOnly = !editableWeekDateKeys.has(dateStr);
                             return (
                               <th
                                 key={dateStr}
@@ -1581,7 +1758,7 @@ export default function AttendancePage() {
                                         return;
                                       }
                                       if (isDateReadOnly) {
-                                        toast.error("Chỉ có thể sửa kỳ điểm danh đang mở");
+                                        toast.error("Metadata chưa sẵn sàng hoặc kỳ điểm danh chưa mở");
                                         return;
                                       }
                                       // Toggle all students for this date
@@ -1601,8 +1778,9 @@ export default function AttendancePage() {
                                         return updated;
                                       });
                                     }}
-                                    disabled={
-                                      !isWeekReady ||
+                                     disabled={
+                                       attendanceControlsDisabled ||
+                                       !isWeekReady ||
                                       isDateReadOnly ||
                                       eligibleStudents.length === 0
                                     }
@@ -1671,12 +1849,13 @@ export default function AttendancePage() {
                                   attendance[student.id]?.[dateStr];
                                 const isBeforeEnrollment =
                                   !isStudentEligibleOnDate(student, dateStr);
-                                const datePeriodStatus = periods[dateStr.slice(0, 7)]?.status;
-                                const isDateReadOnly = Boolean(
-                                  datePeriodStatus && datePeriodStatus !== "open",
-                                );
-                                const isCellDisabled =
-                                  !isWeekReady || isDateReadOnly || isBeforeEnrollment;
+                                const isDateReadOnly = !editableWeekDateKeys.has(dateStr);
+                                 const isCellDisabled =
+                                   attendanceControlsDisabled ||
+                                   !isWeekReady || isDateReadOnly || isBeforeEnrollment;
+                                const attendanceStatusLabel = isBeforeEnrollment
+                                  ? "Chưa ghi danh"
+                                  : STATUS_LABELS[status] || "Chưa điểm danh";
                                 return (
                                   <td
                                     key={dateStr}
@@ -1687,6 +1866,8 @@ export default function AttendancePage() {
                                         handleCellClick(student.id, dateStr)
                                       }
                                       disabled={isCellDisabled}
+                                      aria-label={`Điểm danh ${student.full_name}, ngày ${dateStr}, trạng thái ${attendanceStatusLabel}`}
+                                      aria-pressed={Boolean(status)}
                                       className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-all cursor-pointer
                                         ${
                                           isBeforeEnrollment
@@ -1705,6 +1886,8 @@ export default function AttendancePage() {
                                       title={
                                         isBeforeEnrollment
                                           ? "Chưa ghi danh"
+                                          : isDateReadOnly
+                                            ? "Metadata chưa sẵn sàng hoặc kỳ điểm danh chưa mở"
                                           : status
                                           ? STATUS_LABELS[status]
                                           : "Click để điểm danh"
@@ -1735,7 +1918,7 @@ export default function AttendancePage() {
                                     }
                                   >
                                     {summary.totalDays || 0}/
-                                    {summary.sessionsLimit || sessionsPerWeek}
+                                    {summary.sessionsLimit ?? weekSessionLimit}
                                   </span>
                                   {summary.isExceeding && (
                                     <span className="text-[10px] text-orange-600 bg-orange-200 px-1 rounded mt-0.5">
@@ -1763,7 +1946,7 @@ export default function AttendancePage() {
                             colSpan={weekDates.length}
                             className="text-center text-sm"
                           >
-                            Quy định: {sessionsPerWeek} buổi/tuần
+                            Buổi chính khóa tuần: {weekSessionLimit}
                           </td>
                           <td className="px-4 py-3 text-center bg-blue-100">
                             {Object.values(feeSummary).reduce(
@@ -1790,6 +1973,28 @@ export default function AttendancePage() {
         onRetry={workflow.retryLockPreflight}
         onConfirmLock={workflow.confirmLock}
         onReopenForCorrection={workflow.reopenForCorrection}
+        onEditMonthPlan={canManageMonthPlan ? () => {
+          const month = workflow.lockDialog.target?.period_month;
+          workflow.closeLockPreflight();
+          setMonthPlanEditorMonth(month || "");
+        } : undefined}
+      />
+      <AttendanceMonthPlanEditor
+        open={Boolean(canManageMonthPlan && monthPlanEditorMonth)}
+        classId={selectedClass}
+        month={monthPlanEditorMonth}
+        classSchedule={classSchedule}
+        onClose={() => setMonthPlanEditorMonth("")}
+        onSaved={async () => {
+          const refreshContext = {
+            classId: selectedClass,
+            weekKey: selectedWeekKey,
+            monthsWindow: threeMonths,
+          };
+          workflow.dismissReadinessIssue();
+          if (!isAttendanceContextCurrent(refreshContext)) return;
+          await loadClassData(refreshContext.classId, refreshContext.monthsWindow);
+        }}
       />
       <AttendanceCorrectionModal
         period={correctionTarget}

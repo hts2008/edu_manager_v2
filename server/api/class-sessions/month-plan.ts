@@ -10,6 +10,10 @@ import {
 } from "../../../lib/class-month-plan.js";
 import { normalizeScheduleDays } from "../../../lib/tuition.js";
 import {
+  buildRegularPlanCoverage,
+  resolveAuthoritativeRegularPlan,
+} from "../../../lib/attendance-period-readiness.js";
+import {
   buildScheduleSnapshot,
   loadPersistedScheduleSnapshot,
   scheduleSnapshotFromRevision,
@@ -47,16 +51,94 @@ function requestIdentity(req: AuthedRequest) {
   return { classId, month };
 }
 
+export function readOnlyPlanState(
+  aggregateState: "open" | "frozen" | null | undefined,
+  attendancePeriodStatus: "open" | "submitted" | "approved" | "locked" | null | undefined,
+) {
+  if (aggregateState) return aggregateState;
+  return attendancePeriodStatus && attendancePeriodStatus !== "open" ? "frozen" : "open";
+}
+
 function expectedRevision(value: unknown) {
   const revision = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
-  if (!Number.isInteger(revision) || Number(revision) < 1) {
+  if (!Number.isInteger(revision) || Number(revision) < 0) {
     throw new ClassSessionError(
       "VERSION_REQUIRED",
-      "expected_version must be a positive integer",
+      "expected_version must be a non-negative integer",
       400,
     );
   }
   return Number(revision);
+}
+
+export function resolveFixedMonthPlanWeekdays(
+  requestedWeekdays: unknown,
+  persistedWeekdays: unknown,
+) {
+  const source = requestedWeekdays === undefined
+    ? normalizeScheduleDays(persistedWeekdays)
+    : requestedWeekdays;
+  if (
+    !Array.isArray(source)
+    || source.length === 0
+    || source.some((day) => !Number.isInteger(day) || Number(day) < 0 || Number(day) > 6)
+  ) {
+    throw new ClassSessionError(
+      "INVALID_WEEKDAYS",
+      "weekdays must contain unique integers from 0 (Sunday) to 6 (Saturday)",
+      400,
+    );
+  }
+  return [...new Set(source as number[])].sort((a, b) => a - b);
+}
+
+export function parsePatchSessionAdditions(value: unknown): Array<Record<string, unknown>> {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value)
+    || value.some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry))
+  ) {
+    throw new ClassSessionError(
+      "INVALID_ADD_SESSIONS",
+      "add_sessions must be an array of session objects",
+      400,
+    );
+  }
+  return value as Array<Record<string, unknown>>;
+}
+
+export function requiredChangeReason(value: unknown) {
+  const reason = getRequiredString(value, "reason").trim();
+  if (!reason) throw new ApiError("MISSING_FIELD", "reason is required", 400);
+  return reason;
+}
+
+export function resolveMutationExpectedRevision(
+  requestedRevision: number,
+  ensured: { created: boolean; aggregate: { revision: number } },
+) {
+  if (requestedRevision !== 0) return requestedRevision;
+  if (ensured.created) return ensured.aggregate.revision;
+  throw new ClassSessionError(
+    "CLASS_MONTH_PLAN_REVISION_CONFLICT",
+    "Class month plan changed; reload it before retrying",
+    409,
+    { expected_revision: 0, current_revision: ensured.aggregate.revision },
+  );
+}
+
+export function synchronizeFlexiblePlanSnapshot(
+  snapshot: Record<string, unknown>,
+  scheduleSnapshot: ScheduleSnapshot,
+  rows: Array<{ kind: string; sessionDate: Date | string }>,
+) {
+  if (scheduleSnapshot.schedule_days.length > 0) return [];
+  const regularDates = rows
+    .filter((row) => row.kind === "regular")
+    .map((row) => dateOnly(row.sessionDate));
+  scheduleSnapshot.expected_regular_sessions = regularDates.length;
+  Object.assign(snapshot, scheduleSnapshot, { requested_dates: regularDates });
+  return regularDates;
 }
 
 function maxSessionVersion(rows: Array<{ version: number }>) {
@@ -102,7 +184,7 @@ async function ensurePlanAggregate(
     where: { classId_periodMonth: { classId, periodMonth: month } },
     select: { status: true },
   });
-  return ensureClassMonthPlan(db, {
+  const aggregate = await ensureClassMonthPlan(db, {
     classId,
     billingMonth: month,
     attendancePeriodStatus: (period?.status ?? "open") as AttendancePeriodPlanStatus,
@@ -112,52 +194,74 @@ async function ensurePlanAggregate(
       ...(persistedScheduleSnapshot ?? scheduleSnapshot),
     },
   });
+  return { aggregate, created: !existingPlan };
 }
 
 async function getMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const { classId, month } = requestIdentity(req);
-  const { aggregate, expectedRegularSessions, rows } = await withClassMonthPlanRosterWrite(
-    prisma,
-    classId,
-    month,
-    async (tx) => {
-      const classData = await tx.class.findUnique({
-        where: { id: classId },
-        select: { id: true, scheduleDays: true, sessionsPerWeek: true },
-      });
-      if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
-      const currentScheduleSnapshot = buildScheduleSnapshot(classData, month);
-      const aggregate = await ensurePlanAggregate(
-        tx,
-        classId,
-        month,
-        currentScheduleSnapshot,
-        req.user.userId,
-      );
-      const persistedScheduleSnapshot = await loadPersistedScheduleSnapshot(tx, aggregate);
-      // Legacy plans have no schedule payload, so only they use the current schedule fallback.
-      const expectedRegularSessions = (
-        persistedScheduleSnapshot ?? currentScheduleSnapshot
-      ).expected_regular_sessions;
-      const rows = await loadPlan(tx, classId, month);
-      assertPlanSessionMonthInvariant(rows, classId, month);
-      return { aggregate, expectedRegularSessions, rows };
-    },
-  );
-  return successResponse(res, {
-    class_id: classId,
-    month,
-    state: aggregate.state,
-    version: aggregate.revision,
-    expected_regular_sessions: expectedRegularSessions,
-    sessions: rows.map(classSessionToDto),
+  const classData = await prisma.class.findUnique({
+    where: { id: classId },
+    select: { id: true },
   });
+  if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const aggregate = await prisma.classMonthPlan.findUnique({
+      where: { classId_billingMonth: { classId, billingMonth: month } },
+      select: { id: true, state: true, revision: true },
+    });
+    const period = aggregate
+      ? null
+      : await prisma.attendancePeriod.findUnique({
+          where: { classId_periodMonth: { classId, periodMonth: month } },
+          select: { id: true, status: true },
+        });
+    const rows = await loadPlan(prisma, classId, month);
+    assertPlanSessionMonthInvariant(rows, classId, month);
+    const coverage = await resolveAuthoritativeRegularPlan(prisma, {
+      month,
+      sessions: rows,
+      plan: aggregate,
+    });
+    const verifiedAggregate = await prisma.classMonthPlan.findUnique({
+      where: { classId_billingMonth: { classId, billingMonth: month } },
+      select: { id: true, state: true, revision: true },
+    });
+    const verifiedPeriod = aggregate
+      ? null
+      : await prisma.attendancePeriod.findUnique({
+          where: { classId_periodMonth: { classId, periodMonth: month } },
+          select: { id: true, status: true },
+        });
+    const sameRevision = (aggregate?.id ?? null) === (verifiedAggregate?.id ?? null)
+      && (aggregate?.revision ?? 0) === (verifiedAggregate?.revision ?? 0)
+      && (aggregate?.state ?? "open") === (verifiedAggregate?.state ?? "open");
+    const samePeriod = (period?.id ?? null) === (verifiedPeriod?.id ?? null)
+      && (period?.status ?? null) === (verifiedPeriod?.status ?? null);
+    if (!sameRevision || !samePeriod) continue;
+    return successResponse(res, {
+      class_id: classId,
+      month,
+      state: readOnlyPlanState(aggregate?.state, period?.status),
+      attendance_period_status: period?.status ?? null,
+      version: aggregate?.revision ?? 0,
+      expected_regular_sessions: coverage.expected,
+      ...coverage,
+      sessions: rows.map(classSessionToDto),
+    });
+  }
+  throw new ClassSessionError(
+    "CLASS_MONTH_PLAN_REVISION_CONFLICT",
+    "Class month plan changed while loading; retry the request",
+    409,
+  );
 }
 
 async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const { classId, month } = requestIdentity(req);
   const body = req.body || {};
   const aggregateVersion = expectedRevision(body.expected_version);
+  const changeReason = requiredChangeReason(body.reason);
   const { aggregate, plan, rows, scheduleSnapshot } = await withClassMonthPlanRosterWrite(
     prisma,
     classId,
@@ -168,33 +272,35 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
         select: { id: true, scheduleDays: true, sessionsPerWeek: true },
       });
       if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
+      const fixedWeekdays = body.schedule_mode === "fixed_weekdays"
+        ? resolveFixedMonthPlanWeekdays(body.weekdays, classData.scheduleDays)
+        : [];
       const plan = buildMonthPlan({
         class_id: classId,
         month,
         schedule_mode: body.schedule_mode,
-        weekdays: normalizeScheduleDays(body.weekdays ?? classData.scheduleDays),
+        weekdays: fixedWeekdays,
         dates: body.dates,
         sessions_per_week: body.sessions_per_week ?? classData.sessionsPerWeek,
       });
       const replacementScheduleSnapshot = buildScheduleSnapshot(
         {
-          scheduleDays:
-            body.schedule_mode === "fixed_weekdays"
-              ? body.weekdays ?? classData.scheduleDays
-              : [],
+          scheduleDays: [],
           sessionsPerWeek: body.sessions_per_week ?? classData.sessionsPerWeek,
         },
         month,
         plan.dates.length,
       );
+      replacementScheduleSnapshot.schedule_days = fixedWeekdays;
       const currentScheduleSnapshot = buildScheduleSnapshot(classData, month);
-      const existingAggregate = await ensurePlanAggregate(
+      const ensured = await ensurePlanAggregate(
         tx,
         classId,
         month,
         currentScheduleSnapshot,
         req.user.userId,
       );
+      const existingAggregate = ensured.aggregate;
       const snapshot: Record<string, unknown> = {
         operation: "replace",
         requested_dates: plan.dates,
@@ -203,8 +309,9 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
       let rows: any[] = [];
       const aggregate = await claimClassMonthPlan(tx, {
         planId: existingAggregate.id,
-        expectedRevision: aggregateVersion,
+        expectedRevision: resolveMutationExpectedRevision(aggregateVersion, ensured),
         actorId: req.user.userId,
+        reason: changeReason,
         eventType: "month_plan_replace",
         targetState: "open",
         snapshot,
@@ -287,6 +394,13 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
     state: aggregate.state,
     version: aggregate.revision,
     expected_regular_sessions: scheduleSnapshot.expected_regular_sessions,
+    ...buildRegularPlanCoverage({
+      month,
+      sessions: rows,
+      expectedRegularSessions: scheduleSnapshot.expected_regular_sessions,
+      expectedSource: "published_plan_snapshot",
+      expectedDates: plan.dates,
+    }),
     warnings: plan.warnings,
     sessions: rows.map(classSessionToDto),
   });
@@ -296,7 +410,8 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const { classId, month } = requestIdentity(req);
   const body = req.body || {};
   const aggregateVersion = expectedRevision(body.expected_version);
-  const additions = Array.isArray(body.add_sessions) ? body.add_sessions : [];
+  const changeReason = requiredChangeReason(body.reason);
+  const additions = parsePatchSessionAdditions(body.add_sessions);
   const removeIds: string[] = Array.isArray(body.remove_session_ids)
     ? Array.from(new Set<string>((body.remove_session_ids as unknown[]).filter((id): id is string => typeof id === "string")))
     : [];
@@ -320,21 +435,23 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
       });
       if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
       const currentScheduleSnapshot = buildScheduleSnapshot(classData, month);
-      const existingAggregate = await ensurePlanAggregate(
+      const ensured = await ensurePlanAggregate(
         tx,
         classId,
         month,
         currentScheduleSnapshot,
         req.user.userId,
       );
+      const existingAggregate = ensured.aggregate;
       const scheduleSnapshot =
         await loadPersistedScheduleSnapshot(tx, existingAggregate) ?? currentScheduleSnapshot;
       Object.assign(snapshot, scheduleSnapshot);
       let rows: any[] = [];
       const aggregate = await claimClassMonthPlan(tx, {
         planId: existingAggregate.id,
-        expectedRevision: aggregateVersion,
+        expectedRevision: resolveMutationExpectedRevision(aggregateVersion, ensured),
         actorId: req.user.userId,
+        reason: changeReason,
         eventType: "month_plan_patch",
         targetState: "open",
         snapshot,
@@ -398,6 +515,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     });
     rows = await loadPlan(claimTx, classId, month);
     assertPlanSessionMonthInvariant(rows, classId, month);
+    synchronizeFlexiblePlanSnapshot(snapshot, scheduleSnapshot, rows);
     snapshot.sessions = rows.map(classSessionToDto);
       });
       return { aggregate, rows, scheduleSnapshot };
@@ -410,6 +528,15 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     state: aggregate.state,
     version: aggregate.revision,
     expected_regular_sessions: scheduleSnapshot.expected_regular_sessions,
+    ...buildRegularPlanCoverage({
+      month,
+      sessions: rows,
+      expectedRegularSessions: scheduleSnapshot.expected_regular_sessions,
+      expectedSource: "published_plan_snapshot",
+      expectedDates: Array.isArray(snapshot.requested_dates)
+        ? snapshot.requested_dates as string[]
+        : undefined,
+    }),
     sessions: rows.map(classSessionToDto),
   });
 }
@@ -417,6 +544,9 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
 async function handler(req: AuthedRequest, res: VercelResponse) {
   try {
     if (req.method === "GET") return await getMonthPlan(req, res);
+    if ((req.method === "PUT" || req.method === "PATCH") && req.user.role !== "admin") {
+      throw new ApiError("FORBIDDEN", "Forbidden", 403);
+    }
     if (req.method === "PUT") return await replaceMonthPlan(req, res);
     if (req.method === "PATCH") return await patchMonthPlan(req, res);
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only GET, PUT, and PATCH are allowed", 405);

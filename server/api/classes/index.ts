@@ -13,6 +13,7 @@ import {
   validateBody,
 } from "../../../lib/validation.js";
 import {
+  acquireStudentEnrollmentAdvisoryLocks,
   assertClassDefinitionWritable,
   assertEnrollmentMutationWritable,
   deactivateEnrollmentPeriods,
@@ -229,6 +230,7 @@ export async function enrollStudentsInClass(
       400,
     );
   }
+  await acquireStudentEnrollmentAdvisoryLocks(tx, uniqueIds);
   await assertEnrollmentMutationWritable(tx, [classId], effectiveAt);
 
   const classData = await tx.class.findUnique({

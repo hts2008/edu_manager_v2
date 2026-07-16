@@ -20,6 +20,7 @@ function source(path: string) {
 const attendancePage = source("frontend/src/pages/AttendancePage.jsx");
 const attendanceApi = source("server/api/attendance/index.ts");
 const bulkAttendanceApi = source("server/api/attendance/bulk.ts");
+const calculateFeeApi = source("server/api/attendance/calculate-fee.ts");
 const monthPlanApi = source("server/api/class-sessions/month-plan.ts");
 const scheduleSnapshotHelper = source("lib/class-month-schedule-snapshot.ts");
 const attendancePeriodApi = source("server/api/attendance-periods/[id]/index.ts");
@@ -72,6 +73,12 @@ describe("attendance workflow regressions", () => {
     assert.match(attendancePage, /Dang tai danh sach lop|Đang tải danh sách lớp/);
     assert.match(attendancePage, /state=\{classFilterState\}/);
     assert.match(attendancePage, /onRetry=\{loadClasses\}/);
+  });
+
+  it("calculates attendance fees from the authoritative month ledger", () => {
+    assert.match(calculateFeeApi, /calculateStudentMonthlyFee/);
+    assert.doesNotMatch(calculateFeeApi, /calculateTuitionForClass/);
+    assert.doesNotMatch(calculateFeeApi, /sessionsPerWeek/);
   });
 
   it("keeps monthly-prorated denominators calendar-based while a month ledger is empty or partial", () => {
@@ -202,11 +209,45 @@ describe("attendance workflow regressions", () => {
     assert.match(scheduleSnapshotHelper, /classMonthPlanRevision\.findUnique/);
     assert.match(scheduleSnapshotHelper, /expected_regular_sessions/);
     assert.match(monthPlanApi, /class-month-schedule-snapshot/);
-    assert.match(monthPlanApi, /legacy[\s\S]*current schedule/i);
+    assert.match(monthPlanApi, /resolveAuthoritativeRegularPlan/);
+    assert.match(monthPlanApi, /version:\s*aggregate\?\.revision\s*\?\?\s*0/);
 
     assert.match(monthPlanApi, /buildScheduleSnapshot/);
     assert.match(attendanceApi, /scheduleSnapshotForWrite/);
     assert.match(bulkAttendanceApi, /scheduleSnapshotForWrite/);
+    const singleSession = attendanceApi.indexOf(
+      "const session = await tx.classSession.upsert",
+    );
+    const singleAttendance = attendanceApi.indexOf(
+      "const attendance = await tx.attendance.upsert",
+    );
+    const singleSnapshot = attendanceApi.indexOf(
+      "const scheduleSnapshot = await scheduleSnapshotForWrite",
+    );
+    const singleRevision = attendanceApi.indexOf(
+      "await recordClassMonthPlanWrite",
+    );
+    assert.ok(singleSession >= 0);
+    assert.ok(singleSession < singleAttendance);
+    assert.ok(singleAttendance < singleSnapshot);
+    assert.ok(singleSnapshot < singleRevision);
+
+    const bulkReplace = bulkAttendanceApi.indexOf(
+      "const { clearedDates } = await replaceBulkAttendanceRows",
+    );
+    const bulkReconcile = bulkAttendanceApi.indexOf(
+      "await reconcileClearedAttendanceSessions",
+    );
+    const bulkSnapshot = bulkAttendanceApi.indexOf(
+      "const scheduleSnapshot = await scheduleSnapshotForWrite",
+    );
+    const bulkRevision = bulkAttendanceApi.indexOf(
+      "await recordClassMonthPlanWrite",
+    );
+    assert.ok(bulkReplace >= 0);
+    assert.ok(bulkReplace < bulkReconcile);
+    assert.ok(bulkReconcile < bulkSnapshot);
+    assert.ok(bulkSnapshot < bulkRevision);
 
     assert.deepEqual(
       scheduleSnapshotFromRevision({

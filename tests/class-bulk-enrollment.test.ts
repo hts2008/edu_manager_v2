@@ -47,6 +47,68 @@ describe("class bulk enrollment", () => {
     assert.equal(calls.filter((call) => call.op === "enrollmentPeriod.createMany").length, 1);
   });
 
+  it("locks every student before the class roster read used by bulk enrollment", async () => {
+    const calls: Array<{ op: string; values?: unknown[] }> = [];
+    const tx: any = {
+      $queryRaw: async (query: any) => {
+        calls.push({ op: "lock", values: query.values });
+      },
+      class: { findUnique: async () => ({ id: "class-1", maxStudents: 20 }) },
+      student: {
+        findMany: async () => [{ id: "student-a" }, { id: "student-b" }],
+      },
+      studentClass: {
+        findMany: async () => {
+          calls.push({ op: "studentClass.findMany" });
+          return [];
+        },
+        count: async () => 0,
+        createMany: async () => {
+          calls.push({ op: "studentClass.createMany" });
+          return { count: 2 };
+        },
+        updateMany: async () => ({ count: 0 }),
+      },
+      enrollmentPeriod: {
+        findMany: async () => [],
+        findFirst: async () => null,
+        createMany: async () => ({ count: 2 }),
+      },
+    };
+
+    await enrollStudentsInClass(
+      tx,
+      "class-1",
+      ["student-b", "student-a"],
+      new Date("2026-07-16T00:00:00.000Z"),
+      { now: new Date("2026-07-16T08:00:00.000Z") },
+    );
+
+    assert.deepEqual(calls.slice(0, 4), [
+      {
+        op: "lock",
+        values: [
+          "enrollment-roster:student:student-a",
+          "enrollment-roster:student:student-b",
+        ],
+      },
+      { op: "lock", values: ["attendance-roster:global:class-1"] },
+      {
+        op: "lock",
+        values: [
+          "attendance-roster:global:class-1",
+          "attendance-roster:2026-07:class-1",
+        ],
+      },
+      { op: "studentClass.findMany" },
+    ]);
+    assert.ok(
+      calls.findIndex((call) => call.op === "lock") <
+        calls.findIndex((call) => call.op === "studentClass.findMany"),
+      "the student lock must surround the initial roster read and later writes",
+    );
+  });
+
   it("uses bounded transactions and maps Prisma timeout errors", () => {
     assert.equal(CLASS_WRITE_TRANSACTION_OPTIONS.timeout, 15_000);
     assert.equal(CLASS_WRITE_TRANSACTION_OPTIONS.maxWait, 5_000);

@@ -9,13 +9,9 @@ import {
 } from "../../../lib/auth.js";
 import {
   getRequiredString,
-  parseMonthRange,
   sendApiError,
 } from "../../../lib/api-utils.js";
-import {
-  calculateTuitionForClass,
-  CHARGEABLE_ATTENDANCE_STATUSES,
-} from "../../../lib/tuition.js";
+import { calculateStudentMonthlyFee } from "../../../lib/finance-corrections.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -27,96 +23,37 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   try {
     const studentId = getRequiredString(req.query.student_id, "student_id");
     const month = getRequiredString(req.query.month, "month");
-    const { startDate, endDate } = parseMonthRange(month);
-
-    const records = await prisma.attendance.findMany({
-      where: {
-        studentId,
-        attendanceDate: { gte: startDate, lte: endDate },
-        status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] as any },
-      },
-      include: {
-        class: {
-          select: {
-            id: true,
-            className: true,
-            feePerDay: true,
-            scheduleDays: true,
-            sessionsPerWeek: true,
-          },
-        },
-      },
-      orderBy: [{ class: { className: "asc" } }, { attendanceDate: "asc" }],
-    });
-
-    const classMap = new Map<
-      string,
-      {
-        classId: string;
-        className: string;
-        feePerDay: number;
-        scheduleDays: unknown;
-        sessionsPerWeek: number | null;
-        presentDays: number;
-        absentFeeDays: number;
-      }
-    >();
-
-    for (const record of records) {
-      const current =
-        classMap.get(record.classId) ||
-        {
-          classId: record.classId,
-          className: record.class.className,
-          feePerDay: record.class.feePerDay,
-          scheduleDays: record.class.scheduleDays,
-          sessionsPerWeek: record.class.sessionsPerWeek,
-          presentDays: 0,
-          absentFeeDays: 0,
-        };
-
-      if (record.status === "present") current.presentDays += 1;
-      if (record.status === "absent_with_fee") current.absentFeeDays += 1;
-      classMap.set(record.classId, current);
-    }
-
-    const items = Array.from(classMap.values()).map((item) => {
-      const chargedDays = item.presentDays + item.absentFeeDays;
-      const tuition = calculateTuitionForClass(
-        {
-          feePerDay: item.feePerDay,
-          scheduleDays: item.scheduleDays,
-          sessionsPerWeek: item.sessionsPerWeek,
-        },
-        month,
-        chargedDays
-      );
+    const calculated = await calculateStudentMonthlyFee(prisma, studentId, month);
+    const items = calculated.breakdown.map((line: any) => {
+      const chargedDays = Number(line.days_count || 0);
+      const presentDays = Number(line.present_days || 0);
+      const absentFeeDays = Number(line.absent_fee_days || 0);
       return {
-        class_id: item.classId,
-        classId: item.classId,
-        class_name: item.className,
-        className: item.className,
-        present_days: item.presentDays,
-        presentDays: item.presentDays,
-        absent_fee_days: item.absentFeeDays,
-        absentFeeDays: item.absentFeeDays,
+        class_id: line.class_id,
+        classId: line.class_id,
+        class_name: line.class_name,
+        className: line.class_name,
+        present_days: presentDays,
+        presentDays,
+        absent_fee_days: absentFeeDays,
+        absentFeeDays,
         charged_days: chargedDays,
         chargedDays,
-        expected_sessions: tuition.expectedSessions,
-        expectedSessions: tuition.expectedSessions,
-        billing_mode: tuition.billingMode,
-        billingMode: tuition.billingMode,
-        monthly_tuition: tuition.monthlyTuition,
-        monthlyTuition: tuition.monthlyTuition,
-        fee_per_day: tuition.feePerSession,
-        feePerDay: tuition.feePerSession,
-        fee_amount: tuition.totalAmount,
-        feeAmount: tuition.totalAmount,
+        expected_sessions: line.expected_sessions,
+        expectedSessions: line.expected_sessions,
+        billing_mode: line.billing_mode,
+        billingMode: line.billing_mode,
+        monthly_tuition: line.monthly_tuition,
+        monthlyTuition: line.monthly_tuition,
+        fee_per_day: line.fee_per_day,
+        feePerDay: line.fee_per_day,
+        fee_amount: line.amount,
+        feeAmount: line.amount,
       };
     });
 
-    const totalDays = items.reduce((sum, item) => sum + item.charged_days, 0);
-    const totalFee = items.reduce((sum, item) => sum + item.fee_amount, 0);
+    const totalDays = calculated.totalDays;
+    const totalFee = calculated.totalAmount;
 
     return successResponse(res, {
       items,

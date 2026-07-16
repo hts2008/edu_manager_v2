@@ -100,39 +100,87 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     };
     if (query.student_id) enrollmentWhere.studentId = query.student_id;
 
-    const enrollmentRows = await prisma.studentClass.findMany({
-      where: enrollmentWhere,
-      select: {
-        studentId: true,
-        classId: true,
-        enrollmentDate: true,
-        status: true,
-        student: {
-          select: {
-            fullName: true,
-            parent: { select: { fullName: true, phone: true } },
-          },
-        },
-        class: {
-          select: {
-            className: true,
-            feePerDay: true,
-            scheduleDays: true,
-            sessionsPerWeek: true,
-          },
-        },
-      },
-      orderBy: [
-        { student: { fullName: "asc" } },
-        { class: { className: "asc" } },
-      ],
-    });
+    const enrollmentPeriodWhere: Record<string, unknown> = {
+      startedAt: { lte: rangeEnd },
+      OR: [{ endedAt: null }, { endedAt: { gt: rangeStart } }],
+      student: { deletedAt: null },
+    };
+    if (query.student_id) enrollmentPeriodWhere.studentId = query.student_id;
 
-    const studentIds = [...new Set(enrollmentRows.map((row) => row.studentId))];
-    const classIds = [...new Set(enrollmentRows.map((row) => row.classId))];
-    const [attendanceRows, feeLineRows, monthlyFeeRows, progressRows] =
-      studentIds.length && classIds.length
-        ? await Promise.all([
+    const [enrollmentRows, enrollmentPeriodRows] = await Promise.all([
+      prisma.studentClass.findMany({
+        where: enrollmentWhere,
+        select: {
+          studentId: true,
+          classId: true,
+          enrollmentDate: true,
+          status: true,
+          student: {
+            select: {
+              fullName: true,
+              parent: { select: { fullName: true, phone: true } },
+            },
+          },
+          class: {
+            select: {
+              className: true,
+              feePerDay: true,
+              scheduleDays: true,
+              sessionsPerWeek: true,
+            },
+          },
+        },
+        orderBy: [
+          { student: { fullName: "asc" } },
+          { class: { className: "asc" } },
+        ],
+      }),
+      prisma.enrollmentPeriod.findMany({
+        where: enrollmentPeriodWhere,
+        select: {
+          studentId: true,
+          classId: true,
+          startedAt: true,
+          endedAt: true,
+          student: {
+            select: {
+              fullName: true,
+              parent: { select: { fullName: true, phone: true } },
+            },
+          },
+          class: {
+            select: {
+              className: true,
+              feePerDay: true,
+              scheduleDays: true,
+              sessionsPerWeek: true,
+            },
+          },
+        },
+        orderBy: [
+          { student: { fullName: "asc" } },
+          { class: { className: "asc" } },
+          { startedAt: "asc" },
+        ],
+      }),
+    ]);
+
+    const studentIds = [...new Set([
+      ...enrollmentRows.map((row) => row.studentId),
+      ...enrollmentPeriodRows.map((row) => row.studentId),
+    ])];
+    const classIds = [...new Set([
+      ...enrollmentRows.map((row) => row.classId),
+      ...enrollmentPeriodRows.map((row) => row.classId),
+    ])];
+    const [
+      attendanceRows,
+      feeLineRows,
+      monthlyFeeRows,
+      progressRows,
+      classMonthPlanRows,
+      classSessionRows,
+    ] = await Promise.all([
             prisma.attendance.findMany({
               where: {
                 studentId: { in: studentIds },
@@ -160,6 +208,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 classId: true,
                 month: true,
                 expectedSessions: true,
+                calculationSnapshot: true,
                 amount: true,
                 status: true,
                 allocationConfidence: true,
@@ -192,8 +241,35 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
               },
             }),
-          ])
-        : [[], [], [], []];
+            prisma.classMonthPlan.findMany({
+              where: {
+                classId: { in: classIds },
+                billingMonth: { in: query.months },
+              },
+              select: {
+                classId: true,
+                billingMonth: true,
+                revisions: {
+                  orderBy: { revision: "desc" },
+                  select: { revision: true, snapshot: true },
+                },
+              },
+            }),
+            prisma.classSession.findMany({
+              where: {
+                classId: { in: classIds },
+                billingMonth: { in: query.months },
+                kind: "regular",
+              },
+              select: {
+                classId: true,
+                billingMonth: true,
+                sessionDate: true,
+                kind: true,
+                status: true,
+              },
+            }),
+      ]);
 
     const evidenceByEnrollment = new Set<string>();
     for (const record of attendanceRows) {
@@ -204,16 +280,37 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     const parentMap = new Map<string, { name: string | null; phone: string | null }>();
-    const reportEnrollmentRows = enrollmentRows.filter((row) => {
+    const periodKeys = new Set(
+      enrollmentPeriodRows.map((period) => evidenceKey(period.studentId, period.classId)),
+    );
+    const reportEnrollmentRows = [
+      ...enrollmentPeriodRows.map((period) => ({
+        studentId: period.studentId,
+        classId: period.classId,
+        enrollmentDate: period.startedAt,
+        enrollmentEndDate: period.endedAt,
+        status: "historical" as const,
+        student: period.student,
+        class: period.class,
+      })),
+      ...enrollmentRows.filter(
+        (row) => !periodKeys.has(evidenceKey(row.studentId, row.classId)),
+      ).filter((row) => {
+        return (
+          row.status === "active" ||
+          evidenceByEnrollment.has(evidenceKey(row.studentId, row.classId))
+        );
+      }).map((row) => ({
+        ...row,
+        enrollmentEndDate: null,
+      })),
+    ];
+    for (const row of reportEnrollmentRows) {
       parentMap.set(row.studentId, {
         name: row.student.parent?.fullName || null,
         phone: row.student.parent?.phone || null,
       });
-      return (
-        row.status === "active" ||
-        evidenceByEnrollment.has(evidenceKey(row.studentId, row.classId))
-      );
-    });
+    }
 
     const cube = buildReportCube({
       months: query.months,
@@ -223,6 +320,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         classId: row.classId,
         className: row.class.className,
         enrollmentDate: row.enrollmentDate,
+        enrollmentEndDate: row.enrollmentEndDate,
         feePerDay: row.class.feePerDay,
         scheduleDays: row.class.scheduleDays,
         sessionsPerWeek: row.class.sessionsPerWeek,
@@ -230,6 +328,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       attendance: attendanceRows,
       feeLines: feeLineRows,
       monthlyFees: monthlyFeeRows,
+      classMonthPlans: classMonthPlanRows.map((row) => ({
+        classId: row.classId,
+        billingMonth: row.billingMonth,
+        revisions: row.revisions,
+      })),
+      classSessions: classSessionRows,
     });
 
     const filteredRows = filterReportRows(cube.students, {
@@ -284,7 +388,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const offset = (page - 1) * query.page_size;
     const classes = Array.from(
       new Map(
-        enrollmentRows.map((row) => [
+        reportEnrollmentRows.map((row) => [
           row.classId,
           { id: row.classId, class_name: row.class.className },
         ])

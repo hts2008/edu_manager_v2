@@ -119,8 +119,12 @@ describe("finance writer attendance-fee locking", () => {
     const identityRead = endpoint.indexOf("const receiptIdentity = await tx.receipt.findFirst");
     const advisoryLock = endpoint.indexOf("await acquireAttendanceFeeAdvisoryLocks(");
     const authoritativeRead = endpoint.indexOf("const receipt = await tx.receipt.findFirst");
-    const calculation = endpoint.indexOf("const calculated = await calculateStudentMonthlyFee");
+    const calculation = endpoint.indexOf("const calculated = await calculateFee");
     const receiptWrite = endpoint.indexOf("await tx.receipt.update");
+    const lineSync = endpoint.indexOf("await syncMonthlyFeeLines");
+    const aggregateRefresh = endpoint.indexOf(
+      "await refreshMonthlyFeeAggregateFromLines",
+    );
 
     assert.match(
       endpoint,
@@ -132,6 +136,12 @@ describe("finance writer attendance-fee locking", () => {
     assert.ok(authoritativeRead > advisoryLock);
     assert.ok(calculation > authoritativeRead);
     assert.ok(receiptWrite > calculation);
+    assert.ok(lineSync > receiptWrite);
+    assert.ok(aggregateRefresh > lineSync);
+    assert.match(
+      endpoint,
+      /runSerializableTransaction\(\s*prisma,\s*\(tx\)\s*=>\s*correctReceiptInTransaction\(tx, id, reason/,
+    );
     assertBoundedSerializableWriter(endpoint);
   });
 });

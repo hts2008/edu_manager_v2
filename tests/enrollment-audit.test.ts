@@ -184,4 +184,36 @@ describe("historical enrollment audit", () => {
       after: historicalDate.toISOString(),
     });
   });
+
+  it("fails closed before enrollment or audit writes when a future attendance month is protected", async () => {
+    const { calls, tx } = enrollmentTx();
+    tx.$queryRaw = async () => undefined;
+    tx.attendancePeriod = {
+      findFirst: async ({ where }: any) => {
+        const protectedMonth = "2026-09";
+        return where.periodMonth.lte && protectedMonth > where.periodMonth.lte
+          ? null
+          : { classId: "class-1", periodMonth: protectedMonth, status: "submitted" };
+      },
+    };
+    tx.classMonthPlan = { findFirst: async () => null };
+
+    await assert.rejects(
+      enrollStudentsInClass(
+        tx,
+        "class-1",
+        ["student-1"],
+        historicalDate,
+        {
+          actorId: "admin-1",
+          actorRole: "admin",
+          backdateReason: "Imported signed June register",
+          now: policyNow,
+        },
+      ),
+      (error) => assertErrorCode(error, "ENROLLMENT_PERIOD_LOCKED"),
+    );
+
+    assert.deepEqual(calls, []);
+  });
 });

@@ -42,10 +42,9 @@ export function buildScheduleSnapshot(
   const sessionsPerWeek = rawSessionsPerWeek > 0
     ? Math.trunc(rawSessionsPerWeek)
     : null;
-  const calculated = expectedSessionsForClass(
-    { scheduleDays, sessionsPerWeek },
-    month,
-  ).expectedSessions;
+  const calculated = scheduleDays.length
+    ? expectedSessionsForClass(classData, month).expectedSessions
+    : 0;
   return {
     schedule_days: scheduleDays,
     sessions_per_week: sessionsPerWeek,
@@ -113,13 +112,27 @@ export async function scheduleSnapshotForWrite(
   month: string,
   classData: ClassScheduleSource,
 ) {
+  const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
+  const publishedRegularSessions = !scheduleDays.length &&
+    typeof db.classSession?.count === "function"
+    ? await db.classSession.count({
+        where: { classId, billingMonth: month, kind: "regular" },
+      })
+    : undefined;
   const plan = await db.classMonthPlan.findUnique({
     where: { classId_billingMonth: { classId, billingMonth: month } },
     select: { id: true, revision: true },
   });
   if (plan) {
     const persisted = await loadPersistedScheduleSnapshot(db, plan);
-    if (persisted) return persisted;
+    if (persisted) {
+      return Number.isInteger(publishedRegularSessions)
+        ? {
+            ...persisted,
+            expected_regular_sessions: Number(publishedRegularSessions),
+          }
+        : persisted;
+    }
   }
-  return buildScheduleSnapshot(classData, month);
+  return buildScheduleSnapshot(classData, month, publishedRegularSessions);
 }

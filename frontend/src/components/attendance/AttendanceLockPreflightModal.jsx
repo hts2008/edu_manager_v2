@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import ActionProgressButton from "../ui/ActionProgressButton";
+import AttendanceMonthPlanReadiness from "./AttendanceMonthPlanReadiness";
 import {
   ATTENDANCE_READINESS_ISSUES,
   formatAttendanceIssueDate,
@@ -39,6 +40,7 @@ export default function AttendanceLockPreflightModal({
   onRetry,
   onConfirmLock,
   onReopenForCorrection,
+  onEditMonthPlan,
 }) {
   const [showCorrection, setShowCorrection] = useState(false);
   const [reason, setReason] = useState("");
@@ -182,6 +184,12 @@ export default function AttendanceLockPreflightModal({
                     );
                   })}
                 </ul>
+
+                <AttendanceMonthPlanReadiness
+                  readiness={preflight}
+                  month={target?.period_month}
+                  onEditPlan={onEditMonthPlan}
+                />
 
                 {!showCorrection ? (
                   <button

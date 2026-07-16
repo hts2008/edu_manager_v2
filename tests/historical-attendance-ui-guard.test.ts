@@ -233,7 +233,10 @@ describe("historical attendance UI and schedule guards", () => {
 
   it("exposes every calendar week as an explicit past or future selection target", () => {
     assert.match(attendancePage, /aria-label=\{`Chọn tuần \$\{formatWeekRangeLabel\(weekRange\)\}`\}/);
-    assert.match(attendancePage, /tabIndex=\{0\}/);
+    assert.match(
+      attendancePage,
+      /tabIndex=\{attendanceControlsDisabled \? -1 : 0\}/,
+    );
     assert.match(attendancePage, /onKeyDown=\{\(event\) =>/);
 
     const weekClickBranch = attendancePage.slice(

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { ApiError } from "./api-utils.js";
 import { acquireClassMonthRosterAdvisoryLocks } from "./attendance-lock-transaction.js";
 
@@ -11,6 +12,44 @@ type StudentClassSnapshot = {
   classId: string;
   status?: string | null;
 };
+
+export function studentEnrollmentAdvisoryLockKey(studentId: string) {
+  return `enrollment-roster:student:${studentId}`;
+}
+
+export function studentEnrollmentAdvisoryLockKeys(studentIds: string[]) {
+  return [
+    ...new Set(studentIds.filter(Boolean).map(studentEnrollmentAdvisoryLockKey)),
+  ].sort();
+}
+
+export async function acquireStudentEnrollmentAdvisoryLocks(
+  tx: any,
+  studentIds: string[],
+) {
+  const lockKeys = studentEnrollmentAdvisoryLockKeys(studentIds);
+  if (lockKeys.length === 0 || typeof tx.$queryRaw !== "function") return;
+
+  await tx.$queryRaw(
+    Prisma.sql`
+      WITH ordered_keys(lock_key, lock_position) AS MATERIALIZED (
+        SELECT lock_key, lock_position
+        FROM unnest(ARRAY[${Prisma.join(lockKeys)}]::text[])
+          WITH ORDINALITY AS keys(lock_key, lock_position)
+      )
+      SELECT pg_advisory_xact_lock(hashtextextended(lock_key, 0))::text AS lock_result
+      FROM ordered_keys
+      ORDER BY lock_position
+    `,
+  );
+}
+
+export async function acquireStudentEnrollmentAdvisoryLock(
+  tx: any,
+  studentId: string,
+) {
+  await acquireStudentEnrollmentAdvisoryLocks(tx, [studentId]);
+}
 
 function rosterSnapshot(links: StudentClassSnapshot[]) {
   return links
@@ -58,22 +97,72 @@ function affectedMonthKeys(effectiveAt: Date, now: Date) {
   return months;
 }
 
+const PROTECTED_ATTENDANCE_STATUSES = ["submitted", "approved", "locked"] as const;
+
+async function latestAuthoritativeEnrollmentImpactMonth(
+  tx: any,
+  classIds: string[],
+  startMonth: string,
+) {
+  const latestProtectedPeriod = tx.attendancePeriod?.findFirst
+    ? await tx.attendancePeriod.findFirst({
+        where: {
+          classId: { in: classIds },
+          periodMonth: { gte: startMonth },
+          status: { in: [...PROTECTED_ATTENDANCE_STATUSES] },
+        },
+        select: { periodMonth: true },
+        orderBy: { periodMonth: "desc" },
+      })
+    : null;
+  const latestFrozenPlan = tx.classMonthPlan?.findFirst
+    ? await tx.classMonthPlan.findFirst({
+        where: {
+          classId: { in: classIds },
+          billingMonth: { gte: startMonth },
+          state: "frozen",
+        },
+        select: { billingMonth: true },
+        orderBy: { billingMonth: "desc" },
+      })
+    : null;
+
+  return [latestProtectedPeriod?.periodMonth, latestFrozenPlan?.billingMonth]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+}
+
 export async function assertEnrollmentMutationWritable(
   tx: any,
   classIds: string[],
   effectiveAt = new Date(),
   now = new Date(),
 ) {
-  const uniqueClassIds = [...new Set(classIds.filter(Boolean))];
+  const uniqueClassIds = [...new Set(classIds.filter(Boolean))].sort();
   if (uniqueClassIds.length === 0) return;
-  const months = affectedMonthKeys(effectiveAt, now);
+
+  const startMonth = monthKey(effectiveAt);
+  await acquireClassMonthRosterAdvisoryLocks(tx, uniqueClassIds, []);
+  const authoritativeEndMonth = await latestAuthoritativeEnrollmentImpactMonth(
+    tx,
+    uniqueClassIds,
+    startMonth,
+  );
+  const endDate = authoritativeEndMonth
+    ? new Date(`${authoritativeEndMonth}-01T00:00:00.000Z`)
+    : now;
+  const months = affectedMonthKeys(
+    effectiveAt,
+    endDate > now ? endDate : now,
+  );
   await acquireClassMonthRosterAdvisoryLocks(tx, uniqueClassIds, months);
   const protectedPeriod = tx.attendancePeriod?.findFirst
     ? await tx.attendancePeriod.findFirst({
     where: {
       classId: { in: uniqueClassIds },
       periodMonth: { gte: months[0], lte: months[months.length - 1] },
-      status: { in: ["submitted", "approved", "locked"] },
+      status: { in: [...PROTECTED_ATTENDANCE_STATUSES] },
     },
     select: { classId: true, periodMonth: true, status: true },
     orderBy: { periodMonth: "asc" },
@@ -192,6 +281,7 @@ export async function syncStudentEnrollmentPeriods(
   const effectiveAt = input.effectiveAt || new Date();
   const desiredClassIds = [...new Set(input.desiredClassIds.filter(Boolean))];
   const desired = new Set(desiredClassIds);
+  await acquireStudentEnrollmentAdvisoryLock(tx, input.studentId);
   const initialLinks = await tx.studentClass.findMany({
     where: { studentId: input.studentId },
     select: {
@@ -302,6 +392,9 @@ export async function deactivateEnrollmentPeriods(
   where: { studentId?: string; classId?: string },
   effectiveAt = new Date(),
 ) {
+  if (where.studentId) {
+    await acquireStudentEnrollmentAdvisoryLock(tx, where.studentId);
+  }
   const initialLinks = tx.studentClass?.findMany
     ? await tx.studentClass.findMany({
         where: { ...where, status: "active" },

@@ -384,6 +384,15 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Evidence**: `receipts/2026-07-12-production-remediation-closeout.md`.
 # Active Context - 2026-07-12 Tuition V3 Release
 
+## 2026-07-16 Frontend Attendance Reviewer Follow-up
+
+- Scope: frontend-only reviewer fixes for attendance save races, month-plan non-regular preservation, accessibility state, and stale Tuition V3 source contract.
+- `AttendancePage` now disables class/month/week interactions while attendance save is active and captures class/week/month-window context before refresh; month-plan refresh uses the same context guard.
+- `AttendanceMonthPlanEditor` uses PUT for regular-only plans and PATCH regular-row add/remove semantics when makeup/extra sessions exist. Only requested regular dates that overlap non-regular dates block saving; unrelated non-regular sessions are preserved.
+- Loading surfaces expose `role=status`, `aria-live` and `aria-busy`; error surfaces expose `role=alert`. The E2E source contract now asserts `classSessionsByMonth` plus `calculateTuitionCharge` and rejects stale `feePerSessionByMonth`.
+- Verification: frontend unit `24/24`, focused ESLint exit `0`, static Tuition V3 contract pass, and `git diff --check` exit `0`. Playwright contract was attempted twice but browser startup produced no output and hung; the exact process tree was terminated, so no Playwright pass is claimed.
+- Context+ and EDU-scoped Neural Memory/MCPProxy were unavailable in this callable palette; manual inspection and workspace markdown memory were used.
+
 - Active track: `TUIV3-2026-07-12-01..06`.
 - Track is `IMPLEMENTED` and production-live.
 - Tuition monthly-package denominator is now actual regular `ClassSession` rows in the billing month, not four weeks or a cross-month visual week.

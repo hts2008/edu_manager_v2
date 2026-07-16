@@ -3,16 +3,112 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { ensureClassMonthPlan } from "../lib/class-month-plan.js";
 import {
+  buildScheduleSnapshot,
   loadPersistedScheduleSnapshot,
   scheduleSnapshotForWrite,
   scheduleSnapshotFromRevision,
 } from "../lib/class-month-schedule-snapshot.js";
+import { listScheduleDatesInMonth } from "../lib/tuition.js";
 
 function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
 describe("class month schedule snapshot", () => {
+  it("normalizes fixed weekdays exactly once across non-June month shapes", () => {
+    for (const month of ["2026-02", "2026-04", "2026-07", "2026-08", "2026-12", "2027-01"]) {
+      const dates = listScheduleDatesInMonth(month, [1, 3]);
+      assert.deepEqual(
+        buildScheduleSnapshot(
+          { scheduleDays: ["T2", "T4"], sessionsPerWeek: 2 },
+          month,
+        ),
+        {
+          schedule_days: [1, 3],
+          sessions_per_week: 2,
+          expected_regular_sessions: dates.length,
+        },
+      );
+    }
+  });
+
+  it("uses published flexible dates instead of freezing sessions-per-week cadence", async () => {
+    let countWhere: unknown;
+    const db = {
+      classMonthPlan: { findUnique: async () => null },
+      classSession: {
+        count: async ({ where }: any) => {
+          countWhere = where;
+          return 7;
+        },
+      },
+    };
+
+    assert.equal(
+      buildScheduleSnapshot({ sessionsPerWeek: 2 }, "2026-05")
+        .expected_regular_sessions,
+      0,
+      "cadence alone is not an immutable denominator",
+    );
+    assert.equal(
+      buildScheduleSnapshot({ sessionsPerWeek: 2 }, "2026-05", 7)
+        .expected_regular_sessions,
+      7,
+    );
+    assert.deepEqual(
+      await scheduleSnapshotForWrite(
+        db as any,
+        "class-1",
+        "2026-05",
+        { sessionsPerWeek: 2 },
+      ),
+      {
+        schedule_days: [],
+        sessions_per_week: 2,
+        expected_regular_sessions: 7,
+      },
+    );
+    assert.deepEqual(countWhere, {
+      classId: "class-1",
+      billingMonth: "2026-05",
+      kind: "regular",
+    });
+  });
+
+  it("replaces a stale flexible cadence snapshot with the current published count", async () => {
+    const db = {
+      classMonthPlan: {
+        findUnique: async () => ({ id: "plan-1", revision: 1 }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => ({
+          snapshot: {
+            payload: {
+              schedule_days: [],
+              sessions_per_week: 2,
+              expected_regular_sessions: 10,
+            },
+          },
+        }),
+      },
+      classSession: { count: async () => 8 },
+    };
+
+    assert.deepEqual(
+      await scheduleSnapshotForWrite(
+        db as any,
+        "class-1",
+        "2026-06",
+        { sessionsPerWeek: 2 },
+      ),
+      {
+        schedule_days: [],
+        sessions_per_week: 2,
+        expected_regular_sessions: 8,
+      },
+    );
+  });
+
   it("reads the immutable denominator from a legacy V1 backfill snapshot", () => {
     assert.deepEqual(
       scheduleSnapshotFromRevision({

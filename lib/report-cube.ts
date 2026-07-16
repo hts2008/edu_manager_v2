@@ -1,9 +1,5 @@
 import { getBusinessMonthKey } from "./api-utils.js";
-import {
-  DEFAULT_WEEKLY_SESSION_DAYS,
-  expectedSessionsForClass,
-  normalizeScheduleDays,
-} from "./tuition.js";
+import { scheduleSnapshotFromRevision } from "./class-month-schedule-snapshot.js";
 
 export type ReportBiQuery = {
   from: string;
@@ -24,6 +20,7 @@ export type ReportEnrollment = {
   classId: string;
   className: string;
   enrollmentDate: Date;
+  enrollmentEndDate?: Date | null;
   feePerDay: number;
   scheduleDays: unknown;
   sessionsPerWeek: number | null;
@@ -44,9 +41,30 @@ export type ReportFeeLine = {
   classId: string | null;
   month: string;
   expectedSessions?: number | null;
+  calculationSnapshot?: unknown;
   amount: number;
   status: string;
   allocationConfidence: string | null;
+};
+
+export type ReportClassMonthPlan = {
+  classId: string;
+  billingMonth: string;
+  expectedSessions?: number | null;
+  snapshot?: unknown;
+  revisions?: Array<{
+    revision?: number;
+    snapshot: unknown;
+  }>;
+};
+
+export type ReportClassSession = {
+  id?: string;
+  classId: string;
+  billingMonth: string;
+  sessionDate: Date;
+  kind: "regular" | "makeup" | "extra";
+  status: "planned" | "held" | "cancelled" | "holiday";
 };
 
 export type ReportMonthlyFee = {
@@ -75,6 +93,17 @@ export type ReportCubeRow = {
   class_name: string;
   month: string;
   expected_sessions: number;
+  attendance_expected_sessions: number | null;
+  billing_expected_sessions: number | null;
+  attendance_denominator_source: "month_plan" | "session_ledger" | "missing";
+  billing_denominator_source: "fee_line" | "fee_snapshot" | "missing";
+  denominator_mismatch: boolean;
+  denominator_diagnostic?: {
+    status: "match" | "mismatch" | "not_comparable";
+    attendance_expected_sessions: number | null;
+    billing_expected_sessions: number | null;
+    difference: number | null;
+  };
   recorded_sessions: number;
   chargeable_sessions: number;
   actual_sessions: number;
@@ -108,6 +137,7 @@ type AggregateBucket = {
   fee_amount: number;
   fee_review_count: number;
   risk_count: number;
+  denominator_mismatch_count: number;
 };
 
 class ReportQueryError extends Error {
@@ -222,13 +252,20 @@ export function filterReportRows(
     }
     if (filters.mode === "attendance") {
       const hasAttendanceRisk = row.risk_flags.some((flag) =>
-        ["expected_sessions_unavailable", "attendance_incomplete", "attendance_over_recorded", "low_present_rate"].includes(flag)
+        [
+          "expected_sessions_unavailable",
+          "attendance_incomplete",
+          "attendance_over_recorded",
+          "low_present_rate",
+          "denominator_mismatch",
+        ].includes(flag)
       );
       if (!hasAttendanceRisk) return false;
     }
     if (filters.mode === "tuition") {
       const needsTuitionAction =
         row.fee_needs_review ||
+        row.denominator_mismatch ||
         row.fee_source === "missing" ||
         !row.fee_status ||
         !["paid", "confirmed"].includes(row.fee_status);
@@ -244,6 +281,9 @@ export function filterReportRows(
         row.fee_status,
         row.fee_source,
         row.fee_confidence,
+        row.attendance_denominator_source,
+        row.billing_denominator_source,
+        row.denominator_diagnostic?.status,
         ...row.risk_flags,
       ]
         .filter(Boolean)
@@ -267,78 +307,137 @@ function studentMonthKey(studentId: string, month: string) {
   return `${studentId}\u0000${month}`;
 }
 
-function monthStartDayForEnrollment(enrollmentDate: Date, month: string) {
-  if (monthKey(enrollmentDate) !== month) return 1;
-  return Math.max(1, enrollmentDate.getUTCDate());
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
-function mondayWeekKey(date: Date) {
-  const day = date.getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(date);
-  monday.setUTCDate(date.getUTCDate() + mondayOffset);
-  return monday.toISOString().slice(0, 10);
+function nonNegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function countScheduleDaysFromStart(month: string, scheduleDays: number[], startDay: number) {
-  if (!scheduleDays.length) return 0;
-  const [year, monthValue] = month.split("-").map(Number);
-  const monthIndex = monthValue - 1;
-  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  const wanted = new Set(scheduleDays);
-  let count = 0;
-  for (let day = Math.max(1, startDay); day <= daysInMonth; day += 1) {
-    const weekday = new Date(Date.UTC(year, monthIndex, day)).getUTCDay();
-    if (wanted.has(weekday)) count += 1;
+function firstNonNegativeInteger(values: unknown[]) {
+  for (const value of values) {
+    const parsed = nonNegativeInteger(value);
+    if (parsed !== null) return parsed;
   }
-  return count;
+  return null;
 }
 
-function countWeeklySessionsFromStart(
-  month: string,
-  sessionsPerWeek: number,
-  startDay: number,
-  allowedWeekdays = DEFAULT_WEEKLY_SESSION_DAYS
+function expectedSessionsFromCalculationSnapshot(value: unknown) {
+  const root = objectRecord(value);
+  const summary = objectRecord(root?.summary);
+  return firstNonNegativeInteger([
+    root?.expectedSessions,
+    root?.expected_sessions,
+    root?.contractSessions,
+    root?.contract_sessions,
+    summary?.plannedRegularSlots,
+    summary?.planned_regular_slots,
+  ]);
+}
+
+function resolveBillingDenominator(feeLine: ReportFeeLine | undefined) {
+  if (!feeLine) {
+    return { value: null, source: "missing" as const };
+  }
+  const persisted = nonNegativeInteger(feeLine.expectedSessions);
+  const snapshot = expectedSessionsFromCalculationSnapshot(
+    feeLine.calculationSnapshot
+  );
+  if (persisted !== null && (persisted > 0 || snapshot === null)) {
+    return { value: persisted, source: "fee_line" as const };
+  }
+  if (snapshot !== null) {
+    return { value: snapshot, source: "fee_snapshot" as const };
+  }
+  return { value: null, source: "missing" as const };
+}
+
+function expectedSessionsFromMonthPlan(plan: ReportClassMonthPlan | undefined) {
+  if (!plan) return null;
+  const persisted = nonNegativeInteger(plan.expectedSessions);
+  if (persisted !== null) return persisted;
+  const revisions = [...(plan.revisions || [])].sort(
+    (left, right) => (right.revision ?? 0) - (left.revision ?? 0),
+  );
+  for (const revision of revisions) {
+    const snapshot = scheduleSnapshotFromRevision(revision.snapshot);
+    if (snapshot) return snapshot.expected_regular_sessions;
+  }
+  return scheduleSnapshotFromRevision(plan.snapshot)?.expected_regular_sessions ?? null;
+}
+
+function expectedSessionsFromLedger(
+  enrollments: ReportEnrollment[],
+  sessions: ReportClassSession[] | undefined
 ) {
-  const safeSessionsPerWeek = Math.max(0, Math.trunc(Number(sessionsPerWeek) || 0));
-  if (safeSessionsPerWeek <= 0) return 0;
-  const [year, monthValue] = month.split("-").map(Number);
-  const monthIndex = monthValue - 1;
-  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  const allowed = new Set(allowedWeekdays);
-  const availableDaysByWeek = new Map<string, number>();
-  for (let day = Math.max(1, startDay); day <= daysInMonth; day += 1) {
-    const date = new Date(Date.UTC(year, monthIndex, day));
-    if (!allowed.has(date.getUTCDay())) continue;
-    const weekKey = mondayWeekKey(date);
-    availableDaysByWeek.set(weekKey, (availableDaysByWeek.get(weekKey) || 0) + 1);
+  if (!sessions) return null;
+  return sessions.filter((session) => {
+    if (session.kind !== "regular") return false;
+    const sessionTime = session.sessionDate.getTime();
+    return enrollments.some(
+      (enrollment) =>
+        sessionTime >= enrollment.enrollmentDate.getTime() &&
+        (!enrollment.enrollmentEndDate ||
+          sessionTime < enrollment.enrollmentEndDate.getTime())
+    );
+  }).length;
+}
+
+function resolveAttendanceDenominator(input: {
+  enrollments: ReportEnrollment[];
+  month: string;
+  monthPlan: ReportClassMonthPlan | undefined;
+  sessions: ReportClassSession[] | undefined;
+}) {
+  const interval = monthInterval(input.month);
+  const fullMonthEnrollment =
+    input.enrollments.length === 1 &&
+    input.enrollments[0].enrollmentDate <= interval.start &&
+    (!input.enrollments[0].enrollmentEndDate ||
+      input.enrollments[0].enrollmentEndDate >= interval.end);
+  if (fullMonthEnrollment) {
+    const monthPlan = expectedSessionsFromMonthPlan(input.monthPlan);
+    if (monthPlan !== null) return { value: monthPlan, source: "month_plan" as const };
   }
-  return Array.from(availableDaysByWeek.values()).reduce(
-    (sum, daysInWeek) => sum + Math.min(safeSessionsPerWeek, daysInWeek),
-    0
+  const ledger = expectedSessionsFromLedger(input.enrollments, input.sessions);
+  if (ledger !== null) return { value: ledger, source: "session_ledger" as const };
+  return { value: null, source: "missing" as const };
+}
+
+function monthInterval(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return {
+    start: new Date(Date.UTC(year, monthNumber - 1, 1)),
+    end: new Date(Date.UTC(year, monthNumber, 1)),
+  };
+}
+
+function enrollmentOverlapsMonth(enrollment: ReportEnrollment, month: string) {
+  const interval = monthInterval(month);
+  return (
+    enrollment.enrollmentDate.getTime() < interval.end.getTime() &&
+    (!enrollment.enrollmentEndDate ||
+      enrollment.enrollmentEndDate.getTime() > interval.start.getTime())
   );
 }
 
-function expectedSessionsForEnrollment(enrollment: ReportEnrollment, month: string) {
-  const startDay = monthStartDayForEnrollment(enrollment.enrollmentDate, month);
-  if (startDay <= 1) {
-    return expectedSessionsForClass(
-      {
-        feePerDay: enrollment.feePerDay,
-        scheduleDays: enrollment.scheduleDays,
-        sessionsPerWeek: enrollment.sessionsPerWeek,
-      },
-      month
-    ).expectedSessions;
-  }
-
-  const scheduleDays = normalizeScheduleDays(enrollment.scheduleDays);
-  if (scheduleDays.length) return countScheduleDaysFromStart(month, scheduleDays, startDay);
-  const sessionsPerWeek = Number(enrollment.sessionsPerWeek || 0);
-  if (sessionsPerWeek > 0) {
-    return countWeeklySessionsFromStart(month, sessionsPerWeek, startDay);
-  }
-  return 0;
+function attendanceWithinEnrollmentPeriod(
+  attendanceDate: Date,
+  enrollments: ReportEnrollment[]
+) {
+  const attendanceTime = attendanceDate.getTime();
+  return enrollments.some(
+    (enrollment) =>
+      attendanceTime >= enrollment.enrollmentDate.getTime() &&
+      (!enrollment.enrollmentEndDate ||
+        attendanceTime < enrollment.enrollmentEndDate.getTime())
+  );
 }
 
 function emptyStatusCounts(): StatusCounts {
@@ -369,6 +468,7 @@ function emptyBucket(): AggregateBucket {
     fee_amount: 0,
     fee_review_count: 0,
     risk_count: 0,
+    denominator_mismatch_count: 0,
   };
 }
 
@@ -388,6 +488,7 @@ function addRow(bucket: AggregateBucket, row: ReportCubeRow) {
   bucket.fee_amount += row.fee_amount || 0;
   if (row.fee_needs_review) bucket.fee_review_count += 1;
   if (row.risk_flags.length) bucket.risk_count += 1;
+  if (row.denominator_mismatch) bucket.denominator_mismatch_count += 1;
 }
 
 function finishBucket(bucket: AggregateBucket) {
@@ -414,6 +515,7 @@ function finishBucket(bucket: AggregateBucket) {
     fee_amount: bucket.fee_amount,
     fee_review_count: bucket.fee_review_count,
     risk_count: bucket.risk_count,
+    denominator_mismatch_count: bucket.denominator_mismatch_count,
   };
 }
 
@@ -511,16 +613,22 @@ export function buildReportCube(input: {
   attendance: ReportAttendance[];
   feeLines: ReportFeeLine[];
   monthlyFees: ReportMonthlyFee[];
+  classMonthPlans?: ReportClassMonthPlan[];
+  classSessions?: ReportClassSession[];
 }) {
   const rows = new Map<string, ReportCubeRow>();
-  const rowEnrollments = new Map<string, ReportEnrollment>();
+  const rowEnrollments = new Map<string, ReportEnrollment[]>();
   const classesByStudentMonth = new Map<string, Set<string>>();
 
   for (const enrollment of input.enrollments) {
     const enrolledMonth = monthKey(enrollment.enrollmentDate);
     for (const month of input.months) {
       if (month < enrolledMonth) continue;
+      if (!enrollmentOverlapsMonth(enrollment, month)) continue;
       const key = cubeKey(enrollment.studentId, enrollment.classId, month);
+      const enrollmentPeriods = rowEnrollments.get(key) || [];
+      enrollmentPeriods.push(enrollment);
+      rowEnrollments.set(key, enrollmentPeriods);
       if (rows.has(key)) continue;
 
       rows.set(key, {
@@ -530,6 +638,17 @@ export function buildReportCube(input: {
         class_name: enrollment.className,
         month,
         expected_sessions: 0,
+        attendance_expected_sessions: null,
+        billing_expected_sessions: null,
+        attendance_denominator_source: "missing",
+        billing_denominator_source: "missing",
+        denominator_mismatch: false,
+        denominator_diagnostic: {
+          status: "not_comparable",
+          attendance_expected_sessions: null,
+          billing_expected_sessions: null,
+          difference: null,
+        },
         recorded_sessions: 0,
         chargeable_sessions: 0,
         actual_sessions: 0,
@@ -546,8 +665,6 @@ export function buildReportCube(input: {
         fee_needs_review: true,
         risk_flags: [],
       });
-      rowEnrollments.set(key, enrollment);
-
       const studentMonth = studentMonthKey(enrollment.studentId, month);
       const classIds = classesByStudentMonth.get(studentMonth) || new Set<string>();
       classIds.add(enrollment.classId);
@@ -562,7 +679,11 @@ export function buildReportCube(input: {
       monthKey(record.attendanceDate)
     );
     const row = rows.get(key);
-    if (!row) continue;
+    const enrollments = rowEnrollments.get(key);
+    if (!row || !enrollments?.length) continue;
+    if (!attendanceWithinEnrollmentPeriod(record.attendanceDate, enrollments)) {
+      continue;
+    }
     row.status_counts[record.status] += 1;
     if (record.isMakeUp) row.status_counts.make_up += 1;
   }
@@ -578,16 +699,50 @@ export function buildReportCube(input: {
     monthlyFees.set(studentMonthKey(fee.studentId, fee.month), fee);
   }
 
+  const classMonthPlans = new Map<string, ReportClassMonthPlan>();
+  for (const plan of input.classMonthPlans || []) {
+    classMonthPlans.set(cubeKey("", plan.classId, plan.billingMonth), plan);
+  }
+
+  const classSessions = new Map<string, ReportClassSession[]>();
+  for (const session of input.classSessions || []) {
+    const key = cubeKey("", session.classId, session.billingMonth);
+    const sessions = classSessions.get(key) || [];
+    sessions.push(session);
+    classSessions.set(key, sessions);
+  }
+
   for (const [key, row] of rows) {
-    const enrollment = rowEnrollments.get(key);
-    if (!enrollment) continue;
+    const enrollments = rowEnrollments.get(key);
+    if (!enrollments?.length) continue;
     const feeLine = feeLines.get(key);
     const monthlyFee = monthlyFees.get(studentMonthKey(row.student_id, row.month));
-    const expectedFromSchedule = expectedSessionsForEnrollment(enrollment, row.month);
-    row.expected_sessions = Math.max(
-      0,
-      expectedFromSchedule || Number(feeLine?.expectedSessions || 0)
-    );
+    const classMonthKey = cubeKey("", row.class_id, row.month);
+    const billingDenominator = resolveBillingDenominator(feeLine);
+    const attendanceDenominator = resolveAttendanceDenominator({
+      enrollments,
+      month: row.month,
+      monthPlan: classMonthPlans.get(classMonthKey),
+      sessions: classSessions.get(classMonthKey),
+    });
+    row.billing_expected_sessions = billingDenominator.value;
+    row.billing_denominator_source = billingDenominator.source;
+    row.attendance_expected_sessions = attendanceDenominator.value;
+    row.attendance_denominator_source = attendanceDenominator.source;
+    row.expected_sessions =
+      billingDenominator.value ?? attendanceDenominator.value ?? 0;
+    row.denominator_mismatch =
+      billingDenominator.value !== null &&
+      attendanceDenominator.value !== null &&
+      billingDenominator.value !== attendanceDenominator.value;
+    const comparable =
+      billingDenominator.value !== null && attendanceDenominator.value !== null;
+    row.denominator_diagnostic = {
+      status: comparable ? (row.denominator_mismatch ? "mismatch" : "match") : "not_comparable",
+      attendance_expected_sessions: attendanceDenominator.value,
+      billing_expected_sessions: billingDenominator.value,
+      difference: comparable ? attendanceDenominator.value! - billingDenominator.value! : null,
+    };
     row.recorded_sessions =
       row.status_counts.present +
       row.status_counts.absent_with_fee +
@@ -609,7 +764,7 @@ export function buildReportCube(input: {
     );
     row.record_completion_rate = percentage(
       row.recorded_sessions,
-      row.expected_sessions
+      row.attendance_expected_sessions ?? row.expected_sessions
     );
 
     resolveFee(
@@ -620,17 +775,20 @@ export function buildReportCube(input: {
         ?.size || 0
     );
 
-    if (row.expected_sessions <= 0) {
+    const attendanceExpectedSessions =
+      row.attendance_expected_sessions ?? row.expected_sessions;
+    if (attendanceExpectedSessions <= 0) {
       row.risk_flags.push("expected_sessions_unavailable");
-    } else if (row.recorded_sessions < row.expected_sessions) {
+    } else if (row.recorded_sessions < attendanceExpectedSessions) {
       row.risk_flags.push("attendance_incomplete");
-    } else if (row.recorded_sessions > row.expected_sessions) {
+    } else if (row.recorded_sessions > attendanceExpectedSessions) {
       row.risk_flags.push("attendance_over_recorded");
     }
     if (row.actual_sessions > 0 && row.actual_present_rate < 80) {
       row.risk_flags.push("low_present_rate");
     }
     if (row.fee_needs_review) row.risk_flags.push("fee_review");
+    if (row.denominator_mismatch) row.risk_flags.push("denominator_mismatch");
   }
 
   const students = Array.from(rows.values()).sort(

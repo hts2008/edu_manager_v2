@@ -65,47 +65,63 @@ describe("attendance period enrollment readiness", () => {
       message: "Regular session plan for 2026-06 is incomplete: expected 10, found 2",
       expected_sessions: 10,
       actual_sessions: 2,
-      recommended_action: "Record every scheduled week in the month before submitting attendance",
+      recommended_action: "Reconcile the regular session ledger with the published month plan before submitting attendance",
     });
   });
 
-  it("derives the month-bounded expected ledger from the class cadence", async () => {
+  it("rejects a published plan when the ledger has the right count on the wrong dates", () => {
+    const readiness = analyzeAttendancePeriodReadiness({
+      classId: "class-flexible",
+      month: "2026-06",
+      expectedRegularSessions: 2,
+      expectedSource: "published_plan_snapshot",
+      expectedDates: ["2026-06-03", "2026-06-10"],
+      sessions: [
+        {
+          id: "session-june-03",
+          sessionDate: new Date("2026-06-03T00:00:00.000Z"),
+          kind: "regular",
+          status: "held",
+        },
+        {
+          id: "session-june-17",
+          sessionDate: new Date("2026-06-17T00:00:00.000Z"),
+          kind: "regular",
+          status: "held",
+        },
+      ],
+      attendance: [],
+      enrollmentPeriods: [],
+      projections: [],
+    });
+
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.summary.actual, 2);
+    assert.equal(readiness.summary.expected, 2);
+    assert.equal(readiness.summary.missing_count, 1);
+    assert.deepEqual(readiness.summary.missing_dates, ["2026-06-10"]);
+    assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
+  });
+
+  it("treats an explicit flexible eight-session ledger as authoritative 8/8", async () => {
+    const sessions = Array.from({ length: 8 }, (_, index) => ({
+      id: `session-${index + 1}`,
+      sessionDate: new Date(Date.UTC(2026, 5, index + 1)),
+      kind: "regular",
+      status: "held",
+    }));
     const db = {
       class: {
-        findUnique: async () => ({ scheduleDays: null, sessionsPerWeek: 2 }),
+        findUnique: async () => {
+          throw new Error("readiness must not synthesize expected sessions from class cadence");
+        },
       },
       classSession: {
-        findMany: async () => [
-          {
-            id: "session-june-01",
-            sessionDate: new Date("2026-06-01T00:00:00.000Z"),
-            kind: "regular",
-            status: "held",
-          },
-          {
-            id: "session-june-02",
-            sessionDate: new Date("2026-06-02T00:00:00.000Z"),
-            kind: "regular",
-            status: "held",
-          },
-        ],
+        findMany: async () => sessions,
       },
       attendance: { findMany: async () => [] },
-      enrollmentPeriod: {
-        findMany: async () => [{
-          studentId: "student-1",
-          startedAt: new Date("2026-06-01T00:00:00.000Z"),
-          endedAt: null,
-        }],
-      },
-      studentClass: {
-        findMany: async () => [{
-          studentId: "student-1",
-          enrollmentDate: new Date("2026-06-01T00:00:00.000Z"),
-          status: "active",
-          student: { status: "active" },
-        }],
-      },
+      enrollmentPeriod: { findMany: async () => [] },
+      studentClass: { findMany: async () => [] },
     };
 
     const readiness = await getAttendancePeriodReadiness(db as any, {
@@ -113,16 +129,22 @@ describe("attendance period enrollment readiness", () => {
       month: "2026-06",
     });
 
-    assert.equal(readiness.ready, false);
-    assert.equal(readiness.summary.expected_regular_sessions, 10);
-    assert.equal(readiness.summary.regular_sessions, 2);
-    assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
+    assert.equal(readiness.ready, true);
+    assert.equal(readiness.summary.expected_source, "current_regular_session_ledger");
+    assert.equal(readiness.summary.actual, 8);
+    assert.equal(readiness.summary.expected, 8);
+    assert.equal(readiness.summary.missing_count, 0);
+    assert.deepEqual(readiness.summary.missing_dates, []);
+    assert.deepEqual(readiness.summary.weekly_deficits, []);
+    assert.equal(readiness.summary.recommended_action, null);
   });
 
-  it("keeps the class plan full-month when the first student enrolls mid-month", async () => {
+  it("does not invent a fixed or flexible plan when no explicit regular ledger exists", async () => {
     const db = {
       class: {
-        findUnique: async () => ({ scheduleDays: ["T2", "T4"], sessionsPerWeek: 2 }),
+        findUnique: async () => {
+          throw new Error("readiness must not synthesize expected sessions from class cadence");
+        },
       },
       classSession: { findMany: async () => [] },
       attendance: { findMany: async () => [] },
@@ -148,7 +170,10 @@ describe("attendance period enrollment readiness", () => {
       month: "2026-06",
     });
 
-    assert.equal(readiness.summary.expected_regular_sessions, 9);
+    assert.equal(readiness.summary.expected_regular_sessions, 0);
+    assert.equal(readiness.summary.expected_source, "none");
+    assert.equal(readiness.summary.actual, 0);
+    assert.equal(readiness.summary.expected, 0);
     assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
   });
 
@@ -183,7 +208,61 @@ describe("attendance period enrollment readiness", () => {
     });
 
     assert.equal(readiness.summary.expected_regular_sessions, 9);
+    assert.equal(readiness.summary.expected_source, "published_plan_snapshot");
+    assert.equal(readiness.summary.actual, 0);
+    assert.equal(readiness.summary.expected, 9);
+    assert.equal(readiness.summary.missing_count, 9);
+    assert.equal(readiness.summary.missing_dates.length, 9);
+    assert.ok(readiness.summary.weekly_deficits.length > 0);
+    assert.equal(
+      readiness.summary.weekly_deficits.reduce((sum, week) => sum + week.missing_count, 0),
+      9,
+    );
+    assert.equal(
+      readiness.summary.recommended_action,
+      "Reconcile the regular session ledger with the published month plan before submitting attendance",
+    );
     assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
+  });
+
+  it("ignores a persisted flexible cadence snapshot when it has no explicit plan dates", async () => {
+    const sessions = Array.from({ length: 8 }, (_, index) => ({
+      id: `flex-session-${index + 1}`,
+      sessionDate: new Date(Date.UTC(2026, 5, index + 1)),
+      kind: "regular",
+      status: "held",
+    }));
+    const db = {
+      classMonthPlan: {
+        findUnique: async () => ({ id: "flex-plan", revision: 3 }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => ({
+          snapshot: {
+            payload: {
+              schedule_days: [],
+              sessions_per_week: 2,
+              expected_regular_sessions: 10,
+            },
+          },
+        }),
+      },
+      classSession: { findMany: async () => sessions },
+      attendance: { findMany: async () => [] },
+      enrollmentPeriod: { findMany: async () => [] },
+      studentClass: { findMany: async () => [] },
+    };
+
+    const readiness = await getAttendancePeriodReadiness(db as any, {
+      classId: "class-flex-cadence",
+      month: "2026-06",
+    });
+
+    assert.equal(readiness.ready, true);
+    assert.equal(readiness.summary.expected_source, "current_regular_session_ledger");
+    assert.equal(readiness.summary.actual, 8);
+    assert.equal(readiness.summary.expected, 8);
+    assert.equal(readiness.summary.missing_count, 0);
   });
 
   it("keeps the pre-reopen denominator when the latest revision has metadata only", async () => {
@@ -215,6 +294,10 @@ describe("attendance period enrollment readiness", () => {
                   schedule_days: [1, 3],
                   sessions_per_week: 2,
                   expected_regular_sessions: 9,
+                  requested_dates: Array.from(
+                    { length: 9 },
+                    (_, index) => `2026-06-${String(index + 1).padStart(2, "0")}`,
+                  ),
                 },
               },
             },
@@ -280,6 +363,7 @@ describe("attendance period enrollment readiness", () => {
 
     assert.equal(readiness.ready, true);
     assert.equal(readiness.summary.expected_regular_sessions, 8);
+    assert.equal(readiness.summary.expected_source, "published_plan_snapshot");
     assert.equal(readiness.summary.regular_sessions, 8);
   });
 

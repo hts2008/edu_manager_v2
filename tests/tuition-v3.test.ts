@@ -4,6 +4,7 @@ import {
   calculateTuitionV3,
   type TuitionSlot,
 } from "../lib/tuition-v3.js";
+import { listScheduleDatesInMonth } from "../lib/tuition.js";
 
 const flyerB2Plan = {
   mode: "monthly_prorated" as const,
@@ -20,6 +21,37 @@ function regularSlots(dates: string[]): TuitionSlot[] {
 }
 
 describe("Tuition V3 slot ledger", () => {
+  it("preserves exact whole-VND allocation for every month length and starting weekday", () => {
+    const cases = new Map<string, string>();
+    for (let year = 2000; year <= 2400 && cases.size < 28; year += 1) {
+      for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
+        const days = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+        const startsOn = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+        const key = `${days}:${startsOn}`;
+        if ([28, 29, 30, 31].includes(days) && !cases.has(key)) {
+          cases.set(key, `${year}-${String(monthIndex + 1).padStart(2, "0")}`);
+        }
+      }
+    }
+
+    for (const month of cases.values()) {
+      const dates = listScheduleDatesInMonth(month, [1, 3, 5]);
+      const result = calculateTuitionV3({
+        month,
+        plan: { mode: "monthly_prorated", monthlyAmount: 1_000_003 },
+        slots: regularSlots(dates),
+      });
+
+      assert.equal(result.ok, true, month);
+      if (!result.ok) continue;
+      const amounts = result.ledger.map((row) => row.amount);
+      assert.ok(amounts.every(Number.isInteger), month);
+      assert.ok(Math.max(...amounts) - Math.min(...amounts) <= 1, month);
+      assert.equal(amounts.reduce((sum, amount) => sum + amount, 0), 1_000_003, month);
+      assert.equal(result.totalAmount, 1_000_003, month);
+    }
+  });
+
   it("matches the Flyer B2 June, July, and August 2026 ledgers", () => {
     const scenarios = [
       {

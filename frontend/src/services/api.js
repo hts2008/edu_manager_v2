@@ -522,8 +522,11 @@ export const parentPortalService = {
 };
 
 export const classSessionsService = {
-  getMonthPlan: (classId, month) =>
-    request(`/class-sessions/month-plan?class_id=${encodeURIComponent(classId)}&month=${encodeURIComponent(month)}`),
+  getMonthPlan: (classId, month, options = {}) =>
+    request(
+      `/class-sessions/month-plan?class_id=${encodeURIComponent(classId)}&month=${encodeURIComponent(month)}`,
+      options,
+    ),
   replaceMonthPlan: (data) =>
     request("/class-sessions/month-plan", { method: "PUT", body: JSON.stringify(data) }),
   patchMonthPlan: (data) =>

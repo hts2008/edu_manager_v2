@@ -3,6 +3,7 @@ import {
   ATTENDANCE_READINESS_ISSUES,
   formatAttendanceIssueDate,
 } from "./attendanceReadiness";
+import AttendanceMonthPlanReadiness from "./AttendanceMonthPlanReadiness";
 
 const ACTION_LABELS = {
   submit: "nộp",
@@ -14,6 +15,7 @@ export default function AttendanceReadinessIssuePanel({
   state,
   canReopen = false,
   onReopen,
+  onEditMonthPlan,
   onDismiss,
 }) {
   if (!state?.readiness) return null;
@@ -77,6 +79,12 @@ export default function AttendanceReadinessIssuePanel({
               );
             })}
           </ul>
+
+          <AttendanceMonthPlanReadiness
+            readiness={readiness}
+            month={periodMonth}
+            onEditPlan={onEditMonthPlan}
+          />
 
           {canReopen && (
             <button

@@ -303,6 +303,9 @@ describe("attendance period reopen", () => {
     assert.doesNotMatch(reviewModal, /attendancePeriodsService\.approve/);
     assert.ok(reviewApprovalHandler);
     assert.doesNotMatch(reviewApprovalHandler, /toast\./);
-    assert.match(ui, /datePeriodStatus !== "open"/);
+    assert.match(ui, /!editableWeekDateKeys\.has\(dateStr\)/);
+    assert.match(ui, /period\.status !== "open"/);
+    assert.match(ui, /attendanceControlsDisabled/);
+    assert.match(ui, /!isWeekReady/);
   });
 });

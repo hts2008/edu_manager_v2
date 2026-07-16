@@ -35,7 +35,9 @@ test("attendance and classes preserve Tuition V3 billing contracts", async () =>
     fs.readFile(attendancePath, "utf8"),
     fs.readFile(classesPath, "utf8"),
   ]);
-  expect(attendanceSource).toContain("feePerSessionByMonth");
+  expect(attendanceSource).not.toContain("feePerSessionByMonth");
+  expect(attendanceSource).toContain("classSessionsByMonth");
+  expect(attendanceSource).toContain("calculateTuitionCharge");
   expect(attendanceSource).toContain("dateStr.slice(0, 7)");
   expect(attendanceSource).toContain("Không dùng lịch dự phòng để tính học phí");
   expect(attendanceSource).toContain("response.data.sessions.map(normalizeTuitionSession)");

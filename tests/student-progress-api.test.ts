@@ -82,6 +82,11 @@ describe("student progress API contract", () => {
     assert.match(reportApi, /progressRecordToSnapshot\(record\)/);
     assert.match(reportApi, /progressMonthsByKey,/);
   });
+
+  it("passes enrollment end bounds into the report cube", () => {
+    assert.match(reportApi, /enrollmentDate:\s*row\.enrollmentDate/);
+    assert.match(reportApi, /enrollmentEndDate:\s*row\.enrollmentEndDate/);
+  });
 });
 
 describe("student progress payload validation", () => {

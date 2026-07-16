@@ -199,6 +199,13 @@ describe("ClassMonthPlan optimistic revision helper", () => {
     assert.equal(second.revision, 2);
     assert.equal(third.revision, 3);
     assert.deepEqual(fixture.revisions.map((row) => row.revision), [2, 3]);
+    assert.deepEqual(
+      fixture.revisions.map((row) => ({ actorId: row.actorId, reason: row.reason })),
+      [
+        { actorId: "admin-2", reason: "session plan changed" },
+        { actorId: "admin-2", reason: "another session added" },
+      ],
+    );
     assert.equal(fixture.transactionCount(), 2);
   });
 

@@ -95,7 +95,7 @@ function validateReplacementScope(
   return deduped;
 }
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
@@ -202,21 +202,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         monthDates.push(date);
         datesByMonth.set(month, monthDates);
       }
-      for (const [month, monthDates] of datesByMonth) {
-        const scheduleSnapshot = await scheduleSnapshotForWrite(
-          tx,
-          class_id,
-          month,
-          lockedClassRecord,
-        );
-        await recordClassMonthPlanWrite(tx, {
-          classId: class_id,
-          billingMonth: month,
-          actorId: req.user.userId,
-          eventType: "attendance_bulk",
-          snapshot: { dates: monthDates, ...scheduleSnapshot },
-        });
-      }
       const recordsByDate = new Map<string, typeof validRecords>();
       for (const record of validRecords) {
         const key = record.attendanceDate.toISOString().slice(0, 10);
@@ -278,6 +263,21 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           classId: class_id,
           dates: clearedDates,
           userId: req.user.userId,
+        });
+      }
+      for (const [month, monthDates] of datesByMonth) {
+        const scheduleSnapshot = await scheduleSnapshotForWrite(
+          tx,
+          class_id,
+          month,
+          lockedClassRecord,
+        );
+        await recordClassMonthPlanWrite(tx, {
+          classId: class_id,
+          billingMonth: month,
+          actorId: req.user.userId,
+          eventType: "attendance_bulk",
+          snapshot: { dates: monthDates, ...scheduleSnapshot },
         });
       }
     });

@@ -14,6 +14,17 @@
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
+## REVIEW - FRONTEND ATTENDANCE REVIEWER FOLLOW-UP (2026-07-16)
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| ATREV-2026-07-16-01 | Close P1 attendance save race and stale class/week refresh | IMPLEMENTED | `frontend/src/pages/AttendancePage.jsx`; unit/source contract; receipt |
+| ATREV-2026-07-16-02 | Preserve non-regular month-plan rows with conflict-date filtering and PATCH semantics | IMPLEMENTED | `frontend/src/components/attendance/AttendanceMonthPlanEditor.jsx`, `frontend/src/utils/tuitionV3.js`; unit `24/24`; receipt |
+| ATREV-2026-07-16-03 | Add accessibility state and remove stale `feePerSessionByMonth` contract | IMPLEMENTED | focused ESLint `0`; static Tuition V3 contract `PASS`; receipt |
+
+**Evidence:** `receipts/2026-07-16-frontend-attendance-reviewer-follow-up.md`.
+**Boundary:** frontend-only; no backend files changed. Playwright contract was attempted but browser startup hung and was terminated, so it is not claimed as passing.
+
 ## IMPLEMENTED - ADMIN HISTORICAL / FUTURE ATTENDANCE CORRECTION (2026-07-15)
 
 **Objective:** let admins select and edit any week in an open attendance month, including past and future months, without bypassing enrollment, period-state, audit or finance protections.

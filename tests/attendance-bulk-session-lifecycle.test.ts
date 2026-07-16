@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import { ApiError } from "../lib/api-utils.js";
+import prisma from "../lib/prisma.js";
+import { handler as attendanceHandler } from "../server/api/attendance/index.js";
+import { handler as bulkAttendanceHandler } from "../server/api/attendance/bulk.js";
 import {
   assertBulkAttendanceDateScopeEditable,
   buildAttendanceSessionUpdate,
@@ -19,7 +22,214 @@ function assertApiError(error: unknown, code: string) {
   return true;
 }
 
+after(async () => {
+  await prisma.$disconnect();
+});
+
 describe("bulk attendance ClassSession lifecycle", () => {
+  it("records the single-attendance revision from the final transaction ledger", async () => {
+    const mockedPrisma = prisma as any;
+    const originalTransaction = mockedPrisma.$transaction;
+    let regularSessions = 0;
+    let revisionSnapshot: any = null;
+    const attendanceDate = new Date("2026-07-06T00:00:00.000Z");
+    const tx = {
+      $queryRaw: async () => [],
+      class: {
+        findUnique: async () => ({ scheduleDays: [], sessionsPerWeek: null }),
+      },
+      attendancePeriod: { findMany: async () => [] },
+      enrollmentPeriod: {
+        findMany: async () => [{
+          studentId: "student-1",
+          startedAt: new Date("2026-01-01T00:00:00.000Z"),
+          endedAt: null,
+        }],
+      },
+      studentClass: { findMany: async () => [] },
+      classSession: {
+        findUnique: async () => null,
+        upsert: async () => {
+          regularSessions = 1;
+          return { id: "session-1" };
+        },
+        count: async () => regularSessions,
+      },
+      attendance: {
+        upsert: async () => ({
+          id: "attendance-1",
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate,
+          status: "present",
+          reason: null,
+          isMakeUp: false,
+          makeUpReason: null,
+        }),
+      },
+      classMonthPlan: {
+        findUnique: async () => null,
+        upsert: async ({ create }: any) => {
+          revisionSnapshot = create.revisions.create.snapshot;
+          return {
+            id: "plan-1",
+            classId: "class-1",
+            billingMonth: "2026-07",
+            state: "open",
+            revision: 1,
+          };
+        },
+      },
+    };
+    const response = {
+      statusCode: 200,
+      body: undefined as any,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        this.body = payload;
+        return this;
+      },
+    };
+
+    try {
+      mockedPrisma.$transaction = async (
+        work: (transaction: any) => Promise<unknown>,
+      ) => work(tx);
+      await attendanceHandler({
+        method: "POST",
+        headers: {},
+        query: {},
+        body: {
+          student_id: "student-1",
+          class_id: "class-1",
+          attendance_date: "2026-07-06",
+          status: "present",
+        },
+        user: {
+          id: "admin-1",
+          userId: "admin-1",
+          role: "admin",
+        },
+      } as any, response as any);
+    } finally {
+      mockedPrisma.$transaction = originalTransaction;
+    }
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.data.id, "attendance-1");
+    assert.equal(revisionSnapshot?.payload?.expected_regular_sessions, 1);
+  });
+
+  it("records each bulk revision after replacement and cleared-session reconciliation", async () => {
+    const mockedPrisma = prisma as any;
+    const originals = {
+      transaction: mockedPrisma.$transaction,
+      classFindUnique: mockedPrisma.class.findUnique,
+    };
+    let attendanceRows = 1;
+    let regularSessions = 1;
+    let revisionSnapshot: any = null;
+    const attendanceDate = new Date("2026-07-06T00:00:00.000Z");
+    const classRecord = { scheduleDays: [], sessionsPerWeek: null };
+    const tx = {
+      $queryRaw: async () => [],
+      class: { findUnique: async () => classRecord },
+      attendancePeriod: { findMany: async () => [] },
+      enrollmentPeriod: {
+        findMany: async () => [{
+          studentId: "student-1",
+          startedAt: new Date("2026-01-01T00:00:00.000Z"),
+          endedAt: null,
+        }],
+      },
+      studentClass: { findMany: async () => [] },
+      attendance: {
+        deleteMany: async () => {
+          attendanceRows = 0;
+          return { count: 1 };
+        },
+        createMany: async () => assert.fail("clear-all must not create attendance"),
+        findMany: async () => attendanceRows ? [{ attendanceDate }] : [],
+      },
+      classSession: {
+        count: async () => regularSessions,
+        findMany: async () => [{
+          id: "generated-session",
+          source: "attendance_bulk",
+          replacementSessions: [],
+        }],
+        deleteMany: async () => {
+          assert.equal(attendanceRows, 0);
+          regularSessions = 0;
+          return { count: 1 };
+        },
+        updateMany: async () => ({ count: 0 }),
+      },
+      classMonthPlan: {
+        findUnique: async () => null,
+        upsert: async ({ create }: any) => {
+          revisionSnapshot = create.revisions.create.snapshot;
+          return {
+            id: "plan-1",
+            classId: "class-1",
+            billingMonth: "2026-07",
+            state: "open",
+            revision: 1,
+          };
+        },
+      },
+    };
+    const response = {
+      statusCode: 200,
+      body: undefined as any,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload: unknown) {
+        this.body = payload;
+        return this;
+      },
+    };
+
+    try {
+      mockedPrisma.class.findUnique = async () => classRecord;
+      mockedPrisma.$transaction = async (
+        work: (transaction: any) => Promise<unknown>,
+      ) => work(tx);
+      await bulkAttendanceHandler({
+        method: "POST",
+        headers: {},
+        query: {},
+        body: {
+          class_id: "class-1",
+          dates: ["2026-07-06"],
+          records: [],
+          replacement_scope: [{
+            student_id: "student-1",
+            attendance_date: "2026-07-06",
+          }],
+        },
+        user: {
+          id: "admin-1",
+          userId: "admin-1",
+          role: "admin",
+        },
+      } as any, response as any);
+    } finally {
+      mockedPrisma.$transaction = originals.transaction;
+      mockedPrisma.class.findUnique = originals.classFindUnique;
+    }
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(attendanceRows, 0);
+    assert.equal(regularSessions, 0);
+    assert.equal(revisionSnapshot?.payload?.expected_regular_sessions, 0);
+  });
+
   it("recognizes only unreferenced attendance-generated sessions as disposable", () => {
     assert.equal(isAttendanceGeneratedSession({ source: "attendance_bulk" }), true);
     assert.equal(isAttendanceGeneratedSession({ source: "attendance_single" }), true);

@@ -127,7 +127,7 @@ test("BI report is admin-only and exposed by the production router", () => {
   assert.match(report, /export default requireAuth\(handler,\s*\["admin"\]\)/);
   assert.doesNotMatch(report, /enrollmentWhere\.classId/);
   assert.match(report, /filterReportRows\(cube\.students,\s*query\)/);
-  assert.match(report, /evidenceByEnrollment/);
+  assert.match(report, /evidenceMonthsByEnrollment/);
   assert.match(router, /reportsBi/);
   assert.match(router, /exact\(parts, \["reports", "bi"\], routes\.reportsBi\)/);
 });

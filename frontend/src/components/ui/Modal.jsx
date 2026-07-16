@@ -37,12 +37,14 @@ export default function Modal({
   busy = false,
   busyLabel = 'Dang xu ly...',
   confirmOnClose = false,
+  hasUnsavedChanges,
   confirmCloseMessage = 'Ban co thay doi chua luu. Dong hop thoai se bo cac thay doi nay.'
 }) {
   const modalRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const busyRef = useRef(busy);
   const confirmOnCloseRef = useRef(confirmOnClose);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
   const previousBodyOverflowRef = useRef('');
   const previousFocusRef = useRef(null);
   const initialFormSnapshotRef = useRef('');
@@ -64,8 +66,16 @@ export default function Modal({
     confirmOnCloseRef.current = confirmOnClose;
   }, [confirmOnClose]);
 
+  useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
+
   const hasUnsavedFormChanges = useCallback(() => {
-    if (!confirmOnCloseRef.current || !userInteractedRef.current) return false;
+    if (!confirmOnCloseRef.current) return false;
+    if (typeof hasUnsavedChangesRef.current === 'boolean') {
+      return hasUnsavedChangesRef.current;
+    }
+    if (!userInteractedRef.current) return false;
     const initialSnapshot = initialFormSnapshotRef.current;
     if (!initialSnapshot) return false;
     return readFormSnapshot(modalRef.current) !== initialSnapshot;

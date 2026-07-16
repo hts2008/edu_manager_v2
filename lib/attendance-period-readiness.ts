@@ -1,6 +1,29 @@
 import { ApiError } from "./api-utils.js";
-import { loadPersistedScheduleSnapshot } from "./class-month-schedule-snapshot.js";
-import { expectedSessionsForClass } from "./tuition.js";
+import { scheduleSnapshotFromRevision } from "./class-month-schedule-snapshot.js";
+import { generateFixedWeekdayDates } from "./class-sessions.js";
+
+export type AttendanceExpectedSource =
+  | "published_plan_snapshot"
+  | "current_regular_session_ledger"
+  | "none";
+
+export type AttendanceWeeklyDeficit = {
+  week_start: string;
+  expected: number;
+  actual: number;
+  missing_count: number;
+  missing_dates: string[];
+};
+
+export type RegularPlanCoverage = {
+  expected_source: AttendanceExpectedSource;
+  actual: number;
+  expected: number;
+  missing_count: number;
+  missing_dates: string[];
+  weekly_deficits: AttendanceWeeklyDeficit[];
+  recommended_action: string | null;
+};
 
 export type AttendanceReadinessIssueCode =
   | "MISSING_PUBLISHED_PLAN"
@@ -29,6 +52,13 @@ export type AttendancePeriodReadiness = {
     resolved_sessions: number;
     expected_students: number;
     missing_attendance_records: number;
+    expected_source: AttendanceExpectedSource;
+    actual: number;
+    expected: number;
+    missing_count: number;
+    missing_dates: string[];
+    weekly_deficits: AttendanceWeeklyDeficit[];
+    recommended_action: string | null;
   };
   issues: AttendanceReadinessIssue[];
 };
@@ -85,6 +115,156 @@ function projectionContainsDate(projection: ProjectionRow | undefined, date: str
   return date >= dateOnly(projection.enrollmentDate);
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function explicitRegularDatesFromRevision(value: unknown) {
+  const root = record(value);
+  const payload = record(root?.payload) ?? root;
+  if (!payload) return [];
+  const requestedDates = Array.isArray(payload.requested_dates)
+    ? payload.requested_dates
+    : [];
+  const sessionDates = Array.isArray(payload.sessions)
+    ? payload.sessions.flatMap((value) => {
+        const session = record(value);
+        return session?.kind === "regular" && typeof session.session_date === "string"
+          ? [session.session_date]
+          : [];
+      })
+    : [];
+  return [...new Set([...requestedDates, ...sessionDates]
+    .filter((value): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)))]
+    .sort();
+}
+
+function isLegacyLedgerSnapshot(value: unknown) {
+  const root = record(value);
+  const payload = record(root?.payload);
+  return root?.source === "class_month_plan_backfill"
+    || payload?.source === "class_month_plan_backfill"
+    || root?.class_session_count !== undefined
+    || payload?.class_session_count !== undefined;
+}
+
+function mondayStart(date: string) {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() - ((value.getUTCDay() + 6) % 7));
+  return value.toISOString().slice(0, 10);
+}
+
+function weeklyDeficits(expectedDates: string[], actualDates: Set<string>) {
+  const weeks = new Map<string, string[]>();
+  for (const date of expectedDates) {
+    const week = mondayStart(date);
+    const dates = weeks.get(week) || [];
+    dates.push(date);
+    weeks.set(week, dates);
+  }
+  return [...weeks.entries()].flatMap(([weekStart, dates]) => {
+    const missingDates = dates.filter((date) => !actualDates.has(date));
+    return missingDates.length === 0
+      ? []
+      : [{
+          week_start: weekStart,
+          expected: dates.length,
+          actual: dates.length - missingDates.length,
+          missing_count: missingDates.length,
+          missing_dates: missingDates,
+        }];
+  });
+}
+
+export function buildRegularPlanCoverage(input: {
+  month: string;
+  sessions: SessionRow[];
+  expectedRegularSessions?: number;
+  expectedSource?: AttendanceExpectedSource;
+  expectedDates?: string[];
+}): RegularPlanCoverage {
+  const regularSessions = input.sessions.filter((session) => session.kind === "regular");
+  const actualDates = new Set(regularSessions.map((session) => dateOnly(session.sessionDate)));
+  const hasPublishedExpected = Number.isInteger(input.expectedRegularSessions);
+  const source = input.expectedSource
+    ?? (hasPublishedExpected
+      ? "published_plan_snapshot"
+      : regularSessions.length > 0
+        ? "current_regular_session_ledger"
+        : "none");
+  const expected = hasPublishedExpected
+    ? Math.max(0, Math.trunc(Number(input.expectedRegularSessions)))
+    : regularSessions.length;
+  const expectedDates = [...new Set(input.expectedDates || [])].sort();
+  const missingDates = expectedDates.filter((date) => !actualDates.has(date));
+  const missingCount = Math.max(expected - regularSessions.length, missingDates.length, 0);
+  const differsFromPublished = source === "published_plan_snapshot"
+    && (regularSessions.length !== expected || missingDates.length > 0);
+  const recommendedAction = source === "none"
+    ? "Publish explicit regular session dates for the month before submitting attendance"
+    : differsFromPublished
+      ? "Reconcile the regular session ledger with the published month plan before submitting attendance"
+      : null;
+  return {
+    expected_source: source,
+    actual: regularSessions.length,
+    expected,
+    missing_count: missingCount,
+    missing_dates: missingDates,
+    weekly_deficits: weeklyDeficits(expectedDates, actualDates),
+    recommended_action: recommendedAction,
+  };
+}
+
+export async function resolveAuthoritativeRegularPlan(
+  db: any,
+  input: {
+    month: string;
+    sessions: SessionRow[];
+    plan?: { id: string; revision: number } | null;
+  },
+): Promise<RegularPlanCoverage> {
+  if (input.plan && typeof db.classMonthPlanRevision?.findUnique === "function") {
+    const current = await db.classMonthPlanRevision.findUnique({
+      where: { planId_revision: { planId: input.plan.id, revision: input.plan.revision } },
+      select: { snapshot: true },
+    });
+    const revisions: Array<{ snapshot?: unknown }> = current ? [current] : [];
+    if (typeof db.classMonthPlanRevision.findMany === "function") {
+      const history = await db.classMonthPlanRevision.findMany({
+        where: { planId: input.plan.id, revision: { lte: input.plan.revision } },
+        orderBy: { revision: "desc" },
+        select: { snapshot: true },
+      });
+      revisions.push(...history);
+    }
+    for (const revision of revisions) {
+      const schedule = scheduleSnapshotFromRevision(revision.snapshot);
+      if (!schedule) continue;
+      const explicitDates = explicitRegularDatesFromRevision(revision.snapshot);
+      const isExplicit = explicitDates.length > 0
+        || schedule.schedule_days.length > 0
+        || isLegacyLedgerSnapshot(revision.snapshot);
+      if (!isExplicit) continue;
+      const expectedDates = explicitDates.length > 0
+        ? explicitDates
+        : schedule.schedule_days.length > 0
+          ? generateFixedWeekdayDates(input.month, schedule.schedule_days)
+          : [];
+      return buildRegularPlanCoverage({
+        month: input.month,
+        sessions: input.sessions,
+        expectedRegularSessions: schedule.expected_regular_sessions,
+        expectedSource: "published_plan_snapshot",
+        expectedDates,
+      });
+    }
+  }
+  return buildRegularPlanCoverage({ month: input.month, sessions: input.sessions });
+}
+
 export function analyzeAttendancePeriodReadiness(input: {
   classId: string;
   month: string;
@@ -93,25 +273,35 @@ export function analyzeAttendancePeriodReadiness(input: {
   enrollmentPeriods: EnrollmentRow[];
   projections: ProjectionRow[];
   expectedRegularSessions?: number;
+  expectedSource?: AttendanceExpectedSource;
+  expectedDates?: string[];
+  planCoverage?: RegularPlanCoverage;
 }): AttendancePeriodReadiness {
   const regularSessions = input.sessions.filter((session) => session.kind === "regular");
   const issues: AttendanceReadinessIssue[] = [];
-  const expectedRegularSessions = Math.max(
-    0,
-    Math.trunc(Number(input.expectedRegularSessions) || 0),
-  );
-  if (expectedRegularSessions > 0 && regularSessions.length !== expectedRegularSessions) {
+  const coverage = input.planCoverage ?? buildRegularPlanCoverage({
+    month: input.month,
+    sessions: input.sessions,
+    expectedRegularSessions: input.expectedRegularSessions,
+    expectedSource: input.expectedSource,
+    expectedDates: input.expectedDates,
+  });
+  if (
+    coverage.expected_source === "published_plan_snapshot"
+    && (coverage.actual !== coverage.expected || coverage.missing_count > 0)
+  ) {
     issues.push({
       code: "MISSING_PUBLISHED_PLAN",
-      message: `Regular session plan for ${input.month} is incomplete: expected ${expectedRegularSessions}, found ${regularSessions.length}`,
-      expected_sessions: expectedRegularSessions,
-      actual_sessions: regularSessions.length,
-      recommended_action: "Record every scheduled week in the month before submitting attendance",
+      message: `Regular session plan for ${input.month} is incomplete: expected ${coverage.expected}, found ${coverage.actual}`,
+      expected_sessions: coverage.expected,
+      actual_sessions: coverage.actual,
+      recommended_action: coverage.recommended_action || undefined,
     });
-  } else if (regularSessions.length === 0) {
+  } else if (coverage.expected_source === "none") {
     issues.push({
       code: "MISSING_PUBLISHED_PLAN",
       message: `No regular session plan exists for ${input.month}`,
+      recommended_action: coverage.recommended_action || undefined,
     });
   }
 
@@ -201,11 +391,12 @@ export function analyzeAttendancePeriodReadiness(input: {
     class_id: input.classId,
     month: input.month,
     summary: {
-      expected_regular_sessions: expectedRegularSessions,
+      expected_regular_sessions: coverage.expected,
       regular_sessions: regularSessions.length,
       resolved_sessions: resolvedSessions,
       expected_students: expectedStudentIds.size,
       missing_attendance_records: missingAttendanceRecords,
+      ...coverage,
     },
     issues,
   };
@@ -226,6 +417,13 @@ export async function getAttendancePeriodReadiness(
         resolved_sessions: 0,
         expected_students: 0,
         missing_attendance_records: 0,
+        expected_source: "none",
+        actual: 0,
+        expected: 0,
+        missing_count: 0,
+        missing_dates: [],
+        weekly_deficits: [],
+        recommended_action: null,
       },
       issues: [],
     };
@@ -236,7 +434,7 @@ export async function getAttendancePeriodReadiness(
     where: { classId: input.classId, billingMonth: input.month },
     orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
   });
-  const [attendance, enrollmentPeriods, projections, classRecord, monthPlan] = await Promise.all([
+  const [attendance, enrollmentPeriods, projections, monthPlan] = await Promise.all([
     db.attendance.findMany({
       where: {
         classId: input.classId,
@@ -267,12 +465,6 @@ export async function getAttendancePeriodReadiness(
         student: { select: { status: true } },
       },
     }),
-    db.class?.findUnique
-      ? db.class.findUnique({
-          where: { id: input.classId },
-          select: { scheduleDays: true, sessionsPerWeek: true },
-        })
-      : null,
     db.classMonthPlan?.findUnique
       ? db.classMonthPlan.findUnique({
           where: {
@@ -285,20 +477,11 @@ export async function getAttendancePeriodReadiness(
         })
       : null,
   ]);
-
-  const persistedScheduleSnapshot = monthPlan
-    ? await loadPersistedScheduleSnapshot(db, monthPlan)
-    : null;
-  const expectedRegularSessions = persistedScheduleSnapshot?.expected_regular_sessions
-    ?? (classRecord
-      ? expectedSessionsForClass(
-          {
-            scheduleDays: classRecord.scheduleDays,
-            sessionsPerWeek: classRecord.sessionsPerWeek,
-          },
-          input.month,
-        ).expectedSessions
-      : undefined);
+  const coverage = await resolveAuthoritativeRegularPlan(db, {
+    month: input.month,
+    sessions,
+    plan: monthPlan,
+  });
 
   return analyzeAttendancePeriodReadiness({
     classId: input.classId,
@@ -307,7 +490,7 @@ export async function getAttendancePeriodReadiness(
     attendance,
     enrollmentPeriods,
     projections,
-    expectedRegularSessions,
+    planCoverage: coverage,
   });
 }
 

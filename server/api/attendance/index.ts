@@ -60,7 +60,7 @@ function toAttendanceResponse(record: any) {
   };
 }
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - Get attendance records
   if (req.method === "GET") {
     try {
@@ -144,19 +144,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           classId: class_id,
           records: [{ studentId: student_id, attendanceDate }],
         });
-        const scheduleSnapshot = await scheduleSnapshotForWrite(
-          tx,
-          class_id,
-          billingMonth,
-          classRecord,
-        );
-        await recordClassMonthPlanWrite(tx, {
-          classId: class_id,
-          billingMonth,
-          actorId: req.user.userId,
-          eventType: "attendance_single",
-          snapshot: { date: dateOnly, ...scheduleSnapshot },
-        });
         const existingSession = await tx.classSession.findUnique({
           where: {
             classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
@@ -190,7 +177,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           },
           update: sessionUpdate,
         });
-        return tx.attendance.upsert({
+        const attendance = await tx.attendance.upsert({
           where: {
             studentId_classId_attendanceDate: {
               studentId: student_id,
@@ -217,6 +204,20 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             classSessionId: session.id,
           },
         });
+        const scheduleSnapshot = await scheduleSnapshotForWrite(
+          tx,
+          class_id,
+          billingMonth,
+          classRecord,
+        );
+        await recordClassMonthPlanWrite(tx, {
+          classId: class_id,
+          billingMonth,
+          actorId: req.user.userId,
+          eventType: "attendance_single",
+          snapshot: { date: dateOnly, ...scheduleSnapshot },
+        });
+        return attendance;
       });
 
       return res.status(201).json({ success: true, data: toAttendanceResponse(record) });

@@ -180,19 +180,27 @@ export function countScheduleDaysInMonth(
   scheduleDays: number[],
   enrollment: Pick<TuitionClassInput, "enrollmentStart" | "enrollmentEnd"> = {},
 ) {
-  if (!scheduleDays.length) return 0;
+  return listScheduleDatesInMonth(month, scheduleDays, enrollment).length;
+}
+
+export function listScheduleDatesInMonth(
+  month: string,
+  scheduleDays: number[],
+  enrollment: Pick<TuitionClassInput, "enrollmentStart" | "enrollmentEnd"> = {},
+) {
+  if (!scheduleDays.length) return [];
   const { year, monthIndex } = parseMonthParts(month);
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   const { start, endExclusive } = enrollmentDayBounds(enrollment, month);
   const wanted = new Set(scheduleDays);
-  let count = 0;
+  const dates: string[] = [];
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = new Date(Date.UTC(year, monthIndex, day));
     if (date < start || date >= endExclusive) continue;
     const weekday = date.getUTCDay();
-    if (wanted.has(weekday)) count += 1;
+    if (wanted.has(weekday)) dates.push(date.toISOString().slice(0, 10));
   }
-  return count;
+  return dates;
 }
 
 export function countCalendarRowsInMonth(month: string) {

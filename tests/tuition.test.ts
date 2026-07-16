@@ -8,6 +8,7 @@ import {
   countCalendarRowsInMonth,
   countMonthBoundedWeeklySessions,
   countScheduleDaysInMonth,
+  listScheduleDatesInMonth,
   resolveAttendanceSessionPolicy,
   normalizeScheduleDays,
 } from "../lib/tuition.js";
@@ -38,6 +39,61 @@ function mockResponse() {
 }
 
 describe("tuition calculation", () => {
+  it("enumerates fixed weekdays for every month shape without leaving the billing month", () => {
+    const cases = new Map<string, { month: string; days: number; startsOn: number }>();
+    for (let year = 2000; year <= 2400 && cases.size < 28; year += 1) {
+      for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
+        const days = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+        const startsOn = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+        const key = `${days}:${startsOn}`;
+        if ([28, 29, 30, 31].includes(days) && !cases.has(key)) {
+          cases.set(key, {
+            month: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+            days,
+            startsOn,
+          });
+        }
+      }
+    }
+
+    assert.equal(cases.size, 28, "all month lengths and starting weekdays need a case");
+    for (const { month, days, startsOn } of cases.values()) {
+      const weekdays = [startsOn, (startsOn + 3) % 7];
+      const expectedDates = Array.from({ length: days }, (_, index) => {
+        const date = new Date(`${month}-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`);
+        return weekdays.includes(date.getUTCDay()) ? date.toISOString().slice(0, 10) : null;
+      }).filter((date): date is string => date !== null);
+      const dates = listScheduleDatesInMonth(month, weekdays);
+
+      assert.deepEqual(dates, expectedDates, `${month} starts on ${startsOn}`);
+      assert.ok(dates.every((date) => date.startsWith(`${month}-`)));
+      assert.ok(dates.every((date) => weekdays.includes(new Date(`${date}T00:00:00.000Z`).getUTCDay())));
+    }
+  });
+
+  it("handles leap February and a December-to-January boundary using actual weekdays", () => {
+    assert.deepEqual(listScheduleDatesInMonth("2024-02", [4]), [
+      "2024-02-01",
+      "2024-02-08",
+      "2024-02-15",
+      "2024-02-22",
+      "2024-02-29",
+    ]);
+    assert.deepEqual(listScheduleDatesInMonth("2026-12", [4]), [
+      "2026-12-03",
+      "2026-12-10",
+      "2026-12-17",
+      "2026-12-24",
+      "2026-12-31",
+    ]);
+    assert.deepEqual(listScheduleDatesInMonth("2027-01", [4]), [
+      "2027-01-07",
+      "2027-01-14",
+      "2027-01-21",
+      "2027-01-28",
+    ]);
+  });
+
   it("bounds sessions-per-week billing to default class days inside the month", () => {
     assert.equal(countCalendarRowsInMonth("2026-05"), 6);
     assert.equal(countCalendarRowsInMonth("2026-06"), 5);

@@ -804,3 +804,11 @@
 - **Safety boundary**: this is not a global bypass. Locked periods and dates outside authoritative half-open enrollment intervals remain fail-closed; correction requires admin role and a reason.
 - **Mutation boundary**: the smoke did not save attendance or create/recalculate fees.
 - **Pending validation**: none for this reported blocker.
+# 2026-07-16 Frontend Attendance Reviewer Follow-up
+
+- Objective: close reviewer findings P1 save race, P2 non-regular month-plan blocking/accessibility, and P3 stale Tuition V3 contract in frontend-owned files.
+- Completed: captured class/week refresh context and save interaction gate; PATCH-preserving month-plan helper/editor flow; conflict-date filtering; status/live/busy and alert semantics; focused unit/source tests.
+- Verification: `frontend/node --test tests` `24/24`; focused `npx eslint ...` exit `0`; static Tuition V3 contract `PASS`; `git diff --check` exit `0`.
+- Playwright `e2e/tuition-v3-ui-contract.spec.js` was attempted in normal and CI modes but hung during browser startup without output. The process tree was terminated; this is an unresolved test-environment limitation, not a pass.
+- Touched app scope: `frontend/src/pages/AttendancePage.jsx`, `frontend/src/components/attendance/AttendanceMonthPlanEditor.jsx`, `frontend/src/utils/tuitionV3.js`, attendance unit/source tests, and `frontend/e2e/tuition-v3-ui-contract.spec.js`. No backend edits.
+- Tool degradation: Context+ and EDU Neural Memory/MCPProxy unavailable; markdown-only mode used.

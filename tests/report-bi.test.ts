@@ -52,7 +52,19 @@ describe("BI report cube", () => {
           isMakeUp: false,
         },
       ],
-      feeLines: [],
+      feeLines: [
+        {
+          id: "line-1",
+          monthlyFeeId: "fee-1",
+          studentId: "student-1",
+          classId: "class-1",
+          month: "2026-06",
+          expectedSessions: 9,
+          amount: 0,
+          status: "pending",
+          allocationConfidence: "calculated",
+        },
+      ],
       monthlyFees: [],
     });
 
@@ -253,6 +265,20 @@ describe("BI report cube", () => {
       attendance: [],
       feeLines: [],
       monthlyFees: [],
+      classSessions: [
+        "2026-06-16",
+        "2026-06-18",
+        "2026-06-23",
+        "2026-06-25",
+        "2026-06-30",
+      ].map((date, index) => ({
+        id: `session-${index}`,
+        classId: "class-1",
+        billingMonth: "2026-06",
+        sessionDate: new Date(`${date}T00:00:00.000Z`),
+        kind: "regular" as const,
+        status: "planned" as const,
+      })),
     });
 
     assert.equal(result.students[0].expected_sessions, 5);
@@ -399,5 +425,526 @@ describe("BI report cube", () => {
       () => parseReportBiQuery({ from: "2024-01", to: "2026-01" }),
       /maximum range is 24 months/
     );
+  });
+
+  it("never fabricates expected sessions from mutable class cadence", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Cadence Is Not A Plan",
+          classId: "class-1",
+          className: "Flexible English",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: [1, 3, 5],
+          sessionsPerWeek: 99,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+    });
+
+    assert.equal(result.students[0].expected_sessions, 0);
+    assert.ok(result.students[0].risk_flags.includes("expected_sessions_unavailable"));
+  });
+
+  it("prefers persisted fee-line expected sessions over snapshots, plans, and ledgers", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [
+        {
+          id: "line-1",
+          monthlyFeeId: "fee-1",
+          studentId: "student-1",
+          classId: "class-1",
+          month: "2026-06",
+          expectedSessions: 6,
+          calculationSnapshot: { summary: { plannedRegularSlots: 7 } },
+          amount: 900000,
+          status: "ready",
+          allocationConfidence: "calculated",
+        },
+      ],
+      monthlyFees: [],
+      classMonthPlans: [
+        {
+          classId: "class-1",
+          billingMonth: "2026-06",
+          snapshot: { payload: { expected_regular_sessions: 8 } },
+        },
+      ],
+      classSessions: Array.from({ length: 9 }, (_, index) => ({
+        id: `session-${index}`,
+        classId: "class-1",
+        billingMonth: "2026-06",
+        sessionDate: new Date(`2026-06-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`),
+        kind: "regular" as const,
+        status: "planned" as const,
+      })),
+    });
+
+    assert.equal(result.students[0].expected_sessions, 6);
+  });
+
+  it("uses the persisted fee calculation snapshot when the line field is unavailable", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [
+        {
+          id: "line-1",
+          monthlyFeeId: "fee-1",
+          studentId: "student-1",
+          classId: "class-1",
+          month: "2026-06",
+          expectedSessions: null,
+          calculationSnapshot: { summary: { plannedRegularSlots: 7 } },
+          amount: 900000,
+          status: "ready",
+          allocationConfidence: "calculated",
+        },
+      ],
+      monthlyFees: [],
+    });
+
+    assert.equal(result.students[0].expected_sessions, 7);
+  });
+
+  it("falls back to a published month-plan revision before the session ledger", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+      classMonthPlans: [
+        {
+          classId: "class-1",
+          billingMonth: "2026-06",
+          snapshot: { payload: { expected_regular_sessions: 8 } },
+        },
+      ],
+      classSessions: Array.from({ length: 9 }, (_, index) => ({
+        id: `session-${index}`,
+        classId: "class-1",
+        billingMonth: "2026-06",
+        sessionDate: new Date(`2026-06-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`),
+        kind: "regular" as const,
+        status: "planned" as const,
+      })),
+    });
+
+    assert.equal(result.students[0].expected_sessions, 8);
+  });
+
+  it("skips a metadata-only newest revision and resolves the newest valid snapshot", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+      classMonthPlans: [
+        {
+          classId: "class-1",
+          billingMonth: "2026-06",
+          revisions: [
+            {
+              revision: 4,
+              snapshot: { payload: { state: "frozen", updated_by: "admin-1" } },
+            },
+            {
+              revision: 3,
+              snapshot: { payload: { expected_regular_sessions: 7 } },
+            },
+            {
+              revision: 2,
+              snapshot: { payload: { expected_regular_sessions: 6 } },
+            },
+          ],
+        },
+      ],
+      classSessions: [],
+    });
+
+    assert.equal(result.students[0].expected_sessions, 7);
+    assert.equal(result.students[0].attendance_expected_sessions, 7);
+    assert.equal(result.students[0].attendance_denominator_source, "month_plan");
+  });
+
+  it("counts only regular ledger sessions within the student's enrollment period", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-06-15T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+      classSessions: [
+        ["before-enrollment", "2026-06-10", "regular"],
+        ["regular-1", "2026-06-16", "regular"],
+        ["regular-2", "2026-06-20", "regular"],
+        ["makeup", "2026-06-22", "makeup"],
+        ["extra", "2026-06-24", "extra"],
+      ].map(([id, date, kind]) => ({
+        id,
+        classId: "class-1",
+        billingMonth: "2026-06",
+        sessionDate: new Date(`${date}T00:00:00.000Z`),
+        kind: kind as "regular" | "makeup" | "extra",
+        status: "planned" as const,
+      })),
+    });
+
+    assert.equal(result.students[0].expected_sessions, 2);
+  });
+
+  it("excludes attendance outside the half-open enrollment period from report metrics", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-06-10T00:00:00.000Z"),
+          enrollmentEndDate: new Date("2026-06-20T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-09T00:00:00.000Z"),
+          status: "present",
+          isMakeUp: true,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-10T00:00:00.000Z"),
+          status: "present",
+          isMakeUp: true,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-15T00:00:00.000Z"),
+          status: "absent_with_fee",
+          isMakeUp: false,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-16T00:00:00.000Z"),
+          status: "absent_no_fee",
+          isMakeUp: false,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-17T00:00:00.000Z"),
+          status: "holiday",
+          isMakeUp: false,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-20T00:00:00.000Z"),
+          status: "present",
+          isMakeUp: false,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-25T00:00:00.000Z"),
+          status: "absent_with_fee",
+          isMakeUp: false,
+        },
+      ],
+      feeLines: [
+        {
+          id: "line-1",
+          monthlyFeeId: "fee-1",
+          studentId: "student-1",
+          classId: "class-1",
+          month: "2026-06",
+          expectedSessions: 4,
+          amount: 900000,
+          status: "ready",
+          allocationConfidence: "calculated",
+        },
+      ],
+      monthlyFees: [],
+    });
+
+    const row = result.students[0];
+    assert.deepEqual(row.status_counts, {
+      present: 1,
+      absent_with_fee: 1,
+      absent_no_fee: 1,
+      holiday: 1,
+      make_up: 1,
+    });
+    assert.equal(row.recorded_sessions, 4);
+    assert.equal(row.actual_sessions, 3);
+    assert.equal(row.chargeable_sessions, 2);
+    assert.equal(row.actual_present_rate, 33.3);
+    assert.equal(row.chargeable_rate, 50);
+    assert.ok(row.risk_flags.includes("low_present_rate"));
+    assert.equal(row.risk_flags.includes("attendance_over_recorded"), false);
+  });
+
+  it("creates rows only for months intersecting authoritative enrollment periods", () => {
+    const result = buildReportCube({
+      months: ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-10T00:00:00.000Z"),
+          enrollmentEndDate: new Date("2026-04-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-06-01T00:00:00.000Z"),
+          enrollmentEndDate: null,
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+    });
+
+    assert.deepEqual(
+      result.students.map((row) => row.month).sort(),
+      ["2026-01", "2026-02", "2026-03", "2026-06"],
+    );
+  });
+
+  it("keeps a withdrawn and re-enrolled student's historical months visible", () => {
+    const result = buildReportCube({
+      months: ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Historical Re-enrollment",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-10T00:00:00.000Z"),
+          enrollmentEndDate: new Date("2026-04-01T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+        {
+          studentId: "student-1",
+          studentName: "Historical Re-enrollment",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-06-15T00:00:00.000Z"),
+          enrollmentEndDate: null,
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-02-10T00:00:00.000Z"),
+          status: "present",
+          isMakeUp: false,
+        },
+        {
+          studentId: "student-1",
+          classId: "class-1",
+          attendanceDate: new Date("2026-06-20T00:00:00.000Z"),
+          status: "present",
+          isMakeUp: false,
+        },
+      ],
+      feeLines: [],
+      monthlyFees: [],
+    });
+
+    assert.deepEqual(
+      result.students.map((row) => row.month),
+      ["2026-07", "2026-06", "2026-03", "2026-02", "2026-01"],
+    );
+    assert.equal(result.students.find((row) => row.month === "2026-02")?.actual_sessions, 1);
+    assert.equal(result.students.find((row) => row.month === "2026-06")?.actual_sessions, 1);
+    assert.equal(result.students.find((row) => row.month === "2026-05"), undefined);
+  });
+
+  it("treats endedAt as half-open when deriving the attendance denominator", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-06-01T00:00:00.000Z"),
+          enrollmentEndDate: new Date("2026-06-15T00:00:00.000Z"),
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [],
+      monthlyFees: [],
+      classSessions: ["2026-06-05", "2026-06-14", "2026-06-15", "2026-06-20"].map(
+        (date, index) => ({
+          id: `session-${index}`,
+          classId: "class-1",
+          billingMonth: "2026-06",
+          sessionDate: new Date(`${date}T00:00:00.000Z`),
+          kind: "regular" as const,
+          status: "planned" as const,
+        }),
+      ),
+    });
+
+    assert.equal(result.students.length, 1);
+    assert.equal(result.students[0].attendance_expected_sessions, 2);
+    assert.equal(result.students[0].attendance_denominator_source, "session_ledger");
+  });
+
+  it("exposes attendance and protected billing denominators with mismatch diagnostics", () => {
+    const result = buildReportCube({
+      months: ["2026-06"],
+      enrollments: [
+        {
+          studentId: "student-1",
+          studentName: "Nguyen Van A",
+          classId: "class-1",
+          className: "Flyers",
+          enrollmentDate: new Date("2026-01-01T00:00:00.000Z"),
+          enrollmentEndDate: null,
+          feePerDay: 900000,
+          scheduleDays: null,
+          sessionsPerWeek: 3,
+        },
+      ],
+      attendance: [],
+      feeLines: [
+        {
+          id: "line-1",
+          monthlyFeeId: "fee-1",
+          studentId: "student-1",
+          classId: "class-1",
+          month: "2026-06",
+          expectedSessions: 6,
+          calculationSnapshot: { summary: { plannedRegularSlots: 7 } },
+          amount: 900000,
+          status: "ready",
+          allocationConfidence: "verified",
+        },
+      ],
+      monthlyFees: [],
+      classMonthPlans: [
+        {
+          classId: "class-1",
+          billingMonth: "2026-06",
+          snapshot: { payload: { expected_regular_sessions: 8 } },
+        },
+      ],
+      classSessions: [],
+    });
+
+    const row = result.students[0];
+    assert.equal(row.expected_sessions, 6, "legacy field must preserve billing truth");
+    assert.equal(row.billing_expected_sessions, 6);
+    assert.equal(row.billing_denominator_source, "fee_line");
+    assert.equal(row.attendance_expected_sessions, 8);
+    assert.equal(row.attendance_denominator_source, "month_plan");
+    assert.equal(row.denominator_mismatch, true);
+    assert.deepEqual(row.denominator_diagnostic, {
+      status: "mismatch",
+      attendance_expected_sessions: 8,
+      billing_expected_sessions: 6,
+      difference: 2,
+    });
+    assert.ok(row.risk_flags.includes("denominator_mismatch"));
+    assert.equal(result.summary.denominator_mismatch_count, 1);
   });
 });

@@ -216,13 +216,17 @@ function normalizeSkillInputs(input: {
 
 async function loadOperationalRow(studentId: string, classId: string, month: string) {
   const { startDate, endDate } = parseMonthRange(month);
-  const enrollment = await prisma.studentClass.findFirst({
+  const enrollmentPeriod = await prisma.enrollmentPeriod.findFirst({
     where: {
       studentId,
       classId,
+      startedAt: { lt: endDate },
+      OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
       student: { deletedAt: null },
     },
-    include: {
+    select: {
+      startedAt: true,
+      endedAt: true,
       student: { select: { fullName: true } },
       class: {
         select: {
@@ -233,13 +237,50 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
         },
       },
     },
+    orderBy: { startedAt: "desc" },
   });
+  const legacyEnrollment = enrollmentPeriod
+    ? null
+    : await prisma.studentClass.findFirst({
+        where: {
+          studentId,
+          classId,
+          student: { deletedAt: null },
+        },
+        include: {
+          student: { select: { fullName: true } },
+          class: {
+            select: {
+              className: true,
+              feePerDay: true,
+              scheduleDays: true,
+              sessionsPerWeek: true,
+            },
+          },
+        },
+      });
+  const enrollment = enrollmentPeriod
+    ? {
+        enrollmentDate: enrollmentPeriod.startedAt,
+        enrollmentEndDate: enrollmentPeriod.endedAt,
+        student: enrollmentPeriod.student,
+        class: enrollmentPeriod.class,
+      }
+    : legacyEnrollment
+      ? { ...legacyEnrollment, enrollmentEndDate: null }
+      : null;
 
   if (!enrollment) {
     throw new ApiError("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class", 404);
   }
 
-  const [attendanceRows, feeLineRows, monthlyFeeRows] = await Promise.all([
+  const [
+    attendanceRows,
+    feeLineRows,
+    monthlyFeeRows,
+    classMonthPlanRows,
+    classSessionRows,
+  ] = await Promise.all([
     prisma.attendance.findMany({
       where: {
         studentId,
@@ -263,6 +304,7 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
         classId: true,
         month: true,
         expectedSessions: true,
+        calculationSnapshot: true,
         amount: true,
         status: true,
         allocationConfidence: true,
@@ -281,6 +323,27 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
         paidAt: true,
       },
     }),
+    prisma.classMonthPlan.findMany({
+      where: { classId, billingMonth: month },
+      select: {
+        classId: true,
+        billingMonth: true,
+        revisions: {
+          orderBy: { revision: "desc" },
+          select: { revision: true, snapshot: true },
+        },
+      },
+    }),
+    prisma.classSession.findMany({
+      where: { classId, billingMonth: month, kind: "regular" },
+      select: {
+        classId: true,
+        billingMonth: true,
+        sessionDate: true,
+        kind: true,
+        status: true,
+      },
+    }),
   ]);
 
   const cube = buildReportCube({
@@ -292,6 +355,7 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
         classId,
         className: enrollment.class.className,
         enrollmentDate: enrollment.enrollmentDate,
+        enrollmentEndDate: enrollment.enrollmentEndDate,
         feePerDay: enrollment.class.feePerDay,
         scheduleDays: enrollment.class.scheduleDays,
         sessionsPerWeek: enrollment.class.sessionsPerWeek,
@@ -300,6 +364,12 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
     attendance: attendanceRows,
     feeLines: feeLineRows,
     monthlyFees: monthlyFeeRows,
+    classMonthPlans: classMonthPlanRows.map((row) => ({
+      classId: row.classId,
+      billingMonth: row.billingMonth,
+      revisions: row.revisions,
+    })),
+    classSessions: classSessionRows,
   });
 
   const row = cube.students.find(

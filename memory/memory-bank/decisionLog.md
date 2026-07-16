@@ -364,3 +364,10 @@
 **Decision**: Open attendance months may be edited regardless of whether their week is past, current or future. Enrollment correction is offered only when the selected week contains an authoritative regular `ClassSession`; the earliest regular, non-cancelled, non-holiday session is the effective date. Empty, makeup-only and cancelled-only ledgers produce no correction. Locked/approved periods and protected finance remain fail-closed.
 **Rationale**: Calendar navigation is presentation; `ClassSession`, `EnrollmentPeriod` and attendance-period state own domain validity. This keeps admin correction flexible without inventing sessions, bypassing audits or reopening immutable finance.
 **Status**: IMPLEMENTED in commits `7c3dead` and `e29f081`; production-verified on `dpl_BRX8FseRns6MKNkdydVFsah2g4VV`.
+### ADR-53: Regular Month-Plan Edits Preserve Non-Regular Session Rows
+
+**Date**: 2026-07-16
+**Context**: The attendance month-plan editor globally blocked whenever a month contained a makeup or extra session, even when the requested regular-date change did not overlap those rows. PUT cannot preserve non-regular rows safely, while the existing month-plan API exposes PATCH semantics.
+**Decision**: Keep PUT for regular-only plans. When non-regular rows exist, calculate the requested regular date set, block only date overlaps, and use PATCH to add/remove regular rows with aggregate and row-version guards. Never delete or replace makeup/extra rows from the regular editor.
+**Rationale**: This keeps the editor useful for independent regular schedule corrections while preserving non-regular attendance/billing context and optimistic concurrency guarantees.
+**Status**: IMPLEMENTED in frontend; backend unchanged.

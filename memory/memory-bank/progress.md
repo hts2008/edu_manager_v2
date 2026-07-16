@@ -1027,3 +1027,11 @@
 - Authenticated Chrome corrected all three students to `2026-06-01`, verified June and future August controls, reload persistence and zero console errors.
 - DB readback confirmed matching `EnrollmentPeriod` and `StudentClass` dates; no attendance or finance data was mutated in the smoke.
 - Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md`.
+# 2026-07-16 - Frontend attendance reviewer findings
+
+- Fixed P1 attendance save race: `saving` now participates in the class/month/week interaction gate; save refresh captures and validates class/week context before calling `loadClassData` and `loadWeekAttendance`.
+- Fixed P2 month-plan preservation: regular-only edits keep PUT; plans containing makeup/extra use frontend PATCH payloads with `expected_version`, all row versions, regular additions and regular removals. Only requested regular dates conflicting with non-regular sessions are blocked.
+- Fixed P2 accessibility: loading and error states now have explicit status/live/busy and alert semantics. Fixed P3 source contract by removing the obsolete `feePerSessionByMonth` expectation.
+- Added unit/source assertions for PATCH payloads, conflict filtering, save context, accessibility and current Tuition V3 denominator wiring.
+- Evidence: `receipts/2026-07-16-frontend-attendance-reviewer-follow-up.md`.
+- Verification: frontend unit `24/24`, focused ESLint `0`, static Tuition V3 contract `PASS`, `git diff --check` `0`; Playwright contract hung at browser startup and was terminated, not counted as pass.
