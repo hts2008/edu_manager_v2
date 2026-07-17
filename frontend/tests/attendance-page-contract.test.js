@@ -110,6 +110,13 @@ describe("attendance page interaction contracts", () => {
     assert.match(monthPlanEditor, /Không thể lưu kế hoạch tháng/);
   });
 
+  it("re-reads backend schedule authority before reporting a PATCH save as successful", () => {
+    assert.match(monthPlanEditor, /await classSessionsService\.patchMonthPlan\(payload\)/);
+    assert.match(monthPlanEditor, /await classSessionsService\.getMonthPlan\(classId, month,[\s\S]*?cache: "no-store"[\s\S]*?skipCache: true/);
+    assert.match(monthPlanEditor, /matchesMonthPlanScheduleAuthority\([\s\S]*?setStatus\("success"\)/);
+    assert.doesNotMatch(monthPlanEditor, /payload\.add_sessions\.length === 0[\s\S]*?setStatus\("success"\)/);
+  });
+
   it("refreshes attendance state after a successful month-plan save", () => {
     assert.match(attendancePage, /onSaved=\{async \(\) => \{[\s\S]*?isAttendanceContextCurrent\(refreshContext\)[\s\S]*?await loadClassData\(refreshContext\.classId, refreshContext\.monthsWindow\);[\s\S]*?\}\}/);
   });

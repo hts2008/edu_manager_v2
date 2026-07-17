@@ -112,27 +112,13 @@ export async function scheduleSnapshotForWrite(
   month: string,
   classData: ClassScheduleSource,
 ) {
-  const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
-  const publishedRegularSessions = !scheduleDays.length &&
-    typeof db.classSession?.count === "function"
-    ? await db.classSession.count({
-        where: { classId, billingMonth: month, kind: "regular" },
-      })
-    : undefined;
   const plan = await db.classMonthPlan.findUnique({
     where: { classId_billingMonth: { classId, billingMonth: month } },
     select: { id: true, revision: true },
   });
   if (plan) {
     const persisted = await loadPersistedScheduleSnapshot(db, plan);
-    if (persisted) {
-      return Number.isInteger(publishedRegularSessions)
-        ? {
-            ...persisted,
-            expected_regular_sessions: Number(publishedRegularSessions),
-          }
-        : persisted;
-    }
+    if (persisted) return persisted;
   }
-  return buildScheduleSnapshot(classData, month, publishedRegularSessions);
+  return buildScheduleSnapshot(classData, month);
 }

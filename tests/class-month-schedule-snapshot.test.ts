@@ -32,13 +32,13 @@ describe("class month schedule snapshot", () => {
     }
   });
 
-  it("uses published flexible dates instead of freezing sessions-per-week cadence", async () => {
-    let countWhere: unknown;
+  it("does not promote the current flexible ledger into a published denominator", async () => {
+    let countReads = 0;
     const db = {
       classMonthPlan: { findUnique: async () => null },
       classSession: {
-        count: async ({ where }: any) => {
-          countWhere = where;
+        count: async () => {
+          countReads += 1;
           return 7;
         },
       },
@@ -65,17 +65,14 @@ describe("class month schedule snapshot", () => {
       {
         schedule_days: [],
         sessions_per_week: 2,
-        expected_regular_sessions: 7,
+        expected_regular_sessions: 0,
       },
     );
-    assert.deepEqual(countWhere, {
-      classId: "class-1",
-      billingMonth: "2026-05",
-      kind: "regular",
-    });
+    assert.equal(countReads, 0);
   });
 
-  it("replaces a stale flexible cadence snapshot with the current published count", async () => {
+  it("preserves a persisted flexible denominator instead of replacing it from the live ledger", async () => {
+    let countReads = 0;
     const db = {
       classMonthPlan: {
         findUnique: async () => ({ id: "plan-1", revision: 1 }),
@@ -91,7 +88,7 @@ describe("class month schedule snapshot", () => {
           },
         }),
       },
-      classSession: { count: async () => 8 },
+      classSession: { count: async () => (++countReads, 8) },
     };
 
     assert.deepEqual(
@@ -104,9 +101,10 @@ describe("class month schedule snapshot", () => {
       {
         schedule_days: [],
         sessions_per_week: 2,
-        expected_regular_sessions: 8,
+        expected_regular_sessions: 10,
       },
     );
+    assert.equal(countReads, 0);
   });
 
   it("reads the immutable denominator from a legacy V1 backfill snapshot", () => {

@@ -103,7 +103,7 @@ describe("attendance period enrollment readiness", () => {
     assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
   });
 
-  it("treats an explicit flexible eight-session ledger as authoritative 8/8", async () => {
+  it("rejects an eight-session flexible ledger without published month-plan authority", async () => {
     const sessions = Array.from({ length: 8 }, (_, index) => ({
       id: `session-${index + 1}`,
       sessionDate: new Date(Date.UTC(2026, 5, index + 1)),
@@ -129,14 +129,18 @@ describe("attendance period enrollment readiness", () => {
       month: "2026-06",
     });
 
-    assert.equal(readiness.ready, true);
-    assert.equal(readiness.summary.expected_source, "current_regular_session_ledger");
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.summary.expected_source, "none");
     assert.equal(readiness.summary.actual, 8);
-    assert.equal(readiness.summary.expected, 8);
+    assert.equal(readiness.summary.expected, 0);
     assert.equal(readiness.summary.missing_count, 0);
     assert.deepEqual(readiness.summary.missing_dates, []);
     assert.deepEqual(readiness.summary.weekly_deficits, []);
-    assert.equal(readiness.summary.recommended_action, null);
+    assert.equal(
+      readiness.summary.recommended_action,
+      "Publish explicit regular session dates for the month before submitting attendance",
+    );
+    assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
   });
 
   it("does not invent a fixed or flexible plan when no explicit regular ledger exists", async () => {
@@ -258,11 +262,12 @@ describe("attendance period enrollment readiness", () => {
       month: "2026-06",
     });
 
-    assert.equal(readiness.ready, true);
-    assert.equal(readiness.summary.expected_source, "current_regular_session_ledger");
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.summary.expected_source, "none");
     assert.equal(readiness.summary.actual, 8);
-    assert.equal(readiness.summary.expected, 8);
+    assert.equal(readiness.summary.expected, 0);
     assert.equal(readiness.summary.missing_count, 0);
+    assert.equal(readiness.issues[0]?.code, "MISSING_PUBLISHED_PLAN");
   });
 
   it("keeps the pre-reopen denominator when the latest revision has metadata only", async () => {
@@ -370,6 +375,19 @@ describe("attendance period enrollment readiness", () => {
   it("surfaces inactive historical attendance when EnrollmentPeriod history is missing", async () => {
     let projectionQuery: any;
     const db = {
+      classMonthPlan: {
+        findUnique: async () => ({ id: "plan-june", revision: 1 }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => ({
+          snapshot: {
+            payload: {
+              requested_dates: ["2026-06-10"],
+              expected_regular_sessions: 1,
+            },
+          },
+        }),
+      },
       classSession: {
         findMany: async () => [{
           id: "session-june-10",

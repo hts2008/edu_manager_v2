@@ -14,6 +14,7 @@ import {
   calculateTuitionCharge,
   classifyAttendanceDate,
   generateFixedMonthPlanDates,
+  matchesMonthPlanScheduleAuthority,
   normalizeMonthPlanResponse,
 } from "../src/utils/tuitionV3.js";
 
@@ -244,6 +245,9 @@ describe("attendance month-plan workflow", () => {
         version: 4,
         state: "open",
         source: "migration",
+        scheduleMode: null,
+        weekdays: [],
+        scheduleAuthorityKnown: false,
         expectedRegularSessions: 2,
         regularDates: ["2026-11-02", "2026-11-09"],
         sessions: [
@@ -316,6 +320,9 @@ describe("attendance month-plan workflow", () => {
       buildMonthPlanPatchRequest({
         classId: "class-1",
         month: "2026-11",
+        mode: "fixed_weekdays",
+        weekdays: [2],
+        sessionsPerWeek: 1,
         requestedDates: ["2026-11-03", "2026-11-17"],
         reason: "Điều chỉnh lịch chính khóa",
         plan: {
@@ -332,6 +339,9 @@ describe("attendance month-plan workflow", () => {
         month: "2026-11",
         expected_version: 4,
         row_versions: { "regular-1": 8, "makeup-1": 9, "extra-1": 10 },
+        schedule_mode: "fixed_weekdays",
+        weekdays: [2],
+        sessions_per_week: 1,
         reason: "Điều chỉnh lịch chính khóa",
         add_sessions: [
           { session_date: "2026-11-03", billing_month: "2026-11", kind: "regular", status: "planned" },
@@ -340,6 +350,87 @@ describe("attendance month-plan workflow", () => {
         remove_session_ids: ["regular-1"],
       },
     );
+  });
+
+  it("keeps schedule intent in a PATCH even when regular session rows do not change", () => {
+    const payload = buildMonthPlanPatchRequest({
+      classId: "class-1",
+      month: "2026-11",
+      mode: "fixed_weekdays",
+      weekdays: [2, 2],
+      sessionsPerWeek: 1,
+      requestedDates: ["2026-11-03", "2026-11-10"],
+      reason: "Sửa authority lịch thứ ba",
+      plan: {
+        version: 5,
+        sessions: [
+          { id: "regular-1", date: "2026-11-03", kind: "regular", version: 11 },
+          { id: "regular-2", date: "2026-11-10", kind: "regular", version: 11 },
+          { id: "makeup-1", date: "2026-11-04", kind: "makeup", version: 11 },
+        ],
+      },
+    });
+
+    assert.equal(payload.schedule_mode, "fixed_weekdays");
+    assert.deepEqual(payload.weekdays, [2]);
+    assert.equal(payload.sessions_per_week, 1);
+    assert.deepEqual(payload.add_sessions, []);
+    assert.deepEqual(payload.remove_session_ids, []);
+  });
+
+  it("requires a fresh authoritative schedule match before accepting PATCH success", () => {
+    const requestedDates = ["2026-11-03", "2026-11-10"];
+    const authoritative = normalizeMonthPlanResponse({
+      version: 6,
+      schedule_mode: "fixed_weekdays",
+      weekdays: [2],
+      sessions: requestedDates.map((date, index) => ({
+        id: `regular-${index + 1}`,
+        date,
+        kind: "regular",
+        version: 12,
+      })),
+    });
+    const staleSnapshot = normalizeMonthPlanResponse({
+      version: 6,
+      schedule_mode: "fixed_weekdays",
+      weekdays: [1],
+      sessions: authoritative.sessions,
+    });
+    const missingAuthority = normalizeMonthPlanResponse({
+      version: 6,
+      sessions: authoritative.sessions,
+    });
+    const staleRevision = normalizeMonthPlanResponse({
+      version: 5,
+      schedule_mode: "fixed_weekdays",
+      schedule_days: [2],
+      sessions: authoritative.sessions,
+    });
+
+    assert.equal(authoritative.scheduleAuthorityKnown, true);
+    assert.equal(matchesMonthPlanScheduleAuthority(authoritative, {
+      mode: "fixed_weekdays",
+      weekdays: [2],
+      requestedDates,
+      minimumVersion: 6,
+    }), true);
+    assert.equal(matchesMonthPlanScheduleAuthority(staleSnapshot, {
+      mode: "fixed_weekdays",
+      weekdays: [2],
+      requestedDates,
+    }), false);
+    assert.equal(matchesMonthPlanScheduleAuthority(missingAuthority, {
+      mode: "fixed_weekdays",
+      weekdays: [2],
+      requestedDates,
+    }), false);
+    assert.equal(matchesMonthPlanScheduleAuthority(staleRevision, {
+      mode: "fixed_weekdays",
+      weekdays: [2],
+      requestedDates,
+      minimumVersion: 6,
+    }), false);
   });
 
   it("preserves the exact package total instead of multiplying a rounded unit", () => {

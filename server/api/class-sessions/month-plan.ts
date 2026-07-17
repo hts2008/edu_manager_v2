@@ -133,16 +133,83 @@ export function synchronizeFlexiblePlanSnapshot(
   rows: Array<{ kind: string; sessionDate: Date | string }>,
 ) {
   if (scheduleSnapshot.schedule_days.length > 0) return [];
-  const regularDates = rows
-    .filter((row) => row.kind === "regular")
-    .map((row) => dateOnly(row.sessionDate));
+  const regularDates = regularPlanDates(rows);
   scheduleSnapshot.expected_regular_sessions = regularDates.length;
   Object.assign(snapshot, scheduleSnapshot, { requested_dates: regularDates });
   return regularDates;
 }
 
+function regularPlanDates(rows: Array<{ kind: string; sessionDate: Date | string }>) {
+  return rows
+    .filter((row) => row.kind === "regular")
+    .map((row) => dateOnly(row.sessionDate))
+    .sort();
+}
+
 function maxSessionVersion(rows: Array<{ version: number }>) {
   return rows.reduce((max, row) => Math.max(max, row.version), 0);
+}
+
+function assertSameDateSet(actual: string[], expected: string[]) {
+  const actualKey = [...new Set(actual)].sort().join("|");
+  const expectedKey = [...new Set(expected)].sort().join("|");
+  if (actualKey !== expectedKey) {
+    throw new ClassSessionError(
+      "PATCH_SCHEDULE_DATES_MISMATCH",
+      "PATCH row changes must match the requested schedule authority",
+      409,
+      { actual_dates: actual, expected_dates: expected },
+    );
+  }
+}
+
+function optionalPositiveInteger(value: unknown, fallback: number | null = null) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
+}
+
+function resolvePatchScheduleAuthority(
+  body: Record<string, unknown>,
+  classData: { scheduleDays: unknown; sessionsPerWeek: number | null },
+  month: string,
+  rows: Array<{ kind: string; sessionDate: Date | string }>,
+) {
+  if (body.schedule_mode === undefined) return null;
+  if (body.schedule_mode === "fixed_weekdays") {
+    const weekdays = resolveFixedMonthPlanWeekdays(body.weekdays, classData.scheduleDays);
+    const fixedPlan = buildMonthPlan({
+      class_id: "patch-schedule-authority",
+      month,
+      schedule_mode: "fixed_weekdays",
+      weekdays,
+      sessions_per_week: optionalPositiveInteger(body.sessions_per_week, classData.sessionsPerWeek),
+    });
+    const actualDates = regularPlanDates(rows);
+    assertSameDateSet(actualDates, fixedPlan.dates);
+    return {
+      schedule_mode: "fixed_weekdays",
+      weekdays,
+      schedule_days: weekdays,
+      sessions_per_week: optionalPositiveInteger(body.sessions_per_week, weekdays.length),
+      expected_regular_sessions: fixedPlan.dates.length,
+      requested_dates: fixedPlan.dates,
+      warnings: fixedPlan.warnings,
+    };
+  }
+  if (body.schedule_mode === "flexible") {
+    const dates = regularPlanDates(rows);
+    return {
+      schedule_mode: "flexible",
+      weekdays: [],
+      schedule_days: [],
+      sessions_per_week: optionalPositiveInteger(body.sessions_per_week),
+      expected_regular_sessions: dates.length,
+      requested_dates: dates,
+      warnings: [],
+    };
+  }
+  throw new ClassSessionError("INVALID_SCHEDULE_MODE", "schedule_mode is invalid", 400);
 }
 
 function assertPlanSessionMonthInvariant(rows: any[], classId: string, month: string) {
@@ -415,8 +482,9 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
   const removeIds: string[] = Array.isArray(body.remove_session_ids)
     ? Array.from(new Set<string>((body.remove_session_ids as unknown[]).filter((id): id is string => typeof id === "string")))
     : [];
-  if (!additions.length && !removeIds.length) {
-    throw new ClassSessionError("EMPTY_PATCH", "add_sessions or remove_session_ids is required", 400);
+  const hasScheduleAuthorityUpdate = body.schedule_mode !== undefined;
+  if (!additions.length && !removeIds.length && !hasScheduleAuthorityUpdate) {
+    throw new ClassSessionError("EMPTY_PATCH", "add_sessions, remove_session_ids, or schedule_mode is required", 400);
   }
 
   const snapshot: Record<string, unknown> = {
@@ -424,7 +492,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     add_sessions: additions,
     remove_session_ids: removeIds,
   };
-  const { aggregate, rows, scheduleSnapshot } = await withClassMonthPlanRosterWrite(
+  const { aggregate, rows, scheduleSnapshot, scheduleWarnings } = await withClassMonthPlanRosterWrite(
     prisma,
     classId,
     month,
@@ -447,6 +515,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
         await loadPersistedScheduleSnapshot(tx, existingAggregate) ?? currentScheduleSnapshot;
       Object.assign(snapshot, scheduleSnapshot);
       let rows: any[] = [];
+      let scheduleWarnings: unknown[] = [];
       const aggregate = await claimClassMonthPlan(tx, {
         planId: existingAggregate.id,
         expectedRevision: resolveMutationExpectedRevision(aggregateVersion, ensured),
@@ -515,10 +584,19 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     });
     rows = await loadPlan(claimTx, classId, month);
     assertPlanSessionMonthInvariant(rows, classId, month);
-    synchronizeFlexiblePlanSnapshot(snapshot, scheduleSnapshot, rows);
+    const scheduleAuthority = resolvePatchScheduleAuthority(body, classData, month, rows);
+    if (scheduleAuthority) {
+      scheduleSnapshot.schedule_days = scheduleAuthority.schedule_days;
+      scheduleSnapshot.sessions_per_week = scheduleAuthority.sessions_per_week;
+      scheduleSnapshot.expected_regular_sessions = scheduleAuthority.expected_regular_sessions;
+      scheduleWarnings = scheduleAuthority.warnings;
+      Object.assign(snapshot, scheduleAuthority);
+    } else {
+      synchronizeFlexiblePlanSnapshot(snapshot, scheduleSnapshot, rows);
+    }
     snapshot.sessions = rows.map(classSessionToDto);
       });
-      return { aggregate, rows, scheduleSnapshot };
+      return { aggregate, rows, scheduleSnapshot, scheduleWarnings };
     },
   );
 
@@ -528,6 +606,10 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     state: aggregate.state,
     version: aggregate.revision,
     expected_regular_sessions: scheduleSnapshot.expected_regular_sessions,
+    schedule_mode: snapshot.schedule_mode ?? (scheduleSnapshot.schedule_days.length ? "fixed_weekdays" : "flexible"),
+    weekdays: scheduleSnapshot.schedule_days,
+    schedule_days: scheduleSnapshot.schedule_days,
+    sessions_per_week: scheduleSnapshot.sessions_per_week,
     ...buildRegularPlanCoverage({
       month,
       sessions: rows,
@@ -537,6 +619,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
         ? snapshot.requested_dates as string[]
         : undefined,
     }),
+    warnings: scheduleWarnings,
     sessions: rows.map(classSessionToDto),
   });
 }

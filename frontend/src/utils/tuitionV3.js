@@ -114,6 +114,13 @@ function sessionDate(session) {
   return String(session?.date || session?.session_date || "").slice(0, 10);
 }
 
+function normalizeMonthPlanWeekdays(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(
+    value.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
+  )].sort((left, right) => left - right);
+}
+
 function localDateKey(date) {
   return [
     date.getFullYear(),
@@ -205,6 +212,12 @@ export function generateFixedMonthPlanDates(month, weekdays = []) {
 export function normalizeMonthPlanResponse(value = {}) {
   const root = value?.data && typeof value.data === "object" ? value.data : value;
   const nestedPlan = root?.plan && typeof root.plan === "object" ? root.plan : {};
+  const rawScheduleMode = root?.schedule_mode ?? nestedPlan.schedule_mode;
+  const rawWeekdays = root?.weekdays ?? root?.schedule_days ??
+    nestedPlan.weekdays ?? nestedPlan.schedule_days;
+  const scheduleMode = rawScheduleMode === "fixed_weekdays" || rawScheduleMode === "flexible"
+    ? rawScheduleMode
+    : null;
   const sessions = Array.isArray(root?.sessions)
     ? root.sessions
     : Array.isArray(nestedPlan.sessions)
@@ -238,11 +251,35 @@ export function normalizeMonthPlanResponse(value = {}) {
       nestedPlan.schedule_source ||
       nestedPlan.source ||
       "",
+    scheduleMode,
+    weekdays: normalizeMonthPlanWeekdays(rawWeekdays),
+    scheduleAuthorityKnown: scheduleMode !== null && Array.isArray(rawWeekdays),
     expectedRegularSessions:
       Number.isInteger(expected) && expected >= 0 ? expected : regularDates.length,
     regularDates,
     sessions,
   };
+}
+
+export function matchesMonthPlanScheduleAuthority(
+  value,
+  { mode, weekdays = [], requestedDates = [], minimumVersion = 0 } = {},
+) {
+  const plan = value?.scheduleAuthorityKnown === undefined
+    ? normalizeMonthPlanResponse(value)
+    : value;
+  if (!plan.scheduleAuthorityKnown || plan.scheduleMode !== mode) return false;
+  if (!Number.isInteger(plan.version) || plan.version < minimumVersion) return false;
+
+  const expectedDates = [...new Set(requestedDates)]
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
+  if (expectedDates.join("|") !== [...plan.regularDates].sort().join("|")) return false;
+
+  const expectedWeekdays = mode === "fixed_weekdays"
+    ? normalizeMonthPlanWeekdays(weekdays)
+    : [];
+  return expectedWeekdays.join("|") === plan.weekdays.join("|");
 }
 
 export function buildMonthPlanRequest({
@@ -300,6 +337,9 @@ export function buildMonthPlanRequest({
 export function buildMonthPlanPatchRequest({
   classId,
   month,
+  mode,
+  weekdays = [],
+  sessionsPerWeek,
   requestedDates = [],
   reason,
   plan = {},
@@ -310,6 +350,16 @@ export function buildMonthPlanPatchRequest({
   }
   const normalizedReason = String(reason || "").trim();
   if (!normalizedReason) throw new Error("A change reason is required");
+  if (mode !== "fixed_weekdays" && mode !== "flexible") {
+    throw new Error("Unsupported month plan mode");
+  }
+
+  const normalizedWeekdays = mode === "fixed_weekdays"
+    ? normalizeMonthPlanWeekdays(weekdays)
+    : [];
+  if (mode === "fixed_weekdays" && !normalizedWeekdays.length) {
+    throw new Error("Choose at least one weekday");
+  }
 
   const dates = [...new Set(requestedDates)]
     .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && date.startsWith(`${month}-`))
@@ -332,11 +382,13 @@ export function buildMonthPlanPatchRequest({
       .map((session) => [session.id, Number(session.version)]),
   );
 
-  return {
+  const request = {
     class_id: classId,
     month,
     expected_version: plan.version,
     row_versions: rowVersions,
+    schedule_mode: mode,
+    weekdays: normalizedWeekdays,
     reason: normalizedReason,
     add_sessions: dates
       .filter((date) => !currentRegularDates.has(date))
@@ -350,6 +402,15 @@ export function buildMonthPlanPatchRequest({
       .filter((session) => !requestedDateSet.has(session.date))
       .map((session) => session.id),
   };
+  return mode === "fixed_weekdays"
+    ? {
+        ...request,
+        sessions_per_week:
+          Number(sessionsPerWeek) > 0
+            ? Math.trunc(Number(sessionsPerWeek))
+            : normalizedWeekdays.length,
+      }
+    : request;
 }
 
 export function summarizeTuitionSessions(sessions = []) {

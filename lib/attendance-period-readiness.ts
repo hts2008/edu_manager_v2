@@ -4,7 +4,6 @@ import { generateFixedWeekdayDates } from "./class-sessions.js";
 
 export type AttendanceExpectedSource =
   | "published_plan_snapshot"
-  | "current_regular_session_ledger"
   | "none";
 
 export type AttendanceWeeklyDeficit = {
@@ -189,14 +188,10 @@ export function buildRegularPlanCoverage(input: {
   const actualDates = new Set(regularSessions.map((session) => dateOnly(session.sessionDate)));
   const hasPublishedExpected = Number.isInteger(input.expectedRegularSessions);
   const source = input.expectedSource
-    ?? (hasPublishedExpected
-      ? "published_plan_snapshot"
-      : regularSessions.length > 0
-        ? "current_regular_session_ledger"
-        : "none");
+    ?? (hasPublishedExpected ? "published_plan_snapshot" : "none");
   const expected = hasPublishedExpected
     ? Math.max(0, Math.trunc(Number(input.expectedRegularSessions)))
-    : regularSessions.length;
+    : 0;
   const expectedDates = [...new Set(input.expectedDates || [])].sort();
   const missingDates = expectedDates.filter((date) => !actualDates.has(date));
   const missingCount = Math.max(expected - regularSessions.length, missingDates.length, 0);

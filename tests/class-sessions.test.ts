@@ -238,6 +238,104 @@ describe("class session month plans", () => {
     }
   });
 
+  it("fails closed when class-level finance is confirmed, paid, or receipt-linked", async () => {
+    let financeWhere: any;
+    const db = {
+      attendancePeriod: { findFirst: async () => null },
+      monthlyFeeLine: {
+        findFirst: async ({ where }: any) => {
+          financeWhere = where;
+          return { id: "protected-line" };
+        },
+      },
+      monthlyFee: { findFirst: async () => assert.fail("line protection must short-circuit") },
+    };
+
+    await assert.rejects(
+      () => assertMonthMutable(db, "class-1", "2026-07"),
+      (error: unknown) =>
+        error instanceof ClassSessionError &&
+        error.code === "SESSION_PLAN_FINANCE_PROTECTED" &&
+        error.status === 409,
+    );
+    assert.deepEqual(financeWhere, {
+      classId: "class-1",
+      month: "2026-07",
+      OR: [
+        { status: { in: ["confirmed", "paid"] } },
+        { receiptId: { not: null } },
+        { paidAt: { not: null } },
+        { receiptLines: { some: {} } },
+        { monthlyFee: { status: { in: ["confirmed", "paid"] } } },
+        { monthlyFee: { receiptId: { not: null } } },
+        { monthlyFee: { paidAt: { not: null } } },
+      ],
+    });
+  });
+
+  it("uses the denominator audit boundary for protected aggregate finance", async () => {
+    let aggregateWhere: any;
+    const db = {
+      attendancePeriod: { findFirst: async () => null },
+      monthlyFeeLine: { findFirst: async () => null },
+      monthlyFee: {
+        findFirst: async ({ where }: any) => {
+          aggregateWhere = where;
+          return { id: "protected-fee" };
+        },
+      },
+    };
+
+    await assert.rejects(
+      () => assertMonthMutable(db, "class-1", "2026-07"),
+      (error: unknown) =>
+        error instanceof ClassSessionError &&
+        error.code === "SESSION_PLAN_FINANCE_PROTECTED" &&
+        error.status === 409,
+    );
+    assert.equal(aggregateWhere.month, "2026-07");
+    assert.deepEqual(aggregateWhere.OR, [
+      { status: { in: ["confirmed", "paid"] } },
+      { receiptId: { not: null } },
+      { paidAt: { not: null } },
+    ]);
+    assert.deepEqual(aggregateWhere.student, {
+      OR: [
+        {
+          enrollmentPeriods: {
+            some: {
+              classId: "class-1",
+              startedAt: { lt: new Date("2026-08-01T00:00:00.000Z") },
+              OR: [
+                { endedAt: null },
+                { endedAt: { gt: new Date("2026-07-01T00:00:00.000Z") } },
+              ],
+            },
+          },
+        },
+        {
+          studentClasses: {
+            some: {
+              classId: "class-1",
+              status: "active",
+              enrollmentDate: { lt: new Date("2026-08-01T00:00:00.000Z") },
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it("allows month-plan mutation only after both protected-finance checks are clear", async () => {
+    const reads: string[] = [];
+    await assert.doesNotReject(() => assertMonthMutable({
+      attendancePeriod: { findFirst: async () => (reads.push("attendance"), null) },
+      monthlyFeeLine: { findFirst: async () => (reads.push("line"), null) },
+      monthlyFee: { findFirst: async () => (reads.push("aggregate"), null) },
+    }, "class-1", "2026-07"));
+    assert.deepEqual(reads, ["attendance", "line", "aggregate"]);
+  });
+
   it("rejects deleting a class session that has attendance", async () => {
     const db = { attendance: { count: async () => 1 } };
     await assert.rejects(
@@ -437,6 +535,209 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.$transaction = originals.transaction;
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      setAuthConfigForTests(null);
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  it("accepts schedule-only PATCH and publishes fixed weekday authority", async () => {
+    const { default: monthPlanHandler } = await import(
+      "../server/api/class-sessions/month-plan.js"
+    );
+    const mockedPrisma = prisma as any;
+    const originals = {
+      transaction: mockedPrisma.$transaction,
+      userFindUnique: mockedPrisma.user.findUnique,
+      authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      classFindUnique: mockedPrisma.class.findUnique,
+      attendancePeriodFindUnique: mockedPrisma.attendancePeriod.findUnique,
+      attendancePeriodFindFirst: mockedPrisma.attendancePeriod.findFirst,
+      monthlyFeeLineFindFirst: mockedPrisma.monthlyFeeLine.findFirst,
+      monthlyFeeFindFirst: mockedPrisma.monthlyFee.findFirst,
+      classMonthPlanUpsert: mockedPrisma.classMonthPlan.upsert,
+      classMonthPlanUpdateMany: mockedPrisma.classMonthPlan.updateMany,
+      classMonthPlanFindUnique: mockedPrisma.classMonthPlan.findUnique,
+      classMonthPlanRevisionFindUnique: mockedPrisma.classMonthPlanRevision.findUnique,
+      classMonthPlanRevisionFindMany: mockedPrisma.classMonthPlanRevision.findMany,
+      classMonthPlanRevisionCreate: mockedPrisma.classMonthPlanRevision.create,
+      classSessionFindMany: mockedPrisma.classSession.findMany,
+      classSessionDeleteMany: mockedPrisma.classSession.deleteMany,
+      classSessionCreate: mockedPrisma.classSession.create,
+      classSessionUpdateMany: mockedPrisma.classSession.updateMany,
+      queryRaw: mockedPrisma.$queryRaw,
+    };
+    const previousNodeEnv = process.env.NODE_ENV;
+    const authConfig = {
+      secret: "class-session-patch-schedule-secret-at-least-32-characters",
+      issuer: "edu-manager-test",
+      audience: "edu-manager-test-api",
+      algorithm: "HS256" as const,
+    };
+    const dates = generateFixedWeekdayDates("2026-07", [1, 3]);
+    let planRevision = 3;
+    let updateManyCalls = 0;
+    let deleteCalls = 0;
+    let createCalls = 0;
+    let capturedSnapshot: any = null;
+
+    try {
+      process.env.NODE_ENV = "test";
+      setAuthConfigForTests(authConfig);
+      mockedPrisma.$transaction = async (work: (tx: any) => Promise<unknown>) => work(mockedPrisma);
+      mockedPrisma.$queryRaw = async () => [];
+      mockedPrisma.user.findUnique = async () => ({
+        id: "admin-1",
+        username: "admin",
+        fullName: "Admin",
+        email: null,
+        phone: null,
+        role: "admin",
+        status: "active",
+        lastLogin: null,
+        tokenVersion: 0,
+      });
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-patch-schedule" });
+      mockedPrisma.class.findUnique = async () => ({
+        id: "class-1",
+        scheduleDays: [],
+        sessionsPerWeek: null,
+      });
+      mockedPrisma.attendancePeriod.findUnique = async () => null;
+      mockedPrisma.attendancePeriod.findFirst = async () => null;
+      mockedPrisma.monthlyFeeLine.findFirst = async () => null;
+      mockedPrisma.monthlyFee.findFirst = async () => null;
+      mockedPrisma.classMonthPlan.upsert = async () => ({
+        id: "plan-1",
+        classId: "class-1",
+        billingMonth: "2026-07",
+        state: "open",
+        revision: planRevision,
+      });
+      mockedPrisma.classMonthPlan.findUnique = async () => ({
+        id: "plan-1",
+        classId: "class-1",
+        billingMonth: "2026-07",
+        state: "open",
+        revision: planRevision,
+      });
+      mockedPrisma.classMonthPlan.updateMany = async ({ data }: any) => {
+        updateManyCalls += 1;
+        if (data?.revision?.increment === 1) planRevision += 1;
+        return { count: 1 };
+      };
+      mockedPrisma.classMonthPlanRevision.findUnique = async () => ({
+        snapshot: {
+          payload: {
+            operation: "replace",
+            requested_dates: dates,
+            schedule_days: [],
+            sessions_per_week: null,
+            expected_regular_sessions: dates.length,
+          },
+        },
+      });
+      mockedPrisma.classMonthPlanRevision.findMany = async () => [];
+      mockedPrisma.classMonthPlanRevision.create = async ({ data }: any) => {
+        capturedSnapshot = data.snapshot;
+        return { id: "revision-4" };
+      };
+      mockedPrisma.classSession.findMany = async () =>
+        dates.map((date, index) => ({
+          id: `regular-${index + 1}`,
+          classId: "class-1",
+          sessionDate: new Date(`${date}T00:00:00.000Z`),
+          billingMonth: "2026-07",
+          kind: "regular",
+          status: "planned",
+          extraFeeMode: "included",
+          replacementForId: null,
+          source: "month_plan",
+          notes: null,
+          version: 3,
+          createdAt: new Date("2026-07-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+        }));
+      mockedPrisma.classSession.deleteMany = async () => {
+        deleteCalls += 1;
+        return { count: 0 };
+      };
+      mockedPrisma.classSession.create = async () => {
+        createCalls += 1;
+        throw new Error("schedule-only patch must not create sessions");
+      };
+      mockedPrisma.classSession.updateMany = async () => ({ count: dates.length });
+
+      const token = jwt.sign(
+        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authConfig.secret,
+        {
+          algorithm: authConfig.algorithm,
+          issuer: authConfig.issuer,
+          audience: authConfig.audience,
+          subject: "admin-1",
+          jwtid: "session-patch-schedule",
+          expiresIn: "5m",
+        },
+      );
+      const response = mockResponse();
+
+      await monthPlanHandler(
+        {
+          method: "PATCH",
+          headers: { authorization: `Bearer ${token}` },
+          query: {},
+          body: {
+            class_id: "class-1",
+            month: "2026-07",
+            expected_version: 3,
+            row_versions: Object.fromEntries(dates.map((_, index) => [`regular-${index + 1}`, 3])),
+            schedule_mode: "fixed_weekdays",
+            weekdays: [1, 3],
+            sessions_per_week: 2,
+            reason: "publish fixed weekday authority without row delta",
+            add_sessions: [],
+            remove_session_ids: [],
+          },
+        } as any,
+        response as any,
+      );
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body.success, true);
+      assert.equal(response.body.data.version, 4);
+      assert.equal(response.body.data.schedule_mode, "fixed_weekdays");
+      assert.deepEqual(response.body.data.weekdays, [1, 3]);
+      assert.equal(response.body.data.expected, dates.length);
+      assert.equal(response.body.data.actual, dates.length);
+      assert.equal(response.body.data.missing_count, 0);
+      assert.equal(updateManyCalls, 1);
+      assert.equal(deleteCalls, 0);
+      assert.equal(createCalls, 0);
+      assert.equal(capturedSnapshot.payload.schedule_mode, "fixed_weekdays");
+      assert.deepEqual(capturedSnapshot.payload.schedule_days, [1, 3]);
+      assert.deepEqual(capturedSnapshot.payload.weekdays, [1, 3]);
+      assert.deepEqual(capturedSnapshot.payload.requested_dates, dates);
+    } finally {
+      mockedPrisma.$transaction = originals.transaction;
+      mockedPrisma.user.findUnique = originals.userFindUnique;
+      mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.class.findUnique = originals.classFindUnique;
+      mockedPrisma.attendancePeriod.findUnique = originals.attendancePeriodFindUnique;
+      mockedPrisma.attendancePeriod.findFirst = originals.attendancePeriodFindFirst;
+      mockedPrisma.monthlyFeeLine.findFirst = originals.monthlyFeeLineFindFirst;
+      mockedPrisma.monthlyFee.findFirst = originals.monthlyFeeFindFirst;
+      mockedPrisma.classMonthPlan.upsert = originals.classMonthPlanUpsert;
+      mockedPrisma.classMonthPlan.updateMany = originals.classMonthPlanUpdateMany;
+      mockedPrisma.classMonthPlan.findUnique = originals.classMonthPlanFindUnique;
+      mockedPrisma.classMonthPlanRevision.findUnique = originals.classMonthPlanRevisionFindUnique;
+      mockedPrisma.classMonthPlanRevision.findMany = originals.classMonthPlanRevisionFindMany;
+      mockedPrisma.classMonthPlanRevision.create = originals.classMonthPlanRevisionCreate;
+      mockedPrisma.classSession.findMany = originals.classSessionFindMany;
+      mockedPrisma.classSession.deleteMany = originals.classSessionDeleteMany;
+      mockedPrisma.classSession.create = originals.classSessionCreate;
+      mockedPrisma.classSession.updateMany = originals.classSessionUpdateMany;
+      mockedPrisma.$queryRaw = originals.queryRaw;
       setAuthConfigForTests(null);
       if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = previousNodeEnv;
@@ -806,9 +1107,13 @@ describe("class session month-plan API behavior", () => {
       classFindUnique: mockedPrisma.class.findUnique,
       attendancePeriodFindUnique: mockedPrisma.attendancePeriod.findUnique,
       attendancePeriodFindFirst: mockedPrisma.attendancePeriod.findFirst,
+      monthlyFeeLineFindFirst: mockedPrisma.monthlyFeeLine.findFirst,
+      monthlyFeeFindFirst: mockedPrisma.monthlyFee.findFirst,
       classMonthPlanUpsert: mockedPrisma.classMonthPlan.upsert,
       classMonthPlanUpdateMany: mockedPrisma.classMonthPlan.updateMany,
       classMonthPlanFindUnique: mockedPrisma.classMonthPlan.findUnique,
+      classMonthPlanRevisionFindUnique: mockedPrisma.classMonthPlanRevision.findUnique,
+      classMonthPlanRevisionFindMany: mockedPrisma.classMonthPlanRevision.findMany,
       classMonthPlanRevisionCreate: mockedPrisma.classMonthPlanRevision.create,
       classSessionFindMany: mockedPrisma.classSession.findMany,
       classSessionDeleteMany: mockedPrisma.classSession.deleteMany,
@@ -847,6 +1152,8 @@ describe("class session month-plan API behavior", () => {
       });
       mockedPrisma.attendancePeriod.findUnique = async () => null;
       mockedPrisma.attendancePeriod.findFirst = async () => null;
+      mockedPrisma.monthlyFeeLine.findFirst = async () => null;
+      mockedPrisma.monthlyFee.findFirst = async () => null;
       mockedPrisma.classMonthPlan.upsert = async () => ({
         id: "plan-1",
         classId: "class-1",
@@ -862,6 +1169,8 @@ describe("class session month-plan API behavior", () => {
         state: "open",
         revision: 2,
       });
+      mockedPrisma.classMonthPlanRevision.findUnique = async () => null;
+      mockedPrisma.classMonthPlanRevision.findMany = async () => [];
       mockedPrisma.classMonthPlanRevision.create = async () => ({ id: "revision-2" });
       mockedPrisma.classSession.deleteMany = async () => ({ count: 0 });
 
@@ -932,9 +1241,13 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.class.findUnique = originals.classFindUnique;
       mockedPrisma.attendancePeriod.findUnique = originals.attendancePeriodFindUnique;
       mockedPrisma.attendancePeriod.findFirst = originals.attendancePeriodFindFirst;
+      mockedPrisma.monthlyFeeLine.findFirst = originals.monthlyFeeLineFindFirst;
+      mockedPrisma.monthlyFee.findFirst = originals.monthlyFeeFindFirst;
       mockedPrisma.classMonthPlan.upsert = originals.classMonthPlanUpsert;
       mockedPrisma.classMonthPlan.updateMany = originals.classMonthPlanUpdateMany;
       mockedPrisma.classMonthPlan.findUnique = originals.classMonthPlanFindUnique;
+      mockedPrisma.classMonthPlanRevision.findUnique = originals.classMonthPlanRevisionFindUnique;
+      mockedPrisma.classMonthPlanRevision.findMany = originals.classMonthPlanRevisionFindMany;
       mockedPrisma.classMonthPlanRevision.create = originals.classMonthPlanRevisionCreate;
       mockedPrisma.classSession.findMany = originals.classSessionFindMany;
       mockedPrisma.classSession.deleteMany = originals.classSessionDeleteMany;

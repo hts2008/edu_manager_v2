@@ -8,6 +8,7 @@ import {
   formatSessionDate,
   formatTuitionMonth,
   generateFixedMonthPlanDates,
+  matchesMonthPlanScheduleAuthority,
   normalizeMonthPlanResponse,
 } from "../../utils/tuitionV3";
 import ActionProgressButton from "../ui/ActionProgressButton";
@@ -56,6 +57,7 @@ function monthDays(month) {
 }
 
 function inferMode(plan, scheduleDays, month) {
+  if (plan.scheduleAuthorityKnown) return plan.scheduleMode;
   if (!scheduleDays.length) return "flexible";
   const fixedDates = generateFixedMonthPlanDates(month, scheduleDays);
   return plan.regularDates.length === 0 ||
@@ -137,14 +139,17 @@ export default function AttendanceMonthPlanEditor({
 
     const normalized = normalizeMonthPlanResponse(response);
     const nextMode = inferMode(normalized, scheduleDays, month);
+    const nextWeekdays = normalized.scheduleAuthorityKnown && nextMode === "fixed_weekdays"
+      ? normalized.weekdays
+      : scheduleDays;
     setPlan(normalized);
     setMode(nextMode);
-    setWeekdays(scheduleDays);
+    setWeekdays(nextWeekdays);
     setSelectedDates(normalized.regularDates);
     setReason("");
     setInitialEditorSnapshot(buildEditorSnapshot({
       mode: nextMode,
-      weekdays: scheduleDays,
+      weekdays: nextWeekdays,
       selectedDates: normalized.regularDates,
       reason: "",
     }));
@@ -243,6 +248,9 @@ export default function AttendanceMonthPlanEditor({
         ? buildMonthPlanPatchRequest({
             classId,
             month,
+            mode,
+            weekdays,
+            sessionsPerWeek: weekdays.length,
             requestedDates: previewDates,
             reason,
             plan,
@@ -257,20 +265,15 @@ export default function AttendanceMonthPlanEditor({
             reason,
             plan,
           });
-      if (
-        usesPatchSemantics &&
-        payload.add_sessions.length === 0 &&
-        payload.remove_session_ids.length === 0
-      ) {
-        setReason("");
-        setInitialEditorSnapshot(buildEditorSnapshot({
-          mode,
-          weekdays,
-          selectedDates,
-          reason: "",
-        }));
-        setStatus("success");
-        setMessage("Không có thay đổi buổi chính khóa; các buổi bù và buổi thêm được giữ nguyên.");
+      const hasPatchRowChanges = payload.add_sessions?.length > 0 ||
+        payload.remove_session_ids?.length > 0;
+      if (usesPatchSemantics && !hasPatchRowChanges && matchesMonthPlanScheduleAuthority(plan, {
+        mode,
+        weekdays,
+        requestedDates: previewDates,
+      })) {
+        setStatus("error");
+        setMessage("Kế hoạch tháng không có thay đổi để lưu.");
         return;
       }
     } catch (error) {
@@ -305,9 +308,46 @@ export default function AttendanceMonthPlanEditor({
       return;
     }
 
-    const normalized = normalizeMonthPlanResponse(response);
+    let authoritativeResponse = response;
+    if (usesPatchSemantics) {
+      try {
+        authoritativeResponse = await classSessionsService.getMonthPlan(classId, month, {
+          cache: "no-store",
+          skipCache: true,
+        });
+      } catch (error) {
+        if (!isCurrentRequest(saveRequestRef, requestId, context)) return;
+        setStatus("conflict");
+        setMessage(error?.message || "Đã gửi thay đổi nhưng không thể xác minh schedule authority từ backend.");
+        return;
+      }
+      if (!isCurrentRequest(saveRequestRef, requestId, context)) return;
+      if (!authoritativeResponse.success) {
+        setStatus("conflict");
+        setMessage(
+          authoritativeResponse.error?.message ||
+          "Đã gửi thay đổi nhưng backend chưa trả lại schedule authority để xác minh.",
+        );
+        return;
+      }
+    }
+
+    const mutationResult = normalizeMonthPlanResponse(response);
+    const normalized = normalizeMonthPlanResponse(authoritativeResponse);
     setPlan(normalized);
     setSelectedDates(normalized.regularDates);
+    if (usesPatchSemantics && !matchesMonthPlanScheduleAuthority(normalized, {
+      mode,
+      weekdays,
+      requestedDates: previewDates,
+      minimumVersion: Math.max(plan.version + 1, mutationResult.version),
+    })) {
+      setStatus("conflict");
+      setMessage(
+        "Backend chưa xác nhận schedule_mode/weekdays mới. Các buổi bù và buổi thêm được giữ nguyên, nhưng kế hoạch chưa được coi là đã lưu.",
+      );
+      return;
+    }
     setReason("");
     setInitialEditorSnapshot(buildEditorSnapshot({
       mode,
@@ -317,7 +357,7 @@ export default function AttendanceMonthPlanEditor({
     }));
     setStatus("success");
     setMessage(`Đã lưu ${normalized.regularDates.length} buổi chính khóa.`);
-    await onSaved?.({ month, response });
+    await onSaved?.({ month, response: authoritativeResponse });
   };
 
   return (

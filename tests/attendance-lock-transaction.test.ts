@@ -591,6 +591,19 @@ describe("attendance lock transaction", () => {
         groupBy: async () => [],
         findMany: async () => [],
       },
+      classMonthPlan: {
+        findUnique: async () => ({ id: "plan-1", revision: 1, state: "frozen" }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => ({
+          snapshot: {
+            payload: {
+              requested_dates: ["2026-06-08"],
+              expected_regular_sessions: 1,
+            },
+          },
+        }),
+      },
       monthlyFee: {
         findMany: async () => [],
         createMany: async () => {

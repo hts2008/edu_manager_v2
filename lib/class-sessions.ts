@@ -252,6 +252,86 @@ export async function assertMonthMutable(db: any, classId: string, month: string
       409,
     );
   }
+
+  if (
+    typeof db.monthlyFeeLine?.findFirst !== "function" ||
+    typeof db.monthlyFee?.findFirst !== "function"
+  ) {
+    throw new ClassSessionError(
+      "SESSION_PLAN_FINANCE_CHECK_UNAVAILABLE",
+      "Cannot verify whether protected finance depends on this session plan",
+      503,
+    );
+  }
+
+  const protectedLine = await db.monthlyFeeLine.findFirst({
+    where: {
+      classId,
+      month,
+      OR: [
+        { status: { in: ["confirmed", "paid"] } },
+        { receiptId: { not: null } },
+        { paidAt: { not: null } },
+        { receiptLines: { some: {} } },
+        { monthlyFee: { status: { in: ["confirmed", "paid"] } } },
+        { monthlyFee: { receiptId: { not: null } } },
+        { monthlyFee: { paidAt: { not: null } } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (protectedLine) {
+    throw new ClassSessionError(
+      "SESSION_PLAN_FINANCE_PROTECTED",
+      "Session plan is immutable because confirmed, paid, or receipt-linked finance depends on it",
+      409,
+    );
+  }
+
+  const bounds = monthBounds(month);
+  const protectedAggregate = await db.monthlyFee.findFirst({
+    where: {
+      month,
+      OR: [
+        { status: { in: ["confirmed", "paid"] } },
+        { receiptId: { not: null } },
+        { paidAt: { not: null } },
+      ],
+      student: {
+        OR: [
+          {
+            enrollmentPeriods: {
+              some: {
+                classId,
+                startedAt: { lt: bounds.lt },
+                OR: [
+                  { endedAt: null },
+                  { endedAt: { gt: bounds.gte } },
+                ],
+              },
+            },
+          },
+          {
+            studentClasses: {
+              some: {
+                classId,
+                status: "active",
+                enrollmentDate: { lt: bounds.lt },
+              },
+            },
+          },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+  if (protectedAggregate) {
+    throw new ClassSessionError(
+      "SESSION_PLAN_FINANCE_PROTECTED",
+      "Session plan is immutable because confirmed, paid, or receipt-linked finance depends on it",
+      409,
+    );
+  }
 }
 
 export async function assertNoAttendanceForRemovedSessions(

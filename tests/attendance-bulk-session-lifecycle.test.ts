@@ -27,7 +27,7 @@ after(async () => {
 });
 
 describe("bulk attendance ClassSession lifecycle", () => {
-  it("records the single-attendance revision from the final transaction ledger", async () => {
+  it("does not promote an attendance-created ledger into a monthly denominator", async () => {
     const mockedPrisma = prisma as any;
     const originalTransaction = mockedPrisma.$transaction;
     let regularSessions = 0;
@@ -80,6 +80,8 @@ describe("bulk attendance ClassSession lifecycle", () => {
           };
         },
       },
+      monthlyFeeLine: { findFirst: async () => null },
+      monthlyFee: { findFirst: async () => null },
     };
     const response = {
       statusCode: 200,
@@ -120,7 +122,7 @@ describe("bulk attendance ClassSession lifecycle", () => {
 
     assert.equal(response.statusCode, 201);
     assert.equal(response.body.data.id, "attendance-1");
-    assert.equal(revisionSnapshot?.payload?.expected_regular_sessions, 1);
+    assert.equal(revisionSnapshot?.payload?.expected_regular_sessions, 0);
   });
 
   it("records each bulk revision after replacement and cleared-session reconciliation", async () => {
