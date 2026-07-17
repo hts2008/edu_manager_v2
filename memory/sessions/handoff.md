@@ -1,5 +1,17 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## 2026-07-17 Handoff - Attendance Week Selection Metadata Refresh
+- **Current Outcome**: The residual attendance calendar regression is fixed, deployed, and production-smoked.
+- **Root Cause**: Calendar week row clicks were guarded by `attendanceControlsDisabled`, which includes `weekLoading`; any metadata refresh could prevent `selectedWeek` from being set.
+- **Implementation**: Added a separate `weekSelectionDisabled = loading || saving` gate for calendar row click, keyboard, tabIndex and aria-disabled. Save/cell mutation remains protected by `attendanceControlsDisabled = loading || weekLoading || saving`.
+- **Production**: commit `2867171`; Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`; alias `https://edu-manager-gules.vercel.app`.
+- **Verification**: frontend unit, frontend lint, root unit `467/467`, TypeScript, build, diff-check and authenticated production Chrome smoke passed.
+- **Browser Evidence**: selected `FLYER B6`, clicked `attendance-week-2026-06-1`, rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`, metadata loaded with HTTP 200 API responses and the save button became enabled.
+- **Evidence**: `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`.
+- **Next**: If user reports a remaining attendance issue, first inspect whether it is a separate month-plan denominator/readiness problem rather than the calendar row selection gate.
+
+---
+
 ## 2026-06-12 Handoff - Student Monthly Progress Parent Report
 - **Current Outcome**: Phase 1 monthly parent-facing student progress reporting is implemented and deployed to production with plan, API, UI, tests, browser smoke, KANBAN/memory, and receipt evidence.
 - **Implementation**: Added `lib/student-progress-report.ts`, admin-only `/api/reports/student-progress`, `/student-progress` dashboard/charts/table/CSV/printable report UI, sidebar entry, API client method, focused tests, API docs, and plan/receipt artifacts.

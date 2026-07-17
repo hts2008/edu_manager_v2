@@ -1,6 +1,16 @@
 # Current Session
 
-## Latest Closeout - 2026-07-01
+## Latest Closeout - 2026-07-17
+
+- Objective `ATSEL-2026-07-17-01..03` is complete and production-live.
+- Commit: `2867171`.
+- Deployment: `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn` at `https://edu-manager-gules.vercel.app`.
+- RCA: calendar week selection reused the save/edit disabled flag, so `weekLoading` blocked `handleWeekClick` and past/future rows could appear inert.
+- Fix: `weekSelectionDisabled` now gates only selection; `attendanceControlsDisabled` still gates save/edit mutation until metadata is ready.
+- Evidence: `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`.
+- Production Chrome smoke: selected `FLYER B6`, clicked `attendance-week-2026-06-1`, got `Điểm danh tuần: 1/6/2026 - 7/6/2026`, metadata API calls were 200, save became enabled.
+
+## Previous Closeout - 2026-07-01
 
 - Objective `OPS-2026-06-29-01..05` is complete and production-live.
 - Commits: `e907980`, `1b783fe`.

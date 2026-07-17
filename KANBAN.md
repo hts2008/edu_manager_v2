@@ -1,6 +1,6 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - audited historical/future attendance correction, including no-ledger enrollment repair, deployed and Chrome-verified on 2026-07-15
+> **Status**: PRODUCTION LIVE - published month-plan attendance denominator plus historical/future week selection fix deployed and production Chrome-verified on 2026-07-17
 >
 > **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
 
@@ -10,9 +10,25 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commit `1d1ec50`, Vercel `dpl_Hz78XRJGDoYouYsjvCBkgfTLC1zx`, authenticated Chrome correction/reload/future-week smoke passed |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commit `2867171`, Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, authenticated Chrome verified FLYER B6 past-week selection/edit readiness |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
+
+## IMPLEMENTED - ATTENDANCE WEEK SELECTION DURING METADATA REFRESH (2026-07-17)
+
+**Objective:** fix the operator-reported regression where past/future month week rows appeared clickable but did not open the weekly attendance panel while week metadata was refreshing.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| ATSEL-2026-07-17-01 | Decouple calendar week selection from week metadata/edit-save locking | IMPLEMENTED | `frontend/src/pages/AttendancePage.jsx`, focused source contracts, production Chrome smoke |
+| ATSEL-2026-07-17-02 | Preserve save/cell locking until metadata is ready | IMPLEMENTED | `attendanceControlsDisabled` still includes `weekLoading`; `weekSelectionDisabled` excludes it |
+| ATSEL-2026-07-17-03 | Deploy and verify on production with real auth | IMPLEMENTED | Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`; Chrome selected `FLYER B6` and opened `Điểm danh tuần: 1/6/2026 - 7/6/2026` |
+
+**Production:** commit `2867171` is pushed to `origin/main`, deployed as `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, and aliased to `https://edu-manager-gules.vercel.app`.
+
+**Verification:** `npm --prefix frontend run test:unit`, `npm --prefix frontend run lint`, `npm run test:unit` (`467/467`), `npx tsc --noEmit`, `npm run build`, and `git diff --check` passed. Authenticated production Chrome selected `FLYER B6`, clicked `attendance-week-2026-06-1`, rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`, loaded metadata without API 500s, and left the save action enabled after readiness.
+
+**Evidence:** `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`; screenshot artifacts under `C:/Users/haitr/AppData/Local/Temp/attendance-week-select.png` and `C:/Users/haitr/AppData/Local/Temp/attendance-week-ready.png`.
 
 ## REVIEW - FRONTEND ATTENDANCE REVIEWER FOLLOW-UP (2026-07-16)
 

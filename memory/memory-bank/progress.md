@@ -1035,3 +1035,13 @@
 - Added unit/source assertions for PATCH payloads, conflict filtering, save context, accessibility and current Tuition V3 denominator wiring.
 - Evidence: `receipts/2026-07-16-frontend-attendance-reviewer-follow-up.md`.
 - Verification: frontend unit `24/24`, focused ESLint `0`, static Tuition V3 contract `PASS`, `git diff --check` `0`; Playwright contract hung at browser startup and was terminated, not counted as pass.
+
+# 2026-07-17 - Attendance week selection metadata-refresh fix
+
+- RCA: `handleWeekClick` was guarded by `attendanceControlsDisabled`, and that flag included `weekLoading`. When a class/month metadata refresh was in flight, calendar rows looked selectable but returned early before setting `selectedWeek`.
+- Implementation: split selection gating from mutation gating. `weekSelectionDisabled = loading || saving` now controls calendar row click, keyboard, tabIndex and aria-disabled. `attendanceControlsDisabled = loading || weekLoading || saving` still protects save/edit controls until metadata is ready.
+- Tests updated: `frontend/tests/attendance-page-contract.test.js` and `tests/historical-attendance-ui-guard.test.ts` assert that week row selection does not depend on `weekLoading`.
+- Verification: frontend unit, frontend lint, root unit `467/467`, TypeScript, build and diff-check passed.
+- Production: pushed commit `2867171`, deployed Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, alias `https://edu-manager-gules.vercel.app`.
+- Authenticated Chrome smoke: prod login `admin/admin123` returned token; selected `FLYER B6`; clicked `attendance-week-2026-06-1`; panel rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`; metadata loaded with only HTTP 200 API responses and save button enabled after readiness.
+- Evidence: `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`.
