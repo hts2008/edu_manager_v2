@@ -232,10 +232,14 @@ describe("historical attendance UI and schedule guards", () => {
   });
 
   it("exposes every calendar week as an explicit past or future selection target", () => {
+    assert.match(
+      attendancePage,
+      /const weekSelectionDisabled = Boolean\(loading \|\| saving\);/,
+    );
     assert.match(attendancePage, /aria-label=\{`Chọn tuần \$\{formatWeekRangeLabel\(weekRange\)\}`\}/);
     assert.match(
       attendancePage,
-      /tabIndex=\{attendanceControlsDisabled \? -1 : 0\}/,
+      /tabIndex=\{weekSelectionDisabled \? -1 : 0\}/,
     );
     assert.match(attendancePage, /onKeyDown=\{\(event\) =>/);
 
@@ -244,6 +248,7 @@ describe("historical attendance UI and schedule guards", () => {
       attendancePage.indexOf("const handleCellClick"),
     );
     assert.doesNotMatch(weekClickBranch, /today|new Date\(\)/);
+    assert.doesNotMatch(weekClickBranch, /weekLoading/);
   });
 
   it("lets an admin backdate enrollment with an audited reason instead of writing outside enrollment", () => {

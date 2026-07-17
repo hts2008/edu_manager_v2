@@ -200,6 +200,7 @@ export default function AttendancePage() {
   const toast = useToast();
   const { isAdmin } = useAuth();
   const canManageMonthPlan = isAdmin();
+  const weekSelectionDisabled = Boolean(loading || saving);
   const attendanceControlsDisabled = Boolean(loading || weekLoading || saving);
 
   // Get today and calculate the visible 3-month window.
@@ -842,7 +843,7 @@ export default function AttendancePage() {
   };
 
   const handleWeekClick = (weekStart, weekEnd = weekStart) => {
-    if (attendanceControlsDisabled) return;
+    if (weekSelectionDisabled) return;
     const rowRange = getCalendarRowWeekRange(weekStart, weekEnd);
     if (!rowRange) return;
     setAttendance({});
@@ -1401,12 +1402,12 @@ export default function AttendancePage() {
                                     handleWeekClick(weekStart, weekEnd);
                                   }
                                 }}
-                                tabIndex={attendanceControlsDisabled ? -1 : 0}
+                                tabIndex={weekSelectionDisabled ? -1 : 0}
                                 aria-label={`Chọn tuần ${formatWeekRangeLabel(weekRange)}`}
                                 aria-selected={Boolean(isSelected)}
-                                aria-disabled={attendanceControlsDisabled}
+                                aria-disabled={weekSelectionDisabled}
                                 data-testid={`attendance-week-${key}-${wi + 1}`}
-                                className={`${attendanceControlsDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-gray-50"} transition-colors ${
+                                className={`${weekSelectionDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-gray-50"} transition-colors ${
                                   isSelected ? "bg-primary-100" : ""
                                 }`}
                               >

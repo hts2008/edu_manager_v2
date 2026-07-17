@@ -22,10 +22,11 @@ describe("attendance page interaction contracts", () => {
     assert.match(attendancePage, /canManageMonthPlan && monthPlanEditorMonth/);
   });
 
-  it("disables calendar controls while class or week data is loading", () => {
+  it("disables calendar selection only while class data is loading or saving, not during week refresh", () => {
+    assert.match(attendancePage, /const weekSelectionDisabled = Boolean\(loading \|\| saving\);/);
     assert.match(attendancePage, /const attendanceControlsDisabled = Boolean\(loading \|\| weekLoading \|\| saving\);/);
-    assert.match(attendancePage, /disabled=\{attendanceControlsDisabled\}/);
-    assert.match(attendancePage, /aria-disabled=\{attendanceControlsDisabled\}/);
+    assert.match(attendancePage, /disabled=\{weekSelectionDisabled\}/);
+    assert.match(attendancePage, /aria-disabled=\{weekSelectionDisabled\}/);
   });
 
   it("guards manual loads and saves against stale editor contexts", () => {
@@ -65,7 +66,7 @@ describe("attendance page interaction contracts", () => {
     const calendarRows = attendancePage.indexOf("calendar.map((week, wi)");
     const calendarKeyboardHandler = attendancePage.slice(
       attendancePage.indexOf("onKeyDown={(event) =>", calendarRows),
-      attendancePage.indexOf("tabIndex={attendanceControlsDisabled", calendarRows),
+      attendancePage.indexOf("tabIndex={weekSelectionDisabled", calendarRows),
     );
 
     assert.match(calendarKeyboardHandler, /event\.target !== event\.currentTarget/);
