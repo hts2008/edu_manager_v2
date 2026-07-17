@@ -573,32 +573,52 @@ export default function FeeCollectionPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_repeat(4,1fr)]">
-        <div className="eduflow-card p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(20rem,1.4fr)_repeat(4,minmax(0,1fr))]">
+        <div className="eduflow-card min-w-0 p-4">
+          <div className="grid min-w-0 gap-4">
+            <div className="min-w-0">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
                 Tháng
               </label>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => navigateMonth(-1)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-600">←</button>
+              <div className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="Tháng trước"
+                  data-testid="fee-month-previous"
+                  onClick={() => navigateMonth(-1)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white font-bold text-slate-600 transition hover:border-primary-300 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  ←
+                </button>
                 <input
                   type="month"
+                  aria-label="Chọn tháng thu học phí"
+                  data-testid="fee-month-input"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="input flex-1"
+                  className="input min-w-0 w-full"
                 />
-                <button type="button" onClick={() => navigateMonth(1)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-600">→</button>
+                <button
+                  type="button"
+                  aria-label="Tháng sau"
+                  data-testid="fee-month-next"
+                  onClick={() => navigateMonth(1)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white font-bold text-slate-600 transition hover:border-primary-300 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                >
+                  →
+                </button>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
                 Lớp
               </label>
               <select
+                aria-label="Lọc theo lớp"
+                data-testid="fee-class-filter"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                className="input"
+                className="input min-w-0 w-full"
               >
                 <option value="all">Tất cả lớp</option>
                 {classes.map((classItem) => (
