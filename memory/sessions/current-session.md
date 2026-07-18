@@ -822,3 +822,12 @@
 - Playwright `e2e/tuition-v3-ui-contract.spec.js` was attempted in normal and CI modes but hung during browser startup without output. The process tree was terminated; this is an unresolved test-environment limitation, not a pass.
 - Touched app scope: `frontend/src/pages/AttendancePage.jsx`, `frontend/src/components/attendance/AttendanceMonthPlanEditor.jsx`, `frontend/src/utils/tuitionV3.js`, attendance unit/source tests, and `frontend/e2e/tuition-v3-ui-contract.spec.js`. No backend edits.
 - Tool degradation: Context+ and EDU Neural Memory/MCPProxy unavailable; markdown-only mode used.
+
+## 2026-07-17 Fee Workbench Filter Overlap Hotfix
+
+- Objective: complete; no active fee-filter task remains.
+- Runtime source: commit `a0a88d6`, deployment `dpl_4qvTE4aRpypeAZXq68AaprY15U2q`, alias `https://edu-manager-gules.vercel.app`.
+- Completed: RCA, TDD layout contract, responsive filter correction, full static/unit/build gates, push/deploy and authenticated production Chrome smoke.
+- Browser acceptance: month navigation and class selection work independently; desktop/mobile overlap is zero and no horizontal overflow was observed.
+- Pending validation: none for the reported blocker.
+- Tool degradation: native TeamCreate, Context+ and EDU Neural Memory/MCPProxy were unavailable; one authorized explorer completed RCA and one verification helper hit quota, so final QA ran inline.

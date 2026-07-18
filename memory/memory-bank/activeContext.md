@@ -460,3 +460,13 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Read-only DB evidence confirmed all three open periods use `source=class_bulk_backdate`, `startedAt=2026-06-01`, with matching active `StudentClass.enrollmentDate` projections.
 - No attendance mark or financial record was created during this verification; only the approved enrollment effective-date correction was persisted.
 - Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md` and `receipts/artifacts/historical-attendance-enrollment-correction-production-2026-07-15.png`.
+
+## 2026-07-17 Current Context - Fee Workbench Filter Overlap Hotfix
+
+- `OPS-2026-07-17-01` is `IMPLEMENTED` and production-live.
+- RCA: the outer summary grid constrained the filter card while a viewport-based `sm:grid-cols-2` still forced Month and Class into two narrow columns. The native month input overflowed its track and the later class `select` covered its hit area.
+- Fix: reserve a bounded filter-card track, stack Month and Class, use `minmax(0,1fr)` for the month input, and keep previous/next buttons at 44px.
+- Production: commit `a0a88d6`, Vercel `dpl_4qvTE4aRpypeAZXq68AaprY15U2q`, alias `https://edu-manager-gules.vercel.app`.
+- Verification: root unit `467/467`, frontend unit `35/35`, TypeScript, lint, build, layout contract `3/3`, authenticated Chrome desktop/mobile interaction and geometry smoke.
+- Browser result: month `2026-07 -> 2026-08`, class selection changed, month input focus succeeded, overlap `0`, horizontal overflow false at `1440x900` and `390x844`.
+- Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable tool palette; markdown-only mode was used.

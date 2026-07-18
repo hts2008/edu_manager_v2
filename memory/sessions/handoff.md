@@ -543,3 +543,11 @@
 - For a no-ledger historical week, use the audited admin effective-date correction; do not reintroduce an implicit current-date or Monday fallback.
 - Chrome verified June editability, future August editability, reload persistence and zero console errors. DB verified matching period/history and live projection dates.
 - Evidence: `receipts/2026-07-15-flyer-b6-historical-attendance-correction-production.md`.
+
+## 2026-07-17 Handoff - Fee Workbench Filter Overlap Closed
+
+- `OPS-2026-07-17-01` is production-live at commit `a0a88d6` and deployment `dpl_4qvTE4aRpypeAZXq68AaprY15U2q`.
+- Keep Month and Class as vertically separated filter fields inside the constrained summary card. The month control must retain `auto / minmax(0,1fr) / auto` tracks and 44px previous/next targets.
+- Production Chrome confirmed month navigation, class selection, input focus, zero hitbox intersection and zero horizontal overflow at desktop/mobile viewports.
+- Evidence: `receipts/2026-07-17-fee-filter-overlap-hotfix.md` and `docs/artifacts/fee-filter-2026-07-17/`.
+- Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown memory is current.

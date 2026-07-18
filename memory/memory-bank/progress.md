@@ -1045,3 +1045,12 @@
 - Production: pushed commit `2867171`, deployed Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, alias `https://edu-manager-gules.vercel.app`.
 - Authenticated Chrome smoke: prod login `admin/admin123` returned token; selected `FLYER B6`; clicked `attendance-week-2026-06-1`; panel rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`; metadata loaded with only HTTP 200 API responses and save button enabled after readiness.
 - Evidence: `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`.
+
+## 2026-07-17 - Fee Workbench filter overlap production hotfix
+
+- Added a regression contract for filter-card sizing, independent controls, 44px hit targets and min-width containment.
+- Reworked the Fee Workbench summary/filter layout so Month and Class no longer compete for the same narrow row.
+- Passed root unit `467/467`, frontend unit `35/35`, focused ESLint, full frontend lint, TypeScript, build and diff-check.
+- Authenticated Chrome verified the old production overlap, then verified the deployed fix at desktop and mobile sizes with zero overlap/overflow and working month/class interactions.
+- Released commit `a0a88d6` through deployment `dpl_4qvTE4aRpypeAZXq68AaprY15U2q` to `https://edu-manager-gules.vercel.app`.
+- Evidence: `receipts/2026-07-17-fee-filter-overlap-hotfix.md` and `docs/artifacts/fee-filter-2026-07-17/`.

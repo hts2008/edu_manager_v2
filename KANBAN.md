@@ -996,3 +996,15 @@ stop.bat
 **Runtime acceptance:** authenticated Chrome created `Flyer VB3` with three students; the class list changed from 10 to 11 classes and 37 to 40 active enrollments. Vercel recorded `POST /api/classes` as HTTP 201 with no P2028/500.
 
 **Last Updated:** 2026-07-13
+
+---
+
+## IMPLEMENTED - FEE WORKBENCH FILTER OVERLAP HOTFIX (2026-07-17)
+
+| Task ID | Priority | Description | Status | Evidence |
+| ------- | -------- | ----------- | ------ | -------- |
+| OPS-2026-07-17-01 | P0 | Prevent the month picker and class filter from overlapping in Fee Workbench; preserve usable 44px controls on desktop and mobile | IMPLEMENTED | `receipts/2026-07-17-fee-filter-overlap-hotfix.md`; commit `a0a88d6`; deployment `dpl_4qvTE4aRpypeAZXq68AaprY15U2q` |
+
+**Runtime acceptance:** authenticated Chrome changed month `2026-07 -> 2026-08`, selected a class, focused the month input, and measured zero intersection between month controls and class filter at `1440x900` and `390x844`. Both viewports had no horizontal overflow.
+
+**Last Updated:** 2026-07-17
