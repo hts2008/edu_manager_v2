@@ -1,135 +1,97 @@
-# 📚 EDU MANAGER V2
+# EDU MANAGER V2
 
-> Quản lý trung tâm dạy thêm - Học viên, Điểm danh, Thu/Chi, In phiếu
+Production education-center operations platform for students, classes, attendance, tuition collection, receipts and expenses, print templates, analytics, and student progress.
 
-## ✨ Features
+Production: https://edu-manager-gules.vercel.app
 
-- 🔐 **Authentication**: JWT token + Role-based access control
-- 👥 **CRUD Modules**: Học viên, Phụ huynh, Giáo viên, Lớp học
-- 📅 **Attendance**: Điểm danh theo lớp/ngày, tính học phí tự động
-- 💰 **Finance**: Thu học phí, Chi tiêu, Lịch sử giao dịch
-- 📄 **Templates**: Thiết kế mẫu in phiếu với Fabric.js
-- 🖨️ **PDF Export**: Xuất phiếu thu/chi ra PDF
-- 📊 **Reports**: Báo cáo tài chính, học viên chưa đóng tiền
-- 📋 **KANBAN Dashboard**: Theo dõi tiến độ dự án real-time
-
-## 🚀 Quick Start
-
-### Local Development
-
-1. **Clone repository**
-```bash
-git clone https://github.com/hts2008/edu_manager_v2.git
-cd edu_manager_v2
-```
-
-2. **Install dependencies**
-```bash
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-3. **Start development servers**
-```bash
-# Option 1: Use start.bat (Windows)
-start.bat
-
-# Option 2: Manual
-# Terminal 1 - Backend
-cd backend && npm run dev
-
-# Terminal 2 - Frontend
-cd frontend && npm run dev
-```
-
-4. **Open browser**
-- Frontend: http://localhost:3000
-- Backend: http://localhost:5000
-- Login: `admin` / `admin123`
-
-### Docker Deployment
-
-```bash
-# Build and run
-docker-compose up -d
-
-# Or use script
-start-docker.bat
-```
-
-Access at http://localhost
-
-## 📁 Project Structure
-
-```
-edu_manager_v2/
-├── backend/          # Express + SQLite API
-│   ├── src/
-│   │   ├── database/ # SQLite schema, migrations
-│   │   ├── middleware/ # Auth, logger, error handler
-│   │   ├── routes/   # API endpoints (11 files)
-│   │   ├── services/ # PDF generation
-│   │   └── server.js
-│   └── Dockerfile
-├── frontend/         # React + Vite + Tailwind
-│   ├── src/
-│   │   ├── components/ # Layout, UI components
-│   │   ├── context/    # AuthContext
-│   │   ├── pages/      # 14 page components
-│   │   └── services/   # API abstraction
-│   ├── Dockerfile
-│   └── nginx.conf
-├── dashboard.html    # Visual KANBAN Dashboard
-├── docker-compose.yml
-├── start.bat         # Local dev start
-└── start-docker.bat  # Docker deployment
-```
-
-## 🛠️ Tech Stack
+## Stack
 
 | Layer | Technology |
-|-------|------------|
-| Frontend | React, Vite, Tailwind CSS v4 |
-| Backend | Vercel Serverless TypeScript API, Prisma |
-| Reference backend | Express.js reference only |
-| Database | PostgreSQL / Neon |
-| Auth | JWT (jsonwebtoken) |
-| PDF | pdfmake |
-| Template Editor | Fabric.js |
-| Container | Docker, Nginx |
+| --- | --- |
+| Frontend | React 19, React Router 7, Vite 7, Tailwind CSS v4 |
+| API | Vercel Node.js serverless TypeScript handlers |
+| Database | Neon PostgreSQL with Prisma 5 |
+| Auth | Stateful JWT and role-based access control |
+| Documents | pdfmake and Fabric.js template editor |
 
-## 📊 API Endpoints
+`api/router.ts`, `server/api/`, and `prisma/schema.prisma` are the production sources of truth. `backend/` is reference-only and is not part of the production request path.
 
-Production API source of truth: [`docs/API.md`](docs/API.md) and `api/router.ts`.
+## Local Setup
 
-The legacy Express backend is reference-only. `/api/kanban` is not exposed by the production Vercel API.
+Prerequisites: Node.js 20 or newer and access to a PostgreSQL database.
 
-## 📋 KANBAN Dashboard
+```powershell
+npm install
+npm --prefix frontend install
+```
 
-Open `dashboard.html` in browser to view real-time project progress.
+Create an untracked local environment file or set environment variables in the shell. At minimum, serverless development requires `DATABASE_URL`, `DIRECT_URL`, and `JWT_SECRET`. Never commit credentials or database URLs.
 
-Features:
-- ✅ Auto-sync với `task.md` mỗi 5 giây
-- ✅ Phase progress cards
-- ✅ Task board (Done, In Progress, Todo, Bugs)
-- ✅ Server status monitoring
+Run the full Vercel development environment:
 
-## 🔑 Default Credentials
+```powershell
+npm run dev:vercel
+```
 
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | admin | admin123 |
-| Receptionist | receptionist | recept123 |
+Run the frontend-only Vite server when API access is provided separately:
 
-## 📝 License
+```powershell
+npm run dev
+```
 
-MIT License - See [LICENSE](LICENSE) file
+The Vercel development server listens on `http://localhost:3000` by default.
 
----
+## Quality Gates
 
-Made with ❤️ by hts2008
+```powershell
+npx prisma validate
+npx tsc --noEmit
+npm --prefix frontend run lint -- --max-warnings=0
+npm run test:unit
+npm run build
+```
+
+Real database integration tests require an isolated `TEST_DATABASE_URL`:
+
+```powershell
+npm run test:integration:real
+```
+
+## Database Operations
+
+```powershell
+npm run db:backup
+npm run db:migrate
+npm run db:seed
+npm run db:studio
+```
+
+Run migrations or seed operations only against an explicitly selected environment and only after a verified backup. `prisma/schema.prisma` is the schema source of truth.
+
+## Operational Scripts
+
+Performance, parity, and UX scripts require credentials through environment variables. They do not contain default accounts and do not accept passwords via command-line arguments.
+
+Examples of required variable pairs:
+
+- Parity: `PARITY_USERNAME`, `PARITY_PASSWORD`
+- Performance smoke: `PERF_USERNAME`, `PERF_PASSWORD`
+- Performance lab: `PERF_LAB_USERNAME`, `PERF_LAB_PASSWORD`
+- UX baseline: `UX_USERNAME`, `UX_PASSWORD`
+
+Use a secure secret manager or process-scoped shell variables. Do not place credential values in documentation, committed files, command history, or test artifacts.
+
+## Key Paths
+
+```text
+api/                 Vercel entrypoint
+server/api/          Production route handlers
+lib/                 Shared backend services
+prisma/              Schema, migrations, and seed tools
+frontend/src/        React application
+tests/               Backend/unit/integration contracts
+frontend/tests/      Frontend and browser tests
+docs/                API and operational documentation
+```
+
+API documentation is maintained in `docs/API.md` and is checked against `api/router.ts` by automated tests.

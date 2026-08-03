@@ -110,7 +110,7 @@
 - Operational features:
   - Keep `REMINDER_SEND_ENABLED=false` until SMS/Zalo provider, opt-in policy, approved templates, and rate controls are ready.
   - Keep backup/cron endpoints protected by secrets and unauthenticated 403 smoke.
-  - Rotate `admin/admin123` and `JWT_SECRET` before real production operation.
+  - Rotate default admin credential and `JWT_SECRET` before real production operation. Completed 2026-08-03.
 
 ## Phase 6 — Verification Gates
 - Static gates:

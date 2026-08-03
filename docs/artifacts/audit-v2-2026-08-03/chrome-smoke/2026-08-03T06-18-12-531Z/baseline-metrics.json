@@ -1,0 +1,4993 @@
+{
+  "ok": true,
+  "started_at": "2026-08-03T06:18:12.531Z",
+  "finished_at": "2026-08-03T06:21:35.842Z",
+  "base_url": "https://edu-manager-gules.vercel.app",
+  "output_dir": "C:\\Users\\haitr\\OneDrive\\0. GAU DATA\\0.APP\\EDU_MANAGER_V2\\docs\\artifacts\\audit-v2-2026-08-03\\chrome-smoke\\2026-08-03T06-18-12-531Z",
+  "selected_routes": [
+    "/",
+    "/students",
+    "/parents",
+    "/classes",
+    "/teachers",
+    "/attendance",
+    "/attendance-periods",
+    "/fee-collection",
+    "/receipts",
+    "/payments",
+    "/history",
+    "/reports",
+    "/student-progress",
+    "/advanced-reports",
+    "/templates",
+    "/users",
+    "/settings",
+    "/imports",
+    "/audit-logs",
+    "/backups",
+    "/recycle-bin",
+    "/templates/cmp6dbue800s9gcyrkhbzw8tj/design"
+  ],
+  "selected_viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "reduced_motion": false,
+  "auth_login": {
+    "path": "/api/auth/login",
+    "status": 200,
+    "duration_ms": 2630,
+    "ok": true,
+    "error": null
+  },
+  "browser": {
+    "engine": "chromium",
+    "channel": "chrome",
+    "headless": false
+  },
+  "warnings": [],
+  "scenarios": [
+    {
+      "route": "/",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 9350,
+      "vitals": {
+        "dom_content_loaded_ms": 667,
+        "load_event_ms": 667,
+        "first_paint_ms": 804,
+        "first_contentful_paint_ms": 804
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Tổng quan SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 470,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Tổng quan SYSTEM ONLINE a admin ADMIN Giao dien san sang THỨ HAI, 03/08/2026 Production online Tổng quan vận",
+        "text_length": 1535,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 898,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/dashboard?mode=summary",
+          "status": 200,
+          "duration_ms": 2413,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/dashboard?mode=full",
+          "status": 200,
+          "duration_ms": 3908,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/students",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 4628,
+      "vitals": {
+        "dom_content_loaded_ms": 167,
+        "load_event_ms": 167,
+        "first_paint_ms": 200,
+        "first_contentful_paint_ms": 200
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Học viên SYSTEM ONLINE a admin ADMIN Giao dien san sang VẬN HÀNH HỌC VIÊN đang tải Quản lý học viên Theo dõi",
+        "text_length": 1040,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Học viên SYSTEM ONLINE a admin ADMIN Giao dien san sang VẬN HÀNH HỌC VIÊN 20 bản ghi Quản lý học viên Theo d",
+        "text_length": 3663,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 2631
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1455
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 486,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/students?fields=table&limit=500",
+          "status": 200,
+          "duration_ms": 2495,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/parents",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3673,
+      "vitals": {
+        "dom_content_loaded_ms": 156,
+        "load_event_ms": 157,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Phụ huynh SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 470,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Phụ huynh SYSTEM ONLINE a admin ADMIN Giao dien san sang LIÊN HỆ GIA ĐÌNH 17 hồ sơ Phụ huynh Quản lý người l",
+        "text_length": 2430,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 2130
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1557
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 695,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/parents",
+          "status": 200,
+          "duration_ms": 1385,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/classes",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 7046,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 158,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Lớp học SYSTEM ONLINE a admin ADMIN Giao dien san sang ACADEMIC OPERATIONS 0 lớp Lớp học Điều phối lớp, giáo",
+        "text_length": 1012,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Lớp học SYSTEM ONLINE a admin ADMIN Giao dien san sang ACADEMIC OPERATIONS 15 lớp Lớp học Điều phối lớp, giá",
+        "text_length": 2080,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1796
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1483
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 492,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 5051,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/teachers",
+          "status": 200,
+          "duration_ms": 1168,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/teachers",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3166,
+      "vitals": {
+        "dom_content_loaded_ms": 163,
+        "load_event_ms": 163,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Giáo viên SYSTEM ONLINE a admin ADMIN Giao dien san sang HUMAN RESOURCES 0 hồ sơ Giáo viên Quản lý đội ngũ g",
+        "text_length": 1052,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Giáo viên SYSTEM ONLINE a admin ADMIN Giao dien san sang HUMAN RESOURCES 5 hồ sơ Giáo viên Quản lý đội ngũ g",
+        "text_length": 1495,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1457
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 483,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/teachers",
+          "status": 200,
+          "duration_ms": 1170,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3518,
+      "vitals": {
+        "dom_content_loaded_ms": 158,
+        "load_event_ms": 158,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Điểm danh SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 470,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Điểm danh SYSTEM ONLINE a admin ADMIN Giao dien san sang SAP Timesheet Style Điểm danh Quản lý điểm danh học",
+        "text_length": 851,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 495,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 1426,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance-periods",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3682,
+      "vitals": {
+        "dom_content_loaded_ms": 158,
+        "load_event_ms": 158,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Chốt điểm danh SYSTEM ONLINE a admin ADMIN Giao dien san sang 📋 Quản lý chốt điểm danh Xem và xử lý các kỳ ",
+        "text_length": 912,
+        "loading_markers": {
+          "busy": 3,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH EDUMANAGER V2 Chốt điểm danh SYSTEM ONLINE a admin ADMIN Giao dien san sang 📋 Quản lý chốt điểm danh Xem và xử lý các kỳ ",
+        "text_length": 2124,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1769
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 481,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 1623,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/attendance-periods",
+          "status": 200,
+          "duration_ms": 1626,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/fee-collection",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 6905,
+      "vitals": {
+        "dom_content_loaded_ms": 175,
+        "load_event_ms": 175,
+        "first_paint_ms": 208,
+        "first_contentful_paint_ms": 208
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Thu tiền SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 470,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Thu tiền SYSTEM ONLINE a admin ADMIN Giao dien san sang TÀI CHÍNH · FEE WORKBENCH Thu tiền học phí Mỗi dòng",
+        "text_length": 4729,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 4090
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 695,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 911,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/monthly-fees/workbench?month=2026-08&limit=500",
+          "status": 200,
+          "duration_ms": 4477,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/receipts",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 6408,
+      "vitals": {
+        "dom_content_loaded_ms": 182,
+        "load_event_ms": 182,
+        "first_paint_ms": 208,
+        "first_contentful_paint_ms": 208
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Phiếu thu SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 471,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Phiếu thu SYSTEM ONLINE a admin ADMIN Giao dien san sang Phiếu thu Lịch sử và in lại phiếu thu học phí Tạo ",
+        "text_length": 2345,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1578
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 697,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/receipts",
+          "status": 200,
+          "duration_ms": 4095,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/payments",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3102,
+      "vitals": {
+        "dom_content_loaded_ms": 159,
+        "load_event_ms": 159,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Chi tiền SYSTEM ONLINE a admin ADMIN Giao dien san sang FINANCIAL OPERATIONS Chi Tiền Quản lý và theo dõi c",
+        "text_length": 598,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 1
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1469
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Chi tiền SYSTEM ONLINE a admin ADMIN Giao dien san sang FINANCIAL OPERATIONS Chi Tiền Quản lý và theo dõi c",
+        "text_length": 835,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1469
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 485,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/payments",
+          "status": 200,
+          "duration_ms": 1163,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/history",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 4744,
+      "vitals": {
+        "dom_content_loaded_ms": 160,
+        "load_event_ms": 160,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Lịch sử giao dịch SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 479,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH EDUMANAGER V2 Lịch sử giao dịch SYSTEM ONLINE a admin ADMIN Giao dien san sang Lịch sử giao dịch Theo dõi chi tiết mọi bi",
+        "text_length": 632,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 717,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/receipts?from=2026-07-31&to=2026-08-03",
+          "status": 200,
+          "duration_ms": 2529,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/payments?from=2026-07-31&to=2026-08-03",
+          "status": 200,
+          "duration_ms": 912,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/reports",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 7409,
+      "vitals": {
+        "dom_content_loaded_ms": 156,
+        "load_event_ms": 156,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Trung tâm phân tích SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 479,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Trung tâm phân tích SYSTEM ONLINE a admin ADMIN Giao dien san sang REPORT INTELLIGENCE Báo cáo vận hành trung",
+        "text_length": 12288,
+        "loading_markers": {
+          "busy": 0,
+          "status": 6,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 8650
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1530
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 713,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/bi?from=2026-01&to=2026-08&mode=overview&page=1&page_size=50&risk_only=0",
+          "status": 200,
+          "duration_ms": 4711,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/student-progress",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 10617,
+      "vitals": {
+        "dom_content_loaded_ms": 158,
+        "load_event_ms": 158,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Tiến bộ học viên SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 476,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Tiến bộ học viên SYSTEM ONLINE a admin ADMIN Giao dien san sang HỌC THUẬT · PARENT REPORT Evidence-first Báo ",
+        "text_length": 12320,
+        "loading_markers": {
+          "busy": 0,
+          "status": 7,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 10925
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 697,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/student-progress?from=2026-01&to=2026-08&page=1&page_size=50",
+          "status": 200,
+          "duration_ms": 4845,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&month=2026-07&limit=1",
+          "status": 200,
+          "duration_ms": 1075,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress/daily?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&month=2026-07",
+          "status": 200,
+          "duration_ms": 1113,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress/daily?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&entry_date=2026-07-15",
+          "status": 200,
+          "duration_ms": 2477,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/advanced-reports",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 5391,
+      "vitals": {
+        "dom_content_loaded_ms": 154,
+        "load_event_ms": 154,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Báo cáo nâng cao SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 476,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Báo cáo nâng cao SYSTEM ONLINE a admin ADMIN Giao dien san sang Báo cáo nâng cao Theo dõi xu hướng doanh thu,",
+        "text_length": 1183,
+        "loading_markers": {
+          "busy": 0,
+          "status": 2,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 701,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/advanced?from=2025-08-31&to=2026-08-03&group_by=month",
+          "status": 200,
+          "duration_ms": 3196,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/templates",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3382,
+      "vitals": {
+        "dom_content_loaded_ms": 164,
+        "load_event_ms": 165,
+        "first_paint_ms": 196,
+        "first_contentful_paint_ms": 196
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Mẫu in SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 467,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Mẫu in SYSTEM ONLINE a admin ADMIN Giao dien san sang MẪU IN Sẵn sàng Quản lý mẫu in Tạo, chỉnh sửa và chọn ",
+        "text_length": 1006,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 721,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/templates",
+          "status": 200,
+          "duration_ms": 1166,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/users",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2985,
+      "vitals": {
+        "dom_content_loaded_ms": 151,
+        "load_event_ms": 151,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Quản lý nhân sự SYSTEM ONLINE a admin ADMIN Giao dien san sang Quản lý người dùng Quản trị tài khoản, vai tr",
+        "text_length": 701,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Quản lý nhân sự SYSTEM ONLINE a admin ADMIN Giao dien san sang Quản lý người dùng Quản trị tài khoản, vai tr",
+        "text_length": 847,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 554,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/users?search=&status=",
+          "status": 200,
+          "duration_ms": 970,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/settings",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 4692,
+      "vitals": {
+        "dom_content_loaded_ms": 162,
+        "load_event_ms": 162,
+        "first_paint_ms": 192,
+        "first_contentful_paint_ms": 192
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Cài đặt hệ thống SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 477,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Cài đặt hệ thống SYSTEM ONLINE a admin ADMIN Giao dien san sang Cài đặt trung tâm Thông tin dùng cho phiếu i",
+        "text_length": 731,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 700,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/center-settings",
+          "status": 200,
+          "duration_ms": 2493,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/imports",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 1863,
+      "vitals": {
+        "dom_content_loaded_ms": 158,
+        "load_event_ms": 158,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Nhập dữ liệu (CSV) SYSTEM ONLINE a admin ADMIN Giao dien san sang Import CSV Preview, validate, and commit s",
+        "text_length": 581,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Nhập dữ liệu (CSV) SYSTEM ONLINE a admin ADMIN Giao dien san sang Import CSV Preview, validate, and commit s",
+        "text_length": 581,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 492,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/audit-logs",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3854,
+      "vitals": {
+        "dom_content_loaded_ms": 153,
+        "load_event_ms": 153,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Nhật ký hệ thống SYSTEM ONLINE a admin ADMIN Giao dien san sang Dang tai giao dien...",
+        "text_length": 476,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO EDUMANAGER V2 Nhật ký hệ thống SYSTEM ONLINE a admin ADMIN Giao dien san sang Nhật ký hoạt động Theo dõi thao tác hệ thống ",
+        "text_length": 2931,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 2013
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 718,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/activity-logs?from=&to=2026-08-03&action=&entity_type=&limit=100",
+          "status": 200,
+          "duration_ms": 1642,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/backups",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 1877,
+      "vitals": {
+        "dom_content_loaded_ms": 164,
+        "load_event_ms": 164,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Sao lưu an toàn SYSTEM ONLINE a admin ADMIN Giao dien san sang Backups Encrypted JSON backup and restore-dri",
+        "text_length": 637,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Sao lưu an toàn SYSTEM ONLINE a admin ADMIN Giao dien san sang Backups Encrypted JSON backup and restore-dri",
+        "text_length": 637,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 499,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/recycle-bin",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 4923,
+      "vitals": {
+        "dom_content_loaded_ms": 155,
+        "load_event_ms": 155,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Thùng rác SYSTEM ONLINE a admin ADMIN Giao dien san sang Recycle Bin Restore or permanently purge soft-delet",
+        "text_length": 681,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ EDUMANAGER V2 Thùng rác SYSTEM ONLINE a admin ADMIN Giao dien san sang Recycle Bin Restore or permanently purge soft-delet",
+        "text_length": 1205,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1678
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 493,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/recycle-bin",
+          "status": 200,
+          "duration_ms": 2996,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+      "viewport": {
+        "name": "desktop",
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3688,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 157,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "Dang tai giao dien...",
+        "text_length": 21,
+        "loading_markers": {
+          "busy": 2,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1440,
+          "height": 1000
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1440
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "Back Phiếu Chi Mặc Định Phiếu chi - A5 Undo Redo - 100% + Lưu mẫu Canvas san sang. Phím tắt: Ctrl+Z, Ctrl+Y, Ctrl+D, Del 13 object(s) Khổ giấy Chọn preset hoặc nhập kích thước riêng cho canvas. PRESET A4 - 210 x 297 mm A5 - 148 x 210 mm A6 - 105 x 148 mm Thermal 80mm - 80 x 200 mm Tùy chỉnh Đang dùng: A5 (148 x 210 mm) Thành phần Thêm nhanh các khối dùng trong phiếu. Tiêu đề Text Khung Tròn Line QR Hình ảnh Upload logo, watermark, nền mẫu in. Upload ảnhUpload làm nền Chua co upload nao. Dữ liệu ",
+        "text_length": 1109,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "document_size": {
+          "width": 1430,
+          "height": 1516
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1430
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 669,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/templates/cmp6dbue800s9gcyrkhbzw8tj",
+          "status": 200,
+          "duration_ms": 949,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 7517,
+      "vitals": {
+        "dom_content_loaded_ms": 357,
+        "load_event_ms": 357,
+        "first_paint_ms": 380,
+        "first_contentful_paint_ms": 380
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Tổng quan a Giao dien san sang",
+        "text_length": 408,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 5,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 877
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/",
+        "pathname": "/",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Tổng quan a Giao dien san sang THỨ HAI, 03/08/2026 Production online Tổng quan vận hành Theo dõi điểm danh, học phí, dòng ",
+        "text_length": 1495,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2588
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 481,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/dashboard?mode=summary",
+          "status": 200,
+          "duration_ms": 1815,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/dashboard?mode=full",
+          "status": 200,
+          "duration_ms": 3624,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/students",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 4358,
+      "vitals": {
+        "dom_content_loaded_ms": 163,
+        "load_event_ms": 163,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Học viên a Giao dien san sang VẬN HÀNH HỌC VIÊN đang tải Quản lý học viên Theo dõi trạng thái học tập, phụ huynh liên hệ v",
+        "text_length": 1000,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2065
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 399
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/students",
+        "pathname": "/students",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Học viên a Giao dien san sang VẬN HÀNH HỌC VIÊN 20 bản ghi Quản lý học viên Theo dõi trạng thái học tập, phụ huynh liên hệ",
+        "text_length": 3623,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 3161
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 928
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 506,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/students?fields=table&limit=500",
+          "status": 200,
+          "duration_ms": 2462,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/parents",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3319,
+      "vitals": {
+        "dom_content_loaded_ms": 163,
+        "load_event_ms": 164,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Phụ huynh a Giao dien san sang LIÊN HỆ GIA ĐÌNH 0 hồ sơ Phụ huynh Quản lý người liên hệ, số điện thoại và mối liên kết với",
+        "text_length": 947,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2065
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 381
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/parents",
+        "pathname": "/parents",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Phụ huynh a Giao dien san sang LIÊN HỆ GIA ĐÌNH 17 hồ sơ Phụ huynh Quản lý người liên hệ, số điện thoại và mối liên kết vớ",
+        "text_length": 2390,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2743
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1024
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 505,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/parents",
+          "status": 200,
+          "duration_ms": 1412,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/classes",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3703,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 157,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Lớp học a Giao dien san sang ACADEMIC OPERATIONS 0 lớp Lớp học Điều phối lớp, giáo viên, lịch học và biểu phí trong một kh",
+        "text_length": 972,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2049
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 439
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/classes",
+        "pathname": "/classes",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Lớp học a Giao dien san sang ACADEMIC OPERATIONS 15 lớp Lớp học Điều phối lớp, giáo viên, lịch học và biểu phí trong một k",
+        "text_length": 2040,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2462
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 888
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 484,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 1825,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/teachers",
+          "status": 200,
+          "duration_ms": 954,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/teachers",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2589,
+      "vitals": {
+        "dom_content_loaded_ms": 153,
+        "load_event_ms": 153,
+        "first_paint_ms": 172,
+        "first_contentful_paint_ms": 172
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Giáo viên a Giao dien san sang HUMAN RESOURCES 0 hồ sơ Giáo viên Quản lý đội ngũ giáo viên, phân bổ chuyên môn và giám sát",
+        "text_length": 1012,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2045
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 419
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/teachers",
+        "pathname": "/teachers",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Giáo viên a Giao dien san sang HUMAN RESOURCES 5 hồ sơ Giáo viên Quản lý đội ngũ giáo viên, phân bổ chuyên môn và giám sát",
+        "text_length": 1455,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2074
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 931
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 483,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/teachers",
+          "status": 200,
+          "duration_ms": 724,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2789,
+      "vitals": {
+        "dom_content_loaded_ms": 148,
+        "load_event_ms": 149,
+        "first_paint_ms": 168,
+        "first_contentful_paint_ms": 168
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Điểm danh a Giao dien san sang SAP Timesheet Style Điểm danh Quản lý điểm danh học viên theo tuần, tính toán học phí theo ",
+        "text_length": 585,
+        "loading_markers": {
+          "busy": 1,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance",
+        "pathname": "/attendance",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Điểm danh a Giao dien san sang SAP Timesheet Style Điểm danh Quản lý điểm danh học viên theo tuần, tính toán học phí theo ",
+        "text_length": 811,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 475,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 957,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/attendance-periods",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3632,
+      "vitals": {
+        "dom_content_loaded_ms": 209,
+        "load_event_ms": 209,
+        "first_paint_ms": 232,
+        "first_contentful_paint_ms": 232
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Chốt điểm danh a Giao dien san sang 📋 Quản lý chốt điểm danh Xem và xử lý các kỳ điểm danh theo tháng 0 Tổng cộng 0 🟢 Đa",
+        "text_length": 872,
+        "loading_markers": {
+          "busy": 3,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1217
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/attendance-periods",
+        "pathname": "/attendance-periods",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE VẬN HÀNH Chốt điểm danh a Giao dien san sang 📋 Quản lý chốt điểm danh Xem và xử lý các kỳ điểm danh theo tháng 18 Tổng cộng 6 🟢 Đ",
+        "text_length": 2084,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1756
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 667
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 580,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 940,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/attendance-periods",
+          "status": 200,
+          "duration_ms": 1629,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/fee-collection",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 6585,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 158,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Thu tiền a Giao dien san sang TÀI CHÍNH · FEE WORKBENCH Thu tiền học phí Mỗi dòng là một học viên - một lớp - một tháng. ",
+        "text_length": 976,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1910
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 409
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/fee-collection",
+        "pathname": "/fee-collection",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Thu tiền a Giao dien san sang TÀI CHÍNH · FEE WORKBENCH Thu tiền học phí Mỗi dòng là một học viên - một lớp - một tháng. ",
+        "text_length": 4689,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 4207
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 790
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 491,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/classes",
+          "status": 200,
+          "duration_ms": 1394,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/monthly-fees/workbench?month=2026-08&limit=500",
+          "status": 200,
+          "duration_ms": 4672,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/receipts",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 6084,
+      "vitals": {
+        "dom_content_loaded_ms": 160,
+        "load_event_ms": 162,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Phiếu thu a Giao dien san sang Dang tai giao dien...",
+        "text_length": 431,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1258
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/receipts",
+        "pathname": "/receipts",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Phiếu thu a Giao dien san sang Phiếu thu Lịch sử và in lại phiếu thu học phí Tạo phiếu thu Tìm kiếm trong bảng 19 kết quả",
+        "text_length": 2305,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1356
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 983
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 685,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/receipts",
+          "status": 200,
+          "duration_ms": 4040,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/payments",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3247,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 157,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Chi tiền a Giao dien san sang FINANCIAL OPERATIONS Chi Tiền Quản lý và theo dõi các khoản chi tiêu của trung tâm, duy trì",
+        "text_length": 558,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 1
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 454
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/payments",
+        "pathname": "/payments",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Chi tiền a Giao dien san sang FINANCIAL OPERATIONS Chi Tiền Quản lý và theo dõi các khoản chi tiêu của trung tâm, duy trì",
+        "text_length": 795,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1061
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 443
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 504,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/payments",
+          "status": 200,
+          "duration_ms": 1376,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/history",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3053,
+      "vitals": {
+        "dom_content_loaded_ms": 160,
+        "load_event_ms": 160,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Lịch sử giao dịch a Giao dien san sang Lịch sử giao dịch Theo dõi chi tiết mọi biến động số dư của trung tâm Xuất báo cáo",
+        "text_length": 583,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 1
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1263
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 387
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/history",
+        "pathname": "/history",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE TÀI CHÍNH Lịch sử giao dịch a Giao dien san sang Lịch sử giao dịch Theo dõi chi tiết mọi biến động số dư của trung tâm Xuất báo cáo",
+        "text_length": 592,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1263
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 387
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 527,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/receipts?from=2026-07-31&to=2026-08-03",
+          "status": 200,
+          "duration_ms": 1176,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/payments?from=2026-07-31&to=2026-08-03",
+          "status": 200,
+          "duration_ms": 948,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/reports",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 5916,
+      "vitals": {
+        "dom_content_loaded_ms": 180,
+        "load_event_ms": 180,
+        "first_paint_ms": 204,
+        "first_contentful_paint_ms": 204
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Trung tâm phân tích a Giao dien san sang REPORT INTELLIGENCE Báo cáo vận hành trung tâm Phân tích chuyên cần, học phí và rủ",
+        "text_length": 744,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 382,
+          "height": 3029
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 382
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/reports",
+        "pathname": "/reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Trung tâm phân tích a Giao dien san sang REPORT INTELLIGENCE Báo cáo vận hành trung tâm Phân tích chuyên cần, học phí và rủ",
+        "text_length": 12244,
+        "loading_markers": {
+          "busy": 0,
+          "status": 6,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 382,
+          "height": 13037
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 1198
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 501,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/bi?from=2026-01&to=2026-08&mode=overview&page=1&page_size=50&risk_only=0",
+          "status": 200,
+          "duration_ms": 3767,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/student-progress",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 7471,
+      "vitals": {
+        "dom_content_loaded_ms": 159,
+        "load_event_ms": 159,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Tiến bộ học viên a Giao dien san sang HỌC THUẬT · PARENT REPORT Evidence-first Báo cáo tiến bộ học viên Theo dõi tiến độ hà",
+        "text_length": 988,
+        "loading_markers": {
+          "busy": 3,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 1
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2215
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/student-progress",
+        "pathname": "/student-progress",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Tiến bộ học viên a Giao dien san sang HỌC THUẬT · PARENT REPORT Evidence-first Báo cáo tiến bộ học viên Theo dõi tiến độ hà",
+        "text_length": 12281,
+        "loading_markers": {
+          "busy": 0,
+          "status": 7,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 17242
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 807
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 475,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/student-progress?from=2026-01&to=2026-08&page=1&page_size=50",
+          "status": 200,
+          "duration_ms": 3764,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&month=2026-07&limit=1",
+          "status": 200,
+          "duration_ms": 867,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress/daily?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&month=2026-07",
+          "status": 200,
+          "duration_ms": 902,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/student-progress/daily?student_id=cmp6dbh32001tgcyr3esgjj8p&class_id=cmrkzqbof00028havdu0endd2&entry_date=2026-07-15",
+          "status": 200,
+          "duration_ms": 1160,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/advanced-reports",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3361,
+      "vitals": {
+        "dom_content_loaded_ms": 157,
+        "load_event_ms": 157,
+        "first_paint_ms": 184,
+        "first_contentful_paint_ms": 184
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Báo cáo nâng cao a Giao dien san sang Báo cáo nâng cao Theo dõi xu hướng doanh thu, hiệu suất giáo viên và cohort học viên.",
+        "text_length": 867,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 1,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1916
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/advanced-reports",
+        "pathname": "/advanced-reports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Báo cáo nâng cao a Giao dien san sang Báo cáo nâng cao Theo dõi xu hướng doanh thu, hiệu suất giáo viên và cohort học viên.",
+        "text_length": 1143,
+        "loading_markers": {
+          "busy": 0,
+          "status": 2,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2404
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 485,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/advanced?from=2025-08-31&to=2026-08-03&group_by=month",
+          "status": 200,
+          "duration_ms": 1485,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/templates",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2944,
+      "vitals": {
+        "dom_content_loaded_ms": 205,
+        "load_event_ms": 205,
+        "first_paint_ms": 224,
+        "first_contentful_paint_ms": 224
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Mẫu in a Giao dien san sang MẪU IN Đang tải Quản lý mẫu in Tạo, chỉnh sửa và chọn mẫu mặc định cho phiếu thu, phiếu chi. T",
+        "text_length": 819,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2272
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates",
+        "pathname": "/templates",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Mẫu in a Giao dien san sang MẪU IN Sẵn sàng Quản lý mẫu in Tạo, chỉnh sửa và chọn mẫu mặc định cho phiếu thu, phiếu chi. T",
+        "text_length": 966,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1881
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 569,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/templates",
+          "status": 200,
+          "duration_ms": 964,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/users",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2583,
+      "vitals": {
+        "dom_content_loaded_ms": 151,
+        "load_event_ms": 152,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Quản lý nhân sự a Giao dien san sang Quản lý người dùng Quản trị tài khoản, vai trò và trạng thái truy cập. Thêm người dùn",
+        "text_length": 661,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/users",
+        "pathname": "/users",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Quản lý nhân sự a Giao dien san sang Quản lý người dùng Quản trị tài khoản, vai trò và trạng thái truy cập. Thêm người dùn",
+        "text_length": 807,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 875
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 415
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 489,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/users?search=&status=",
+          "status": 200,
+          "duration_ms": 732,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/settings",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3461,
+      "vitals": {
+        "dom_content_loaded_ms": 150,
+        "load_event_ms": 150,
+        "first_paint_ms": 168,
+        "first_contentful_paint_ms": 168
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Cài đặt hệ thống a Giao dien san sang Cài đặt trung tâm Thông tin dùng cho phiếu in, báo cáo và hồ sơ vận hành. Làm mới Hồ",
+        "text_length": 624,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1069
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/settings",
+        "pathname": "/settings",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Cài đặt hệ thống a Giao dien san sang Cài đặt trung tâm Thông tin dùng cho phiếu in, báo cáo và hồ sơ vận hành. Làm mới Hồ",
+        "text_length": 691,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1069
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 487,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/center-settings",
+          "status": 200,
+          "duration_ms": 1631,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/imports",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 1790,
+      "vitals": {
+        "dom_content_loaded_ms": 152,
+        "load_event_ms": 153,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Nhập dữ liệu (CSV) a Giao dien san sang Dang tai giao dien...",
+        "text_length": 439,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1258
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/imports",
+        "pathname": "/imports",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Nhập dữ liệu (CSV) a Giao dien san sang Import CSV Preview, validate, and commit student-parent CSV imports. Load sample P",
+        "text_length": 541,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 692,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/audit-logs",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3011,
+      "vitals": {
+        "dom_content_loaded_ms": 155,
+        "load_event_ms": 155,
+        "first_paint_ms": 180,
+        "first_contentful_paint_ms": 180
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Nhật ký hệ thống a Giao dien san sang Nhật ký hoạt động Theo dõi thao tác hệ thống và audit mutation. Làm mới Tổng bản ghi ",
+        "text_length": 678,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1283
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/audit-logs",
+        "pathname": "/audit-logs",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE BÁO CÁO Nhật ký hệ thống a Giao dien san sang Nhật ký hoạt động Theo dõi thao tác hệ thống và audit mutation. Làm mới Tổng bản ghi ",
+        "text_length": 2891,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 2069
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 844
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 473,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/activity-logs?from=&to=2026-08-03&action=&entity_type=&limit=100",
+          "status": 200,
+          "duration_ms": 1159,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/backups",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 1834,
+      "vitals": {
+        "dom_content_loaded_ms": 186,
+        "load_event_ms": 186,
+        "first_paint_ms": 208,
+        "first_contentful_paint_ms": 208
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Sao lưu an toàn a Giao dien san sang Dang tai giao dien...",
+        "text_length": 436,
+        "loading_markers": {
+          "busy": 2,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1258
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/backups",
+        "pathname": "/backups",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Sao lưu an toàn a Giao dien san sang Backups Encrypted JSON backup and restore-drill validation. Dry run Run backup Latest",
+        "text_length": 597,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 723,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/recycle-bin",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 3497,
+      "vitals": {
+        "dom_content_loaded_ms": 169,
+        "load_event_ms": 169,
+        "first_paint_ms": 188,
+        "first_contentful_paint_ms": 188
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Thùng rác a Giao dien san sang Recycle Bin Restore or permanently purge soft-deleted records. All Students Parents Receipt",
+        "text_length": 641,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 950
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 380
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/recycle-bin",
+        "pathname": "/recycle-bin",
+        "text_sample": "EduManager EDUFLOW V2 MENU CHÍNH VẬN HÀNH Tổng quan Học viên Phụ huynh Lớp học Giáo viên Điểm danh Insight điểm danh Chốt điểm danh TÀI CHÍNH Thu tiền Phiếu thu Chi tiền Lịch sử giao dịch MENU PHỤ BÁO CÁO Trung tâm phân tích Tiến bộ học viên Báo cáo nâng cao Nhật ký QUẢN TRỊ Mẫu in Người dùng Import CSV Nhắc học phí Sao lưu Thùng rác Cài đặt VERSION 2.0.1 PRO STABLE QUẢN TRỊ Thùng rác a Giao dien san sang Recycle Bin Restore or permanently purge soft-deleted records. All Students Parents Receipt",
+        "text_length": 1165,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 1459
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 504
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 492,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/recycle-bin",
+          "status": 200,
+          "duration_ms": 1636,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    },
+    {
+      "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+      "viewport": {
+        "name": "mobile",
+        "width": 390,
+        "height": 844
+      },
+      "mode": "default",
+      "ok": true,
+      "duration_ms": 2701,
+      "vitals": {
+        "dom_content_loaded_ms": 152,
+        "load_event_ms": 152,
+        "first_paint_ms": 176,
+        "first_contentful_paint_ms": 176
+      },
+      "initial": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "Dang xac thuc phien lam viec...",
+        "text_length": 31,
+        "loading_markers": {
+          "busy": 1,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "loading": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "",
+        "text_length": 0,
+        "loading_markers": {
+          "busy": 0,
+          "status": 0,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 390,
+          "height": 844
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 390
+      },
+      "settled": {
+        "title": "EduManager | Trung tâm điều hành",
+        "url": "https://edu-manager-gules.vercel.app/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "pathname": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+        "text_sample": "Back Phiếu Chi Mặc Định Phiếu chi - A5 Undo Redo - 100% + Lưu mẫu Canvas san sang. Phím tắt: Ctrl+Z, Ctrl+Y, Ctrl+D, Del 13 object(s) Khổ giấy Chọn preset hoặc nhập kích thước riêng cho canvas. PRESET A4 - 210 x 297 mm A5 - 148 x 210 mm A6 - 105 x 148 mm Thermal 80mm - 80 x 200 mm Tùy chỉnh Đang dùng: A5 (148 x 210 mm) Thành phần Thêm nhanh các khối dùng trong phiếu. Tiêu đề Text Khung Tròn Line QR Hình ảnh Upload logo, watermark, nền mẫu in. Upload ảnhUpload làm nền Chua co upload nao. Dữ liệu ",
+        "text_length": 1109,
+        "loading_markers": {
+          "busy": 0,
+          "status": 1,
+          "pulse": 0,
+          "spinner": 0
+        },
+        "dialogs": 0,
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document_size": {
+          "width": 380,
+          "height": 3611
+        },
+        "horizontal_overflow": false,
+        "max_element_right": 615
+      },
+      "console_entries": [],
+      "page_errors": [],
+      "request_failures": [],
+      "api_requests": [
+        {
+          "method": "GET",
+          "path": "/api/auth/me",
+          "status": 200,
+          "duration_ms": 487,
+          "failure": null
+        },
+        {
+          "method": "GET",
+          "path": "/api/templates/cmp6dbue800s9gcyrkhbzw8tj",
+          "status": 200,
+          "duration_ms": 738,
+          "failure": null
+        }
+      ],
+      "mutation_violations": [],
+      "errors": []
+    }
+  ],
+  "summary": {
+    "scenario_total": 44,
+    "scenario_with_findings": 0,
+    "api_failures": 0,
+    "page_errors": 0,
+    "console_errors_or_warnings": 0,
+    "horizontal_overflow": 0,
+    "blank_or_near_blank": 0,
+    "read_only_violations": 0
+  }
+}

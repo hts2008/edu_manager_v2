@@ -1,0 +1,398 @@
+[
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/students",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/parents",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/classes",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/teachers",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/attendance",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/attendance-periods",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/fee-collection",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/receipts",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/payments",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/history",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/reports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/student-progress",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/advanced-reports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/templates",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/users",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/settings",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/imports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/audit-logs",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/backups",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/recycle-bin",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/students",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/parents",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/classes",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/teachers",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/attendance",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/attendance-periods",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/fee-collection",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/receipts",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/payments",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/history",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/reports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/student-progress",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/advanced-reports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/templates",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/users",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/settings",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/imports",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/audit-logs",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/backups",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/recycle-bin",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  }
+]

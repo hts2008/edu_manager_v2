@@ -45,7 +45,7 @@ That shared flag was `attendanceControlsDisabled = loading || weekLoading || sav
 
 ## Production Chrome Smoke
 
-Authenticated against production with `admin / admin123`, then opened `/attendance`.
+Authenticated against production with the then-current operator credential, then opened `/attendance`. That credential was rotated on 2026-08-03.
 
 Result:
 

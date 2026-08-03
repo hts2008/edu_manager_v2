@@ -49,6 +49,8 @@ frontend/output/
 # Large generated browser evidence retained locally; receipts reference the paths.
 docs/artifacts/ux-baseline/
 docs/artifacts/playwright/
+# Chrome baseline screenshots are large/generated; compact JSON/Markdown metrics remain tracked.
+docs/artifacts/audit-v2-2026-08-03/**/*.png
 
 # Temp
 .tmp/

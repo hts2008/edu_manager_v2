@@ -37,7 +37,7 @@
 - `npm run build` - passed.
 - `git diff --check` - passed with LF-to-CRLF warnings only.
 - Production API smoke:
-  - Login `admin/admin123` succeeded.
+  - Login with the then-current operator credential succeeded. That credential was rotated on 2026-08-03.
   - `/api/reports/bi?from=2026-01&to=2026-06&page=1&page_size=50&q=Mover` returned `success=true`, `rows=4`, `total_items=4`, `classes=2`, `risks=4`, `q=mover`.
 - Production Playwright:
   - `E2E_BASE_URL=https://edu-manager-gules.vercel.app npm --prefix frontend run test:e2e -- phase-b-smoke.spec.js --project=chromium --reporter=list --output=../receipts/e2e-production-report-bi-corrected -g "reports page"` - passed, 2/2.

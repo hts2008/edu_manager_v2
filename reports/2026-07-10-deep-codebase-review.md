@@ -180,7 +180,7 @@ Many "unit" tests read source files and regex-match strings rather than invoking
 
 ### CR-18 [P2] Default credentials and architecture documentation remain unsafe/stale
 
-`prisma/seed.ts:133-160` creates `admin/admin123` and `nhanvien/staff123`. README publishes different default credentials (`README.md:50-53,122-127`), while `PROJECT_CONTEXT.md:3-19,55-60,162-179` points to the obsolete Delta/Supabase architecture, claims token refresh and 100% completion. Production login with `admin/admin123` was evidenced as recently as 2026-06-09, but was not re-tested in this read-only review because login mutates `lastLogin`.
+`prisma/seed.ts:133-160` creates development-only bootstrap credentials. README published different defaults (`README.md:50-53,122-127`), while `PROJECT_CONTEXT.md:3-19,55-60,162-179` pointed to the obsolete Delta/Supabase architecture, claimed token refresh and 100% completion. Production still used a default credential as recently as 2026-06-09, but it was not re-tested in this read-only review because login mutates `lastLogin`. Production credentials were rotated on 2026-08-03.
 
 **Impact:** operators and agents can use the wrong backend/URL/credentials, and a still-active known password would be an account takeover risk.
 

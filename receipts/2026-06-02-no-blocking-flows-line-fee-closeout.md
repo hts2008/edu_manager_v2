@@ -79,7 +79,7 @@
 
 ## Residual Risk
 - Production cold-start and Neon latency remain possible on first-touch serverless routes, but the current production Playwright suite passed.
-- `admin / admin123` remains a production credential risk and must be rotated before real operation.
+- A default admin credential remained a production risk at this checkpoint; it was rotated on 2026-08-03.
 - SMS/Zalo sending remains intentionally disabled until a provider, opt-in policy, and approved templates are configured.
 
 ## Operator Rules

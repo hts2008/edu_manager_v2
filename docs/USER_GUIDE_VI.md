@@ -51,7 +51,7 @@
 ### Tài khoản mặc định
 | Vai trò | Username | Password |
 |---------|----------|----------|
-| Admin | admin | admin123 |
+| Admin | admin | Liên hệ quản trị viên để nhận mật khẩu đã rotate |
 | Lễ tân | receptionist | recept123 |
 
 ### Phân quyền

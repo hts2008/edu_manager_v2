@@ -1,5 +1,17 @@
 # Current Session
 
+## Latest Closeout - 2026-08-03
+
+- Objective: complete `Audit_V2.md` remediation through production deploy, verification and release evidence.
+- Code: commits `39e4fb6`, `4834e3f`, `c244e8e`; production deployment `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`.
+- Database: 7 migrations applied, including controlled class-month-plan reopen and schema-hygiene indexes; production status clean.
+- Recovery: encrypted backup v3 ran and verified with 28 manifest tables; isolated restore roundtrip passed.
+- Security: admin credential, JWT secret and cron secret rotated; prior session invalidated. Production credential is operator-managed and absent from source control.
+- Verification: root unit 496/496, frontend unit 42/42, typecheck, lint, build, diff-check, Google Chrome production regression 44/44, and current-deployment critical-route smoke 8/8.
+- Evidence: `receipts/2026-08-03-audit-v2-remediation-closeout.md`, `docs/artifacts/audit-v2-2026-08-03/`.
+- Residual risks: React Router audit advisory has no patched upstream release; Float money, enrollment exclusion constraint, weak legacy fields/FKs and broad low-risk CRUD validation remain planned separately.
+- Tool degradation: Context+ and Neural Memory were unavailable in this Codex tool palette; project-control write-back used KANBAN and markdown memory.
+
 ## Latest Closeout - 2026-07-17
 
 - Objective `ATSEL-2026-07-17-01..03` is complete and production-live.
@@ -401,9 +413,9 @@
 - **Product**: Edu Manager V2.
 - **Status**: Production live; Phase A/B/C plus 2026-05-18/2026-05-19 hardening, P0/P1 hardening, month-bounded tuition + EduFlow UI closeout, Fee Workbench + UX closeout, modal scroll production fix, performance route-loading closeout, performance lag RCA closeout, 2026-06-01 financial correction policy closeout, 2026-06-03 Fee Workbench class-line split, 2026-06-04 Template Designer legacy canvas fix, and 2026-06-05 Template Designer visible render/upload fix are deployed and production-smoked.
 - **Production URL**: https://edu-manager-gules.vercel.app
-- **Login**: `admin / admin123`
+- **Login**: operator-managed credential; default removed from production on 2026-08-03.
 - **Stack**: Vite + React + Tailwind CSS v4; Node/Express-style Vercel API; Prisma; Neon PostgreSQL.
-- **Latest production deployment observed in Codex session**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`; production alias `https://edu-manager-gules.vercel.app` passed direct Template Designer Chrome smoke with visible pixel/hash deltas for Text, `receipt_id`, image upload, and background upload after the visible render/upload fix.
+- **Historical Template Designer deployment**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6` passed direct Template Designer Chrome smoke at the time. The current production deployment is `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`.
 
 ## Key Restoration Notes
 - External workspace details in memory files are invalid for this workspace.
@@ -414,14 +426,14 @@
 ## Next Recommended
 0. 2026-06-08 optional TODO closeout is deployed; keep the receipt `receipts/2026-06-08-optional-todo-closeout.md` as evidence for API docs, reports chart, Thermal 80mm, and CI E2E coverage.
 1. Audit the current anomaly list in Reports and apply the correction action per record with an operator reason; do not bulk rewrite historical paid receipts.
-2. Rotate default credentials and JWT secret before real production operation.
+2. Production admin/JWT/cron credential rotation was completed on 2026-08-03; rotate forward again only through the controlled credential procedure.
 3. Continue monitoring production perf reports; cold serverless starts still dominate dashboard/report/workbench timings, but current routes have no smoke failures or severe threshold hits.
 4. Keep fee reminder live sending disabled until webhook/provider, opt-in policy, and message templates are approved.
 5. Commit hygiene decision: stage explicit paths only; never stage `.codex/config.toml` or broad workspace paths.
 
 ## Evidence Needed Before Done
 - 2026-06-05 Template Designer visible render/upload gates passed: local focused E2E 1/1, headed Chrome E2E 1/1, final E2E 1/1, `npm --prefix frontend run lint`, `npx tsc --noEmit`, `npm run test:unit` 46/46, `npm run build`, and `git diff --check`.
-- 2026-06-05 production deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6` is Ready and aliased to `https://edu-manager-gules.vercel.app`.
+- Historical evidence: the 2026-06-05 deployment `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6` was Ready and aliased at that time. Current production evidence is recorded at the top of this file.
 - 2026-06-05 production Chrome smoke passed: transparent `upper-canvas`, visible checksum changes after Text, `receipt_id`, image upload, and background upload, `17 object(s)`, and no runtime/API errors.
 - Evidence: `receipts/2026-06-05-template-designer-visible-render-fix.md`.
 - `npx tsc --noEmit` passed.

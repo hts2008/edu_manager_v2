@@ -1,8 +1,8 @@
 # 📋 KANBAN BOARD - EDU MANAGER
 
-> **Status**: PRODUCTION LIVE - published month-plan attendance denominator plus historical/future week selection fix deployed and production Chrome-verified on 2026-07-17
+> **Status**: PRODUCTION LIVE - Audit V2 remediation deployed and production Chrome-verified on 2026-08-03
 >
-> **Agency PRD reset (2026-05-06)**: PRD agency assessment supersedes the old "100% complete" claim. UI and local/reference backend are broad, but Vercel production is missing critical API modules. Treat production as approximately 50-60% usable until Phase A is verified.
+> **Historical note**: the 2026-05-06 agency PRD reset triggered Phase A parity work. That warning is now superseded by the verified production closeouts below.
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commit `2867171`, Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, authenticated Chrome verified FLYER B6 past-week selection/edit readiness |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commits `39e4fb6` + `4834e3f` + `c244e8e`, Vercel `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`, Audit V2 migrations/backup/auth/Chrome gates verified |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -137,7 +137,7 @@
 
 **Evidence:** `receipts/2026-07-11-core-ledger-remediation-production-closeout.md`.
 
-**Default/dev login:** `admin / admin123` — rotate before real production operation.
+**Development bootstrap login:** development-only; production credential was rotated on 2026-08-03 and is not stored in source control.
 
 ---
 
@@ -292,7 +292,7 @@
 
 **Database note:** `npx prisma db push` synced additive `MonthlyFeeLine` and `ReceiptLine` schema to Neon. No seed was run.
 
-**Residual risk:** serverless cold-start/Neon latency can still appear on first-touch routes. Rotate default credentials before real operation.
+**Residual risk:** serverless cold-start/Neon latency can still appear on first-touch routes. Historical credential-rotation follow-up was completed on 2026-08-03.
 
 ---
 
@@ -521,7 +521,7 @@
 - **Follow-up verification receipt**: `receipts/2026-05-14-phase-a-closeout-attempt.md`.
 - **A12 config finding**: `.env.example` now includes `SUPABASE_BUCKET`; `lib/storage.ts` resolves `SUPABASE_BUCKET` with `template-images` fallback. Current process/user/machine env has no Phase A keys loaded; local `.env` only declares `DATABASE_URL`, `DIRECT_URL`, and `JWT_SECRET`.
 - **A13 DB finding**: `npx prisma migrate status` failed against current `.env` with Supabase pooler tenant/user not found. No migration, seed, deploy, or production mutation was run.
-- **Production browser/API finding**: Browser login with `admin/admin123` shows `Internal server error` and direct `POST /api/auth/login` returns 500. `GET /api/auth/me` without token returns 401, but `receipts`, `payments`, `templates`, `reports/financial`, `reports/unpaid-students`, `monthly-fees`, and `attendance/calculate-fee` still return 404 on production. This proves the live target is blocked by deploy/config.
+- **Historical production browser/API finding**: Browser login with the then-current default credential showed `Internal server error` and direct `POST /api/auth/login` returned 500. `GET /api/auth/me` without token returned 401, while several Phase A routes returned 404. This finding is superseded by later parity and Audit V2 closeouts.
 - **Vercel dashboard finding**: Current Production Deployment is old commit `fc400eb` from Jan 24; Phase A code is not deployed. Runtime logs show `/api/auth/login` fails with Prisma `FATAL: (ENOTFOUND) tenant/user postgres.rdtqbivfnrdcureoazbh not found`. Env page only has `JWT_SECRET`, `DIRECT_URL`, and `DATABASE_URL`; missing `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`.
 - **Local Vercel dev blocker**: `npm run dev -- --listen 3000` could not start because Vercel CLI has no credentials/token in this environment.
 - **Local reference browser smoke**: After `npm rebuild better-sqlite3`, Express reference backend + Vite frontend login succeeds locally and `/receipts`, `/fee-collection`, `/payments`, `/templates`, `/reports`, and `/attendance` show no visible Network/404/Internal error. This does not replace Vercel/prod smoke.
@@ -871,7 +871,7 @@
 | Tests/CI | Phase B/C baseline implemented; latest gates pass with unit 39/39, local/prod perf smoke 10/10, local/prod UX smoke 11/11, local/prod Phase-B smoke 17/17, tsc/build/lint/diff-check pass |
 | Production usability | Live on `edu-manager-gules`; latest performance route-loading closeout is deployed and production-smoked |
 
-**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, and the 2026-05-27 performance route-loading closeout are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production credential rotation remains before real operation.
+**Overall:** Production live and usable on `https://edu-manager-gules.vercel.app`; Phase A/B/C plus the 2026-05-18/2026-05-19 hardening, EduFlow UI pass, 2026-05-25 P0/P1 fixes, month-bounded tuition closeout, Fee Workbench + UX closeout, the 2026-05-26 modal scroll production fix, the 2026-05-27 performance route-loading closeout, and Audit V2 remediation are deployed and smoked. Fee reminder live provider delivery remains intentionally disabled until `REMINDER_SEND_ENABLED=true` and provider/opt-in policy are approved. Production admin/JWT/cron credentials were rotated on 2026-08-03.
 
 ---
 
@@ -957,6 +957,22 @@ stop.bat
 ---
 
 ## IMPLEMENTED - DEEP CODEBASE REVIEW (2026-07-10)
+
+### Audit V2 remediation closeout - 2026-08-03
+
+| Task ID | Priority | Description | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| AUDV2-P1 | P0 | Complete 28-table backup/restore integrity and production backup verification | IMPLEMENTED | `tests/seed-backup.test.ts`, isolated roundtrip, production backup `valid=true` |
+| AUDV2-P2 | P1 | Close aggregate fee, paidAt, UTC range and controlled month-plan reopen invariants | IMPLEMENTED | commits `39e4fb6`, `4834e3f`; migration status clean |
+| AUDV2-P3 | P2 | Repair receipts/history/error/confirmation/reconciliation UX paths | IMPLEMENTED | unit contracts + 44/44 Chrome route scenarios |
+| AUDV2-P4 | P1 | Strengthen auth attribution, high-risk validation and critical integration coverage | IMPLEMENTED | root unit 496/496; integration roundtrip; auth/session smoke |
+| AUDV2-P5 | P1 | Rotate production secrets, deploy schema indexes, reconcile docs/evidence | IMPLEMENTED | Vercel `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`; receipt below |
+
+**Deferred by design:** Float-to-Decimal migration, database exclusion constraint for enrollment overlap, weak legacy fields/FKs, broad low-risk CRUD zod conversion, and non-production Kanban API. These require separate migration/product plans and are not release blockers for this closeout.
+
+**Evidence:** `receipts/2026-08-03-audit-v2-remediation-closeout.md`; `docs/artifacts/audit-v2-2026-08-03/`.
+
+---
 
 **Objective:** reconcile implementation with platform requirements and identify hidden correctness, security, recovery, workflow, testing and production-readiness risks without mutating production or changing application code.
 

@@ -1,0 +1,74 @@
+[
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/fee-collection",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/backups",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "desktop",
+    "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/fee-collection",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/backups",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  },
+  {
+    "mode": "default",
+    "viewport": "mobile",
+    "route": "/templates/cmp6dbue800s9gcyrkhbzw8tj/design",
+    "console_entries": [],
+    "page_errors": [],
+    "request_failures": [],
+    "api_failures": []
+  }
+]

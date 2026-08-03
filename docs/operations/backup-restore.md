@@ -1,6 +1,6 @@
 # Backup and restore runbook
 
-The PostgreSQL backup format is an encrypted, versioned JSON envelope. Version 2 contains a canonical manifest for all 20 Prisma models, per-table counts, a plaintext checksum, and a ciphertext checksum. The database export runs in one `RepeatableRead` transaction.
+The PostgreSQL backup format is an encrypted, versioned JSON envelope. Backup Version 3 contains the canonical manifest for all Prisma models, including the Tuition V3 planning and ledger models, per-table counts, a plaintext checksum, and a ciphertext checksum. The database export runs in one `RepeatableRead` transaction. The inner AES-GCM envelope remains crypto format Version 2; backup and crypto versions are intentionally independent contracts.
 
 ## Required environment
 
@@ -30,7 +30,7 @@ npx tsx scripts/reset-database.ts
 ## Create and verify a local backup
 
 ```powershell
-npx tsx scripts/backup-operator.ts .\backups\edu-manager.v2.json
+npx tsx scripts/backup-operator.ts .\backups\edu-manager.v3.json
 ```
 
 `backup.bat` is a Windows wrapper for the same command. Pass a unique output path to the TypeScript command for retained backups; files are never overwritten.
@@ -44,10 +44,10 @@ Restore is intentionally unavailable to production targets. Set `DATABASE_URL` t
 ```powershell
 $env:NODE_ENV = 'test'
 $env:RESTORE_CONFIRMATION = 'RESTORE_EDU_MANAGER'
-npx tsx scripts/restore-operator.ts .\backups\edu-manager.v2.json
+npx tsx scripts/restore-operator.ts .\backups\edu-manager.v3.json
 ```
 
-On Windows, `restore.bat .\backups\edu-manager.v2.json` invokes the same guarded restore and still requires all environment gates above.
+On Windows, `restore.bat .\backups\edu-manager.v3.json` invokes the same guarded restore and still requires all environment gates above.
 
 The restore validates format, manifest, checksums, and counts before opening one transaction. It deletes in reverse dependency order, inserts in dependency order, and rolls back the entire target on any failure. After restore, run application smoke tests against the isolated target and compare returned counts to the envelope.
 

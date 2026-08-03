@@ -22,7 +22,7 @@
 - `npx prisma migrate status` loaded `.env` but failed against Supabase pooler with tenant/user not found. No migration or seed was run.
 - A process-only retry using a Supabase direct host shape (`db.<project-ref>.supabase.co:5432`) reached the expected direct host but failed with `P1001: Can't reach database server`; no file was changed and no migration was run.
 - `npm run dev -- --listen 3000` could not start local Vercel dev because Vercel CLI has no credentials/token.
-- Browser production login at `https://edu-manager-delta.vercel.app/login` with `admin/admin123` shows `Internal server error`; direct `POST /api/auth/login` returns HTTP 500 with no usable response body.
+- Browser production login at `https://edu-manager-delta.vercel.app/login` with the then-current default credential showed `Internal server error`; direct `POST /api/auth/login` returned HTTP 500 with no usable response body.
 - Vercel project overview shows the current Production Deployment is commit `fc400eb` (`feat(attendance): add review modal before approving`) from Jan 24. The Phase A code is local/uncommitted and has not been deployed to Vercel.
 - Vercel Environment Variables page shows only `JWT_SECRET`, `DIRECT_URL`, and `DATABASE_URL`; `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `SUPABASE_BUCKET` are missing. Vercel marks `JWT_SECRET` and `DATABASE_URL` as `Needs Attention`.
 - Vercel runtime logs for `/api/auth/login` show Prisma initialization failure: `FATAL: (ENOTFOUND) tenant/user postgres.rdtqbivfnrdcureoazbh not found`.
@@ -44,7 +44,7 @@ Non-mutating GET checks against `https://edu-manager-delta.vercel.app`:
 ## Local Reference Browser Smoke
 - Rebuilt local `backend/node_modules/better-sqlite3` with `npm rebuild better-sqlite3` because the existing native module was compiled for a different Node ABI.
 - Started Express reference backend on port 5000 and Vite frontend on port 3000.
-- Browser login at `http://127.0.0.1:3000/login` with `admin/admin123` succeeded and reached the dashboard.
+- Browser login at `http://127.0.0.1:3000/login` with the then-current development credential succeeded and reached the dashboard.
 - Browser navigation through Phase A UI pages showed no visible Network/404/Internal error and no browser console error on:
   - `/receipts`
   - `/fee-collection`

@@ -1,5 +1,18 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## 2026-08-03 Handoff - Audit V2 Production Remediation
+- **Outcome**: Audit V2 production remediation is deployed and independently verified at `https://edu-manager-gules.vercel.app`.
+- **Code/Deploy**: commits `39e4fb6`, `4834e3f`, `c244e8e`; Vercel `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`.
+- **Database/Recovery**: 7 migrations clean; AES-GCM v3 backup with 28-table manifest returned `valid=true`; restore drill passed only on isolated Postgres.
+- **Security**: production admin/JWT/cron secrets rotated, prior sessions revoked, credential kept outside source control. Frontend React Router advisory remains accepted temporarily because upstream currently offers no patched version and this BrowserRouter app does not use RSC.
+- **Verification**: root unit 496/496, frontend unit 42/42, typecheck, lint, build, integration backup roundtrip, production auth/cron probes, Google Chrome 44/44 route regression, and current-deployment 8/8 critical-route smoke with zero API/console/page errors and zero horizontal document overflow.
+- **Evidence**: `receipts/2026-08-03-audit-v2-remediation-closeout.md`; `docs/artifacts/audit-v2-2026-08-03/`.
+- **Deferred**: Float-to-Decimal migration, DB exclusion constraint for enrollment overlap, weak legacy fields/FKs, broad low-risk CRUD validation and production Kanban API.
+- **Tooling**: Context+ and Neural Memory tools were unavailable in this Codex turn; markdown-only fallback was used. Paperclip was offline and KANBAN remained the task source.
+- **Next**: monitor production logs and schedule deferred schema/validation work as separate migrations; do not rerun production restore or seed.
+
+---
+
 ## 2026-07-17 Handoff - Attendance Week Selection Metadata Refresh
 - **Current Outcome**: The residual attendance calendar regression is fixed, deployed, and production-smoked.
 - **Root Cause**: Calendar week row clicks were guarded by `attendanceControlsDisabled`, which includes `weekLoading`; any metadata refresh could prevent `selectedWeek` from being set.
@@ -94,7 +107,7 @@
 - **Evidence**: `receipts/2026-06-09-report-intelligence-center.md`, `receipts/e2e-report-bi-corrected/`, `receipts/e2e-production-report-bi-corrected/`, `receipts/perf/perf-lab-2026-06-09T06-29-46-122Z.md`, `receipts/artifacts/report-bi-production-corrected.png`.
 - **Safety**: No Prisma migration, seed, or production data mutation was run for this closeout.
 - **Residual Risk**: BI still builds the report cube in memory before pagination; acceptable for the current dataset, but a future scale task should add SQL aggregation/materialization. `StudentClass` still has no `endedAt`, so historical inclusion uses evidence-based inference.
-- **Next**: Continue product hardening with credential rotation and deeper backend latency work if production usage grows.
+- **Next**: Continue product hardening with deeper backend latency work if production usage grows; production credential rotation was completed on 2026-08-03.
 
 ---
 
@@ -145,7 +158,7 @@
 - **Fixes During Deploy**: Added `.vercelignore`; corrected root-only ignore patterns after unanchored `receipts/` and `reports/` excluded API handlers from Vercel bundle; frontend `ws` audit advisory closed through lockfile update.
 - **Verification**: `npx tsc --noEmit`, `npm run test:unit` 28/28, `npm --prefix frontend run lint`, `npm run build`, `git diff --check`, root high audit, frontend full audit, final Vercel build/install, production upload-image 201, auth no-token 401, cron no-token 403, and production Playwright 6/6 all passed.
 - **Important URL Note**: `edu-manager-delta.vercel.app` is stale/not the active project alias. Use `https://edu-manager-gules.vercel.app` unless Vercel aliases are intentionally changed.
-- **Remaining Follow-up**: Rotate default credentials/JWT secret, define financial correction policy for old anomalous paid receipts, keep SMS/Zalo live send disabled until provider + opt-in policy are approved.
+- **Remaining Follow-up**: Define financial correction policy for old anomalous paid receipts and keep SMS/Zalo live send disabled until provider + opt-in policy are approved. Production admin/JWT/cron rotation was completed on 2026-08-03.
 
 ## Attendance Tuition RCA + Reports/Template UX - 2026-05-19
 - **Mode**: Production-readiness hardening after user-reported attendance/tuition defects and UI/tooling requests.
@@ -192,7 +205,7 @@
 - **Implemented in final slice**: `CRON_SECRET`-protected monthly fee cron, parent portal, fee reminders with live-send gate, encrypted Vercel Blob backups, `deleted_at` soft delete, recycle-bin UI/API.
 - **Production evidence**: `receipts/2026-05-16-phase-c-operations-soft-delete.md`.
 - **Validation**: `npx prisma generate`, `npx prisma db push`, `npx tsc --noEmit`, `npm run test:unit` 18/18, `npm run build`, frontend lint max-warnings=0, root/frontend audits, `git diff --check`, local Playwright 17/17, production API smoke, and Chrome UI smoke all passed.
-- **Operational follow-up**: keep `REMINDER_SEND_ENABLED=false` until provider webhook/opt-in/message approval; rotate `admin / admin123` and JWT secret before real production operation.
+- **Operational follow-up**: keep `REMINDER_SEND_ENABLED=false` until provider webhook/opt-in/message approval. Production admin/JWT/cron secrets were rotated on 2026-08-03.
 - **Tooling note**: MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex turn, so write-back used markdown files only.
 
 ## Phase A API Parity Update — 2026-05-14
@@ -212,7 +225,7 @@
 ## Latest Project Truth
 - **Product**: Edu Manager V2 education management system.
 - **Status**: Production live on `https://edu-manager-gules.vercel.app`.
-- **Latest production deployment observed**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`.
+- **Historical deployment observed for this slice**: `dpl_8KRG5ePFEqeKNLZxZZdb9cMjdNg6`; current production deployment is recorded at the top of this handoff.
 - **Latest fix**: Template Designer visible render/upload fix. Fabric `upper-canvas` must remain transparent; future tests should prove visible pixel/hash deltas, not only object count.
 - **Correction policy**: do not bulk rewrite historical paid receipts. Use Reports/Receipts anomaly actions one record at a time with an operator reason.
 - **Residual risk**: production serverless/DB latency remains measurable on dashboard/report/workbench APIs; current UI/API smoke passes but deeper backend latency work remains separate.
@@ -255,7 +268,7 @@
 - **Product**: Edu Manager V2 education management system.
 - **Status**: ⚠️ Production live, partial usable. Agency PRD assessment estimates 50-60% usable until Phase A API parity is verified.
 - **Production URL**: https://edu-manager-delta.vercel.app
-- **Login**: `admin / admin123`
+- **Login**: historical default removed; use the operator-managed credential.
 - **Repository**: https://github.com/hts2008/edu_manager_v2
 - **Current Git HEAD observed in Codex session**: `433d21c`.
 

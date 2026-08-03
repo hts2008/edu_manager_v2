@@ -4,12 +4,21 @@
 
 ## Project State
 - **Product**: Edu Manager V2 — Vietnamese education center management system for classes, students, parents, teachers, attendance, monthly fees, receipts, payments, reports, and printable templates.
-- **Status**: PRODUCTION LIVE. Phase A API parity passed on production for existing UI flows; Phase B reliability/security baseline is implemented; Phase C C1-C12 product slices are implemented and production-smoked.
+- **Status**: PRODUCTION LIVE. Audit V2 remediation is deployed; migrations, encrypted backup, auth rotation, 496 root tests, 42 frontend tests, the 44/44 full Chrome regression and the 8/8 current-deployment Chrome smoke are verified.
 - **Production URL**: https://edu-manager-gules.vercel.app
-- **Login**: `admin / admin123`
+- **Login**: operator-managed credential; production secret is not stored in source control.
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment observed in Codex session**: Vercel inspect URL `https://vercel.com/hts2008s-projects/edu-manager/C9Kya8T288BGNLpRBd7V3UF8Udgn`; production URL `https://edu-manager-i3n5eupdy-hts2008s-projects.vercel.app`, aliased to `https://edu-manager-gules.vercel.app`, after the 2026-07-17 attendance week-selection fix.
+- **Latest production deployment**: `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`, aliased to `https://edu-manager-gules.vercel.app`, after Audit V2 remediation, secret rotation and frontend transitive security refresh.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
+
+## Audit V2 Remediation Closeout (2026-08-03)
+- Commits `39e4fb6`, `4834e3f` and `c244e8e` close backup manifest/transaction timeout, aggregate fee confirm/cancel, paid timestamp, UTC boundary, validation, frontend error/reconciliation findings and patch vulnerable build-time transitive dependencies.
+- Production migrations `20260803_controlled_class_month_plan_reopen` and `20260803_schema_hygiene_indexes` are applied; schema status is clean.
+- Production AES-GCM v3 backup verified `valid=true` with 28 manifest tables. Restore remains isolated-only by policy.
+- Admin credential, JWT secret and cron secret were rotated; old browser sessions were revoked and no secret is stored in the repo.
+- Authenticated Google Chrome regression passed 44/44 scenarios over 22 routes x desktop/mobile. A second smoke on the final deployment passed 8/8 critical-route scenarios; both reported zero horizontal document overflow and zero API/console/page errors.
+- Context+ and Neural Memory tools were not exposed in this Codex turn; markdown-only project memory was used and this degradation is recorded in the handoff.
+- Residual accepted items: frontend React Router audit advisory without patched release (BrowserRouter app, no RSC), Node `url.parse` deprecation noise, and separately planned schema/CRUD hygiene items.
 
 ## Core Ledger Remediation (2026-07-11)
 - Attendance locking now reconciles only the locked class allocation and uses UTC half-open month ranges.
@@ -70,7 +79,7 @@
 8. **Performance Route-Loading Closeout** - route-level lazy loading, vendor chunks, lighter page transitions, GET cache/dedupe, DB-backed `/auth/me` reuse, slim student options, Fee Workbench aggregate read endpoint, Prisma indexes, and local/production Chrome perf smoke are implemented and deployed.
 9. **Month-Bounded Tuition + EduFlow UI Closeout** - May 2026 session counts are now bounded inside the month (`2/week=10`, `3/week=14`), receipt creation uses MonthlyFee truth, admin routes are guarded, the dark dashboard drift was replaced with a coherent light EduFlow operations console, and local + production Playwright UX/Phase-B smokes pass.
 10. **Production Readiness Hardening** - dashboard API/UI contract, DB-backed auth for core handlers, attendance lock enforcement, fee ledger idempotency, shared UX primitives, and local smoke server are implemented and locally smoked.
-11. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; credential rotation remains an operational follow-up.
+11. **Phase B Closeout** - observability/security hardening is implemented and production-smoked; production admin/JWT/cron credentials were rotated on 2026-08-03.
 12. **Phase C Product Slices** - C1-C12 are implemented and production-smoked on Google Chrome/Playwright after deploy.
 13. **Operational Hygiene** - B2B-005/B2B-008 final verification is implemented with markdown-only fallback because C+/NM tools were unavailable; 2026-05-24 post-deploy dirty-tree hygiene is closed and recorded.
 14. **Product Expansion** - future Phase D/product growth should be planned separately after real operational traction.
@@ -124,7 +133,7 @@
 - **Serverless Routing**: Dynamic folders like `[id]` can shadow each other; prefer query-param actions for ambiguous operations.
 - **Dual-Brain Tooling Degradation (Codex session 2026-05-16)**: MCP tool discovery did not expose MCPProxy/Neural Memory or Context+ tools in this Codex turn. Work proceeded in markdown-only/manual mode; do not treat NM/C+ write-back as completed for this task.
 - **Phase A Acceptance Boundary**: A1-A16 are implemented with production smoke evidence as of 2026-05-15. Phase B now has CI, unit, E2E smoke, validation, dependency audit, React Hook Form, and observability/security baselines.
-- **Default Credentials Risk**: `admin / admin123` is useful for dev/smoke, but production operation must rotate credentials and JWT secret.
+- **Historical credential risk**: development bootstrap credentials must never be reused in production. Production admin/JWT/cron secrets were rotated on 2026-08-03.
 - **Docs Drift**: README and old memory may mention stale React versions, Express/SQLite as primary, or 100% completion. Prefer current package/code + agency PRD + KANBAN updates.
 
 ## Files Touched This Session

@@ -1,192 +1,83 @@
-# 📋 EDU MANAGER - PROJECT CONTEXT
+# EDU MANAGER V2 - Project Context
 
-> **Last Updated:** 2026-01-09 11:25  
-> **Current Phase:** Production Live  
-> **Build Status:** ✅ Deployed to Vercel
+> Last verified: 2026-08-03
+> Runtime: production on Vercel
+> Production: https://edu-manager-gules.vercel.app
 
----
+## Product
 
-## 🎯 Project Overview
+EDU MANAGER V2 is an operations platform for education centers. It covers student and parent records, classes, attendance, monthly tuition, receipts and expenses, printable templates, operational reports, and student progress reporting.
 
-**Edu Manager** - Quản lý trung tâm dạy thêm
+## Production Architecture
 
-| Item       | Details                                                 |
-| ---------- | ------------------------------------------------------- |
-| Tech Stack | React 18 + Vite + Tailwind CSS v4 + Vercel + PostgreSQL |
-| Production | https://edu-manager-delta.vercel.app                    |
-| Database   | Supabase PostgreSQL (Prisma ORM)                        |
-| Auth       | JWT Token + Role-based (admin/receptionist)             |
-| Login      | `admin` / `admin123`                                    |
-| KANBAN     | [dashboard.html](./dashboard.html)                      |
-
----
-
-## 🚀 Deployment Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    VERCEL CLOUD                         │
-├─────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐                     │
-│  │  Frontend   │    │  API Routes │                     │
-│  │  (React)    │ ──▶│  (Node.js)  │                     │
-│  │  Vite Build │    │  Serverless │                     │
-│  └─────────────┘    └─────────────┘                     │
-│                            │                            │
-│                            ▼                            │
-│                    ┌─────────────┐                      │
-│                    │   Prisma    │                      │
-│                    │   Client    │                      │
-│                    └─────────────┘                      │
-└─────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-              ┌─────────────────────────┐
-              │    SUPABASE CLOUD       │
-              │  ┌───────────────────┐  │
-              │  │   PostgreSQL DB   │  │
-              │  │  (12 tables)      │  │
-              │  └───────────────────┘  │
-              └─────────────────────────┘
+```text
+Browser
+  -> React 19 + React Router 7 + Vite 7 frontend
+  -> Vercel rewrite /api/* -> api/router.ts
+  -> Vercel Node.js serverless handlers
+  -> Prisma 5
+  -> Neon PostgreSQL
 ```
 
----
+The Vercel TypeScript API and `prisma/schema.prisma` are the production sources of truth. The Express backend is retained only as a reference implementation and is not in the production request path.
 
-## ✅ Completed Features (14 Pages)
+## Core Domains
 
-### Auth & Security
+- Authentication and role-based access for administrators and receptionists.
+- Students, parents, teachers, classes, enrollments, and enrollment history.
+- Class sessions, monthly plans, attendance periods, and make-up sessions.
+- Per-class monthly fee lines, receipts, expenses, and reconciliation.
+- Receipt/payment templates and PDF generation.
+- Financial, attendance, risk, and student-progress reporting.
+- Backup/restore, activity audit, rate limiting, and scheduled operations.
 
-- JWT authentication with token refresh
-- Role-based access control (admin, receptionist)
-- Protected routes with role checking
-- Secure password hashing (bcrypt)
+## Repository Map
 
-### Dashboard
+| Path | Responsibility |
+| --- | --- |
+| `api/router.ts` | Vercel API entrypoint and route dispatch |
+| `server/api/` | Production API handlers |
+| `lib/` | Shared domain, auth, persistence, PDF, and validation services |
+| `prisma/schema.prisma` | Database source of truth |
+| `prisma/migrations/` | Ordered production migrations |
+| `frontend/` | React application |
+| `backend/` | Reference-only Express implementation |
+| `tests/` | Unit and integration contract tests |
+| `frontend/tests/` | Browser and frontend tests |
 
-- Stat cards (students, classes, thu/chi)
-- Quick actions (điểm danh, thu tiền, thêm học viên)
-- Recent transactions list
-- Unpaid students list
+## Environment Contract
 
-### CRUD Modules
+Production and local serverless execution require environment variables. Values must be supplied by the deployment platform or a local untracked environment file; credentials and connection strings must never be committed.
 
-| Module   | Features                                   |
-| -------- | ------------------------------------------ |
-| Students | List, Add, Edit, Delete, Search, Filter    |
-| Parents  | List, Add, Edit, Delete                    |
-| Classes  | List, Add, Edit, Delete, Schedule picker   |
-| Teachers | List, Add, Edit, Delete, Salary management |
+Required runtime variables include:
 
-### Operations
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `JWT_SECRET`
+- `BLOB_READ_WRITE_TOKEN`
 
-| Module       | Features                                            |
-| ------------ | --------------------------------------------------- |
-| Attendance   | Class/date selection, status toggles, summary stats |
-| Att. Periods | Period management, submit/approve/lock workflow     |
-| Receipts     | Auto-fee calculation, payment method selection      |
-| Payments     | Category icons, teacher quick-select for salary     |
-| History      | Combined Thu/Chi view, filters, summary cards       |
+Operational scripts document their own required credential environment variables in `--help` output.
 
-### Reports & KANBAN
+## Verification Commands
 
-| Module     | Features                                                            |
-| ---------- | ------------------------------------------------------------------- |
-| Reports    | Date range picker, type selector, summary cards, category breakdown |
-| Templates  | Grid view, filter by type, create/edit/delete, set-default          |
-| KANBAN API | Real-time sync với task.md, visual dashboard, auto-refresh          |
-
-### Shared Components
-
-- **DataTable**: sorting, filtering, pagination, custom render
-- **Modal**: ESC close, click-outside, confirm variant
-- **Forms**: validation, loading states, error handling
-
----
-
-## 📁 Project Structure
-
-```
-EDU_MANAGER_V2/
-├── api/                    # Vercel serverless functions (NEW)
-│   ├── auth/               # Login, me endpoints
-│   ├── students/           # Students CRUD
-│   ├── classes/            # Classes CRUD
-│   ├── attendance/         # Attendance + bulk
-│   └── reports/            # Dashboard stats
-├── lib/                    # Shared utilities (NEW)
-│   ├── prisma.ts           # Prisma client singleton
-│   └── auth.ts             # Auth helpers
-├── prisma/                 # Database schema (NEW)
-│   ├── schema.prisma       # PostgreSQL schema
-│   └── seed.ts             # Seed data
-├── frontend/src/
-│   ├── components/
-│   │   ├── layout/         # Header, Sidebar, MainLayout
-│   │   └── ui/             # DataTable, Modal
-│   ├── context/            # AuthContext
-│   ├── pages/              # 14 page components
-│   ├── services/           # API abstraction
-│   └── App.jsx             # Router config
-├── backend/src/            # Express app (local dev)
-│   ├── database/           # SQLite, migrations, seed
-│   ├── middleware/         # auth, logger, errorHandler
-│   ├── routes/             # All API routes (11 files)
-│   └── server.js           # Express app
-├── vercel.json             # Vercel configuration (NEW)
-├── package.json            # Root dependencies (NEW)
-└── dashboard.html          # Visual KANBAN Dashboard
+```powershell
+npx prisma validate
+npx tsc --noEmit
+npm --prefix frontend run lint -- --max-warnings=0
+npm run test:unit
+npm run build
 ```
 
----
+Database migrations are applied with `npm run db:migrate` only after backup and release approval.
 
-## 🔜 Next Steps
+## Security Boundaries
 
-1. **UI/UX Improvements** - Fix white text issues
-2. **More Seed Data** - Add realistic data to Supabase
-3. **Performance Optimization** - Lazy loading, caching
-4. **Custom Domain** - Setup custom domain for app
+- Passwords are stored as bcrypt hashes.
+- JWTs are validated against stateful user/session data.
+- Protected handlers enforce role checks server-side.
+- Production credentials are managed outside Git.
+- Operational scripts have no built-in usernames or passwords.
 
----
+## Current Status
 
-## 🐛 Known Issues
-
-_All resolved:_
-
-- ✅ Attendance weeks spanning months - fixed
-- ✅ Attendance period 500 error - fixed
-- ✅ ES Module import errors - fixed
-- ⚠️ White text on white background - IN PROGRESS
-
----
-
-## 📊 Progress
-
-| Metric        | Value |
-| ------------- | ----- |
-| Total Tasks   | ~250  |
-| Completed     | ~250  |
-| Progress      | 100%  |
-| Pages         | 14    |
-| API Endpoints | 70+   |
-
----
-
-## 🔧 Environment Variables (Vercel)
-
-```env
-DATABASE_URL=postgresql://postgres.rdtqbivfnrdcureoazbh:***@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
-DIRECT_URL=postgresql://postgres:***@db.rdtqbivfnrdcureoazbh.supabase.co:5432/postgres
-JWT_SECRET=***
-```
-
----
-
-## 📝 Notes
-
-- Backend uses Prisma with PostgreSQL on Vercel
-- Backend uses better-sqlite3 for local dev
-- All dates stored in ISO format
-- Vietnamese comments in code
-- API response format: `{ success: boolean, data: {...} }`
-- KANBAN Dashboard auto-sync với task.md mỗi 5 giây
-- ES Modules enabled with `"type": "module"` in package.json
+The platform is live and under active remediation. Completion claims must be based on current automated gates and production smoke evidence, not historical page or task counts.

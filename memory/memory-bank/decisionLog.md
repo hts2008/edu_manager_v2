@@ -371,3 +371,10 @@
 **Decision**: Keep PUT for regular-only plans. When non-regular rows exist, calculate the requested regular date set, block only date overlaps, and use PATCH to add/remove regular rows with aggregate and row-version guards. Never delete or replace makeup/extra rows from the regular editor.
 **Rationale**: This keeps the editor useful for independent regular schedule corrections while preserving non-regular attendance/billing context and optimistic concurrency guarantees.
 **Status**: IMPLEMENTED in frontend; backend unchanged.
+
+### ADR-54: Audit V2 Production Closeout Uses Verified Backup Before Additive Migration And Secret Rotation
+**Date**: 2026-08-03
+**Context**: Audit V2 found a backup manifest gap, aggregate fee-state gaps, date-boundary inconsistency, trigger/index drift and long-lived production credentials. The remediation touched recovery, finance, authentication and production schema.
+**Decision**: Run and verify an encrypted 28-table backup before migration; use additive checked-in migrations; protect aggregate confirm/cancel whenever class fee lines exist; use UTC half-open date ranges; allow frozen-to-open month-plan correction only with a revision increment and matching immutable revision row; rotate admin/JWT/cron secrets and revoke existing sessions after deploy.
+**Rationale**: Recovery evidence must precede schema mutation, class-line finance is the authoritative ledger, runtime timezone must not alter billing queries, correction needs an audited revision, and production credentials must not remain in repository documentation.
+**Status**: IMPLEMENTED in commits `39e4fb6`, `4834e3f` and `c244e8e`; migrations clean; production backup valid; Chrome regression 44/44 plus final-deployment smoke 8/8; evidence in `receipts/2026-08-03-audit-v2-remediation-closeout.md`.

@@ -1,5 +1,15 @@
 # Progress Log
 
+### 2026-08-03 - Audit V2 Production Remediation Closeout
+- **Scope**: Execute `Audit_V2.md` through application fixes, migrations, encrypted backup, credential rotation, deployment, Chrome verification and auditable handoff.
+- **Outcome**: commits `39e4fb6` + `4834e3f` + `c244e8e` deployed as `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`; production migration status clean; AES-GCM v3 backup verified with 28 tables.
+- **Verification**: root unit 496/496, frontend unit 42/42, TypeScript, ESLint, build, backup roundtrip, auth/cron probes, Google Chrome regression 44/44, and final-deployment smoke 8/8 with zero horizontal document overflow and zero API/console/page errors.
+- **Security**: production admin/JWT/cron secrets rotated and old sessions revoked. No credential is recorded in source control.
+- **Boundary**: React Router advisory has no patched upstream release; Float money, enrollment exclusion constraint, weak legacy fields/FKs and broad low-risk CRUD validation remain separate backlog.
+- **Evidence**: `receipts/2026-08-03-audit-v2-remediation-closeout.md`, `docs/artifacts/audit-v2-2026-08-03/`.
+- **Tooling**: Context+ and Neural Memory unavailable; markdown-only fallback. Paperclip offline; KANBAN mode used.
+- **STATUS**: IMPLEMENTED
+
 ### 2026-06-12 - Student Progress Assessment Expansion Plan
 - **Scope**: Plan the next phase after the implemented evidence-first student progress report: add a teacher-entered monthly assessment/update workflow, Cambridge-track weighting, real skill inputs, daily practice/shield tracking, and stronger parent/BA analytics.
 - **Decision**: Keep the existing `/student-progress` report intact; do not replace the current operational proxy until rubric-backed teacher inputs exist.
@@ -139,7 +149,7 @@
 - **Code/Config Change**: Added `SUPABASE_BUCKET` to `.env.example`; updated `lib/storage.ts` to read `SUPABASE_BUCKET` with `template-images` fallback.
 - **Static Verification**: `npx tsc --noEmit`, `npm run build`, `cd frontend && npm run lint`, `node --check scripts\parity-test.mjs`, and `git diff --check` all pass. Lint remains 26 warnings, 0 errors.
 - **Runtime Verification**: Production no-token probe returns 401 for `/api/auth/me` but 404 for Phase A routes (`receipts`, `payments`, `templates`, `reports/financial`, `reports/unpaid-students`, `monthly-fees`, `attendance/calculate-fee`), so live Vercel does not yet have Phase A code.
-- **Browser Verification**: Production browser login with `admin/admin123` shows `Internal server error`; local reference browser smoke succeeds after rebuilding `better-sqlite3` and starting Express + Vite.
+- **Browser Verification**: Production browser login with the then-current default credential showed `Internal server error`; local reference browser smoke succeeded after rebuilding `better-sqlite3` and starting Express + Vite.
 - **Blockers**: `npx prisma migrate status` fails against current `.env`/direct-host retry; local `vercel dev` fails because Vercel CLI has no credentials/token; live production needs Vercel deploy/config access.
 - **Evidence**: `receipts/2026-05-14-phase-a-closeout-attempt.md`.
 - **STATUS**: PARTIAL — PHASE A CLOSEOUT BLOCKED ON DEPLOY/CONFIG
@@ -217,7 +227,7 @@
 - **Action**: Re-established EDU_MANAGER_V2 as the active project context.
 - **Confirmed Product State**: Historical claim recorded as complete and production live; superseded by agency PRD reset on 2026-05-06, which classifies production as partial usable until Phase A API parity passes.
 - **Production URL**: https://edu-manager-delta.vercel.app
-- **Known Login**: `admin / admin123`
+- **Known Login**: historical development default; production credential was rotated on 2026-08-03.
 - **Known HEAD from prior audit**: `fc400eb` — `feat(attendance): add review modal before approving`.
 - **Important Warning**: Working tree was reported dirty with many framework-related deletions/untracked files. Avoid broad commits.
 - **Validation**: `progress.md`, `decisionLog.md`, `current-session.md`, and `handoff.md` were read back and contain Edu Manager truth; remaining external-workspace mentions are contamination warnings, not project facts.
@@ -1043,7 +1053,7 @@
 - Tests updated: `frontend/tests/attendance-page-contract.test.js` and `tests/historical-attendance-ui-guard.test.ts` assert that week row selection does not depend on `weekLoading`.
 - Verification: frontend unit, frontend lint, root unit `467/467`, TypeScript, build and diff-check passed.
 - Production: pushed commit `2867171`, deployed Vercel `dpl_C9Kya8T288BGNLpRBd7V3UF8Udgn`, alias `https://edu-manager-gules.vercel.app`.
-- Authenticated Chrome smoke: prod login `admin/admin123` returned token; selected `FLYER B6`; clicked `attendance-week-2026-06-1`; panel rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`; metadata loaded with only HTTP 200 API responses and save button enabled after readiness.
+- Authenticated Chrome smoke: the then-current production credential returned a token; selected `FLYER B6`; clicked `attendance-week-2026-06-1`; panel rendered `Điểm danh tuần: 1/6/2026 - 7/6/2026`; metadata loaded with only HTTP 200 API responses and save button enabled after readiness. Credential rotated 2026-08-03.
 - Evidence: `receipts/2026-07-17-attendance-week-selection-metadata-refresh.md`.
 
 ## 2026-07-17 - Fee Workbench filter overlap production hotfix

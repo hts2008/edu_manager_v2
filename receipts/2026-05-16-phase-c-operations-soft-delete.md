@@ -81,5 +81,5 @@ Google Chrome CDP smoke passed with `failed=0`:
 ## Remaining Operational Toggles
 
 - Live SMS/Zalo delivery is intentionally disabled by `REMINDER_SEND_ENABLED=false`; enabling real sends requires provider webhook configuration, opt-in policy, and message approval.
-- Default admin credential `admin / admin123` remains an operational risk and must be rotated before real production operation.
+- A default admin credential remained an operational risk at this historical checkpoint; it was rotated on 2026-08-03.
 - MCPProxy/Neural Memory and Context+ tools were not exposed in this Codex session; write-back was completed in markdown files only.
