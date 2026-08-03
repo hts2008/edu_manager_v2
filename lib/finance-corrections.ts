@@ -204,12 +204,12 @@ export async function calculateStudentMonthlyFee(
     where: { id: studentId, deletedAt: null },
     include: {
       studentClasses: {
-        where: { status: "active", enrollmentDate: { lte: endDate } },
+        where: { status: "active", enrollmentDate: { lt: endDate } },
         include: { class: { include: { teacher: true } } },
       },
       enrollmentPeriods: {
         where: {
-          startedAt: { lte: endDate },
+          startedAt: { lt: endDate },
           OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
         },
         include: { class: { include: { teacher: true } } },
@@ -254,7 +254,7 @@ export async function calculateStudentMonthlyFee(
         where: {
           studentId,
           classId: enrollment.classId,
-          attendanceDate: { gte: startDate, lte: endDate },
+          attendanceDate: { gte: startDate, lt: endDate },
         },
         select: { classSessionId: true, attendanceDate: true, status: true },
       }),

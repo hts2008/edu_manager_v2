@@ -318,16 +318,31 @@ export async function reopenClassMonthPlan(
     },
   });
   if (!plan) return null;
-  const updated = await tx.classMonthPlan.updateMany({
-    where: { id: plan.id, revision: plan.revision, state: "frozen" },
-    data: {
-      revision: { increment: 1 },
-      state: "open",
-      updatedById: input.actorId ?? null,
-      frozenById: null,
-      frozenAt: null,
-    },
-  });
+  const supportsSessionGuard = typeof tx.$executeRawUnsafe === "function";
+  if (supportsSessionGuard) {
+    await tx.$executeRawUnsafe(
+      "SELECT set_config('app.allow_class_month_plan_reopen', '1', true)",
+    );
+  }
+  let updated;
+  try {
+    updated = await tx.classMonthPlan.updateMany({
+      where: { id: plan.id, revision: plan.revision, state: "frozen" },
+      data: {
+        revision: { increment: 1 },
+        state: "open",
+        updatedById: input.actorId ?? null,
+        frozenById: null,
+        frozenAt: null,
+      },
+    });
+  } finally {
+    if (supportsSessionGuard) {
+      await tx.$executeRawUnsafe(
+        "SELECT set_config('app.allow_class_month_plan_reopen', '0', true)",
+      );
+    }
+  }
   if (updated.count !== 1) {
     throw new ClassMonthPlanError(
       "CLASS_MONTH_PLAN_REVISION_CONFLICT",
@@ -355,5 +370,10 @@ export async function reopenClassMonthPlan(
       actorId: input.actorId ?? null,
     },
   });
+  if (supportsSessionGuard) {
+    await tx.$executeRawUnsafe(
+      'SET CONSTRAINTS "class_month_plan_reopen_revision_guard" IMMEDIATE',
+    );
+  }
   return current;
 }

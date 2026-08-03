@@ -35,10 +35,10 @@ export default function Modal({
   showClose = true,
   bodyClassName = '',
   busy = false,
-  busyLabel = 'Dang xu ly...',
+  busyLabel = 'Đang xử lý...',
   confirmOnClose = false,
   hasUnsavedChanges,
-  confirmCloseMessage = 'Ban co thay doi chua luu. Dong hop thoai se bo cac thay doi nay.'
+  confirmCloseMessage = 'Bạn có thay đổi chưa lưu. Đóng hộp thoại sẽ bỏ các thay đổi này.'
 }) {
   const modalRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -254,7 +254,7 @@ export default function Modal({
                       onClick={() => setCloseGuardOpen(false)}
                       className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-amber-900 shadow-sm hover:bg-amber-100"
                     >
-                      Tiep tuc sua
+                      Tiếp tục sửa
                     </button>
                     <button
                       type="button"
@@ -308,7 +308,7 @@ export function ConfirmModal({
       await onConfirm?.();
       onClose?.();
     } catch (error) {
-      setConfirmError(error?.message || 'Khong the thuc hien thao tac');
+      setConfirmError(error?.message || 'Không thể thực hiện thao tác');
     } finally {
       setConfirming(false);
     }
@@ -321,7 +321,7 @@ export function ConfirmModal({
       title={title}
       size="sm"
       busy={confirming}
-      busyLabel="Dang xu ly..."
+      busyLabel="Đang xử lý..."
     >
       <p className="text-slate-600 mb-6 text-base">{message}</p>
       {confirmError && (
@@ -341,7 +341,7 @@ export function ConfirmModal({
         <ActionProgressButton
           onClick={handleConfirm}
           loading={confirming}
-          loadingLabel="Dang xu ly..."
+          loadingLabel="Đang xử lý..."
           className={`rounded-xl px-5 py-2.5 font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 ${
             variant === 'danger'
               ? 'bg-gradient-to-r from-rose-500 to-red-600 shadow-rose-500/30 hover:shadow-rose-500/40'

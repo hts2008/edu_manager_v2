@@ -527,7 +527,7 @@ describe("class session month-plan API behavior", () => {
         );
         assert.equal(response.statusCode, 400);
         assert.equal(response.body.success, false);
-        assert.equal(response.body.error.code, "MISSING_FIELD");
+        assert.equal(response.body.error.code, "VALIDATION_ERROR");
         assert.equal(response.body.error.message, "reason is required");
       }
       assert.equal(transactionCalls, 0);

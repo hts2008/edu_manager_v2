@@ -8,6 +8,7 @@ import LongOperationStatus from '../components/ui/LongOperationStatus';
 import { useToast } from '../components/ui/Toast';
 import { openAuthenticatedPdf, openAuthenticatedPdfs } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
+import { pollBulkPaymentBatch } from '../utils/bulkPaymentReconciliation';
 
 const FEE_STATUS = {
   pending: { label: 'Chờ chốt', color: 'bg-slate-100 text-slate-700', icon: '○' },
@@ -25,7 +26,6 @@ const BULK_PAYMENT_STORAGE_KEY = 'edu-manager:monthly-fees:bulk-payment';
 const createIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ||
   `fee-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
 const formatMoney = (value = 0) => `${new Intl.NumberFormat('vi-VN').format(value)}đ`;
 
 const getRowMonth = (row) => row?.month || row?.fee?.month || row?.billing_month || row?.fee?.billing_month;
@@ -120,18 +120,12 @@ export default function FeeCollectionPage() {
     const reconcile = async () => {
       try {
         const saved = JSON.parse(localStorage.getItem(BULK_PAYMENT_STORAGE_KEY) || 'null');
-        if (!saved?.idempotency_key || !saved?.payload) return;
-        let response = saved.batch_id
-          ? await monthlyFeesService.bulkPayStatus(saved.batch_id)
-          : await monthlyFeesService.bulkPay(saved.payload, saved.idempotency_key);
-        while (response.success && response.data.status === 'processing') {
-          if (cancelled) return;
-          localStorage.setItem(
-            BULK_PAYMENT_STORAGE_KEY,
-            JSON.stringify({ ...saved, batch_id: response.data.batch_id })
-          );
-          response = await monthlyFeesService.bulkPay(saved.payload, saved.idempotency_key);
-        }
+        if (!saved?.idempotency_key || !saved?.payload || !saved?.batch_id) return;
+        const response = await pollBulkPaymentBatch({
+          batchId: saved.batch_id,
+          getStatus: monthlyFeesService.bulkPayStatus,
+          isCancelled: () => cancelled,
+        });
         if (cancelled || !response.success) return;
         const receipts = (response.data.results || []).filter((item) => item.receipt_id);
         setPrintQueue(receipts);
@@ -140,8 +134,8 @@ export default function FeeCollectionPage() {
         if (response.data.status === 'completed') {
           localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
         }
-      } catch {
-        localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
+      } catch (error) {
+        toast.error(error?.message || 'Không thể đối soát đợt thu đang xử lý');
       }
     };
     reconcile();
@@ -191,7 +185,7 @@ export default function FeeCollectionPage() {
 
     if (!isCurrentRequest()) return;
 
-    const message = workbenchRes.error?.message || 'Khong the tai bang hoc phi theo lop/thang';
+    const message = workbenchRes.error?.message || 'Không thể tải bảng học phí theo lớp/tháng';
     setLoadError(message);
     toast.error(message);
     setLoading(false);
@@ -292,7 +286,7 @@ export default function FeeCollectionPage() {
     if (failed) toast.error(`${failed} học viên không thể tính phí`);
       await loadData();
     } catch (error) {
-      toast.error(error?.message || 'KhÃ´ng thá»ƒ tÃ­nh phÃ­ cho dÃ²ng Ä‘Ã£ chá»n');
+      toast.error(error?.message || 'Không thể tính phí cho dòng đã chọn');
     } finally {
       setProcessing(false);
     }
@@ -300,7 +294,7 @@ export default function FeeCollectionPage() {
 
   const collectRows = async (rows, method) => {
     if (loading) {
-      toast.error('Bang hoc phi dang dong bo, vui long doi xong roi thu lai');
+      toast.error('Bảng học phí đang đồng bộ, vui lòng đợi xong rồi thử lại');
       return;
     }
     const targetRows = rows.filter((student) => isCollectableFeeRow(student, selectedMonth));
@@ -328,36 +322,47 @@ export default function FeeCollectionPage() {
       );
 
       let res = await monthlyFeesService.bulkPay(payload, key);
-      while (res.success && res.data.status === 'processing') {
+      if (res.success && res.data.status === 'processing') {
+        const batchId = res.data.batch_id;
+        if (!batchId) {
+          throw new Error('Đợt thu đang xử lý nhưng không có mã đối soát');
+        }
         setActiveBatch(res.data);
         localStorage.setItem(
           BULK_PAYMENT_STORAGE_KEY,
-          JSON.stringify({ idempotency_key: key, payload, batch_id: res.data.batch_id })
+          JSON.stringify({ idempotency_key: key, payload, batch_id: batchId })
         );
-        res = await monthlyFeesService.bulkPay(payload, key);
+        res = await pollBulkPaymentBatch({
+          batchId,
+          getStatus: monthlyFeesService.bulkPayStatus,
+        });
       }
 
-    if (res.success) {
-      const receipts = (res.data.results || []).filter((item) => item.receipt_id);
-      setPrintQueue(receipts);
-      setShowPrintQueue(receipts.length > 0);
-      setActiveBatch(res.data);
-      localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
-      toast.success(
-        `Đã thu ${res.data.paid || 0} dòng bằng ${PAYMENT_LABEL[method]}`
-      );
-      if (res.data.failed) {
-        toast.error(`${res.data.failed} dòng không thu được, xem lại dữ liệu điểm danh/học phí`);
+      if (res.success) {
+        const receipts = (res.data.results || []).filter((item) => item.receipt_id);
+        setPrintQueue(receipts);
+        setShowPrintQueue(receipts.length > 0);
+        setActiveBatch(res.data);
+        if (res.data.status === 'completed') {
+          localStorage.removeItem(BULK_PAYMENT_STORAGE_KEY);
+          toast.success(
+            `Đã thu ${res.data.paid || 0} dòng bằng ${PAYMENT_LABEL[method]}`
+          );
+          setSelectedIds([]);
+          setShowPayModal(false);
+          setSelectedStudent(null);
+        } else {
+          toast.warning('Đợt thu vẫn đang xử lý. Hệ thống sẽ tiếp tục đối soát theo mã đợt thu.');
+        }
+        if (res.data.failed) {
+          toast.error(`${res.data.failed} dòng không thu được, xem lại dữ liệu điểm danh/học phí`);
+        }
+        await loadData();
+      } else {
+        toast.error(res.error?.message || 'Không thể thu tiền');
       }
-      await loadData();
-      setSelectedIds([]);
-      setShowPayModal(false);
-      setSelectedStudent(null);
-    } else {
-      toast.error(res.error?.message || 'Không thể thu tiền');
-    }
     } catch (error) {
-      toast.error(error?.message || 'KhÃ´ng thá»ƒ thu tiá»n');
+      toast.error(error?.message || 'Không thể thu tiền');
     } finally {
       setProcessing(false);
     }
@@ -522,7 +527,7 @@ export default function FeeCollectionPage() {
                 }}
                 className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700 transition hover:bg-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isPrinting ? 'Dang mo...' : 'In lai'}
+                {isPrinting ? 'Đang mở...' : 'In lại'}
               </button>
             )}
           </div>
@@ -685,9 +690,9 @@ export default function FeeCollectionPage() {
 
       {isRefreshing && (
         <LongOperationStatus
-          title="Dang dong bo bang thu tien"
-          message="He thong dang tai lai du lieu theo lop, thang va tung dong hoc phi. Cac nut thu/in tam khoa de tranh thao tac tren du lieu cu."
-          steps={["Tai dong hoc phi", "Doi soat trang thai", "San sang thao tac"]}
+          title="Đang đồng bộ bảng thu tiền"
+          message="Hệ thống đang tải lại dữ liệu theo lớp, tháng và từng dòng học phí. Các nút thu/in tạm khóa để tránh thao tác trên dữ liệu cũ."
+          steps={["Tải dòng học phí", "Đối soát trạng thái", "Sẵn sàng thao tác"]}
           activeStep={1}
         />
       )}
@@ -707,12 +712,12 @@ export default function FeeCollectionPage() {
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
-                <p className="font-black">Khong the tai bang hoc phi theo lop/thang</p>
+                <p className="font-black">Không thể tải bảng học phí theo lớp/tháng</p>
                 <p className="mt-1 text-sm font-semibold opacity-80">{loadError}</p>
               </div>
             </div>
             <button type="button" onClick={loadData} className="btn-secondary">
-              Thu lai
+              Thử lại
             </button>
           </div>
         </div>
@@ -832,7 +837,7 @@ export default function FeeCollectionPage() {
                 <ActionProgressButton
                   type="button"
                   loading={printingReceiptIds.includes(item.receipt_id)}
-                  loadingLabel="Dang mo..."
+                  loadingLabel="Đang mở..."
                   onClick={() => handlePrintReceipt(item.receipt_id)}
                   className="rounded-xl bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700"
                 >
@@ -845,7 +850,7 @@ export default function FeeCollectionPage() {
             <button type="button" onClick={() => setShowPrintQueue(false)} className="btn-secondary">
               Đóng
             </button>
-            <ActionProgressButton type="button" onClick={handlePrintAll} loading={printingAll} loadingLabel="Dang mo tat ca..." className="btn-primary">
+            <ActionProgressButton type="button" onClick={handlePrintAll} loading={printingAll} loadingLabel="Đang mở tất cả..." className="btn-primary">
               In tất cả
             </ActionProgressButton>
           </div>

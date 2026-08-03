@@ -24,6 +24,7 @@ import {
   freezeClassMonthPlan,
 } from "../../../../lib/class-month-plan.js";
 import { scheduleSnapshotForWrite } from "../../../../lib/class-month-schedule-snapshot.js";
+import { attendancePeriodActionSchema, validateBody } from "../../../../lib/validation.js";
 
 function attendanceMonthRange(periodMonth: string) {
   const [year, month] = periodMonth.split("-").map(Number);
@@ -31,6 +32,17 @@ function attendanceMonthRange(periodMonth: string) {
     startDate: new Date(Date.UTC(year, month - 1, 1)),
     nextMonthStart: new Date(Date.UTC(year, month, 1)),
   };
+}
+
+function requiredActionReason(payload: unknown) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "reason" in payload &&
+    typeof payload.reason === "string" &&
+    payload.reason
+  ) return payload.reason;
+  throw new ApiError("VALIDATION_ERROR", "reason is required", 400);
 }
 
 export async function calculatePeriodStats(db: any, classId: string, periodMonth: string) {
@@ -103,14 +115,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     // Get attendance for this period
-    const [year, month] = period.periodMonth.split("-");
-    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const endDate = new Date(parseInt(year), parseInt(month), 0);
+    const { startDate, nextMonthStart: endDate } = attendanceMonthRange(period.periodMonth);
 
     const attendance = await prisma.attendance.findMany({
       where: {
         classId: period.classId,
-        attendanceDate: { gte: startDate, lte: endDate },
+        attendanceDate: { gte: startDate, lt: endDate },
       },
       include: { student: true },
       orderBy: [{ studentId: "asc" }, { attendanceDate: "asc" }],
@@ -180,6 +190,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   const actionType = (action as string) || "submit";
 
   try {
+    const actionPayload = validateBody(attendancePeriodActionSchema, {
+      ...(req.body && typeof req.body === "object" ? req.body : {}),
+      action: actionType,
+    });
     // Get period
     const period = await prisma.attendancePeriod.findUnique({
       where: { id },
@@ -403,15 +417,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const reason = getString(req.body?.reason)?.trim();
-        if (!reason) {
-          return errorResponse(
-            res,
-            "REOPEN_REASON_REQUIRED",
-            "A non-empty reason is required to reopen attendance",
-            400,
-          );
-        }
+        const reason = requiredActionReason(actionPayload);
 
         const reopenedPeriod = await runSerializableTransaction(
           prisma,
@@ -447,15 +453,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             400,
           );
         }
-        const reason = getString(req.body?.reason)?.trim();
-        if (!reason) {
-          return errorResponse(
-            res,
-            "REOPEN_REASON_REQUIRED",
-            "A non-empty reason is required to reopen attendance",
-            400,
-          );
-        }
+        const reason = requiredActionReason(actionPayload);
         const reopenedPeriod = await runSerializableTransaction(
           prisma,
           (tx) => reopenAttendancePeriod(tx, {
@@ -492,7 +490,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const reason = getString(req.body?.reason)?.trim() || "Attendance submission rejected";
+        const reason = ("reason" in actionPayload ? actionPayload.reason : undefined) || "Attendance submission rejected";
         await runSerializableTransaction(prisma, (tx) =>
           reopenAttendancePeriod(tx, {
             periodId: id,

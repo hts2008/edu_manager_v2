@@ -53,6 +53,8 @@ test("money APIs protect fee ledger linkage", () => {
   assert.doesNotMatch(bulkPay, /monthlyFeeLineId:\s*null/);
   assert.match(confirm, /updateMany/);
   assert.match(confirm, /MONTHLY_FEE_STATE_CONFLICT/);
+  assert.match(confirm, /assertAggregatePaymentAllowed\(current\)/);
+  assert.match(confirm, /lines:\s*\{\s*select:\s*\{\s*id:\s*true\s*\},\s*take:\s*1\s*\}/);
   assert.match(cancel, /updateMany/);
   assert.match(cancel, /MONTHLY_FEE_STATE_CONFLICT/);
   assert.match(calculate, /FEE_ALREADY_PAID/);

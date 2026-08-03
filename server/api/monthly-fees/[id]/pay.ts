@@ -10,23 +10,16 @@ import {
 import {
   ApiError,
   getRequiredString,
-  getString,
   logActivity,
   resolveTemplateId,
   sendApiError,
 } from "../../../../lib/api-utils.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
+import { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
+import { monthlyFeePaySchema, validateBody } from "../../../../lib/validation.js";
 
-export function assertAggregatePaymentAllowed(fee: any) {
-  if (fee.lines?.length) {
-    throw new ApiError(
-      "CLASS_LINE_PAYMENT_REQUIRED",
-      "Monthly fee has class-level lines and must be collected per class line",
-      409
-    );
-  }
-}
+export { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -37,20 +30,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const body = typeof req.body === "string" ? { payment_method: req.body } : req.body || {};
-    const paymentMethod = getRequiredString(
-      body.payment_method || body.paymentMethod,
-      "payment_method"
-    ) as "cash" | "transfer";
-
-    if (!["cash", "transfer"].includes(paymentMethod)) {
-      throw new ApiError("INVALID_PAYMENT_METHOD", "Invalid payment method", 400);
-    }
-
-    const notes = getString(body.notes);
+    const rawBody = req.body && typeof req.body === "object" ? req.body : {};
+    const body = validateBody(monthlyFeePaySchema, {
+      ...rawBody,
+      payment_method: rawBody.payment_method || rawBody.paymentMethod,
+      template_id: rawBody.template_id || rawBody.templateId,
+    });
+    const paymentMethod = body.payment_method;
+    const notes = body.notes || undefined;
     const templateId = await resolveTemplateId(
       "receipt",
-      body.template_id || body.templateId
+      body.template_id,
     );
     const result = await runSerializableTransaction(prisma, async (tx) => {
       const feeIdentity = await tx.monthlyFee.findUnique({

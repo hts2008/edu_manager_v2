@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import {
   BACKUP_MANIFEST,
+  BACKUP_VERSION,
   createBackupEnvelope,
   createDatabaseSnapshot,
   openBackupEnvelope,
@@ -51,9 +52,9 @@ describe("seed and reset safety", () => {
 
 describe("backup and restore", () => {
   it("uses a canonical manifest containing every current Prisma model", () => {
-    assert.equal(BACKUP_MANIFEST.length, 24);
+    assert.equal(BACKUP_MANIFEST.length, 28);
     assert.deepEqual(BACKUP_MANIFEST.map((entry) => entry.model), [
-      "User", "Parent", "AuthSession", "Teacher", "Class", "Student", "StudentClass", "EnrollmentPeriod", "Attendance", "AttendancePeriod", "Template", "Receipt", "MonthlyFee", "MonthlyFeeLine", "ReceiptLine", "BulkFeePaymentBatch", "BulkFeePaymentItem", "Payment", "ActivityLog", "StudentProgressMonth", "StudentProgressRevision", "StudentProgressSkill", "StudentProgressDailyEntry", "CenterSettings",
+      "User", "Parent", "AuthSession", "Teacher", "Class", "Student", "StudentClass", "EnrollmentPeriod", "ClassSession", "ClassMonthPlan", "ClassMonthPlanRevision", "Attendance", "AttendancePeriod", "Template", "Receipt", "MonthlyFee", "MonthlyFeeLine", "MonthlyFeeLineRevision", "ReceiptLine", "BulkFeePaymentBatch", "BulkFeePaymentItem", "Payment", "ActivityLog", "StudentProgressMonth", "StudentProgressRevision", "StudentProgressSkill", "StudentProgressDailyEntry", "CenterSettings",
     ]);
   });
 
@@ -61,13 +62,14 @@ describe("backup and restore", () => {
     let options: unknown;
     const tx = Object.fromEntries(BACKUP_MANIFEST.map(({ delegate }) => [delegate, { findMany: async () => [] }]));
     const prisma = { $transaction: async (callback: (client: typeof tx) => unknown, value: unknown) => { options = value; return callback(tx); } };
-    await createDatabaseSnapshot(prisma as never);
+    const snapshot = await createDatabaseSnapshot(prisma as never);
     assert.deepEqual(options, { isolationLevel: "RepeatableRead" });
+    assert.equal(snapshot.version, 3);
   });
 
   it("encrypts a versioned envelope and detects tampering", () => {
     const tables = Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, []]));
-    const backup = { format: "edu-manager-backup", version: 2, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, 0])), tables };
+    const backup = { format: "edu-manager-backup", version: BACKUP_VERSION, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, 0])), tables };
     const envelope = createBackupEnvelope(backup as never, { key: TEST_KEY, keyId: "test-key" });
     assert.equal(envelope.key_id, "test-key");
     assert.ok(envelope.payload_checksum.startsWith("sha256:"));
@@ -76,22 +78,66 @@ describe("backup and restore", () => {
     assert.throws(() => openBackupEnvelope({ ...envelope, ciphertext_checksum: "sha256:bad" }, { key: TEST_KEY }));
   });
 
+  it("rejects pre-V3 backups with an explicit missing-schema error", () => {
+    const legacyManifest = BACKUP_MANIFEST.filter((entry) => ![
+      "ClassSession",
+      "ClassMonthPlan",
+      "ClassMonthPlanRevision",
+      "MonthlyFeeLineRevision",
+    ].includes(entry.model));
+    const tables = Object.fromEntries(legacyManifest.map(({ key }) => [key, []]));
+    const backup = {
+      format: "edu-manager-backup",
+      version: 2,
+      created_at: new Date().toISOString(),
+      source: "edu-manager-v2",
+      manifest: legacyManifest.map(({ model, key }) => ({ model, key })),
+      counts: Object.fromEntries(legacyManifest.map(({ key }) => [key, 0])),
+      tables,
+    };
+    const envelope = createBackupEnvelope(backup as never, { key: TEST_KEY, keyId: "test-key" });
+    assert.throws(
+      () => openBackupEnvelope(envelope, { key: TEST_KEY, keyId: "test-key" }),
+      /Backup is missing required Tuition V3 tables/,
+    );
+  });
+
+  it("rejects a complete manifest carried under an obsolete backup version", () => {
+    const tables = Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, []]));
+    const backup = {
+      format: "edu-manager-backup",
+      version: 2,
+      created_at: new Date().toISOString(),
+      source: "edu-manager-v2",
+      manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })),
+      counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, 0])),
+      tables,
+    };
+    const envelope = createBackupEnvelope(backup as never, { key: TEST_KEY, keyId: "test-key" });
+    assert.throws(
+      () => openBackupEnvelope(envelope, { key: TEST_KEY, keyId: "test-key" }),
+      /Backup version 2 is not supported; expected 3/,
+    );
+  });
+
   it("requires an isolated restore target and rolls all writes into one transaction", async () => {
     const tables = Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, []]));
     tables.users = [{ id: "admin" }];
-    const backup = { format: "edu-manager-backup", version: 2, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])), tables };
+    const backup = { format: "edu-manager-backup", version: BACKUP_VERSION, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])), tables };
     let transactions = 0;
     const tx = Object.fromEntries(BACKUP_MANIFEST.map(({ delegate }) => [delegate, { deleteMany: async () => undefined, createMany: async () => undefined }]));
     const prisma = { $transaction: async (callback: (client: typeof tx) => unknown) => { transactions += 1; return callback(tx); } };
     await assert.rejects(() => restoreDatabaseBackup(prisma as never, backup as never, { databaseUrl: "postgres://db.example/prod", confirmation: "RESTORE_EDU_MANAGER", nodeEnv: "production" }));
+    await assert.rejects(() => restoreDatabaseBackup(prisma as never, backup as never, { databaseUrl: "postgres://db.example/prod", confirmation: "RESTORE_EDU_MANAGER", nodeEnv: "test" }), /test-named databases/);
+    await restoreDatabaseBackup(prisma as never, backup as never, { databaseUrl: "postgres://db.example/audit_restore_test", confirmation: "RESTORE_EDU_MANAGER", nodeEnv: "test" });
     await restoreDatabaseBackup(prisma as never, backup as never, { databaseUrl: "postgres://localhost/test", confirmation: "RESTORE_EDU_MANAGER", nodeEnv: "test" });
-    assert.equal(transactions, 1);
+    assert.equal(transactions, 2);
   });
 
   it("propagates an insert failure so the transaction owner can roll back", async () => {
     const tables = Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, []]));
     tables.users = [{ id: "admin" }];
-    const backup = { format: "edu-manager-backup", version: 2, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])), tables };
+    const backup = { format: "edu-manager-backup", version: BACKUP_VERSION, created_at: new Date().toISOString(), source: "edu-manager-v2", manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })), counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])), tables };
     const tx = Object.fromEntries(BACKUP_MANIFEST.map(({ delegate }) => [delegate, { deleteMany: async () => undefined, createMany: async () => { throw new Error("insert failed"); } }]));
     const prisma = { $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx) };
     await assert.rejects(() => restoreDatabaseBackup(prisma as never, backup as never, { databaseUrl: "postgres://localhost/test", confirmation: "RESTORE_EDU_MANAGER", nodeEnv: "test" }), /insert failed/);

@@ -23,6 +23,17 @@ const revisionGuardMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const controlledReopenMigrationSource = readFileSync(
+  new URL(
+    "../prisma/migrations/20260803_controlled_class_month_plan_reopen/migration.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const classMonthPlanSource = readFileSync(
+  new URL("../lib/class-month-plan.ts", import.meta.url),
+  "utf8",
+);
 
 type PlanState = "open" | "frozen";
 
@@ -60,6 +71,28 @@ describe("ClassMonthPlan persistence contract", () => {
     assert.doesNotMatch(
       revisionGuardMigrationSource,
       /cannot transition from frozen to open/,
+    );
+  });
+
+  it("allows frozen plans to reopen only through the controlled application helper", () => {
+    assert.match(
+      controlledReopenMigrationSource,
+      /OLD\."state" = 'frozen'[\s\S]*NEW\."state" = 'open'[\s\S]*current_setting\('app\.allow_class_month_plan_reopen', true\) IS DISTINCT FROM '1'/,
+    );
+    assert.match(controlledReopenMigrationSource, /DEFERRABLE INITIALLY DEFERRED/);
+    assert.match(controlledReopenMigrationSource, /matching audit revision/);
+    assert.match(controlledReopenMigrationSource, /revision\."event_type" = 'reopen'/);
+    assert.match(
+      classMonthPlanSource,
+      /set_config\('app\.allow_class_month_plan_reopen', '1', true\)/,
+    );
+    assert.match(
+      classMonthPlanSource,
+      /set_config\('app\.allow_class_month_plan_reopen', '0', true\)/,
+    );
+    assert.match(
+      classMonthPlanSource,
+      /SET CONSTRAINTS \"class_month_plan_reopen_revision_guard\" IMMEDIATE/,
     );
   });
 });

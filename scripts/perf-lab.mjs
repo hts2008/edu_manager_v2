@@ -35,10 +35,6 @@ function usage() {
 Options:
   --base <url>              App base URL. Defaults to PERF_LAB_BASE_URL,
                             PERF_BASE_URL, or http://127.0.0.1:3000.
-  --username <value>        Login username. Defaults to PERF_LAB_USERNAME,
-                            PERF_USERNAME, or admin.
-  --password <value>        Login password. Defaults to PERF_LAB_PASSWORD,
-                            PERF_PASSWORD, or admin123.
   --month <yyyy-mm>         Month for month-scoped read endpoints.
   --routes <csv>            Route paths to navigate. Default: core app routes.
   --apis <csv>              API paths to measure directly. GET only.
@@ -58,6 +54,10 @@ Environment aliases:
   PERF_LAB_BASE_URL, PERF_LAB_USERNAME, PERF_LAB_PASSWORD, PERF_LAB_MONTH,
   PERF_LAB_ROUTES, PERF_LAB_APIS, PERF_LAB_HEADLESS, PERF_LAB_OUTPUT_DIR.
 
+Credentials:
+  PERF_LAB_USERNAME and PERF_LAB_PASSWORD are required. PERF_USERNAME and
+  PERF_PASSWORD are accepted aliases. Passwords are not accepted as CLI args.
+
 Safety:
   The only allowed mutation is POST ${loginApiPath}. Direct API checks are GET
   requests only, and browser route navigation fails on any other API mutation.
@@ -68,8 +68,8 @@ function parseArgs(argv) {
   const env = process.env;
   const options = {
     baseUrl: env.PERF_LAB_BASE_URL || env.PERF_BASE_URL || "http://127.0.0.1:3000",
-    username: env.PERF_LAB_USERNAME || env.PERF_USERNAME || "admin",
-    password: env.PERF_LAB_PASSWORD || env.PERF_PASSWORD || "admin123",
+    username: readCredential(["PERF_LAB_USERNAME", "PERF_USERNAME"]),
+    password: readCredential(["PERF_LAB_PASSWORD", "PERF_PASSWORD"]),
     month: env.PERF_LAB_MONTH || env.PERF_MONTH || currentMonth(),
     outputDir:
       env.PERF_LAB_OUTPUT_DIR ||
@@ -131,14 +131,6 @@ function parseArgs(argv) {
       options.baseUrl = readValue("--base");
     } else if (arg.startsWith("--base-url=")) {
       options.baseUrl = readValue("--base-url");
-    } else if (arg === "--username") {
-      options.username = readValue(arg);
-    } else if (arg.startsWith("--username=")) {
-      options.username = readValue("--username");
-    } else if (arg === "--password") {
-      options.password = readValue(arg);
-    } else if (arg.startsWith("--password=")) {
-      options.password = readValue("--password");
     } else if (arg === "--month") {
       options.month = readValue(arg);
     } else if (arg.startsWith("--month=")) {
@@ -225,6 +217,27 @@ function readPositiveIntegerEnv(names, fallback) {
     if (process.env[name]) return parsePositiveInteger(name, process.env[name]);
   }
   return fallback;
+}
+
+function readCredential(names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function assertCredentials(options) {
+  if (!options.username) {
+    throw new Error(
+      "PERF_LAB_USERNAME or PERF_USERNAME is required. Supply credentials through environment variables."
+    );
+  }
+  if (!options.password) {
+    throw new Error(
+      "PERF_LAB_PASSWORD or PERF_PASSWORD is required. Supply credentials through environment variables."
+    );
+  }
 }
 
 function parsePositiveInteger(name, value) {
@@ -932,6 +945,7 @@ async function run() {
     usage();
     return 0;
   }
+  assertCredentials(options);
 
   const startedAt = new Date().toISOString();
   const { token, result: authLogin } = await loginViaApi(options);

@@ -2,9 +2,17 @@
 
 const expressBase = process.env.EXPRESS_API_BASE || "http://localhost:5000/api";
 const vercelBase = process.env.VERCEL_API_BASE || "http://localhost:3000/api";
-const username = process.env.PARITY_USERNAME || "admin";
-const password = process.env.PARITY_PASSWORD || "admin123";
+const username = requireCredential("PARITY_USERNAME");
+const password = requireCredential("PARITY_PASSWORD");
 const strictParity = process.env.STRICT_PARITY === "1";
+
+function requireCredential(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required. Supply credentials through environment variables.`);
+  }
+  return value;
+}
 
 const month =
   process.env.PARITY_MONTH || new Date().toISOString().slice(0, 7);

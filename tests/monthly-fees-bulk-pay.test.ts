@@ -121,10 +121,12 @@ describe("bounded idempotent monthly fee bulk collection", () => {
     assert.match(endpoint, /timeout:\s*15_?000/);
   });
 
-  it("recovers a batch after response loss even before the batch id was persisted", () => {
+  it("reconciles only persisted batches and never replays a mutation after response loss", () => {
     const page = source("frontend/src/pages/FeeCollectionPage.jsx");
     assert.match(page, /saved\?\.idempotency_key/);
     assert.match(page, /saved\?\.payload/);
-    assert.match(page, /monthlyFeesService\.bulkPay\(saved\.payload, saved\.idempotency_key\)/);
+    assert.match(page, /saved\?\.batch_id/);
+    assert.match(page, /getStatus: monthlyFeesService\.bulkPayStatus/);
+    assert.doesNotMatch(page, /monthlyFeesService\.bulkPay\(saved\.payload, saved\.idempotency_key\)/);
   });
 });

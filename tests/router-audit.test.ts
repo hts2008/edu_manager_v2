@@ -89,4 +89,27 @@ describe("router mutation audit", () => {
 
     assert.deepEqual(audits, []);
   });
+
+  it("does not infer an audit actor from a stateless token fallback", async () => {
+    const audits: unknown[][] = [];
+    const handler = createRouterHandler({
+      resolve: () => ({
+        load: async () => ({
+          default: async (_req, res) => res.status(200).json({ ok: true }),
+        }),
+      }),
+      writeAudit: async (...args: unknown[]) => audits.push(args),
+    });
+    const req = createTestRequest({
+      method: "POST",
+      query: { path: "classes" },
+      headers: { authorization: "Bearer token-without-stateful-auth" },
+    });
+    const response = createTestResponse();
+
+    await handler(req, response.res);
+
+    assert.equal(response.state.statusCode, 200);
+    assert.deepEqual(audits, []);
+  });
 });

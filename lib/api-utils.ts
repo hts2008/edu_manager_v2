@@ -80,9 +80,34 @@ export function parseMonthRange(month: string) {
     throw new ApiError("INVALID_MONTH", "month must be YYYY-MM", 400);
   }
   return {
-    startDate: new Date(year, monthNumber - 1, 1),
-    endDate: new Date(year, monthNumber, 0, 23, 59, 59, 999),
+    startDate: new Date(Date.UTC(year, monthNumber - 1, 1)),
+    endDate: new Date(Date.UTC(year, monthNumber, 1)),
   };
+}
+
+export function parseUtcDateRange(from?: string, to?: string) {
+  const range: { gte?: Date; lt?: Date } = {};
+  const parseDate = (value: string, field: "from" | "to") => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new ApiError("INVALID_DATE", `${field} must be YYYY-MM-DD`, 400);
+    }
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+      throw new ApiError("INVALID_DATE", `${field} must be YYYY-MM-DD`, 400);
+    }
+    return parsed;
+  };
+
+  if (from) range.gte = parseDate(from, "from");
+  if (to) {
+    const exclusiveEnd = parseDate(to, "to");
+    exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + 1);
+    range.lt = exclusiveEnd;
+  }
+  if (range.gte && range.lt && range.gte >= range.lt) {
+    throw new ApiError("INVALID_DATE_RANGE", "from must be before or equal to to", 400);
+  }
+  return range;
 }
 
 export function getBusinessMonthKey(date = new Date(), timeZone = "Asia/Ho_Chi_Minh") {

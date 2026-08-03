@@ -423,6 +423,7 @@ model Attendance {
   @@index([attendanceDate, status])
   @@index([isMakeUp])
   @@index([classSessionId])
+  @@index([createdById])
   @@map("attendance")
 }
 
@@ -503,6 +504,7 @@ model MonthlyFee {
   @@index([status])
   @@index([month, status])
   @@index([studentId, month])
+  @@index([receiptId])
   @@map("monthly_fees")
 }
 
@@ -605,6 +607,7 @@ model Template {
 
   @@index([type])
   @@index([isDefault])
+  @@index([createdById])
   @@map("templates")
 }
 
@@ -792,6 +795,7 @@ model ActivityLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([entityType, entityId])
   @@map("activity_logs")
 }
 

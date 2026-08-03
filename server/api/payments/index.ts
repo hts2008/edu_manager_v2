@@ -11,6 +11,7 @@ import {
   getNumber,
   getString,
   logActivity,
+  parseUtcDateRange,
   resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
@@ -48,9 +49,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
       if (category && category !== "all") where.category = category;
       if (from || to) {
-        where.createdAt = {};
-        if (from) where.createdAt.gte = new Date(`${from}T00:00:00`);
-        if (to) where.createdAt.lte = new Date(`${to}T23:59:59.999`);
+        where.createdAt = parseUtcDateRange(from, to);
       }
 
       const [payments, total] = await Promise.all([

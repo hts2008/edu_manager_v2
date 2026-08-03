@@ -231,7 +231,7 @@ export async function enrollStudentsInClass(
     );
   }
   await acquireStudentEnrollmentAdvisoryLocks(tx, uniqueIds);
-  await assertEnrollmentMutationWritable(tx, [classId], effectiveAt);
+  await assertEnrollmentMutationWritable(tx, [classId], effectiveAt, options.now);
 
   const classData = await tx.class.findUnique({
     where: { id: classId },

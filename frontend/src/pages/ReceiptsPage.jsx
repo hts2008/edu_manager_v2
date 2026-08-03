@@ -4,20 +4,27 @@ import { useForm } from 'react-hook-form';
 import { bulkActionsService, studentsService, receiptsService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import BulkActionBar from '../components/ui/BulkActionBar';
-import Modal from '../components/ui/Modal';
+import Modal, { ConfirmModal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { receiptFormSchema } from '../utils/formValidation';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
 import { toMonthKey } from '../utils/dateKeys';
 import { useAuth } from '../context/AuthContext';
+import PageState from '../components/ui/PageState';
 
 // VI: Trang thu tiền học phí
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedReceiptIds, setSelectedReceiptIds] = useState([]);
   const [correctingReceiptId, setCorrectingReceiptId] = useState(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [correctionDialog, setCorrectionDialog] = useState({ open: false, receipt: null });
+  const [correctionReason, setCorrectionReason] = useState(
+    'Đối soát phiếu thu có số buổi bằng 0 nhưng có số tiền',
+  );
   const toast = useToast();
   const { isAdmin } = useAuth();
 
@@ -27,18 +34,25 @@ export default function ReceiptsPage() {
 
   const loadReceipts = async () => {
     setLoading(true);
-    const response = await receiptsService.getAll();
-    if (response.success) {
-      setReceipts(response.data.receipts || []);
-      const currentIds = new Set((response.data.receipts || []).map((receipt) => receipt.id));
-      setSelectedReceiptIds((ids) => ids.filter((id) => currentIds.has(id)));
+    setLoadError('');
+    try {
+      const response = await receiptsService.getAll();
+      if (response.success) {
+        setReceipts(response.data.receipts || []);
+        const currentIds = new Set((response.data.receipts || []).map((receipt) => receipt.id));
+        setSelectedReceiptIds((ids) => ids.filter((id) => currentIds.has(id)));
+      } else {
+        setLoadError(response.error?.message || 'Không thể tải danh sách phiếu thu');
+      }
+    } catch (error) {
+      setLoadError(error?.message || 'Không thể tải danh sách phiếu thu');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleBulkDelete = async () => {
     if (!selectedReceiptIds.length) return;
-    if (!window.confirm(`Xóa ${selectedReceiptIds.length} phiếu thu đã chọn?`)) return;
 
     const response = await bulkActionsService.execute({
       resource: 'receipts',
@@ -46,8 +60,7 @@ export default function ReceiptsPage() {
       ids: selectedReceiptIds,
     });
     if (!response.success) {
-      toast.error(response.error?.message || 'Không thể xóa hàng loạt');
-      return;
+      throw new Error(response.error?.message || 'Không thể xóa hàng loạt');
     }
 
     const { requested, succeeded, failed } = response.data;
@@ -57,7 +70,7 @@ export default function ReceiptsPage() {
       toast.success(`Đã xử lý ${succeeded}/${requested}`);
     }
     setSelectedReceiptIds([]);
-    loadReceipts();
+    await loadReceipts();
   };
 
   const handlePrintPdf = async (receiptId) => {
@@ -68,12 +81,18 @@ export default function ReceiptsPage() {
     }
   };
 
-  const handleCorrectReceipt = async (receipt) => {
-    const reason = window.prompt(
-      `Lý do hủy và tính lại phiếu ${receipt.id}:`,
-      'Đối soát phiếu thu có số buổi bằng 0 nhưng có số tiền'
-    );
-    if (!reason) return;
+  const openCorrectionDialog = (receipt) => {
+    setCorrectionDialog({ open: true, receipt });
+    setCorrectionReason('Đối soát phiếu thu có số buổi bằng 0 nhưng có số tiền');
+  };
+
+  const handleCorrectReceipt = async () => {
+    const receipt = correctionDialog.receipt;
+    const reason = correctionReason.trim();
+    if (!receipt || !reason) {
+      toast.error('Vui lòng nhập lý do đối soát');
+      return;
+    }
 
     setCorrectingReceiptId(receipt.id);
     const response = await receiptsService.correct(receipt.id, { reason });
@@ -84,6 +103,7 @@ export default function ReceiptsPage() {
       return;
     }
 
+    setCorrectionDialog({ open: false, receipt: null });
     toast.success('Đã hủy phiếu lỗi và tính lại học phí. Kiểm tra Thu tiền để thu lại nếu còn phải thu.');
     await loadReceipts();
   };
@@ -149,7 +169,7 @@ export default function ReceiptsPage() {
         <div className="flex items-center justify-end gap-1">
           {row.can_correct && isAdmin() && (
             <button
-              onClick={() => handleCorrectReceipt(row)}
+              onClick={() => openCorrectionDialog(row)}
               disabled={correctingReceiptId === row.id}
               className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
               title={row.anomaly_message || 'Đối soát phiếu thu'}
@@ -196,20 +216,29 @@ export default function ReceiptsPage() {
           {
             label: 'Xóa',
             className: 'btn-danger',
-            onClick: handleBulkDelete,
+            onClick: () => setShowBulkDeleteConfirm(true),
           },
         ]}
       />
 
-      <DataTable
-        columns={columns}
-        data={receipts}
-        loading={loading}
-        selectable
-        selectedIds={selectedReceiptIds}
-        onSelectionChange={setSelectedReceiptIds}
-        emptyMessage="Chưa có phiếu thu nào"
-      />
+      {loadError && !loading ? (
+        <PageState
+          title="Không thể tải danh sách phiếu thu"
+          message={loadError}
+          tone="red"
+          action={loadReceipts}
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={receipts}
+          loading={loading}
+          selectable
+          selectedIds={selectedReceiptIds}
+          onSelectionChange={setSelectedReceiptIds}
+          emptyMessage="Chưa có phiếu thu nào"
+        />
+      )}
 
       <Modal
         isOpen={showForm}
@@ -221,6 +250,60 @@ export default function ReceiptsPage() {
           onSuccess={handleSuccess}
           onCancel={() => setShowForm(false)}
         />
+      </Modal>
+
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title="Xóa phiếu thu đã chọn"
+        message={`Bạn có chắc muốn xóa ${selectedReceiptIds.length} phiếu thu? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa phiếu thu"
+      />
+
+      <Modal
+        isOpen={correctionDialog.open}
+        onClose={() => setCorrectionDialog({ open: false, receipt: null })}
+        title="Đối soát phiếu thu"
+        size="sm"
+        busy={Boolean(correctingReceiptId)}
+        busyLabel="Đang đối soát..."
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-slate-600">
+            Phiếu <span className="font-mono font-bold text-slate-900">{correctionDialog.receipt?.id}</span> sẽ được hủy và học phí được tính lại.
+          </p>
+          <div>
+            <label htmlFor="receipt-correction-reason" className="mb-2 block text-sm font-bold text-slate-700">
+              Lý do đối soát
+            </label>
+            <textarea
+              id="receipt-correction-reason"
+              value={correctionReason}
+              onChange={(event) => setCorrectionReason(event.target.value)}
+              rows={4}
+              className="input min-h-28 w-full resize-y"
+            />
+          </div>
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={Boolean(correctingReceiptId)}
+              onClick={() => setCorrectionDialog({ open: false, receipt: null })}
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={Boolean(correctingReceiptId) || !correctionReason.trim()}
+              onClick={handleCorrectReceipt}
+            >
+              {correctingReceiptId ? 'Đang đối soát...' : 'Xác nhận đối soát'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

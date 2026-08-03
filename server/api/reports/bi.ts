@@ -46,13 +46,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const rangeStart = parseMonthRange(query.from).startDate;
     const rangeEnd = parseMonthRange(query.to).endDate;
     const enrollmentWhere: Record<string, unknown> = {
-      enrollmentDate: { lte: rangeEnd },
+      enrollmentDate: { lt: rangeEnd },
       student: { deletedAt: null },
     };
     if (query.student_id) enrollmentWhere.studentId = query.student_id;
 
     const enrollmentPeriodWhere: Record<string, unknown> = {
-      startedAt: { lte: rangeEnd },
+      startedAt: { lt: rangeEnd },
       OR: [{ endedAt: null }, { endedAt: { gt: rangeStart } }],
       student: { deletedAt: null },
     };
@@ -123,7 +123,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
-                attendanceDate: { gte: rangeStart, lte: rangeEnd },
+                attendanceDate: { gte: rangeStart, lt: rangeEnd },
               },
               select: {
                 studentId: true,

@@ -1,8 +1,20 @@
 import { createHash } from "node:crypto";
+import { ApiError } from "./api-utils.js";
+import { logApiEvent } from "./observability.js";
 
 type FeeStatus = "pending" | "ready" | "confirmed" | "paid";
 
 export const MAX_BULK_FEE_PAYMENT_LINES = 500;
+
+export function assertAggregatePaymentAllowed(fee: any) {
+  if (fee?.lines?.length) {
+    throw new ApiError(
+      "CLASS_LINE_PAYMENT_REQUIRED",
+      "Monthly fee has class-level lines and must be collected per class line",
+      409,
+    );
+  }
+}
 
 export type CanonicalBulkFeePayment = {
   line_ids: string[];
@@ -257,13 +269,16 @@ export async function refreshMonthlyFeeAggregateFromLines(client: any, feeId: st
   const anyConfirmed = lines.some((line: any) => line.status === "confirmed");
   const anyReady = lines.some((line: any) => line.status === "ready");
   const firstReceiptId = lines.find((line: any) => line.receiptId)?.receiptId || null;
-  const paidAt = allPaid
-    ? lines
-        .map((line: any) => line.paidAt)
-        .filter(Boolean)
-        .sort()
-        .at(-1) || new Date()
-    : null;
+  const paidDates = lines
+    .map((line: any) => line.paidAt)
+    .filter((value: unknown): value is Date =>
+      value instanceof Date && !Number.isNaN(value.getTime())
+    )
+    .sort((left: Date, right: Date) => left.getTime() - right.getTime());
+  const paidAt = allPaid ? paidDates.at(-1) || null : null;
+  if (allPaid && !paidAt) {
+    logApiEvent("warn", "PAID_AT_MISSING_ON_LINES", { fee_id: feeId });
+  }
   const status: FeeStatus = allPaid
     ? "paid"
     : anyConfirmed

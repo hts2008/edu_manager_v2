@@ -31,8 +31,14 @@ const dateOnlySchema = (fieldName: string) => z
 function firstIssueMessage(error: z.ZodError) {
   const issue = error.issues[0];
   if (!issue) return "Invalid request body";
-  const path = issue.path.length ? `${issue.path.join(".")}: ` : "";
-  return `${path}${issue.message}`;
+  if (!issue.path.length) return issue.message;
+
+  const path = issue.path.join(".");
+  const leaf = String(issue.path.at(-1));
+  if (issue.message.toLowerCase().startsWith(`${leaf.toLowerCase()} `)) {
+    return issue.message;
+  }
+  return `${path}: ${issue.message}`;
 }
 
 export function validateBody<T extends z.ZodTypeAny>(
@@ -169,6 +175,115 @@ export const classEnrollmentActionSchema = z
         path: ["student_ids"],
         message: "student_id or student_ids is required",
       });
+    }
+  });
+
+export const monthlyFeePaySchema = z.object({
+  payment_method: z.enum(["cash", "transfer"]),
+  template_id: optionalText,
+  notes: optionalNullableText,
+});
+
+export const bulkFeePaymentSchema = z.object({
+  line_ids: z
+    .array(z.string().trim().min(1, "line id is required"))
+    .min(1, "line_ids is required")
+    .max(500, "line_ids supports at most 500 values"),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM"),
+  payment_method: z.enum(["cash", "transfer"]),
+  template_id: optionalText,
+  notes: optionalNullableText,
+});
+
+const attendanceRecordSchema = z.object({
+  student_id: z.string().trim().min(1, "student_id is required"),
+  class_id: z.string().trim().min(1, "class_id is required"),
+  attendance_date: dateOnlySchema("attendance_date"),
+  status: z.enum(["present", "absent_with_fee", "absent_no_fee", "holiday"]),
+  is_make_up: z.boolean().optional(),
+  make_up_reason: optionalNullableText,
+  reason: optionalNullableText,
+});
+
+const attendanceReplacementCellSchema = z.object({
+  student_id: z.string().trim().min(1, "student_id is required"),
+  attendance_date: dateOnlySchema("attendance_date"),
+});
+
+export const attendanceBulkSchema = z.object({
+  class_id: z.string().trim().min(1, "class_id is required"),
+  dates: z.array(dateOnlySchema("dates")).min(1, "dates is required").max(62),
+  records: z.array(attendanceRecordSchema).max(500),
+  replacement_scope: z.array(attendanceReplacementCellSchema).max(500).optional(),
+});
+
+export const attendancePeriodActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.enum(["submit", "approve", "lock"]) }),
+  z.object({
+    action: z.enum(["unlock", "reopen-for-correction"]),
+    reason: z.string().trim().min(1, "reason is required"),
+  }),
+  z.object({
+    action: z.literal("reject"),
+    reason: z.string().trim().min(1).optional(),
+  }),
+]);
+
+const classMonthPlanBaseSchema = z.object({
+  class_id: z.string().trim().min(1, "class_id is required"),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM"),
+  billing_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+  expected_version: z.coerce.number().int().nonnegative(),
+  row_versions: z.record(z.string(), z.coerce.number().int().nonnegative()).optional().default({}),
+  reason: z.string({ error: "reason is required" }).trim().min(1, "reason is required"),
+});
+
+export const classMonthPlanReplaceSchema = classMonthPlanBaseSchema
+  .extend({
+    schedule_mode: z.enum(["fixed_weekdays", "flexible"]),
+    weekdays: z.array(z.coerce.number().int().min(0).max(6)).max(7).optional(),
+    dates: z.array(dateOnlySchema("dates")).max(31).optional(),
+    sessions_per_week: z.coerce.number().int().positive().max(7).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.billing_month !== undefined && data.billing_month !== data.month) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["billing_month"], message: "billing_month must match month" });
+    }
+    if (data.schedule_mode === "fixed_weekdays" && !data.weekdays?.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["weekdays"], message: "weekdays is required" });
+    }
+    if (data.schedule_mode === "flexible" && !data.dates?.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dates"], message: "dates is required" });
+    }
+  });
+
+const classMonthPlanAdditionSchema = z.object({
+  session_date: dateOnlySchema("session_date"),
+  billing_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
+  kind: z.enum(["regular", "makeup", "extra", "holiday"]).optional(),
+  status: z.enum(["planned", "held", "cancelled", "holiday"]).optional(),
+  extra_fee_mode: z.enum(["included", "charge", "no_charge"]).optional(),
+  replacement_for_id: optionalText,
+  notes: optionalNullableText,
+});
+
+export const classMonthPlanPatchSchema = classMonthPlanBaseSchema
+  .extend({
+    schedule_mode: z.enum(["fixed_weekdays", "flexible"]).optional(),
+    weekdays: z.array(z.coerce.number().int().min(0).max(6)).max(7).optional(),
+    sessions_per_week: z.coerce.number().int().positive().max(7).optional(),
+    add_sessions: z.array(classMonthPlanAdditionSchema).max(62).optional().default([]),
+    remove_session_ids: z.array(z.string().trim().min(1)).max(62).optional().default([]),
+  })
+  .superRefine((data, ctx) => {
+    if (data.billing_month !== undefined && data.billing_month !== data.month) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["billing_month"], message: "billing_month must match month" });
+    }
+    if (data.schedule_mode === "fixed_weekdays" && !data.weekdays?.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["weekdays"], message: "weekdays is required" });
+    }
+    if (!data.add_sessions.length && !data.remove_session_ids.length && data.schedule_mode === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "add_sessions, remove_session_ids, or schedule_mode is required" });
     }
   });
 

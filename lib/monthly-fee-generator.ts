@@ -188,12 +188,12 @@ export async function generateMonthlyFees(
   const { startDate, endDate } = parseMonthRange(month);
 
   const enrollmentWindow = {
-    startedAt: { lte: endDate },
+    startedAt: { lt: endDate },
     OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
   };
   const legacyEnrollmentWindow = {
     status: "active",
-    enrollmentDate: { lte: endDate },
+    enrollmentDate: { lt: endDate },
   };
   const students = await prisma.student.findMany({
     where: {
@@ -235,7 +235,7 @@ export async function generateMonthlyFees(
           where: {
             studentId: { in: studentIds },
             classId: { in: classIds },
-            attendanceDate: { gte: startDate, lte: endDate },
+            attendanceDate: { gte: startDate, lt: endDate },
           },
           select: {
             studentId: true,
@@ -358,7 +358,7 @@ export async function generateMonthlyFees(
             where: {
               studentId: student.id,
               classId: { in: authoritativeClassIds },
-              attendanceDate: { gte: startDate, lte: endDate },
+              attendanceDate: { gte: startDate, lt: endDate },
             },
             select: {
               studentId: true,

@@ -4,6 +4,7 @@ import {
   getNumber,
   getRequiredString,
   parseMonthRange,
+  parseUtcDateRange,
   toDateOnly,
 } from "../lib/api-utils.js";
 import {
@@ -12,19 +13,11 @@ import {
   validateBody,
 } from "../lib/validation.js";
 
-test("parseMonthRange returns inclusive month bounds", () => {
+test("parseMonthRange returns UTC half-open month bounds", () => {
   const range = parseMonthRange("2026-05");
 
-  assert.equal(range.startDate.getFullYear(), 2026);
-  assert.equal(range.startDate.getMonth(), 4);
-  assert.equal(range.startDate.getDate(), 1);
-  assert.equal(range.startDate.getHours(), 0);
-  assert.equal(range.endDate.getFullYear(), 2026);
-  assert.equal(range.endDate.getMonth(), 4);
-  assert.equal(range.endDate.getDate(), 31);
-  assert.equal(range.endDate.getHours(), 23);
-  assert.equal(range.endDate.getMinutes(), 59);
-  assert.equal(range.endDate.getMilliseconds(), 999);
+  assert.equal(range.startDate.toISOString(), "2026-05-01T00:00:00.000Z");
+  assert.equal(range.endDate.toISOString(), "2026-06-01T00:00:00.000Z");
 });
 
 test("parseMonthRange rejects invalid month format", () => {
@@ -34,6 +27,20 @@ test("parseMonthRange rejects invalid month format", () => {
 test("parseMonthRange rejects out-of-range month numbers", () => {
   assert.throws(() => parseMonthRange("2026-00"), /month must be YYYY-MM/);
   assert.throws(() => parseMonthRange("2026-13"), /month must be YYYY-MM/);
+});
+
+test("parseUtcDateRange returns UTC half-open timestamp bounds", () => {
+  const range = parseUtcDateRange("2026-05-01", "2026-05-31");
+  assert.equal(range.gte?.toISOString(), "2026-05-01T00:00:00.000Z");
+  assert.equal(range.lt?.toISOString(), "2026-06-01T00:00:00.000Z");
+});
+
+test("parseUtcDateRange rejects impossible and reversed dates", () => {
+  assert.throws(() => parseUtcDateRange("2026-02-30"), /from must be YYYY-MM-DD/);
+  assert.throws(
+    () => parseUtcDateRange("2026-06-02", "2026-06-01"),
+    /from must be before or equal to to/,
+  );
 });
 
 test("query coercion helpers handle arrays and invalid numbers", () => {

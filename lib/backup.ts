@@ -3,7 +3,7 @@ import { put } from "@vercel/blob";
 import { ApiError } from "./api-utils.js";
 
 const BACKUP_PREFIX = "db-backups";
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 export const BACKUP_FORMAT = "edu-manager-backup";
 
 export const BACKUP_MANIFEST = [
@@ -15,12 +15,16 @@ export const BACKUP_MANIFEST = [
   { model: "Student", key: "students", delegate: "student" },
   { model: "StudentClass", key: "studentClasses", delegate: "studentClass" },
   { model: "EnrollmentPeriod", key: "enrollmentPeriods", delegate: "enrollmentPeriod" },
+  { model: "ClassSession", key: "classSessions", delegate: "classSession" },
+  { model: "ClassMonthPlan", key: "classMonthPlans", delegate: "classMonthPlan" },
+  { model: "ClassMonthPlanRevision", key: "classMonthPlanRevisions", delegate: "classMonthPlanRevision" },
   { model: "Attendance", key: "attendance", delegate: "attendance" },
   { model: "AttendancePeriod", key: "attendancePeriods", delegate: "attendancePeriod" },
   { model: "Template", key: "templates", delegate: "template" },
   { model: "Receipt", key: "receipts", delegate: "receipt" },
   { model: "MonthlyFee", key: "monthlyFees", delegate: "monthlyFee" },
   { model: "MonthlyFeeLine", key: "monthlyFeeLines", delegate: "monthlyFeeLine" },
+  { model: "MonthlyFeeLineRevision", key: "monthlyFeeLineRevisions", delegate: "monthlyFeeLineRevision" },
   { model: "ReceiptLine", key: "receiptLines", delegate: "receiptLine" },
   { model: "BulkFeePaymentBatch", key: "bulkFeePaymentBatches", delegate: "bulkFeePaymentBatch" },
   { model: "BulkFeePaymentItem", key: "bulkFeePaymentItems", delegate: "bulkFeePaymentItem" },
@@ -115,7 +119,33 @@ export function openBackupEnvelope(envelope: BackupEnvelope, options: { key?: st
 
 function validateBackup(backup: any): asserts backup is DatabaseBackup {
   const expectedManifest = BACKUP_MANIFEST.map(({ model, key }) => ({ model, key }));
-  if (backup?.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || backup.source !== "edu-manager-v2" || JSON.stringify(backup.manifest) !== JSON.stringify(expectedManifest)) {
+  const requiredV3Models = [
+    "ClassSession",
+    "ClassMonthPlan",
+    "ClassMonthPlanRevision",
+    "MonthlyFeeLineRevision",
+  ];
+  const suppliedModels = new Set(
+    Array.isArray(backup?.manifest)
+      ? backup.manifest.map((entry: any) => String(entry?.model || ""))
+      : [],
+  );
+  const missingV3Models = requiredV3Models.filter((model) => !suppliedModels.has(model));
+  if (missingV3Models.length) {
+    throw new ApiError(
+      "BACKUP_SCHEMA_MISSING_V3",
+      `Backup is missing required Tuition V3 tables: ${missingV3Models.join(", ")}`,
+      400,
+    );
+  }
+  if (backup?.version !== BACKUP_VERSION) {
+    throw new ApiError(
+      "BACKUP_VERSION_UNSUPPORTED",
+      `Backup version ${String(backup?.version ?? "missing")} is not supported; expected ${BACKUP_VERSION}`,
+      400,
+    );
+  }
+  if (backup?.format !== BACKUP_FORMAT || backup.source !== "edu-manager-v2" || JSON.stringify(backup.manifest) !== JSON.stringify(expectedManifest)) {
     throw new ApiError("BACKUP_VERIFY_FAILED", "Backup metadata or model manifest is invalid", 400);
   }
   for (const { key } of BACKUP_MANIFEST) {
@@ -146,7 +176,7 @@ export async function createDatabaseBackup(prisma: any, { dryRun = true } = {}) 
   if (dryRun) return { dry_run: true, encrypted: false, uploaded: false, created_at: backup.created_at, counts: backup.counts, version: backup.version };
   if (!process.env.BLOB_READ_WRITE_TOKEN) throw new ApiError("STORAGE_NOT_CONFIGURED", "BLOB_READ_WRITE_TOKEN is required for backup upload", 500);
   const envelope = createBackupEnvelope(backup);
-  const pathname = `${BACKUP_PREFIX}/${backup.created_at.slice(0, 10)}/${backup.created_at.replace(/[:.]/g, "-")}.v2.json`;
+  const pathname = `${BACKUP_PREFIX}/${backup.created_at.slice(0, 10)}/${backup.created_at.replace(/[:.]/g, "-")}.v3.json`;
   const blob = await put(pathname, JSON.stringify(envelope), { access: "public", addRandomSuffix: false, contentType: "application/json" });
   return { dry_run: false, encrypted: true, uploaded: true, created_at: backup.created_at, pathname: blob.pathname, url: blob.url, counts: backup.counts, version: backup.version, key_id: envelope.key_id, payload_checksum: envelope.payload_checksum };
 }
@@ -198,20 +228,71 @@ export async function verifyDatabaseBackup(url: string) {
 export function assertRestoreAllowed(options: { databaseUrl?: string; confirmation?: string; nodeEnv?: string }) {
   if (options.confirmation !== "RESTORE_EDU_MANAGER") throw new ApiError("RESTORE_CONFIRMATION_REQUIRED", "Explicit restore confirmation is required", 400);
   let hostname = "";
-  try { hostname = new URL(options.databaseUrl ?? "").hostname; } catch { /* rejected below */ }
+  let database = "";
+  try {
+    const url = new URL(options.databaseUrl ?? "");
+    hostname = url.hostname;
+    database = url.pathname.toLowerCase();
+  } catch { /* rejected below */ }
   const localHost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  if (options.nodeEnv !== "test" && !localHost) throw new ApiError("RESTORE_TARGET_FORBIDDEN", "Restore is restricted to localhost or NODE_ENV=test targets", 403);
+  const isolatedTestTarget = options.nodeEnv === "test" && /test|audit/.test(database);
+  if (!localHost && !isolatedTestTarget) {
+    throw new ApiError(
+      "RESTORE_TARGET_FORBIDDEN",
+      "Restore is restricted to localhost or explicitly test-named databases",
+      403,
+    );
+  }
+}
+
+const IMMUTABLE_TRIGGER_TABLES = ["class_month_plan_revisions", "monthly_fee_line_revisions"] as const;
+
+async function withRestoreTriggersDisabled<T>(tx: any, callback: () => Promise<T>): Promise<T> {
+  if (typeof tx.$executeRawUnsafe !== "function") return callback();
+
+  // Prefer PostgreSQL's transaction-local replica mode. If the runtime role does
+  // not have permission (some managed Postgres roles do not), fall back to only
+  // disabling the two application-owned immutable triggers for this transaction.
+  let replicaMode = false;
+  try {
+    await tx.$executeRawUnsafe("SAVEPOINT backup_restore_trigger_mode");
+    try {
+      await tx.$executeRawUnsafe("SET LOCAL session_replication_role = 'replica'");
+      replicaMode = true;
+    } catch {
+      await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT backup_restore_trigger_mode");
+      for (const table of IMMUTABLE_TRIGGER_TABLES) {
+        await tx.$executeRawUnsafe(`ALTER TABLE \"${table}\" DISABLE TRIGGER USER`);
+      }
+    } finally {
+      await tx.$executeRawUnsafe("RELEASE SAVEPOINT backup_restore_trigger_mode");
+    }
+
+    try {
+      return await callback();
+    } finally {
+      if (!replicaMode) {
+        for (const table of IMMUTABLE_TRIGGER_TABLES) {
+          await tx.$executeRawUnsafe(`ALTER TABLE \"${table}\" ENABLE TRIGGER USER`);
+        }
+      }
+    }
+  } catch (error) {
+    throw new ApiError("BACKUP_TRIGGER_MODE_FAILED", "Could not prepare immutable-trigger handling for restore", 500, { cause: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 export async function restoreDatabaseBackup(prisma: any, backup: DatabaseBackup, options: { databaseUrl?: string; confirmation?: string; nodeEnv?: string }) {
   assertRestoreAllowed(options);
   validateBackup(backup);
   await prisma.$transaction(async (tx: any) => {
-    for (const { delegate } of [...BACKUP_MANIFEST].reverse()) await tx[delegate].deleteMany();
-    for (const { delegate, key } of BACKUP_MANIFEST) {
-      const data = backup.tables[key];
-      if (data.length) await tx[delegate].createMany({ data });
-    }
+    await withRestoreTriggersDisabled(tx, async () => {
+      for (const { delegate } of [...BACKUP_MANIFEST].reverse()) await tx[delegate].deleteMany();
+      for (const { delegate, key } of BACKUP_MANIFEST) {
+        const data = backup.tables[key];
+        if (data.length) await tx[delegate].createMany({ data });
+      }
+    });
   });
   return { restored: true, version: backup.version, created_at: backup.created_at, counts: backup.counts };
 }

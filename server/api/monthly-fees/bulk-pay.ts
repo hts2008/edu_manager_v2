@@ -10,13 +10,13 @@ import {
 import {
   ApiError,
   logActivity,
-  parseMonthRange,
   resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
 import { logApiError } from "../../../lib/observability.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
+import { bulkFeePaymentSchema, validateBody } from "../../../lib/validation.js";
 import {
   canonicalizeBulkFeePayment,
   hashBulkFeePaymentPayload,
@@ -311,22 +311,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const key = idempotencyKey(req);
-    let payload: ReturnType<typeof canonicalizeBulkFeePayment>;
-    try {
-      payload = canonicalizeBulkFeePayment({
-        line_ids: req.body?.line_ids,
-        month: req.body?.month,
-        payment_method: req.body?.payment_method,
-        template_id: req.body?.template_id,
-        notes: req.body?.notes,
-      });
-    } catch (error: any) {
-      throw new ApiError("INVALID_BULK_PAY_PAYLOAD", error.message, 400);
-    }
-    parseMonthRange(payload.month);
-    if (!["cash", "transfer"].includes(payload.payment_method)) {
-      throw new ApiError("INVALID_PAYMENT_METHOD", "Invalid payment method", 400);
-    }
+    const validated = validateBody(bulkFeePaymentSchema, req.body);
+    const payload = canonicalizeBulkFeePayment(validated);
 
     const payloadHash = hashBulkFeePaymentPayload(payload);
     const templateId = await resolveTemplateId("receipt", payload.template_id || undefined);

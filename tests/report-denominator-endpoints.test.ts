@@ -82,7 +82,7 @@ describe("report endpoint denominator source contract", () => {
 
   it("the BI report passes authoritative EnrollmentPeriod bounds into the cube", () => {
     const endpoint = endpoints[0].source;
-    assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lte:\s*rangeEnd\s*\}/);
+    assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lt:\s*rangeEnd\s*\}/);
     assert.match(endpoint, /OR:\s*\[\{\s*endedAt:\s*null\s*\},\s*\{\s*endedAt:\s*\{\s*gt:\s*rangeStart\s*\}\s*\}\s*\]/);
     assert.match(endpoint, /prisma\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
     assert.match(endpoint, /const reportEnrollmentRows[^=]*=\s*\[\s*\.\.\.enrollmentPeriodRows\.map/);
@@ -93,7 +93,7 @@ describe("report endpoint denominator source contract", () => {
 
   it("uses EnrollmentPeriod as the primary universe in the student progress report", () => {
     const endpoint = endpoints[1].source;
-    assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lte:\s*rangeEnd\s*\}/);
+    assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lt:\s*rangeEnd\s*\}/);
     assert.match(endpoint, /prisma\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
     assert.match(endpoint, /const reportEnrollmentRows[^=]*=\s*\[\s*\.\.\.enrollmentPeriodRows\.map/);
     assert.match(endpoint, /\.\.\.enrollmentRows\.filter\(\s*\(row\) => !periodKeys\.has/);

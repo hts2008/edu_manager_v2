@@ -22,6 +22,7 @@ import { runSerializableTransaction } from "../../../lib/serializable-transactio
 import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
 import { acquireClassMonthRosterAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { scheduleSnapshotForWrite } from "../../../lib/class-month-schedule-snapshot.js";
+import { attendanceBulkSchema, validateBody } from "../../../lib/validation.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -101,17 +102,10 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const { records, class_id, dates, replacement_scope } = req.body;
-
-    // Validate required fields
-    if (!class_id) {
-      return errorResponse(
-        res,
-        "MISSING_CLASS_ID",
-        "class_id is required",
-        400
-      );
-    }
+    const { records, class_id, dates, replacement_scope } = validateBody(
+      attendanceBulkSchema,
+      req.body,
+    );
 
     // Validate the declared scope even when the replacement payload is empty.
     const dateScope = validateBulkAttendanceDateScope(dates, records);

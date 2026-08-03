@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { ArrowDownRight, ArrowUpRight, Search, SlidersHorizontal, Download, Printer, Trash2 } from 'lucide-react';
 import { receiptsService, paymentsService } from '../services/api';
@@ -7,11 +7,13 @@ import { exportTransactions } from '../utils/excelExport';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { openAuthenticatedPdf } from '../utils/pdfPrint';
+import PageState from '../components/ui/PageState';
 
 // PREMIUM UI: Lịch sử giao dịch (MotionSites style)
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [filter, setFilter] = useState('all');
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -22,42 +24,54 @@ export default function HistoryPage() {
   const toast = useToast();
   const { user } = useAuth();
 
+  const loadTransactions = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    const rangeParams = { from: dateRange.from, to: dateRange.to };
+
+    try {
+      const [receiptsRes, paymentsRes] = await Promise.all([
+        filter === 'all' || filter === 'receipts'
+          ? receiptsService.getAll(rangeParams)
+          : Promise.resolve(null),
+        filter === 'all' || filter === 'payments'
+          ? paymentsService.getAll(rangeParams)
+          : Promise.resolve(null),
+      ]);
+
+      const failedResponse = [receiptsRes, paymentsRes].find(
+        (response) => response && !response.success,
+      );
+      if (failedResponse) {
+        setLoadError(failedResponse.error?.message || 'Không thể tải lịch sử giao dịch');
+        return;
+      }
+
+      const receipts = (receiptsRes?.data?.receipts || []).map((receipt) => ({
+        ...receipt,
+        type: 'receipt',
+        description: `Thu học phí - ${receipt.student_name || 'Học viên'}`,
+      }));
+      const payments = (paymentsRes?.data?.payments || []).map((payment) => ({
+        ...payment,
+        type: 'payment',
+        description: `Chi - ${payment.recipient_name || 'Người nhận'}`,
+      }));
+      setTransactions(
+        [...receipts, ...payments].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at),
+        ),
+      );
+    } catch (error) {
+      setLoadError(error?.message || 'Không thể tải lịch sử giao dịch');
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange.from, dateRange.to, filter]);
+
   useEffect(() => {
     loadTransactions();
-  }, [filter, dateRange]);
-
-  const loadTransactions = async () => {
-    setLoading(true);
-    let allTransactions = [];
-
-    if (filter === 'all' || filter === 'receipts') {
-      const receiptsRes = await receiptsService.getAll();
-      if (receiptsRes.success) {
-        const receipts = (receiptsRes.data.receipts || []).map(r => ({
-          ...r,
-          type: 'receipt',
-          description: `Thu học phí - ${r.student_name || 'Học viên'}`,
-        }));
-        allTransactions = [...allTransactions, ...receipts];
-      }
-    }
-
-    if (filter === 'all' || filter === 'payments') {
-      const paymentsRes = await paymentsService.getAll();
-      if (paymentsRes.success) {
-        const payments = (paymentsRes.data.payments || []).map(p => ({
-          ...p,
-          type: 'payment',
-          description: `Chi - ${p.recipient_name || 'Người nhận'}`,
-        }));
-        allTransactions = [...allTransactions, ...payments];
-      }
-    }
-
-    allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    setTransactions(allTransactions);
-    setLoading(false);
-  };
+  }, [loadTransactions]);
 
   const totalReceipts = transactions.filter(t => t.type === 'receipt').reduce((sum, t) => sum + (t.amount || 0), 0);
   const totalPayments = transactions.filter(t => t.type === 'payment').reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -224,6 +238,15 @@ export default function HistoryPage() {
             <div className="flex flex-col items-center justify-center h-64 space-y-4">
               <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
               <p className="text-slate-500 font-medium">Đang tải dữ liệu...</p>
+            </div>
+          ) : loadError ? (
+            <div className="p-6">
+              <PageState
+                title="Không thể tải lịch sử giao dịch"
+                message={loadError}
+                tone="red"
+                action={loadTransactions}
+              />
             </div>
           ) : filteredTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400">

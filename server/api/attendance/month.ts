@@ -6,6 +6,7 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { getRequiredString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -13,28 +14,16 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
-    const { class_id, month } = req.query;
-
-    if (!class_id || !month) {
-      return errorResponse(
-        res,
-        "MISSING_PARAMS",
-        "class_id and month are required",
-        400
-      );
-    }
-
-    // Parse month (YYYY-MM format)
-    const [year, m] = (month as string).split("-");
-    const startDate = new Date(parseInt(year), parseInt(m) - 1, 1);
-    const endDate = new Date(parseInt(year), parseInt(m), 0); // Last day of month
+    const classId = getRequiredString(req.query.class_id, "class_id");
+    const month = getRequiredString(req.query.month, "month");
+    const { startDate, endDate } = parseMonthRange(month);
 
     const records = await prisma.attendance.findMany({
       where: {
-        classId: class_id as string,
+        classId,
         attendanceDate: {
           gte: startDate,
-          lte: endDate,
+          lt: endDate,
         },
       },
       include: {
@@ -56,8 +45,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     return successResponse(res, { attendance });
   } catch (error) {
-    console.error("Attendance month error:", error);
-    return errorResponse(res, "SERVER_ERROR", "Internal server error", 500);
+    return sendApiError(res, error);
   }
 }
 

@@ -37,8 +37,6 @@ function usage() {
 
 Options:
   --base <url>              App base URL. Default: UX_BASE_URL or production.
-  --username <value>        Login username. Default: UX_USERNAME or admin.
-  --password <value>        Login password. Default: UX_PASSWORD or admin123.
   --routes <csv>            Routes. Use template-design:auto for default template.
   --viewports <csv>         Viewports as name:widthxheight.
   --output-dir <path>       Default: docs/artifacts/ux-baseline.
@@ -50,6 +48,8 @@ Options:
 
 Safety:
   The only allowed mutation is POST ${loginApiPath}. Navigation must be read-only.
+  UX_USERNAME and UX_PASSWORD are required environment variables. Passwords are
+  not accepted as CLI arguments.
 `);
 }
 
@@ -60,8 +60,8 @@ function parseArgs(argv) {
       env.UX_BASE_URL ||
       env.PERF_LAB_BASE_URL ||
       "https://edu-manager-gules.vercel.app",
-    username: env.UX_USERNAME || env.PERF_LAB_USERNAME || "admin",
-    password: env.UX_PASSWORD || env.PERF_LAB_PASSWORD || "admin123",
+    username: process.env.UX_USERNAME?.trim() || "",
+    password: process.env.UX_PASSWORD?.trim() || "",
     outputDir:
       env.UX_OUTPUT_DIR ||
       path.join("docs", "artifacts", "ux-baseline"),
@@ -97,14 +97,6 @@ function parseArgs(argv) {
       options.baseUrl = readValue("--base");
     } else if (arg.startsWith("--base-url=")) {
       options.baseUrl = readValue("--base-url");
-    } else if (arg === "--username") {
-      options.username = readValue(arg);
-    } else if (arg.startsWith("--username=")) {
-      options.username = readValue("--username");
-    } else if (arg === "--password") {
-      options.password = readValue(arg);
-    } else if (arg.startsWith("--password=")) {
-      options.password = readValue("--password");
     } else if (arg === "--routes") {
       routesCsv = readValue(arg);
     } else if (arg.startsWith("--routes=")) {
@@ -144,6 +136,19 @@ function readPositiveIntegerEnv(name, fallback) {
   const raw = process.env[name];
   if (!raw) return fallback;
   return parsePositiveInteger(name, raw);
+}
+
+function requireCredential(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required. Supply credentials through environment variables.`);
+  }
+  return value;
+}
+
+function assertCredentials(options) {
+  if (!options.username) requireCredential("UX_USERNAME");
+  if (!options.password) requireCredential("UX_PASSWORD");
 }
 
 function parsePositiveInteger(name, value) {
@@ -705,6 +710,7 @@ async function run() {
     usage();
     return 0;
   }
+  assertCredentials(options);
 
   const startedAt = new Date().toISOString();
   const stamp = startedAt.replace(/[:.]/g, "-");

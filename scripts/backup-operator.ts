@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { createBackupEnvelope, createDatabaseSnapshot } from "../lib/backup.js";
 
-const output = resolve(process.argv[2] || `edu-manager-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.v2.json`);
+const output = resolve(process.argv[2] || `edu-manager-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.v3.json`);
 const prisma = new PrismaClient();
 
 createDatabaseSnapshot(prisma)

@@ -58,7 +58,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         id: { notIn: Array.from(feeStudentIds) },
         attendance: {
           some: {
-            attendanceDate: { gte: startDate, lte: endDate },
+            attendanceDate: { gte: startDate, lt: endDate },
             status: { in: ["present", "absent_with_fee"] },
           },
         },
@@ -105,7 +105,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
             by: ["studentId"],
             where: {
               studentId: { in: attendanceStudentIds },
-              attendanceDate: { gte: startDate, lte: endDate },
+              attendanceDate: { gte: startDate, lt: endDate },
               status: { in: ["present", "absent_with_fee"] },
             },
             _count: { _all: true },

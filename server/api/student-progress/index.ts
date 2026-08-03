@@ -285,7 +285,7 @@ async function loadOperationalRow(studentId: string, classId: string, month: str
       where: {
         studentId,
         classId,
-        attendanceDate: { gte: startDate, lte: endDate },
+        attendanceDate: { gte: startDate, lt: endDate },
       },
       select: {
         studentId: true,

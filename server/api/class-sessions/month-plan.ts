@@ -40,6 +40,11 @@ import {
   normalizeClassSessionError,
   validateMakeupDate,
 } from "../../../lib/class-sessions.js";
+import {
+  classMonthPlanPatchSchema,
+  classMonthPlanReplaceSchema,
+  validateBody,
+} from "../../../lib/validation.js";
 
 function requestIdentity(req: AuthedRequest) {
   const classId = getRequiredString(req.body?.class_id ?? req.query.class_id, "class_id");
@@ -325,8 +330,9 @@ async function getMonthPlan(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
+  req.body = validateBody(classMonthPlanReplaceSchema, req.body);
   const { classId, month } = requestIdentity(req);
-  const body = req.body || {};
+  const body = req.body;
   const aggregateVersion = expectedRevision(body.expected_version);
   const changeReason = requiredChangeReason(body.reason);
   const { aggregate, plan, rows, scheduleSnapshot } = await withClassMonthPlanRosterWrite(
@@ -474,8 +480,9 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
+  req.body = validateBody(classMonthPlanPatchSchema, req.body);
   const { classId, month } = requestIdentity(req);
-  const body = req.body || {};
+  const body = req.body;
   const aggregateVersion = expectedRevision(body.expected_version);
   const changeReason = requiredChangeReason(body.reason);
   const additions = parsePatchSessionAdditions(body.add_sessions);

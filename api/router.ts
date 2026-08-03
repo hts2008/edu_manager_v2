@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "../lib/vercel-types.js";
-import { errorResponse, handleCors, verifyAuth } from "../lib/auth.js";
+import { errorResponse, handleCors } from "../lib/auth.js";
 import { logActivity, sendApiError } from "../lib/api-utils.js";
 import {
   getRequestId,
@@ -221,7 +221,7 @@ async function recordMutationAudit(
   const method = req.method?.toUpperCase();
   if (!method || !MUTATION_METHODS.has(method)) return;
 
-  const user = (req as Partial<AuthedRequest>).user || verifyAuth(req);
+  const user = (req as Partial<AuthedRequest>).user;
   if (!user) return;
 
   const outcome = statusCode >= 200 && statusCode < 400 ? "SUCCEEDED" : "FAILED";

@@ -37,8 +37,8 @@ Options:
   --help            Show this message.
 
 Environment:
-  PERF_USERNAME            Login username. Default: admin
-  PERF_PASSWORD            Login password. Default: admin123
+  PERF_USERNAME            Login username. Required.
+  PERF_PASSWORD            Login password. Required.
   PERF_READ_ONLY           Fail on non-auth mutation API calls when set to 1. Default: 1
   PERF_ROUTE_SEVERE_MS     Per-route severe threshold. Default: 15000
   PERF_API_SEVERE_MS       Per-API severe threshold. Default: 10000
@@ -95,6 +95,14 @@ function parsePositiveInteger(name, fallback) {
     throw new Error(`${name} must be a positive integer`);
   }
   return parsed;
+}
+
+function requireCredential(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required. Supply credentials through environment variables.`);
+  }
+  return value;
 }
 
 async function loadPlaywright() {
@@ -366,8 +374,8 @@ async function run() {
     routeTimeoutMs: parsePositiveInteger("PERF_ROUTE_TIMEOUT_MS", 45_000),
     networkIdleMs: parsePositiveInteger("PERF_NETWORK_IDLE_MS", 20_000),
   };
-  const username = process.env.PERF_USERNAME || "admin";
-  const password = process.env.PERF_PASSWORD || "admin123";
+  const username = requireCredential("PERF_USERNAME");
+  const password = requireCredential("PERF_PASSWORD");
   const readOnly = process.env.PERF_READ_ONLY !== "0";
   const outputDir = path.resolve(
     rootDir,

@@ -12,6 +12,7 @@ import {
   getNumber,
   getString,
   logActivity,
+  parseUtcDateRange,
   resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
@@ -93,9 +94,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if (studentId) where.studentId = studentId;
       if (month) where.month = month;
       if (from || to) {
-        where.createdAt = {};
-        if (from) where.createdAt.gte = new Date(`${from}T00:00:00`);
-        if (to) where.createdAt.lte = new Date(`${to}T23:59:59.999`);
+        where.createdAt = parseUtcDateRange(from, to);
       }
 
       const [receipts, total] = await Promise.all([

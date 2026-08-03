@@ -282,7 +282,9 @@ describe("attendance period reopen", () => {
 
     assert.match(api, /case "unlock"/);
     assert.match(api, /req\.user\.role !== "admin"/);
-    assert.match(api, /REOPEN_REASON_REQUIRED/);
+    assert.match(api, /attendancePeriodActionSchema/);
+    assert.match(api, /validateBody\(attendancePeriodActionSchema/);
+    assert.match(api, /VALIDATION_ERROR/);
     assert.match(api, /reopenAttendancePeriod/);
     assert.match(source("lib/attendance-lock.ts"), /acquireAttendanceFeeAdvisoryLocks/);
     assert.match(ui, /AttendanceCorrectionModal/);

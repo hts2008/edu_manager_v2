@@ -89,13 +89,13 @@ function createGeneratorPrisma(options: {
 
   const applyStudentClassWindow = (row: any, query: any) => {
     const enrollmentDateLimit =
-      query?.include?.studentClasses?.where?.enrollmentDate?.lte;
+      query?.include?.studentClasses?.where?.enrollmentDate?.lt;
     if (!enrollmentDateLimit) return row;
     return {
       ...row,
       studentClasses: (row.studentClasses || []).filter(
         (studentClass: any) =>
-          studentClass.enrollmentDate <= enrollmentDateLimit,
+          studentClass.enrollmentDate < enrollmentDateLimit,
       ),
     };
   };

@@ -8,17 +8,20 @@ import {
 } from 'lucide-react';
 import { bulkActionsService, paymentsService, teachersService } from '../services/api';
 import BulkActionBar from '../components/ui/BulkActionBar';
-import Modal from '../components/ui/Modal';
+import Modal, { ConfirmModal } from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { paymentFormSchema } from '../utils/formValidation';
+import PageState from '../components/ui/PageState';
 
 // PREMIUM UI: Chi Tiền (MotionSites style)
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -27,18 +30,25 @@ export default function PaymentsPage() {
 
   const loadPayments = async () => {
     setLoading(true);
-    const response = await paymentsService.getAll();
-    if (response.success) {
-      setPayments(response.data.payments || []);
-      const currentIds = new Set((response.data.payments || []).map((payment) => payment.id));
-      setSelectedPaymentIds((ids) => ids.filter((id) => currentIds.has(id)));
+    setLoadError('');
+    try {
+      const response = await paymentsService.getAll();
+      if (response.success) {
+        setPayments(response.data.payments || []);
+        const currentIds = new Set((response.data.payments || []).map((payment) => payment.id));
+        setSelectedPaymentIds((ids) => ids.filter((id) => currentIds.has(id)));
+      } else {
+        setLoadError(response.error?.message || 'Không thể tải danh sách phiếu chi');
+      }
+    } catch (error) {
+      setLoadError(error?.message || 'Không thể tải danh sách phiếu chi');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleBulkDelete = async () => {
     if (!selectedPaymentIds.length) return;
-    if (!window.confirm(`Xóa ${selectedPaymentIds.length} phiếu chi?`)) return;
 
     const response = await bulkActionsService.execute({
       resource: 'payments',
@@ -46,8 +56,7 @@ export default function PaymentsPage() {
       ids: selectedPaymentIds,
     });
     if (!response.success) {
-      toast.error(response.error?.message || 'Xóa hàng loạt thất bại');
-      return;
+      throw new Error(response.error?.message || 'Xóa hàng loạt thất bại');
     }
 
     const { requested, succeeded, failed } = response.data;
@@ -57,7 +66,7 @@ export default function PaymentsPage() {
       toast.success(`Đã xóa thành công ${succeeded} phiếu chi`);
     }
     setSelectedPaymentIds([]);
-    loadPayments();
+    await loadPayments();
   };
 
   const categoryLabels = {
@@ -127,7 +136,7 @@ export default function PaymentsPage() {
           {
             label: 'Xóa phiếu đã chọn',
             className: 'bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold border-none',
-            onClick: handleBulkDelete,
+            onClick: () => setShowBulkDeleteConfirm(true),
           },
         ]}
       />
@@ -158,6 +167,15 @@ export default function PaymentsPage() {
           {loading ? (
             <div className="col-span-full flex justify-center py-20">
               <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+            </div>
+          ) : loadError ? (
+            <div className="col-span-full">
+              <PageState
+                title="Không thể tải danh sách phiếu chi"
+                message={loadError}
+                tone="red"
+                action={loadPayments}
+              />
             </div>
           ) : filteredPayments.length === 0 ? (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
@@ -251,6 +269,15 @@ export default function PaymentsPage() {
           onCancel={() => setShowForm(false)}
         />
       </Modal>
+
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        title="Xóa phiếu chi đã chọn"
+        message={`Bạn có chắc muốn xóa ${selectedPaymentIds.length} phiếu chi? Hành động này không thể hoàn tác.`}
+        confirmText="Xóa phiếu chi"
+      />
     </Motion.div>
   );
 }

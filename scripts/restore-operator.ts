@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { openBackupEnvelope, restoreDatabaseBackup } from "../lib/backup.js";
 
 const input = process.argv[2];
-if (!input) throw new Error("Usage: npx tsx scripts/restore-operator.ts <backup.v2.json>");
+if (!input) throw new Error("Usage: npx tsx scripts/restore-operator.ts <backup.v3.json>");
 const prisma = new PrismaClient();
 
 readFile(resolve(input), "utf8")

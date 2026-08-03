@@ -59,4 +59,41 @@ describe("Tuition V3 persistence safety", () => {
     assert.equal(await refreshMonthlyFeeAggregateFromLines(client, fee.id), fee);
     assert.equal(updated, false);
   });
+
+  it("derives aggregate paidAt from the latest persisted line timestamp", async () => {
+    let updateData: any = null;
+    const client = {
+      monthlyFee: {
+        findUnique: async () => ({ id: "fee-1", status: "ready", lines: [] }),
+        update: async ({ data }: any) => { updateData = data; return data; },
+      },
+      monthlyFeeLine: {
+        findMany: async () => [
+          { status: "paid", amount: 1, chargedSessions: 1, paidAt: new Date("2026-06-02T00:00:00.000Z") },
+          { status: "paid", amount: 2, chargedSessions: 1, paidAt: new Date("2026-06-05T00:00:00.000Z") },
+        ],
+      },
+    };
+
+    await refreshMonthlyFeeAggregateFromLines(client, "fee-1");
+    assert.equal(updateData.paidAt.toISOString(), "2026-06-05T00:00:00.000Z");
+  });
+
+  it("keeps aggregate paidAt null when paid lines have no persisted timestamp", async () => {
+    let updateData: any = null;
+    const client = {
+      monthlyFee: {
+        findUnique: async () => ({ id: "fee-1", status: "ready", lines: [] }),
+        update: async ({ data }: any) => { updateData = data; return data; },
+      },
+      monthlyFeeLine: {
+        findMany: async () => [
+          { status: "paid", amount: 1, chargedSessions: 1, paidAt: null },
+        ],
+      },
+    };
+
+    await refreshMonthlyFeeAggregateFromLines(client, "fee-1");
+    assert.equal(updateData.paidAt, null);
+  });
 });

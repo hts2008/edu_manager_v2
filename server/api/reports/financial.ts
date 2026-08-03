@@ -7,19 +7,19 @@ import {
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
-import { getString, sendApiError } from "../../../lib/api-utils.js";
+import { getString, parseUtcDateRange, sendApiError } from "../../../lib/api-utils.js";
 
 function periodKey(date: Date, groupBy: string) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
 
   if (groupBy === "year") return String(year);
   if (groupBy === "month" || groupBy === "monthly") return `${year}-${month}`;
   if (groupBy === "week" || groupBy === "weekly") {
-    const firstDay = new Date(year, 0, 1);
+    const firstDay = new Date(Date.UTC(year, 0, 1));
     const pastDays = Math.floor((date.getTime() - firstDay.getTime()) / 86400000);
-    const week = String(Math.ceil((pastDays + firstDay.getDay() + 1) / 7)).padStart(2, "0");
+    const week = String(Math.ceil((pastDays + firstDay.getUTCDay() + 1) / 7)).padStart(2, "0");
     return `${year}-W${week}`;
   }
   return `${year}-${month}-${day}`;
@@ -41,11 +41,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const groupBy = getString(req.query.groupBy || req.query.period || req.query.type) || "day";
     const where: any = { deletedAt: null };
 
-    if (from || to) {
-      where.createdAt = {};
-      if (from) where.createdAt.gte = new Date(`${from}T00:00:00`);
-      if (to) where.createdAt.lte = new Date(`${to}T23:59:59.999`);
-    }
+      if (from || to) {
+        where.createdAt = parseUtcDateRange(from, to);
+      }
 
     const [receipts, payments] = await Promise.all([
       prisma.receipt.findMany({
