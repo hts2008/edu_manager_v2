@@ -27,6 +27,7 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const AdvancedReportsPage = lazy(() => import('./pages/AdvancedReportsPage'));
 const StudentProgressReportPage = lazy(() => import('./pages/StudentProgressReportPage'));
+const StudentProgressDetailPage = lazy(() => import('./pages/StudentProgressDetailPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const TemplateDesignerPage = lazy(() => import('./pages/TemplateDesignerPage'));
 const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
@@ -89,7 +90,8 @@ export default function App() {
               <Route path="history" element={withSuspense(<HistoryPage />)} />
               <Route path="templates" element={withSuspense(<AdminOnly><TemplatesPage /></AdminOnly>)} />
               <Route path="reports" element={withSuspense(<AdminOnly><ReportsPage /></AdminOnly>)} />
-              <Route path="student-progress" element={withSuspense(<AdminOnly><StudentProgressReportPage /></AdminOnly>)} />
+              <Route path="student-progress" element={withSuspense(<StudentProgressReportPage />)} />
+              <Route path="student-progress/:studentId" element={withSuspense(<StudentProgressDetailPage />)} />
               <Route path="advanced-reports" element={withSuspense(<AdminOnly><AdvancedReportsPage /></AdminOnly>)} />
               <Route path="audit-logs" element={withSuspense(<AdminOnly><AuditLogsPage /></AdminOnly>)} />
               <Route path="settings" element={withSuspense(<AdminOnly><CenterSettingsPage /></AdminOnly>)} />

@@ -23,6 +23,11 @@ import {
   type ProgressSkillKey,
 } from "../../../lib/student-progress-assessment.js";
 import { assertProgressMonthEditable } from "../../../lib/student-progress-finalization.js";
+import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
+import {
+  deriveMockTestScores,
+  resolveMonthlyProgressScore,
+} from "../../../lib/student-progress-daily-metrics.js";
 import {
   studentProgressDailyDeleteSchema,
   studentProgressDailyPutSchema,
@@ -51,6 +56,9 @@ function dailyEntryToDto(entry: any) {
     skill_key: entry.skillKey,
     score: entry.score,
     shield_count: entry.shieldCount,
+    difficulty_level: entry.difficultyLevel,
+    entry_label: entry.entryLabel,
+    graded_by_teacher_id: entry.gradedByTeacherId,
     note: entry.note,
     created_by: entry.createdById,
     created_at: entry.createdAt,
@@ -129,48 +137,30 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
     (skill) => skill.status === "available" && skill.averageScore !== null
   );
 
+  const existingSkills = await tx.studentProgressSkill.findMany({
+    where: { progressMonthId: progressMonth.id },
+    select: { skillKey: true, score: true, source: true },
+  });
+  const manualSkills = existingSkills.filter(
+    (skill: any) => skill.source !== DAILY_ROLLUP_SOURCE
+  );
+
+  // Daily evidence has dedicated rollup columns. Remove legacy generated skill
+  // rows so it can never overwrite teacher-authored monthly skill input.
   await tx.studentProgressSkill.deleteMany({
     where: {
       progressMonthId: progressMonth.id,
       source: DAILY_ROLLUP_SOURCE,
-      skillKey: { notIn: availableSkills.map((skill) => skill.skillKey) },
     },
   });
 
-  for (const skill of availableSkills) {
-    await tx.studentProgressSkill.upsert({
-      where: {
-        progressMonthId_skillKey: {
-          progressMonthId: progressMonth.id,
-          skillKey: skill.skillKey,
-        },
-      },
-      create: {
-        progressMonthId: progressMonth.id,
-        skillKey: skill.skillKey,
-        skillLabel: skill.skillLabel,
-        score: skill.averageScore,
-        maxScore: 100,
-        weight: 0,
-        status: "available",
-        source: DAILY_ROLLUP_SOURCE,
-        sortOrder: Object.keys(PROGRESS_SKILL_LABELS).indexOf(skill.skillKey),
-      },
-      update: {
-        skillLabel: skill.skillLabel,
-        score: skill.averageScore,
-        maxScore: 100,
-        status: "available",
-        source: DAILY_ROLLUP_SOURCE,
-      },
-    });
-  }
-
-  const skills = await tx.studentProgressSkill.findMany({
-    where: { progressMonthId: progressMonth.id },
-    select: { score: true },
-  });
-  const availableSkillCount = skills.filter((skill: any) => skill.score !== null).length;
+  const availableSkillKeys = new Set([
+    ...manualSkills
+      .filter((skill: any) => skill.score !== null)
+      .map((skill: any) => skill.skillKey),
+    ...availableSkills.map((skill) => skill.skillKey),
+  ]);
+  const availableSkillCount = availableSkillKeys.size;
   const academicInputStatus =
     availableSkillCount === 0
       ? "missing_input"
@@ -187,22 +177,25 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
       return Number.isFinite(score) ? sum + score : sum;
     }, 0)
   );
-  const mockTestScores = entries
-    .filter((entry: any) => entry.entryType === "mock_test" && entry.score !== null)
-    .map((entry: any) => Number(entry.score))
-    .filter(Number.isFinite);
+  const mockTestScores = deriveMockTestScores(entries);
 
   const updatedProgressMonth = await tx.studentProgressMonth.update({
     where: { id: progressMonth.id },
     data: {
-      progressScore: rollup.averageScore ?? progressMonth.progressScore,
+      progressScore: resolveMonthlyProgressScore({
+        dailyAverageScore: rollup.averageScore,
+        previousProgressScore: progressMonth.progressScore,
+        manualSkillCount: manualSkills.filter((skill: any) => skill.score !== null).length,
+      }),
       learningEvidenceCoverage: Math.round((availableSkillCount / ALL_SKILL_COUNT) * 1000) / 10,
       dailyAverageScore: rollup.averageScore,
       dailyLatestScore: rollup.latestScore,
       dailyScoreDelta: rollup.scoreDelta,
       dailyAssessmentCount: rollup.assessmentCount,
-      focusSkillKey: rollup.focusSkillKey,
-      focusSkillLabel: rollup.focusSkillLabel,
+      focusSkillKey:
+        rollup.focusSkillKey || (manualSkills.length ? progressMonth.focusSkillKey : null),
+      focusSkillLabel:
+        rollup.focusSkillLabel || (manualSkills.length ? progressMonth.focusSkillLabel : null),
       academicInputStatus,
       shieldTotal,
       pointsTotal,
@@ -313,11 +306,36 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
       student: { deletedAt: null },
     },
     include: {
-      class: { select: { className: true } },
+      class: {
+        select: {
+          className: true,
+          teacherId: true,
+          teacher: { select: { status: true } },
+        },
+      },
     },
   });
   if (!enrollment) {
     throw new ApiError("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class", 404);
+  }
+
+  const requestedGraderIds = new Set(
+    body.entries
+      .map((entry) => entry.graded_by_teacher_id)
+      .filter((teacherId): teacherId is string => Boolean(teacherId))
+  );
+  if (
+    requestedGraderIds.size > 0 &&
+    (requestedGraderIds.size !== 1 ||
+      !enrollment.class.teacherId ||
+      !requestedGraderIds.has(enrollment.class.teacherId) ||
+      enrollment.class.teacher?.status !== "active")
+  ) {
+    throw new ApiError(
+      "GRADER_NOT_ASSIGNED",
+      "graded_by_teacher_id must be the active teacher assigned to this class",
+      400
+    );
   }
 
   const attendance = await prisma.attendance.findFirst({
@@ -346,6 +364,9 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
     skillKey: entry.skill_key || null,
     score: entry.score ?? null,
     shieldCount: entry.shield_count || 0,
+    difficultyLevel: entry.difficulty_level || null,
+    entryLabel: entry.entry_label || null,
+    gradedByTeacherId: entry.graded_by_teacher_id || null,
     note: entry.note || null,
   }));
   if (
@@ -359,11 +380,18 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
       skillKey: null,
       score: null,
       shieldCount: 0,
+      difficultyLevel: null,
+      entryLabel: null,
+      gradedByTeacherId: null,
       note: body.note.trim(),
     });
   }
 
   const result = await runSerializableTransaction(async (tx) => {
+    await assertAttendanceWriteEnrollment(tx, {
+      classId: body.class_id,
+      records: [{ studentId: body.student_id, attendanceDate: entryDate }],
+    });
     const existing = await tx.studentProgressMonth.findUnique({
       where: {
         studentId_classId_month: {
@@ -405,6 +433,9 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
           skillKey: entry.skillKey,
           score: entry.score,
           shieldCount: entry.shieldCount,
+          difficultyLevel: entry.difficultyLevel,
+          entryLabel: entry.entryLabel,
+          gradedByTeacherId: entry.gradedByTeacherId,
           note: entry.note,
           createdById: req.user.id,
         })),
@@ -519,4 +550,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requireAuth(handler, ["admin", "receptionist"]);

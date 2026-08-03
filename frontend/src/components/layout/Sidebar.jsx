@@ -69,7 +69,7 @@ const menuGroups = [
         title: "Báo cáo",
         items: [
           { title: "Trung tâm phân tích", icon: "report", path: "/reports", adminOnly: true },
-          { title: "Tiến bộ học viên", icon: "teacher", path: "/student-progress", adminOnly: true },
+          { title: "Tiến bộ học viên", icon: "teacher", path: "/student-progress" },
           { title: "Báo cáo nâng cao", icon: "chart", path: "/advanced-reports", adminOnly: true },
           { title: "Nhật ký", icon: "audit", path: "/audit-logs", adminOnly: true },
         ],

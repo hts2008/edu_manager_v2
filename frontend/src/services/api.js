@@ -621,6 +621,10 @@ export const studentProgressService = {
     const query = new URLSearchParams(params).toString();
     return request(`/student-progress/daily${query ? `?${query}` : ""}`, options);
   },
+  getTimeline: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/student-progress/timeline${query ? `?${query}` : ""}`, options);
+  },
   saveMonth: (data) =>
     request("/student-progress", {
       method: "POST",

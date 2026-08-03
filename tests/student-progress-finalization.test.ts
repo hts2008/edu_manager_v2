@@ -86,6 +86,11 @@ test("AUD-RM-007 wires revision persistence and transactional mutation guards", 
   assert.match(monthlyApi, /isolationLevel: "Serializable"/);
   assert.match(dailyApi, /assertProgressMonthEditable\(existing\?\.finalizedAt\)/);
   assert.match(dailyApi, /assertProgressMonthEditable\(current\.finalizedAt\)/);
+  assert.match(monthlyApi, /assertAdminAction\(req,\s*"reopen"\)/);
+  assert.match(monthlyApi, /assertAdminAction\(req,\s*"finalize"\)/);
+  assert.match(monthlyApi, /difficulty_level:\s*entry\.difficultyLevel/);
+  assert.match(monthlyApi, /entry_label:\s*entry\.entryLabel/);
+  assert.match(monthlyApi, /graded_by_teacher_id:\s*entry\.gradedByTeacherId/);
 });
 
 test("AUD-RM-007 exposes an explicit reopen control and snake_case request", () => {

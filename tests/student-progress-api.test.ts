@@ -18,8 +18,13 @@ const validPayload = {
 };
 
 describe("student progress API contract", () => {
-  it("is admin-only and routes GET to list plus POST/PUT to upsert", () => {
-    assert.match(progressApi, /export default requireAuth\(handler,\s*\["admin"\]\)/);
+  it("allows receptionist monthly reads/upserts while guarding admin-only finalization", () => {
+    assert.match(
+      progressApi,
+      /export default requireAuth\(handler,\s*\["admin",\s*"receptionist"\]\)/
+    );
+    assert.match(progressApi, /assertAdminAction\(req,\s*"finalize"\)/);
+    assert.match(progressApi, /assertAdminAction\(req,\s*"reopen"\)/);
     assert.match(progressApi, /if \(req\.method === "GET"\) return listProgress\(req, res\)/);
     assert.match(
       progressApi,
@@ -51,6 +56,9 @@ describe("student progress API contract", () => {
       /daily_entries:/,
       /entry_date:\s*toDateOnly\(entry\.entryDate\)/,
       /shield_count:\s*entry\.shieldCount/,
+      /difficulty_level:\s*entry\.difficultyLevel/,
+      /entry_label:\s*entry\.entryLabel/,
+      /graded_by_teacher_id:\s*entry\.gradedByTeacherId/,
     ];
 
     for (const mapping of expectedMappings) {

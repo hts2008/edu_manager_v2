@@ -4,6 +4,7 @@ const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
 
 export default defineConfig({
   testDir: "./e2e",
+  outputDir: process.env.E2E_OUTPUT_DIR || "./test-results",
   timeout: 30_000,
   expect: {
     timeout: 8_000,

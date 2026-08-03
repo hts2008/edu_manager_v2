@@ -1,4 +1,5 @@
 import { createElement, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -480,6 +481,7 @@ function printProgressReport(row) {
 }
 
 export default function StudentProgressReportPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState(initialFilters);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -1187,8 +1189,10 @@ export default function StudentProgressReportPage() {
                       <th className="px-4 py-3 text-left">Học viên</th>
                       <th className="px-4 py-3 text-left">Lớp / Track</th>
                       <th className="px-4 py-3 text-left">Tháng</th>
-                      <th className="px-4 py-3 text-left">Tiến bộ</th>
-                      <th className="px-4 py-3 text-left">Dữ liệu</th>
+                      <th className="px-4 py-3 text-left">Điểm TB / Delta</th>
+                      <th className="px-4 py-3 text-left">Bài đã chấm</th>
+                      <th className="px-4 py-3 text-left">Lần chấm cuối</th>
+                      <th className="px-4 py-3 text-left">Cần chú ý</th>
                       <th className="px-4 py-3 text-left">Trạng thái</th>
                       <th className="px-4 py-3 text-right">Thao tác</th>
                     </tr>
@@ -1208,31 +1212,34 @@ export default function StudentProgressReportPage() {
                         </td>
                         <td className="px-4 py-4 font-bold text-slate-700">{monthLabel(row.month)}</td>
                         <td className="px-4 py-4">
-                          <div className="font-black text-slate-950">{row.progress_score}/100</div>
+                          <div className="font-black text-slate-950">
+                            {row.daily_average_score ?? "—"}{row.daily_average_score === null ? "" : "/100"}
+                          </div>
                           <div className="mt-1 h-2 w-28 rounded-full bg-slate-100">
                             <div
                               className="h-full rounded-full bg-indigo-500"
-                              style={{ width: `${Math.min(100, row.progress_score)}%` }}
+                              style={{ width: `${Math.min(100, row.daily_average_score || 0)}%` }}
                             />
                           </div>
                           <div className="mt-1 text-xs text-slate-500">
-                            {row.recorded_sessions}/{row.expected_sessions} buổi · {row.actual_present_rate}% có mặt
+                            <span className={Number(row.daily_score_delta) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                              {row.daily_score_delta === null ? "Chưa có delta" : `${row.daily_score_delta > 0 ? "+" : ""}${row.daily_score_delta} điểm`}
+                            </span>
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="font-bold text-slate-800">{row.learning_evidence_coverage}%</div>
-                          <div
-                            className={`text-xs ${
-                              getAssessment(row)?.hasTeacherInput || row.has_teacher_input
-                                ? "text-emerald-600"
-                                : "text-amber-600"
-                            }`}
-                          >
-                            {academicStatusLabel(row)}
-                          </div>
-                          <div className="mt-0.5 text-[11px] text-slate-400">
-                            {teacherInputLabel(row)}
-                          </div>
+                          <div className="font-black text-slate-900">{row.daily_assessment_count || 0}</div>
+                          <div className="mt-1 text-xs text-slate-500">evidence kỹ năng</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-800">{row.last_entry_date || "—"}</div>
+                          <div className="mt-1 text-xs text-slate-500">{academicStatusLabel(row)}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-800">{row.focus_skill_label || "Chưa xác định"}</div>
+                          {row.alert_score_drop && (
+                            <span className="mt-1 inline-flex rounded-full bg-rose-50 px-2 py-1 text-xs font-black text-rose-700">Giảm &gt;15%</span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           <span
@@ -1250,7 +1257,8 @@ export default function StudentProgressReportPage() {
                             <button
                               type="button"
                               className="btn-secondary inline-flex items-center gap-2 px-3 py-2 text-xs"
-                              onClick={() => setSelectedRow(row)}
+                              onClick={() => navigate(`/student-progress/${encodeURIComponent(row.student_id)}?class_id=${encodeURIComponent(row.class_id)}&month=${encodeURIComponent(row.month)}`)}
+                              data-testid="open-student-progress-detail"
                             >
                               <Eye size={14} />
                               Xem

@@ -31,8 +31,10 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/fee-reminders` | Reminder preview/config; live send remains disabled until provider and opt-in approval. |
 | `/api/import/students` | Student CSV import preview/commit. |
 | `/api/students` | Student CRUD/list surface. |
-| `/api/student-progress` | Admin-only monthly progress assessment list/upsert. `GET` returns `progress_months`; `POST`/`PUT` updates month metadata, narrative, finalization, and monthly skill snapshot. Daily observations must use the dedicated daily route. |
-| `/api/student-progress/daily` | Admin-only date-scoped progress timeline. `GET` returns daily observations and monthly rollup; `PUT` replaces one selected date idempotently; `DELETE` removes only the selected date and recomputes the monthly rollup. |
+| `/api/student-progress` | Admin/receptionist monthly progress assessment list/upsert. `GET` returns `progress_months`; `POST`/`PUT` updates month metadata and monthly skill snapshot. Finalize/reopen actions remain admin-only. Daily observations must use the dedicated daily route. |
+| `/api/student-progress/daily` | Admin/receptionist date-scoped progress input. `GET` returns daily observations and monthly raw-score rollup; `PUT` replaces one selected date idempotently; `DELETE` removes only the selected date. Entries accept optional `difficulty_level`, `entry_label`, and `graded_by_teacher_id`. |
+| `/api/student-progress/timeline` | Admin/receptionist cross-month timeline. Required query: `student_id`, `class_id`, `from`, `to` (`YYYY-MM-DD`). Returns daily evidence, raw/weighted per-skill series, growth summary, finalized flags, and bounded day/week/month granularity. |
+| `/api/student-progress/pdf` | Admin/receptionist authenticated A4 parent progress PDF for the same student/class/date range as timeline. Missing scores render as `—`; weighted scores remain display-only. |
 | `/api/parents` | Parent CRUD/list surface. |
 | `/api/teachers` | Teacher CRUD/list surface. |
 | `/api/classes` | Class CRUD/list surface. |
@@ -52,7 +54,7 @@ The legacy Express backend under `backend/` is an Express reference for comparis
 | `/api/reports/finance-dashboard` | Finance dashboard summary. |
 | `/api/reports/financial` | Financial reports with receipts, payments, categories, and summary. |
 | `/api/reports/student-fees` | Student fee ledger/anomaly report. |
-| `/api/reports/student-progress` | Monthly parent-facing student progress report using student-class-month attendance/fee evidence plus explicit Cambridge skill-input gaps. |
+| `/api/reports/student-progress` | Admin/receptionist monthly parent-facing progress report using student-class-month evidence. Rows include daily average/latest/delta/count, last entry date, and a >15% decline alert against the prior period. |
 | `/api/reports/unpaid-students` | Unpaid students by month. |
 | `/api/receipts` | Receipt list/create. |
 | `/api/receipts/:id` | Receipt detail/delete. |

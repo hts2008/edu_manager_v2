@@ -49,6 +49,11 @@ const SKILL_KEYS: ProgressSkillKey[] = [
   "mock_test",
 ];
 
+function assertAdminAction(req: AuthedRequest, action: "finalize" | "reopen") {
+  if (req.user.role === "admin") return;
+  throw new ApiError("FORBIDDEN", `Only admins can ${action} student progress`, 403);
+}
+
 function progressKey(studentId: string, classId: string, month: string) {
   return `${studentId}\u0000${classId}\u0000${month}`;
 }
@@ -117,6 +122,9 @@ function progressMonthToDto(record: any) {
         skill_key: entry.skillKey,
         score: entry.score,
         shield_count: entry.shieldCount,
+        difficulty_level: entry.difficultyLevel,
+        entry_label: entry.entryLabel,
+        graded_by_teacher_id: entry.gradedByTeacherId,
         note: entry.note,
         created_by: entry.createdById,
         created_at: entry.createdAt,
@@ -177,6 +185,9 @@ function recordToSnapshot(record: any): ProgressMonthSnapshot {
         skill_key: entry.skillKey,
         score: entry.score,
         shield_count: entry.shieldCount,
+        difficulty_level: entry.difficultyLevel,
+        entry_label: entry.entryLabel,
+        graded_by_teacher_id: entry.gradedByTeacherId,
         note: entry.note,
       })) || [],
   };
@@ -208,7 +219,7 @@ function normalizeSkillInputs(input: {
       weight: Number(source?.weight ?? rubricSkill.weight),
       status: score === null ? "missing_input" : "available",
       note: source?.note || null,
-      source: source?.source || "teacher_input",
+      source: source?.source === "daily_rollup" ? "teacher_input" : source?.source || "teacher_input",
       sort_order: Number(source?.sort_order ?? rubricSkill.sortOrder),
     };
   });
@@ -430,6 +441,7 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
+  assertAdminAction(req, "reopen");
   const studentId = getString(req.body?.student_id || req.body?.studentId);
   const classId = getString(req.body?.class_id || req.body?.classId);
   const month = getString(req.body?.month);
@@ -512,6 +524,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     focus_skill_label: req.body?.focus_skill_label ?? req.body?.focusSkillLabel,
     mock_test_score: req.body?.mock_test_score ?? req.body?.mockTestScore,
   });
+  if (body.finalized) assertAdminAction(req, "finalize");
 
   const row = await loadOperationalRow(body.student_id, body.class_id, body.month);
   const existing = await prisma.studentProgressMonth.findUnique({
@@ -540,26 +553,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     trackKey,
     classType,
   });
-  const dailyRollupSkills = new Map(
-    (existing?.skills || [])
-      .filter((skill: any) => skill.source === "daily_rollup")
-      .map((skill: any) => [skill.skillKey, skill])
-  );
-  const skills = normalizedSkills.map((skill) => {
-    const dailyRollup = dailyRollupSkills.get(skill.skill_key) as any;
-    if (!dailyRollup) return skill;
-    return {
-      skill_key: skill.skill_key,
-      skill_label: dailyRollup.skillLabel,
-      score: dailyRollup.score,
-      max_score: dailyRollup.maxScore,
-      weight: dailyRollup.weight,
-      status: dailyRollup.score === null ? "missing_input" : "available",
-      note: dailyRollup.note,
-      source: "daily_rollup",
-      sort_order: dailyRollup.sortOrder,
-    };
-  });
+  const skills = normalizedSkills;
   const dailyEntries =
     existing?.dailyEntries?.map((entry: any) => ({
       entry_date: entry.entryDate,
@@ -567,6 +561,9 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       skill_key: entry.skillKey,
       score: entry.score,
       shield_count: entry.shieldCount,
+      difficulty_level: entry.difficultyLevel,
+      entry_label: entry.entryLabel,
+      graded_by_teacher_id: entry.gradedByTeacherId,
       note: entry.note,
     })) || [];
   const shieldTotal = dailyEntries.reduce(
@@ -773,4 +770,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requireAuth(handler, ["admin", "receptionist"]);

@@ -32,6 +32,12 @@ function dateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function previousMonth(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(year, monthNumber - 2, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function progressRecordToSnapshot(record: any): ProgressMonthSnapshot {
   return {
     id: record.id,
@@ -234,7 +240,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
-                month: { in: query.months },
+                month: { in: [...new Set([...query.months, previousMonth(query.from)])] },
               },
               include: {
                 skills: { orderBy: { sortOrder: "asc" } },
@@ -364,13 +370,41 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const track = getString(req.query.track);
     const readiness = getString(req.query.readiness);
     const academicStatus = getString(req.query.academic_status);
-    const reportRows = report.rows.map((row) => ({
-      ...row,
-      attendance_dates: Array.from(
-        attendanceDatesByProgressKey.get(progressKey(row.student_id, row.class_id, row.month)) ||
-          new Set<string>()
-      ).sort(),
-    })).filter((row) => {
+    const progressRecordByKey = new Map(
+      progressRows.map((record) => [
+        progressKey(record.studentId, record.classId, record.month),
+        record,
+      ])
+    );
+    const reportRows = report.rows.map((row) => {
+      const current = progressRecordByKey.get(
+        progressKey(row.student_id, row.class_id, row.month)
+      );
+      const previous = progressRecordByKey.get(
+        progressKey(row.student_id, row.class_id, previousMonth(row.month))
+      );
+      const previousAverage = previous?.dailyAverageScore ?? null;
+      const latest = current?.dailyLatestScore ?? null;
+      const lastEntryDate = current?.dailyEntries?.length
+        ? dateOnly(current.dailyEntries[current.dailyEntries.length - 1].entryDate)
+        : null;
+      return {
+        ...row,
+        daily_average_score: current?.dailyAverageScore ?? null,
+        daily_latest_score: latest,
+        daily_score_delta: current?.dailyScoreDelta ?? null,
+        daily_assessment_count: current?.dailyAssessmentCount ?? 0,
+        last_entry_date: lastEntryDate,
+        alert_score_drop:
+          latest !== null && previousAverage !== null
+            ? latest < previousAverage * 0.85
+            : false,
+        attendance_dates: Array.from(
+          attendanceDatesByProgressKey.get(progressKey(row.student_id, row.class_id, row.month)) ||
+            new Set<string>()
+        ).sort(),
+      };
+    }).filter((row) => {
       if (track && track !== "all" && row.english_track !== track) return false;
       if (readiness && readiness !== "all" && row.readiness_band !== readiness) return false;
       if (
@@ -431,4 +465,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requireAuth(handler, ["admin", "receptionist"]);

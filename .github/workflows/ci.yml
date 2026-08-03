@@ -17,9 +17,9 @@ jobs:
       - run: npm install --include=optional --no-audit --no-fund
         working-directory: frontend
       - run: npm audit --audit-level=high
-      - run: npm audit --audit-level=high
-        working-directory: frontend
+      - run: npm run audit:frontend-policy
       - run: npm run test:unit
+      - run: npm run test:student-progress-safety
       - run: npm run test:unit
         working-directory: frontend
       - run: npx tsc --noEmit
@@ -55,7 +55,7 @@ jobs:
           cat ../smoke.log
           exit 1
         working-directory: frontend
-      - run: npm run test:e2e -- advanced-reports-chart.spec.js report-bi.spec.js template-designer-hardening.spec.js --project=chromium --reporter=list
+      - run: npm run test:e2e -- advanced-reports-chart.spec.js report-bi.spec.js template-designer-hardening.spec.js student-progress-dashboard.spec.js --project=chromium --reporter=list
         working-directory: frontend
       - name: Upload smoke artifacts
         if: always()
@@ -87,9 +87,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_e2e
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_e2e
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_e2e
+      E2E_FIXTURE_ALLOW_MUTATION: student-progress-local-test
       E2E_BASE_URL: http://127.0.0.1:3000
       E2E_ADMIN_USERNAME: admin
       E2E_ADMIN_PASSWORD: ci-aud-rm-009-password
+      E2E_RECEPTIONIST_PASSWORD: ci-spd-receptionist-password
       BOOTSTRAP_ADMIN_PASSWORD: ci-aud-rm-009-password
       JWT_SECRET: ci-only-real-e2e-router-secret-at-least-32-characters
       NODE_ENV: production
@@ -105,7 +108,9 @@ jobs:
         working-directory: frontend
       - run: npx prisma migrate deploy
       - run: npx prisma migrate status
+      - run: npx tsx --test tests/student-progress-e2e-fixture-guard.test.ts
       - run: npm run test:e2e:fixture
+      - run: npm run test:e2e:student-progress-fixture
       - run: npm run build
       - name: Start production frontend and real API router
         run: |

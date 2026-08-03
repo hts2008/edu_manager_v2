@@ -128,4 +128,27 @@ describe("daily student progress rollup", () => {
     assert.equal(rollup.skills[0]?.latestScore, 75);
     assert.equal(rollup.skills[0]?.scoreDelta, 20);
   });
+
+  it("keeps monthly rollup based on raw scores when difficulty metadata is present", () => {
+    const rollup = summarizeDailyAssessmentRollup([
+      {
+        entry_date: "2026-06-03",
+        entry_type: "skill_assessment",
+        skill_key: "listening",
+        score: 60,
+        difficulty_level: "starters",
+      } as any,
+      {
+        entry_date: "2026-06-10",
+        entry_type: "skill_assessment",
+        skill_key: "listening",
+        score: 80,
+        difficulty_level: "pet",
+      } as any,
+    ]);
+
+    assert.equal(rollup.averageScore, 70);
+    assert.equal(rollup.latestScore, 80);
+    assert.equal(rollup.scoreDelta, 20);
+  });
 });

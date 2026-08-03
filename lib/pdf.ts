@@ -51,6 +51,28 @@ const urlResolver = {
 
 const printer = new PdfPrinterCtor(fonts, virtualFileSystem, urlResolver);
 
+export async function renderPdfDefinition(definition: TDocumentDefinitions) {
+  const pdfDoc = await printer.createPdfKitDocument({
+    ...definition,
+    defaultStyle: {
+      font: "Roboto",
+      ...(definition.defaultStyle || {}),
+    },
+  });
+
+  return new Promise<Buffer>((resolve, reject) => {
+    try {
+      const chunks: Buffer[] = [];
+      pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
+      pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
+      pdfDoc.on("error", reject);
+      pdfDoc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 const paperSizes: Record<string, { width: number; height: number }> = {
   a4: { width: 210, height: 297 },
   a5: { width: 148, height: 210 },
@@ -588,24 +610,15 @@ export async function generatePdf(template: any, data: PdfData = {}) {
     },
   };
 
-  let pdfDoc;
+  let pdfDefinition = definition;
   try {
-    pdfDoc = await printer.createPdfKitDocument(definition);
+    return await renderPdfDefinition(pdfDefinition);
   } catch (error) {
     if (isV2 || !content.length) throw error;
-    definition.content = productionDefaultContent(template, data) as any;
-    pdfDoc = await printer.createPdfKitDocument(definition);
+    pdfDefinition = {
+      ...definition,
+      content: productionDefaultContent(template, data) as any,
+    };
+    return renderPdfDefinition(pdfDefinition);
   }
-
-  return new Promise<Buffer>((resolve, reject) => {
-    try {
-      const chunks: Buffer[] = [];
-      pdfDoc.on("data", (chunk: Buffer) => chunks.push(chunk));
-      pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
-      pdfDoc.on("error", reject);
-      pdfDoc.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
 }
