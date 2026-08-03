@@ -15,6 +15,7 @@ import {
 } from "../../../../lib/api-utils.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
+import { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -37,8 +38,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         [feeIdentity.studentId],
         feeIdentity.month,
       );
-      const current = await tx.monthlyFee.findUnique({ where: { id } });
+      const current = await tx.monthlyFee.findUnique({
+        where: { id },
+        include: { lines: { select: { id: true }, take: 1 } },
+      });
       if (!current) throw new ApiError("NOT_FOUND", "Monthly fee not found", 404);
+      assertAggregatePaymentAllowed(current);
       if (
         current.status !== "confirmed" ||
         current.receiptId ||

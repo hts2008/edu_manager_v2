@@ -168,7 +168,11 @@ export async function createDatabaseSnapshot(prisma: any): Promise<DatabaseBacku
       counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])),
       tables,
     };
-  }, { isolationLevel: "RepeatableRead" });
+  }, {
+    isolationLevel: "RepeatableRead",
+    maxWait: 10_000,
+    timeout: 60_000,
+  });
 }
 
 export async function createDatabaseBackup(prisma: any, { dryRun = true } = {}) {

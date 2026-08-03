@@ -63,7 +63,11 @@ describe("backup and restore", () => {
     const tx = Object.fromEntries(BACKUP_MANIFEST.map(({ delegate }) => [delegate, { findMany: async () => [] }]));
     const prisma = { $transaction: async (callback: (client: typeof tx) => unknown, value: unknown) => { options = value; return callback(tx); } };
     const snapshot = await createDatabaseSnapshot(prisma as never);
-    assert.deepEqual(options, { isolationLevel: "RepeatableRead" });
+    assert.deepEqual(options, {
+      isolationLevel: "RepeatableRead",
+      maxWait: 10_000,
+      timeout: 60_000,
+    });
     assert.equal(snapshot.version, 3);
   });
 

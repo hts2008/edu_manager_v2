@@ -19,6 +19,14 @@ test("dashboard API exposes the frontend operations-console contract", () => {
   assert.match(code, /recent_transactions/);
 });
 
+test("backup operator surfaces unexpected request failures", () => {
+  const page = source("frontend/src/pages/BackupsPage.jsx");
+
+  assert.match(page, /catch \(requestError\)/);
+  assert.match(page, /requestError\?\.message \|\| "Backup failed"/);
+  assert.match(page, /requestError\?\.message \|\| "Verify failed"/);
+});
+
 test("attendance write APIs reject edits against locked periods", () => {
   const single = source("server/api/attendance/index.ts");
   const bulk = source("server/api/attendance/bulk.ts");
@@ -57,6 +65,8 @@ test("money APIs protect fee ledger linkage", () => {
   assert.match(confirm, /lines:\s*\{\s*select:\s*\{\s*id:\s*true\s*\},\s*take:\s*1\s*\}/);
   assert.match(cancel, /updateMany/);
   assert.match(cancel, /MONTHLY_FEE_STATE_CONFLICT/);
+  assert.match(cancel, /assertAggregatePaymentAllowed\(current\)/);
+  assert.match(cancel, /lines:\s*\{\s*select:\s*\{\s*id:\s*true\s*\},\s*take:\s*1\s*\}/);
   assert.match(calculate, /FEE_ALREADY_PAID/);
   assert.match(calculate, /updateMany/);
   assert.match(receipts, /monthly_fee_id/);

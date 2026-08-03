@@ -36,6 +36,20 @@ describe("monthly fee cancel locking contract", () => {
     );
     assert.match(
       endpoint,
+      /const current = await tx\.monthlyFee\.findUnique\(\{[\s\S]*?include:\s*\{\s*lines:\s*\{\s*select:\s*\{\s*id:\s*true\s*\},\s*take:\s*1\s*\}\s*\}/,
+      "the authoritative read must include enough class-line state to reject aggregate cancellation",
+    );
+    assert.match(endpoint, /assertAggregatePaymentAllowed\(current\)/);
+    assert.ok(
+      endpoint.indexOf("assertAggregatePaymentAllowed(current)") > authoritativeRead,
+      "the aggregate guard must run after the locked authoritative read",
+    );
+    assert.ok(
+      conditionalUpdate > endpoint.indexOf("assertAggregatePaymentAllowed(current)"),
+      "the aggregate guard must run before any cancellation mutation",
+    );
+    assert.match(
+      endpoint,
       /acquireAttendanceFeeAdvisoryLocks\(\s*tx,\s*\[feeIdentity\.studentId\],\s*feeIdentity\.month,?\s*\)/,
     );
     assert.ok(identityRead >= 0);

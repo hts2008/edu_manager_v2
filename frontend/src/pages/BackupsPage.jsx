@@ -26,6 +26,8 @@ export default function BackupsPage() {
       setBackup(response.data);
       if (response.data.url) setVerifyUrl(response.data.url);
       setMessage(dryRun ? "Backup dry-run complete" : "Encrypted backup uploaded");
+    } catch (requestError) {
+      setError(requestError?.message || "Backup failed");
     } finally {
       setLoading(false);
       setOperation("");
@@ -45,6 +47,8 @@ export default function BackupsPage() {
       }
       setVerifyResult(response.data);
       setMessage("Restore drill verified");
+    } catch (requestError) {
+      setError(requestError?.message || "Verify failed");
     } finally {
       setLoading(false);
       setOperation("");
