@@ -46,6 +46,19 @@ function writePopupError(popup, message) {
   }
 }
 
+function revokeObjectUrlsWhenPopupCloses(popup, urls) {
+  let revoked = false;
+  const cleanup = () => {
+    if (revoked) return;
+    revoked = true;
+    urls.forEach((url) => URL.revokeObjectURL(url));
+  };
+
+  popup.addEventListener('beforeunload', cleanup, { once: true });
+  popup.addEventListener('pagehide', cleanup, { once: true });
+  window.addEventListener('beforeunload', cleanup, { once: true });
+}
+
 export async function openAuthenticatedPdf(endpoint, options = {}) {
   const { autoPrint = true } = options;
   const popup = window.open('about:blank', '_blank');
@@ -98,7 +111,7 @@ export async function openAuthenticatedPdf(endpoint, options = {}) {
       // Some browsers disallow changing opener after navigation.
     }
 
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    revokeObjectUrlsWhenPopupCloses(popup, [url]);
   } catch (error) {
     writePopupError(
       popup,
@@ -177,9 +190,7 @@ export async function openAuthenticatedPdfs(endpoints, options = {}) {
       container.appendChild(iframe);
     });
 
-    window.setTimeout(() => {
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    }, 120_000);
+    revokeObjectUrlsWhenPopupCloses(popup, objectUrls);
   } catch (error) {
     objectUrls.forEach((url) => URL.revokeObjectURL(url));
     writePopupError(
