@@ -1024,3 +1024,27 @@ stop.bat
 **Runtime acceptance:** authenticated Chrome changed month `2026-07 -> 2026-08`, selected a class, focused the month input, and measured zero intersection between month controls and class filter at `1440x900` and `390x844`. Both viewports had no horizontal overflow.
 
 **Last Updated:** 2026-07-17
+
+---
+
+## IMPLEMENTED - STUDENT PROGRESS DASHBOARD V3 (2026-08-06)
+
+**Objective:** deliver a production-ready per-student progress intelligence workflow with date-scoped academic evidence, cross-month timeline analytics, difficulty-aware display metrics, parent PDF reporting and receptionist-safe data entry without changing raw-score rollups or finalized-month invariants.
+
+| Task ID | Priority | Description | Dependencies | Status | Acceptance gate |
+| ------- | -------- | ----------- | ------------ | ------ | --------------- |
+| SPD-A | P1 | Additive daily-entry schema, difficulty engine, validation and RBAC matrix | Audit V2 closeout | IMPLEMENTED | TC-SPD-01..04; migration clean; raw rollup unchanged |
+| SPD-B | P1 | Cross-month timeline API and list-view metrics | SPD-A | IMPLEMENTED | TC-SPD-05..08; bounded granularity; null remains missing |
+| SPD-C | P1 | Rich list view, detail dashboard, charts, timeline and fast daily editor | SPD-B | IMPLEMENTED | TC-SPD-09..14; responsive/a11y/browser evidence |
+| SPD-D | P1 | Parent progress PDF and authenticated export | SPD-B | IMPLEMENTED | TC-SPD-15..17; Unicode PDF; missing scores render as dash |
+| SPD-E | P0 | Regression, E2E, migration/deploy, production smoke and closeout | SPD-A..D | IMPLEMENTED | Full gates, real DB + mock E2E, production evidence |
+
+**Plan:** `Student_Progress_Dashboard_Plan.md`.
+
+**Invariants:** null is not zero; finalized months remain immutable; reopen/finalize stay admin-only; replace-per-date semantics remain intact; monthly rollups use raw scores; schema changes are additive.
+
+**Production:** commits `3f22dd5`, `c23d9a9`; Vercel `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys`; canonical alias `https://edu-manager-gules.vercel.app`.
+
+**Evidence:** `receipts/2026-08-06-student-progress-dashboard-closeout.md`; `docs/artifacts/student-progress-2026-08-03/README.md`.
+
+**Last Updated:** 2026-08-06

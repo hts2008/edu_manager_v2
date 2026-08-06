@@ -378,3 +378,19 @@
 **Decision**: Run and verify an encrypted 28-table backup before migration; use additive checked-in migrations; protect aggregate confirm/cancel whenever class fee lines exist; use UTC half-open date ranges; allow frozen-to-open month-plan correction only with a revision increment and matching immutable revision row; rotate admin/JWT/cron secrets and revoke existing sessions after deploy.
 **Rationale**: Recovery evidence must precede schema mutation, class-line finance is the authoritative ledger, runtime timezone must not alter billing queries, correction needs an audited revision, and production credentials must not remain in repository documentation.
 **Status**: IMPLEMENTED in commits `39e4fb6`, `4834e3f` and `c244e8e`; migrations clean; production backup valid; Chrome regression 44/44 plus final-deployment smoke 8/8; evidence in `receipts/2026-08-03-audit-v2-remediation-closeout.md`.
+
+### ADR-55: Student Progress Separates Raw Academic Truth From Difficulty-Aware Presentation
+
+**Date**: 2026-08-06
+**Context**: Teachers need dated evidence and cross-month progress views for Starters, Movers, Flyers, KET and PET without allowing difficulty normalization to rewrite the monthly academic record or finalized reports.
+**Decision**: Store daily assessment evidence additively by student, class and date. Raw 0-100 skill scores remain the monthly rollup source of truth. A bounded difficulty factor (`0.7..1.3`, track delta `0.15`) may produce weighted display metrics only. Null remains missing, never zero. Daily replacement is atomic; finalized months reject writes; reopen/finalize remain admin-only. Parent PDFs use the same timeline service and preserve Unicode/missing-value semantics.
+**Rationale**: Separating recorded evidence from presentation prevents silent grade inflation, preserves auditability and allows fair trend comparison across progressively harder tracks.
+**Status**: IMPLEMENTED in `3f22dd5`, production-live at `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys`; evidence in `receipts/2026-08-06-student-progress-dashboard-closeout.md`.
+
+### ADR-56: PDF Preview URLs Follow Window Lifecycle
+
+**Date**: 2026-08-06
+**Context**: Revoking a PDF blob URL after a fixed 60/120 seconds can invalidate an open print preview while the user is still reviewing or printing it.
+**Decision**: Keep object URLs alive while the preview exists; revoke them on preview `beforeunload`/`pagehide` or opener unload. Revoke immediately on popup creation failure.
+**Rationale**: Browser-window lifecycle is the actual ownership boundary; elapsed time is not.
+**Status**: IMPLEMENTED in `c23d9a9` and verified in the canonical production asset.

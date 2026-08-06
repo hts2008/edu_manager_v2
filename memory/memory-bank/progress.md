@@ -1064,3 +1064,13 @@
 - Authenticated Chrome verified the old production overlap, then verified the deployed fix at desktop and mobile sizes with zero overlap/overflow and working month/class interactions.
 - Released commit `a0a88d6` through deployment `dpl_4qvTE4aRpypeAZXq68AaprY15U2q` to `https://edu-manager-gules.vercel.app`.
 - Evidence: `receipts/2026-07-17-fee-filter-overlap-hotfix.md` and `docs/artifacts/fee-filter-2026-07-17/`.
+
+## 2026-08-06 - Student Progress Dashboard V3 production closeout
+
+- Completed `SPD-A..E`: daily academic evidence, difficulty metadata, timeline/comparison analytics, responsive detail dashboard, parent PDF and RBAC/finalization safety.
+- Added an additive Prisma migration and deployed it after verified backup/restore evidence; production reports all 8 migrations applied.
+- Passed root unit `515/515`, frontend unit `52/52`, mock Playwright `1/1`, real PostgreSQL Playwright `1/1`, TypeScript, lint, build, Prisma gates and bounded audit policy.
+- Authenticated Chrome loaded production list/detail data, charts and editor without alert errors or horizontal document overflow; the PDF endpoint returned an inline PDF blob.
+- Fixed the observed long-lived PDF preview failure by tying object URL cleanup to preview/opener lifecycle rather than 60/120-second timers; verified the exact canonical production asset.
+- Released commits `3f22dd5` and `c23d9a9` through deployment `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys` to `https://edu-manager-gules.vercel.app`.
+- Evidence: `receipts/2026-08-06-student-progress-dashboard-closeout.md` and `docs/artifacts/student-progress-2026-08-03/`.

@@ -564,3 +564,14 @@
 - Production Chrome confirmed month navigation, class selection, input focus, zero hitbox intersection and zero horizontal overflow at desktop/mobile viewports.
 - Evidence: `receipts/2026-07-17-fee-filter-overlap-hotfix.md` and `docs/artifacts/fee-filter-2026-07-17/`.
 - Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown memory is current.
+
+## 2026-08-06 Handoff - Student Progress Dashboard V3 Closed
+
+- `SPD-A..E` are production-live at commits `3f22dd5` and `c23d9a9`, deployment `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys`.
+- Preserve raw-score truth: weighted difficulty values are display-only and must not replace monthly raw rollups.
+- Preserve temporal/authorization boundaries: daily entries are date-scoped; finalized months reject mutation; only admins reopen/finalize; receptionist access is limited to approved data-entry paths.
+- Preserve PDF lifecycle cleanup: revoke preview blob URLs when the preview/opener closes, never with an arbitrary elapsed-time cutoff.
+- Gates: root `515/515`, frontend `52/52`, mock E2E `1/1`, real PostgreSQL E2E `1/1`, TypeScript, lint, build, Prisma and audit policy passed.
+- Production Chrome evidence: list/detail/charts/editor loaded, no alert errors or horizontal overflow; PDF endpoint returned an inline PDF blob.
+- Evidence: `receipts/2026-08-06-student-progress-dashboard-closeout.md` and `docs/artifacts/student-progress-2026-08-03/README.md`.
+- Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown memory is current.

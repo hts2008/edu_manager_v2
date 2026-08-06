@@ -479,3 +479,14 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - Verification: root unit `467/467`, frontend unit `35/35`, TypeScript, lint, build, layout contract `3/3`, authenticated Chrome desktop/mobile interaction and geometry smoke.
 - Browser result: month `2026-07 -> 2026-08`, class selection changed, month input focus succeeded, overlap `0`, horizontal overflow false at `1440x900` and `390x844`.
 - Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable tool palette; markdown-only mode was used.
+
+## 2026-08-06 Student Progress Dashboard V3 Closeout
+
+- **Objective**: complete; `SPD-A..E` are production-live.
+- **Runtime source**: commits `3f22dd5` and `c23d9a9`; Vercel `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys`; alias `https://edu-manager-gules.vercel.app`.
+- **Delivered**: additive daily academic evidence, difficulty-aware display metrics, raw monthly rollups, cross-month timeline/comparison APIs, detail dashboard/charts, parent PDF and role-safe daily editing.
+- **Invariants**: null remains missing; weighted values are display-only; monthly rollups remain raw; finalized months are immutable; reopen/finalize remain admin-only; daily writes replace one student/class/date atomically.
+- **PDF hotfix**: object URLs now remain valid until the preview window closes; fixed 60/120-second revocation was removed. The exact production asset was read back with `beforeunload`/`pagehide` and without the obsolete timeout literals.
+- **Verification**: root unit `515/515`, frontend unit `52/52`, mock Playwright `1/1`, real PostgreSQL Playwright `1/1`, TypeScript, lint, build, Prisma validate/status and bounded audit policy pass. Production schema has 8 migrations and is current.
+- **Browser evidence**: authenticated production list rendered 50 rows; detail dashboard/charts/editor loaded with no alert errors and no horizontal document overflow; PDF endpoint returned a PDF blob. Desktop evidence is under `docs/artifacts/student-progress-2026-08-03/`.
+- **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only mode was used.

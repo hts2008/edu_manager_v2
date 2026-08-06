@@ -2,7 +2,7 @@
 
 > **Ngày lập:** 2026-08-03
 > **Pipeline đã chạy:** research (codebase + external) → sequential-thinking → brainstorm (4 quyết định đã chốt với chủ dự án) → ck-predict (5 persona) → plan
-> **Trạng thái:** ĐÃ DUYỆT — ĐANG TRIỂN KHAI
+> **Trạng thái:** IMPLEMENTED — PRODUCTION LIVE (2026-08-06)
 > **Track ID đề xuất:** `SPD-2026-08-*` (Student Progress Dashboard)
 
 ---
@@ -204,8 +204,8 @@ flowchart TD
 
 - [x] **SPD-E1 — Regression invariant cũ**: chạy nguyên 5 file test student-progress hiện có + full suite — null≠0, finalize/reopen, replace-per-date, precedence daily_rollup KHÔNG đổi hành vi. Bổ sung test: entry có difficulty không làm thay đổi rollup tháng (rollup vẫn điểm thô).
 - [x] **SPD-E2 — E2E tổng hợp** `frontend/e2e/student-progress-dashboard.spec.js`: login → list có metric mới → vào detail → nhập 2 ngày liên tiếp (1 homework Flyers + 1 mock_test KET) → chart/delta/cumulative đúng → filter tuần/tháng/năm → xuất PDF → reload giữ dữ liệu. Chạy trên local smoke server, 2 lần sạch (LOOP-3).
-- [ ] **SPD-E3 — Deploy + production smoke**: gates đầy đủ (M-01..M-12 của Audit_V2) → deploy → authenticated Chrome: `/student-progress` list mới, detail page 1 học viên thật (read-only), PDF 200. Rollback theo LOOP-4 nếu blocking metric fail.
-- [ ] **SPD-E4 — Write-back**: KANBAN section SPD-2026-08, activeContext, progress append, decisionLog (D1..D4 + công thức trọng số), receipt `receipts/2026-08-XX-student-progress-dashboard-closeout.md` với bảng TC-SPD-01..17.
+- [x] **SPD-E3 — Deploy + production smoke**: gates đầy đủ (M-01..M-12 của Audit_V2) → deploy → authenticated Chrome: `/student-progress` list mới, detail page 1 học viên thật (read-only), PDF 200. Rollback theo LOOP-4 nếu blocking metric fail. Production cuối: `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys`, alias `https://edu-manager-gules.vercel.app`.
+- [x] **SPD-E4 — Write-back**: KANBAN section SPD-2026-08, activeContext, progress append, decisionLog (D1..D4 + công thức trọng số), receipt `receipts/2026-08-06-student-progress-dashboard-closeout.md` với bảng TC-SPD-01..17.
 
 ### Trình tự & phụ thuộc
 
