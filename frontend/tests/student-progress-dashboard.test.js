@@ -66,7 +66,8 @@ describe("student progress dashboard", () => {
       entryDate: "2026-08-03",
       form: {
         entry_type: "mock_test",
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "hard",
         entry_label: "Test 2",
         graded_by_teacher_id: "cmteacher001",
         shield_count: "1",
@@ -79,7 +80,8 @@ describe("student progress dashboard", () => {
     });
     assert.equal(payload.entries[0].entry_type, "skill_assessment");
     assert.equal(payload.entries[0].score, 80);
-    assert.equal(payload.entries[0].difficulty_level, "flyers");
+    assert.equal(payload.entries[0].exam_set_level, "flyers");
+    assert.equal(payload.entries[0].difficulty_level, "hard");
     assert.equal(payload.entries[0].entry_label, "Test 2");
     assert.equal(payload.entries[0].graded_by_teacher_id, "cmteacher001");
     assert.equal(payload.entries.filter((entry) => entry.skill_key).length, 1);
@@ -93,7 +95,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 70,
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "medium",
         entry_label: "Flyers Test 1",
         graded_by_teacher_id: "cmteacher001",
       },
@@ -101,7 +104,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 82,
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "medium",
         entry_label: "Flyers Test 1",
         graded_by_teacher_id: "cmteacher001",
       },
@@ -111,7 +115,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 70,
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "medium",
         entry_label: "Flyers Listening 1",
         graded_by_teacher_id: "cmteacher001",
       },
@@ -119,7 +124,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "reading",
         score: 82,
-        difficulty_level: "ket",
+        exam_set_level: "ket",
+        difficulty_level: "hard",
         entry_label: "KET Reading 2",
         graded_by_teacher_id: "cmteacher002",
       },
@@ -149,7 +155,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 70,
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "medium",
         entry_label: "Flyers Test 1",
         graded_by_teacher_id: "cmteacher001",
       },
@@ -157,7 +164,8 @@ describe("student progress dashboard", () => {
         entry_type: "skill_assessment",
         skill_key: "reading",
         score: 75,
-        difficulty_level: "flyers",
+        exam_set_level: "flyers",
+        difficulty_level: "medium",
         entry_label: "Flyers Test 1",
         graded_by_teacher_id: "cmteacher001",
       },
@@ -183,5 +191,8 @@ describe("student progress dashboard", () => {
     assert.match(detail, /Đang phân tích tiến bộ học viên/);
     assert.match(dailyForm, /Không thể sửa ngày này bằng lưới đơn/);
     assert.match(dailyForm, /edit_safety/);
+    assert.match(dailyForm, /Bộ đề \/ cấp độ/);
+    assert.match(dailyForm, /Dễ/);
+    assert.doesNotMatch(list, /ProgressInputPanel/);
   });
 });

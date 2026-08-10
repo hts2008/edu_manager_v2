@@ -45,6 +45,10 @@ export type ProgressDailyEntryInput = {
   skill_key?: ProgressSkillKey | null;
   score?: number | null;
   shield_count?: number | null;
+  exam_set_level?: string | null;
+  difficulty_level?: string | null;
+  entry_label?: string | null;
+  graded_by_teacher_id?: string | null;
   note?: string | null;
 };
 

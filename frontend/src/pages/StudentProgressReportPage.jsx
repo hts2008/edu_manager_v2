@@ -28,9 +28,8 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { reportsService, studentProgressService } from "../services/api";
+import { reportsService } from "../services/api";
 import { useAsyncData } from "../hooks/useAsyncData";
-import ProgressInputPanel from "../components/student-progress/ProgressInputPanel";
 import {
   ChartFrame,
   LoadingProgress,
@@ -63,16 +62,6 @@ const ACADEMIC_INPUT_LABELS = {
   partial: "Nhập một phần",
   missing_input: "Chưa nhập",
 };
-const PROGRESS_SKILL_FIELDS = [
-  { skill_key: "listening", skill_label: "Nghe" },
-  { skill_key: "speaking", skill_label: "Nói" },
-  { skill_key: "reading", skill_label: "Đọc" },
-  { skill_key: "writing", skill_label: "Viết" },
-  { skill_key: "homework", skill_label: "BTVN" },
-  { skill_key: "daily_practice", skill_label: "Luyện hằng ngày" },
-  { skill_key: "mock_test", skill_label: "Bài kiểm tra / đề" },
-];
-
 function currentBusinessMonth() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -100,16 +89,6 @@ function formatNumber(value) {
   return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
 }
 
-function nullableNumber(value) {
-  if (value === "" || value === null || value === undefined) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
-
-function stringifyInput(value) {
-  return value === null || value === undefined ? "" : String(value);
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -117,150 +96,6 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function defaultClassType(row) {
-  const track = row?.progress_assessment?.trackKey || row?.english_track;
-  if (["ket", "pet"].includes(track)) return "exam_prep";
-  if (["starters", "movers", "flyers"].includes(track)) return "communicative";
-  return "mixed";
-}
-
-function buildProgressForm(row, progressMonth) {
-  if (!row) return null;
-  const recordSkills = new Map(
-    (progressMonth?.skills || []).map((skill) => [skill.skill_key, skill])
-  );
-  const assessmentSkills = new Map(
-    (row.progress_assessment?.skillScores || []).map((skill) => [skill.key, skill])
-  );
-
-  return {
-    track_key:
-      progressMonth?.track_key ||
-      row.progress_assessment?.trackKey ||
-      row.english_track ||
-      "unknown",
-    class_type:
-      progressMonth?.class_type ||
-      row.progress_assessment?.classType ||
-      defaultClassType(row),
-    focus_skill_key:
-      progressMonth?.focus_skill_key ||
-      row.progress_assessment?.focusSkillKey ||
-      "",
-    focus_skill_label:
-      progressMonth?.focus_skill_label ||
-      row.progress_assessment?.focusSkillLabel ||
-      "",
-    teacher_note: progressMonth?.teacher_note || "",
-    parent_summary: progressMonth?.parent_summary || "",
-    finalized: Boolean(progressMonth?.finalized_at),
-    finalized_at: progressMonth?.finalized_at || null,
-    revision_number: progressMonth?.revision_number || 0,
-    skills: PROGRESS_SKILL_FIELDS.map((skill, index) => {
-      const recordSkill = recordSkills.get(skill.skill_key);
-      const assessmentSkill = assessmentSkills.get(skill.skill_key);
-      const source = recordSkill || assessmentSkill || {};
-      const status = source.status || assessmentSkill?.status;
-      return {
-        skill_key: skill.skill_key,
-        skill_label: recordSkill?.skill_label || assessmentSkill?.label || skill.skill_label,
-        score: stringifyInput(source.score),
-        max_score: stringifyInput(recordSkill?.max_score || 100),
-        weight: recordSkill?.weight ?? null,
-        status: status || "missing_input",
-        note:
-          recordSkill?.note ||
-          (assessmentSkill?.status === "available" ? assessmentSkill.note || "" : ""),
-        source: recordSkill?.source || "teacher_input",
-        sort_order: recordSkill?.sort_order ?? index,
-      };
-    }),
-  };
-}
-
-function serializeProgressForm(row, form) {
-  return {
-    student_id: row.student_id,
-    class_id: row.class_id,
-    month: row.month,
-    track_key: form.track_key,
-    class_type: form.class_type,
-    focus_skill_key: form.focus_skill_key || null,
-    focus_skill_label: form.focus_skill_label || null,
-    teacher_note: form.teacher_note || null,
-    parent_summary: form.parent_summary || null,
-    finalized: Boolean(form.finalized),
-    skills: (form.skills || []).map((skill) => ({
-      skill_key: skill.skill_key,
-      skill_label: skill.skill_label,
-      score: nullableNumber(skill.score),
-      max_score: nullableNumber(skill.max_score) || 100,
-      weight: nullableNumber(skill.weight),
-      status: nullableNumber(skill.score) === null ? "missing_input" : "available",
-      note: skill.note || null,
-      source: skill.source || "teacher_input",
-      sort_order: skill.sort_order,
-    })),
-  };
-}
-
-function emptyDailyForm() {
-  return {
-    skills: PROGRESS_SKILL_FIELDS.map((skill) => ({ ...skill, score: "" })),
-    shield_count: "0",
-    note: "",
-  };
-}
-
-function buildDailyForm(payload) {
-  const entries = payload?.daily_entries || [];
-  const scores = new Map(
-    entries
-      .filter((entry) => entry.entry_type === "skill_assessment")
-      .map((entry) => [entry.skill_key, entry.score])
-  );
-  return {
-    skills: PROGRESS_SKILL_FIELDS.map((skill) => ({
-      ...skill,
-      score: stringifyInput(scores.get(skill.skill_key)),
-    })),
-    shield_count: stringifyInput(
-      entries.reduce((sum, entry) => sum + Number(entry.shield_count || 0), 0)
-    ),
-    note:
-      payload?.note ||
-      entries.find((entry) => entry.entry_type === "note" && entry.note)?.note ||
-      "",
-  };
-}
-
-function serializeDailyForm(row, entryDate, form) {
-  const entries = form.skills.map((skill) => ({
-    entry_type: "skill_assessment",
-    skill_key: skill.skill_key,
-    score: nullableNumber(skill.score),
-    shield_count: 0,
-    note: null,
-  }));
-  const shieldCount = nullableNumber(form.shield_count) || 0;
-  if (shieldCount > 0) {
-    entries.push({
-      entry_type: "shield",
-      skill_key: null,
-      score: null,
-      shield_count: shieldCount,
-      note: null,
-    });
-  }
-  return {
-    student_id: row.student_id,
-    class_id: row.class_id,
-    entry_date: entryDate,
-    note: form.note.trim() || null,
-    entries,
-  };
 }
 
 function rowKey(row) {
@@ -304,42 +139,6 @@ function teacherInputLabel(row) {
   return getAssessment(row)?.hasTeacherInput || row?.has_teacher_input
     ? "Có input giáo viên"
     : "Cần giáo viên nhập";
-}
-
-function buildPrintableRow(row, form) {
-  if (!row || !form) return row;
-  return {
-    ...row,
-    parent_summary: form.parent_summary || row.parent_summary,
-    skill_scores: (form.skills || []).map((skill) => ({
-      key: skill.skill_key,
-      label: skill.skill_label,
-      score: nullableNumber(skill.score),
-      status: nullableNumber(skill.score) === null ? "missing_input" : "available",
-      note: skill.note || "",
-    })),
-    progress_assessment: {
-      ...(row.progress_assessment || {}),
-      hasTeacherInput:
-        (form.skills || []).some((skill) => nullableNumber(skill.score) !== null) ||
-        Boolean(form.teacher_note),
-      academicInputStatus: (form.skills || []).every(
-        (skill) => nullableNumber(skill.score) !== null
-      )
-        ? "complete"
-        : (form.skills || []).some((skill) => nullableNumber(skill.score) !== null)
-          ? "partial"
-          : "missing_input",
-      focusSkillLabel: form.focus_skill_label || row.progress_assessment?.focusSkillLabel || null,
-      skillScores: (form.skills || []).map((skill) => ({
-        key: skill.skill_key,
-        label: skill.skill_label,
-        score: nullableNumber(skill.score),
-        status: nullableNumber(skill.score) === null ? "missing_input" : "available",
-        note: skill.note || "",
-      })),
-    },
-  };
 }
 
 function monthLabel(month) {
@@ -485,21 +284,6 @@ export default function StudentProgressReportPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [selectedRow, setSelectedRow] = useState(null);
-  const [progressForm, setProgressForm] = useState(null);
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [progressSaving, setProgressSaving] = useState(false);
-  const [progressMessage, setProgressMessage] = useState(null);
-  const [dailyDate, setDailyDate] = useState("");
-  const [dailyForm, setDailyForm] = useState(emptyDailyForm);
-  const [dailyTimeline, setDailyTimeline] = useState([]);
-  const [dailyRollup, setDailyRollup] = useState(null);
-  const [dailyLoading, setDailyLoading] = useState(false);
-  const [dailyTimelineLoading, setDailyTimelineLoading] = useState(false);
-  const [dailyHasEntries, setDailyHasEntries] = useState(false);
-  const [dailySaving, setDailySaving] = useState(false);
-  const [dailyDeleting, setDailyDeleting] = useState(false);
-  const [dailyError, setDailyError] = useState(null);
-  const [dailyMessage, setDailyMessage] = useState(null);
   const deferredSearch = useDeferredValue(filters.q);
   const query = useMemo(
     () => makeQuery(filters, deferredSearch, refreshNonce),
@@ -545,140 +329,6 @@ export default function StudentProgressReportPage() {
     if (latest && latest !== selectedRow) setSelectedRow(latest);
   }, [rows, selectedRow]);
 
-  useEffect(() => {
-    if (!selectedRow) {
-      setProgressForm(null);
-      setProgressMessage(null);
-      return;
-    }
-
-    let active = true;
-    setProgressLoading(true);
-    setProgressMessage(null);
-    studentProgressService
-      .getAll({
-        student_id: selectedRow.student_id,
-        class_id: selectedRow.class_id,
-        month: selectedRow.month,
-        limit: 1,
-      })
-      .then((response) => {
-        if (!active) return;
-        if (!response.success) {
-          setProgressForm(buildProgressForm(selectedRow, null));
-          setProgressMessage({
-            type: "error",
-            text: response.error?.message || "Không tải được bản ghi tiến độ.",
-          });
-          return;
-        }
-        const record = response.data?.progress_months?.[0] || null;
-        setProgressForm(buildProgressForm(selectedRow, record));
-      })
-      .finally(() => {
-        if (active) setProgressLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [selectedRow?.student_id, selectedRow?.class_id, selectedRow?.month]);
-
-  useEffect(() => {
-    if (!selectedRow) {
-      setDailyDate("");
-      setDailyForm(emptyDailyForm());
-      setDailyTimeline([]);
-      setDailyRollup(null);
-      setDailyHasEntries(false);
-      setDailyError(null);
-      setDailyMessage(null);
-      return;
-    }
-
-    const attendanceDates = (selectedRow.attendance_dates || []).filter((date) =>
-      date.startsWith(`${selectedRow.month}-`)
-    );
-    const initialDate = attendanceDates.at(-1) || `${selectedRow.month}-01`;
-    let active = true;
-    setDailyDate(initialDate);
-    setDailyForm(emptyDailyForm());
-    setDailyTimeline([]);
-    setDailyRollup(null);
-    setDailyHasEntries(false);
-    setDailyError(null);
-    setDailyMessage(null);
-    setDailyTimelineLoading(true);
-
-    studentProgressService
-      .getDaily(
-        {
-          student_id: selectedRow.student_id,
-          class_id: selectedRow.class_id,
-          month: selectedRow.month,
-        },
-        { skipCache: true }
-      )
-      .then((response) => {
-        if (!active) return;
-        if (!response.success) {
-          setDailyError(response.error?.message || "Không tải được lịch sử theo ngày.");
-          return;
-        }
-        setDailyTimeline(response.data?.daily_entries || []);
-        setDailyRollup(response.data?.rollup || null);
-      })
-      .finally(() => {
-        if (active) setDailyTimelineLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [selectedRow?.student_id, selectedRow?.class_id, selectedRow?.month]);
-
-  useEffect(() => {
-    if (!selectedRow || !dailyDate) return;
-
-    let active = true;
-    setDailyLoading(true);
-    setDailyForm(emptyDailyForm());
-    setDailyHasEntries(false);
-    setDailyError(null);
-    setDailyMessage(null);
-    studentProgressService
-      .getDaily(
-        {
-          student_id: selectedRow.student_id,
-          class_id: selectedRow.class_id,
-          entry_date: dailyDate,
-        },
-        { skipCache: true }
-      )
-      .then((response) => {
-        if (!active) return;
-        if (!response.success) {
-          setDailyError(response.error?.message || "Không tải được bản ghi theo ngày.");
-          return;
-        }
-        setDailyForm(buildDailyForm(response.data));
-        setDailyHasEntries((response.data?.daily_entries || []).length > 0);
-        setDailyRollup(response.data?.rollup || null);
-      })
-      .finally(() => {
-        if (active) setDailyLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [
-    selectedRow?.student_id,
-    selectedRow?.class_id,
-    selectedRow?.month,
-    dailyDate,
-  ]);
-
   const metrics = [
     {
       label: "Học viên",
@@ -712,166 +362,6 @@ export default function StudentProgressReportPage() {
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? value : 1 }));
-  }
-
-  async function saveProgressForm() {
-    if (!selectedRow || !progressForm) return;
-    setProgressSaving(true);
-    setProgressMessage(null);
-
-    try {
-      const response = await studentProgressService.saveMonth(
-        serializeProgressForm(selectedRow, progressForm)
-      );
-      if (!response.success) {
-        setProgressMessage({
-          type: "error",
-          text: response.error?.message || "Không lưu được tiến độ.",
-        });
-        return;
-      }
-
-      const savedRecord = response.data?.progress_month || null;
-      setProgressForm(buildProgressForm(selectedRow, savedRecord));
-      setProgressMessage({ type: "success", text: "Đã lưu tiến độ học viên." });
-      setRefreshNonce((value) => value + 1);
-    } catch (error) {
-      setProgressMessage({
-        type: "error",
-        text: error?.message || "Không lưu được tiến độ.",
-      });
-    } finally {
-      setProgressSaving(false);
-    }
-  }
-
-  async function reopenProgressMonth(reason) {
-    if (!selectedRow) return;
-    setProgressSaving(true);
-    setProgressMessage(null);
-    try {
-      const response = await studentProgressService.reopenMonth({
-        student_id: selectedRow.student_id,
-        class_id: selectedRow.class_id,
-        month: selectedRow.month,
-        reason,
-      });
-      if (!response.success) {
-        setProgressMessage({
-          type: "error",
-          text: response.error?.message || "Không mở lại được bản ghi tiến độ.",
-        });
-        return;
-      }
-      setProgressForm(buildProgressForm(selectedRow, response.data?.progress_month || null));
-      setProgressMessage({ type: "success", text: "Đã mở lại bản ghi và lưu lý do kiểm toán." });
-      setRefreshNonce((value) => value + 1);
-    } catch (error) {
-      setProgressMessage({
-        type: "error",
-        text: error?.message || "Không mở lại được bản ghi tiến độ.",
-      });
-    } finally {
-      setProgressSaving(false);
-    }
-  }
-
-  async function refreshDailyTimeline() {
-    if (!selectedRow) return;
-    setDailyTimelineLoading(true);
-    try {
-      const response = await studentProgressService.getDaily(
-        {
-          student_id: selectedRow.student_id,
-          class_id: selectedRow.class_id,
-          month: selectedRow.month,
-        },
-        { skipCache: true }
-      );
-      if (!response.success) {
-        setDailyError(response.error?.message || "Không tải được lịch sử theo ngày.");
-        return;
-      }
-      setDailyTimeline(response.data?.daily_entries || []);
-      setDailyRollup(response.data?.rollup || null);
-    } finally {
-      setDailyTimelineLoading(false);
-    }
-  }
-
-  async function saveDailyForm() {
-    if (!selectedRow || !dailyDate) return;
-    const attendanceDates = selectedRow.attendance_dates || [];
-    if (!attendanceDates.includes(dailyDate) && !dailyForm.note.trim()) {
-      setDailyMessage({
-        type: "error",
-        text: "Ngày không điểm danh bắt buộc có ghi chú giáo viên.",
-      });
-      return;
-    }
-
-    setDailySaving(true);
-    setDailyError(null);
-    setDailyMessage(null);
-    try {
-      const response = await studentProgressService.saveDay(
-        serializeDailyForm(selectedRow, dailyDate, dailyForm)
-      );
-      if (!response.success) {
-        setDailyMessage({
-          type: "error",
-          text: response.error?.message || "Không lưu được bản ghi theo ngày.",
-        });
-        return;
-      }
-      setDailyForm(buildDailyForm(response.data));
-      setDailyHasEntries((response.data?.daily_entries || []).length > 0);
-      setDailyRollup(response.data?.rollup || null);
-      setDailyMessage({ type: "success", text: `Đã lưu ${dailyDate}.` });
-      await refreshDailyTimeline();
-      setRefreshNonce((value) => value + 1);
-    } catch (error) {
-      setDailyMessage({
-        type: "error",
-        text: error?.message || "Không lưu được bản ghi theo ngày.",
-      });
-    } finally {
-      setDailySaving(false);
-    }
-  }
-
-  async function deleteDailyForm() {
-    if (!selectedRow || !dailyDate) return;
-    setDailyDeleting(true);
-    setDailyError(null);
-    setDailyMessage(null);
-    try {
-      const response = await studentProgressService.deleteDay({
-        student_id: selectedRow.student_id,
-        class_id: selectedRow.class_id,
-        entry_date: dailyDate,
-      });
-      if (!response.success) {
-        setDailyMessage({
-          type: "error",
-          text: response.error?.message || "Không xóa được bản ghi theo ngày.",
-        });
-        return;
-      }
-      setDailyForm(emptyDailyForm());
-      setDailyHasEntries(false);
-      setDailyRollup(response.data?.rollup || null);
-      setDailyMessage({ type: "success", text: `Đã xóa ${dailyDate}.` });
-      await refreshDailyTimeline();
-      setRefreshNonce((value) => value + 1);
-    } catch (error) {
-      setDailyMessage({
-        type: "error",
-        text: error?.message || "Không xóa được bản ghi theo ngày.",
-      });
-    } finally {
-      setDailyDeleting(false);
-    }
   }
 
   return (
@@ -1340,37 +830,22 @@ export default function StudentProgressReportPage() {
                       ))}
                     </ul>
                   </div>
-                  <ProgressInputPanel
-                    row={selectedRow}
-                    form={progressForm}
-                    loading={progressLoading}
-                    saving={progressSaving}
-                    message={progressMessage}
-                    daily={{
-                      selectedDate: dailyDate,
-                      form: dailyForm,
-                      timeline: dailyTimeline,
-                      rollup: dailyRollup,
-                      loading: dailyLoading,
-                      timelineLoading: dailyTimelineLoading,
-                      saving: dailySaving,
-                      deleting: dailyDeleting,
-                      error: dailyError,
-                      message: dailyMessage,
-                      empty: !dailyHasEntries,
-                    }}
-                    onChange={setProgressForm}
-                    onSave={saveProgressForm}
-                    onReopen={reopenProgressMonth}
-                    onDailyDateChange={setDailyDate}
-                    onDailyChange={setDailyForm}
-                    onSaveDay={saveDailyForm}
-                    onDeleteDay={deleteDailyForm}
-                  />
+                  <button
+                    type="button"
+                    className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+                    onClick={() =>
+                      navigate(
+                        `/student-progress/${selectedRow.student_id}?class_id=${selectedRow.class_id}&month=${selectedRow.month}`
+                      )
+                    }
+                  >
+                    <Eye size={16} />
+                    Mở dashboard học viên
+                  </button>
                   <button
                     type="button"
                     className="btn-primary w-full inline-flex items-center justify-center gap-2"
-                    onClick={() => printProgressReport(buildPrintableRow(selectedRow, progressForm))}
+                    onClick={() => printProgressReport(selectedRow)}
                     data-testid="print-selected-progress"
                   >
                     <Printer size={16} />

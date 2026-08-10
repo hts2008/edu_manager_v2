@@ -1,3 +1,5 @@
+import { normalizeProgressEntrySemantics } from "./progress-difficulty.js";
+
 export class ProgressFinalizationError extends Error {
   code: string;
   status: number;
@@ -91,7 +93,14 @@ export function buildProgressRevisionSnapshot(record: any) {
       skill_key: entry.skillKey ?? null,
       score: entry.score ?? null,
       shield_count: entry.shieldCount ?? 0,
-      difficulty_level: entry.difficultyLevel ?? null,
+      exam_set_level: normalizeProgressEntrySemantics(
+        entry.examSetLevel,
+        entry.difficultyLevel
+      ).examSetLevel,
+      difficulty_level: normalizeProgressEntrySemantics(
+        entry.examSetLevel,
+        entry.difficultyLevel
+      ).difficultyLevel,
       entry_label: entry.entryLabel ?? null,
       graded_by_teacher_id: entry.gradedByTeacherId ?? null,
       note: entry.note ?? null,

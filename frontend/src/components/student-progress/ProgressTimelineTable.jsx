@@ -15,6 +15,20 @@ function scoreTone(value) {
   return "text-rose-700";
 }
 
+const EXAM_SET_LABELS = {
+  starters: "Pre A1 Starters",
+  movers: "A1 Movers",
+  flyers: "A2 Flyers",
+  ket: "A2 Key / KET",
+  pet: "B1 Preliminary / PET",
+};
+
+const DIFFICULTY_LABELS = {
+  easy: "Dễ",
+  medium: "Trung bình",
+  hard: "Khó",
+};
+
 export default function ProgressTimelineTable({ days, selectedDate, onSelectDate }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -36,7 +50,7 @@ export default function ProgressTimelineTable({ days, selectedDate, onSelectDate
             <thead className="bg-slate-50 text-left text-xs font-black uppercase tracking-[0.08em] text-slate-500">
               <tr>
                 <th className="px-4 py-3">Ngày</th>
-                <th className="px-4 py-3">Bài / độ khó</th>
+                <th className="px-4 py-3">Bài / bộ đề / độ khó</th>
                 <th className="px-4 py-3">Kỹ năng</th>
                 <th className="px-4 py-3">Điểm thô</th>
                 <th className="px-4 py-3">Quy đổi</th>
@@ -47,7 +61,8 @@ export default function ProgressTimelineTable({ days, selectedDate, onSelectDate
             <tbody className="divide-y divide-slate-100">
               {visibleDays.map((day) => {
                 const labels = [...new Set(day.entries.map((entry) => entry.entry_label).filter(Boolean))];
-                const levels = [...new Set(day.entries.map((entry) => entry.difficulty_level).filter(Boolean))];
+                const examSets = [...new Set(day.entries.map((entry) => entry.exam_set_level).filter(Boolean))];
+                const difficulties = [...new Set(day.entries.map((entry) => entry.difficulty_level).filter(Boolean))];
                 const availableSkills = PROGRESS_SKILLS.filter((skill) => day.skills?.[skill.key]?.raw_score !== null);
                 return (
                   <tr key={day.date} className={selectedDate === day.date ? "bg-indigo-50/70" : "hover:bg-slate-50"}>
@@ -60,7 +75,12 @@ export default function ProgressTimelineTable({ days, selectedDate, onSelectDate
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-bold text-slate-800">{labels.join(", ") || "Chưa đặt tên bài"}</div>
-                      <div className="mt-1 text-xs uppercase text-slate-500">{levels.join(" · ") || "Không gắn độ khó"}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Bộ đề: {examSets.map((value) => EXAM_SET_LABELS[value] || value).join(" · ") || "Chưa chọn"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        Độ khó: {difficulties.map((value) => DIFFICULTY_LABELS[value] || value).join(" · ") || "Chưa đánh giá"}
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex max-w-xs flex-wrap gap-1.5">

@@ -118,7 +118,8 @@ describe("daily student progress validation", () => {
           entry_type: "skill_assessment",
           skill_key: "listening",
           score: 82,
-          difficulty_level: "ket",
+          exam_set_level: "ket",
+          difficulty_level: "hard",
           entry_label: "KET listening practice 1",
           graded_by_teacher_id: "cm1234567890abcdef",
         },
@@ -131,9 +132,30 @@ describe("daily student progress validation", () => {
 
     assert.equal(result.success, true);
     if (!result.success) return;
-    assert.equal(result.data.entries[0]?.difficulty_level, "ket");
+    assert.equal(result.data.entries[0]?.exam_set_level, "ket");
+    assert.equal(result.data.entries[0]?.difficulty_level, "hard");
     assert.equal(result.data.entries[0]?.entry_label, "KET listening practice 1");
     assert.equal(result.data.entries[0]?.graded_by_teacher_id, "cm1234567890abcdef");
+  });
+
+  it("keeps rolling compatibility for cached clients sending Cambridge level as difficulty_level", () => {
+    const result = studentProgressDailyPutSchema.safeParse({
+      student_id: "student-1",
+      class_id: "class-1",
+      entry_date: "2026-06-13",
+      entries: [
+        {
+          entry_type: "mock_test",
+          score: 76,
+          difficulty_level: "flyers",
+          entry_label: "Legacy Flyers mock test",
+        },
+      ],
+    });
+
+    assert.equal(result.success, true);
+    if (!result.success) return;
+    assert.equal(result.data.entries[0]?.difficulty_level, "flyers");
   });
 
   it("enforces the immutable enrollment period before replacing daily evidence", () => {
@@ -149,7 +171,8 @@ describe("daily student progress validation", () => {
       entries: [{ entry_type: "daily_practice", score: 80 }],
     };
     const invalid = [
-      { ...base, entries: [{ ...base.entries[0], difficulty_level: "ielts" }] },
+      { ...base, entries: [{ ...base.entries[0], exam_set_level: "ielts" }] },
+      { ...base, entries: [{ ...base.entries[0], difficulty_level: "extreme" }] },
       { ...base, entries: [{ ...base.entries[0], entry_label: "x".repeat(201) }] },
       { ...base, entries: [{ ...base.entries[0], graded_by_teacher_id: "not-a-cuid" }] },
     ];
@@ -160,16 +183,28 @@ describe("daily student progress validation", () => {
   });
 
   it("maps new daily metadata to snake_case DTOs, writes, and revision snapshots", () => {
+    assert.match(dailyApi, /normalizeProgressEntrySemantics/);
+    assert.match(monthlyApi, /normalizeProgressEntrySemantics/);
     for (const mapping of [
-      /difficulty_level:\s*entry\.difficultyLevel/,
       /entry_label:\s*entry\.entryLabel/,
       /graded_by_teacher_id:\s*entry\.gradedByTeacherId/,
     ]) {
       assert.match(dailyApi, mapping);
       assert.match(monthlyApi, mapping);
     }
+    assert.match(dailyApi, /exam_set_level:\s*semantics\.examSetLevel/);
+    assert.match(dailyApi, /difficulty_level:\s*semantics\.difficultyLevel/);
+    assert.match(
+      dailyApi,
+      /normalizeProgressEntrySemantics\(\s*entry\.exam_set_level,\s*entry\.difficulty_level\s*\)/
+    );
+    assert.match(monthlyApi, /exam_set_level:\s*progressEntryExamSet\(entry\)/);
+    assert.match(monthlyApi, /difficulty_level:\s*progressEntryDifficulty\(entry\)/);
     for (const mapping of [
-      /difficultyLevel:\s*entry\.difficulty_level/,
+      /examSetLevel:\s*semantics\.examSetLevel/,
+      /difficultyLevel:\s*semantics\.difficultyLevel/,
+      /examSetLevel:\s*entry\.examSetLevel/,
+      /difficultyLevel:\s*entry\.difficultyLevel/,
       /entryLabel:\s*entry\.entry_label/,
       /gradedByTeacherId:\s*entry\.graded_by_teacher_id/,
     ]) {

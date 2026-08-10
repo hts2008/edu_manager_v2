@@ -88,19 +88,23 @@ test("AUD-RM-007 wires revision persistence and transactional mutation guards", 
   assert.match(dailyApi, /assertProgressMonthEditable\(current\.finalizedAt\)/);
   assert.match(monthlyApi, /assertAdminAction\(req,\s*"reopen"\)/);
   assert.match(monthlyApi, /assertAdminAction\(req,\s*"finalize"\)/);
-  assert.match(monthlyApi, /difficulty_level:\s*entry\.difficultyLevel/);
+  assert.match(monthlyApi, /exam_set_level:\s*progressEntryExamSet\(entry\)/);
+  assert.match(monthlyApi, /difficulty_level:\s*progressEntryDifficulty\(entry\)/);
   assert.match(monthlyApi, /entry_label:\s*entry\.entryLabel/);
   assert.match(monthlyApi, /graded_by_teacher_id:\s*entry\.gradedByTeacherId/);
 });
 
-test("AUD-RM-007 exposes an explicit reopen control and snake_case request", () => {
+test("AUD-RM-007 keeps the aggregate report read-only and preserves the reusable reopen control", () => {
   const service = source("frontend/src/services/api.js");
   const page = source("frontend/src/pages/StudentProgressReportPage.jsx");
+  const detail = source("frontend/src/pages/StudentProgressDetailPage.jsx");
   const panel = source("frontend/src/components/student-progress/ProgressInputPanel.jsx");
 
   assert.match(service, /reopenMonth/);
-  assert.match(page, /student_id: selectedRow\.student_id/);
-  assert.match(page, /class_id: selectedRow\.class_id/);
+  assert.doesNotMatch(page, /ProgressInputPanel/);
+  assert.match(page, /Mở dashboard học viên/);
+  assert.match(detail, /student_id: studentId/);
+  assert.match(detail, /class_id: classId/);
   assert.match(panel, /data-testid="progress-finalized-lock"/);
   assert.match(panel, /data-testid="reopen-progress"/);
   assert.match(panel, /<fieldset disabled=\{finalized\}/);

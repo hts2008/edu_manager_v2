@@ -136,14 +136,16 @@ describe("daily student progress rollup", () => {
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 60,
-        difficulty_level: "starters",
+        exam_set_level: "starters",
+        difficulty_level: "easy",
       } as any,
       {
         entry_date: "2026-06-10",
         entry_type: "skill_assessment",
         skill_key: "listening",
         score: 80,
-        difficulty_level: "pet",
+        exam_set_level: "pet",
+        difficulty_level: "hard",
       } as any,
     ]);
 

@@ -428,8 +428,12 @@ const studentProgressDailyEntrySchema = z
     skill_key: progressSkillKeySchema.nullable().optional(),
     score: progressScoreSchema,
     shield_count: z.coerce.number().int().min(0).optional().default(0),
-    difficulty_level: z
+    exam_set_level: z
       .enum(["starters", "movers", "flyers", "ket", "pet"])
+      .nullable()
+      .optional(),
+    difficulty_level: z
+      .enum(["easy", "medium", "hard", "starters", "movers", "flyers", "ket", "pet"])
       .nullable()
       .optional(),
     entry_label: z.string().trim().max(200).nullable().optional(),

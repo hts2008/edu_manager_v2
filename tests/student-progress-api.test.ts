@@ -56,7 +56,8 @@ describe("student progress API contract", () => {
       /daily_entries:/,
       /entry_date:\s*toDateOnly\(entry\.entryDate\)/,
       /shield_count:\s*entry\.shieldCount/,
-      /difficulty_level:\s*entry\.difficultyLevel/,
+      /exam_set_level:\s*progressEntryExamSet\(entry\)/,
+      /difficulty_level:\s*progressEntryDifficulty\(entry\)/,
       /entry_label:\s*entry\.entryLabel/,
       /graded_by_teacher_id:\s*entry\.gradedByTeacherId/,
     ];

@@ -102,16 +102,17 @@ flowchart TD
     DetailPage --> PdfBtn["Nút Xuất PDF"]
     PdfBtn --> PdfAPI["GET /api/student-progress/pdf (MỚI: pdfmake)"]
     TimelineAPI --> MonthRecords[("StudentProgressMonth × N tháng")]
-    MonthRecords --> DailyEntries[("StudentProgressDailyEntry + difficultyLevel/entryLabel/gradedByTeacherId (cột MỚI additive)")]
+    MonthRecords --> DailyEntries[("StudentProgressDailyEntry + examSetLevel/difficultyLevel/entryLabel/gradedByTeacherId (cột MỚI additive)")]
     DailyAPI --> Rollup["recomputeMonthlyRollup (GIỮ NGUYÊN — điểm thô)"]
     TimelineAPI --> WeightEngine["lib/progress-difficulty.ts (MỚI: điểm quy đổi runtime)"]
 ```
 
 ### 3.3 Mô hình độ khó (D1 + D2)
 
-- Mỗi entry loại `skill_assessment` / `mock_test` / `homework` / `daily_practice` gắn `difficultyLevel` = cấp độ Cambridge của **đề/bài** (starters..pet). Mặc định khi nhập = track của lớp (nhập nhanh, 1 chạm).
+- Mỗi entry loại `skill_assessment` / `mock_test` / `homework` / `daily_practice` gắn `examSetLevel` = bộ đề/cấp độ Cambridge của **đề/bài** (starters..pet). Mặc định khi nhập = track của lớp hoặc cấp độ giáo viên chọn trong dashboard học viên.
+- `difficultyLevel` là độ khó thao tác của bài (`easy|medium|hard`) để giáo viên ghi nhận bài dễ/trung bình/khó; Phase hiện tại chỉ lưu và hiển thị mô tả, chưa dùng để nhân trọng số học thuật.
 - **Trọng số tương đối** so với track của lớp: thứ bậc starters=1, movers=2, flyers=3, ket=4, pet=5.
-  - `delta = level(bài) − level(lớp)`; `weight = 1 + 0.15 × delta`, clamp `[0.7, 1.3]`.
+  - `delta = level(examSetLevel) − level(lớp)`; `weight = 1 + 0.15 × delta`, clamp `[0.7, 1.3]`.
   - `weightedScore = min(100, score × weight)` — hằng số đặt trong `lib/progress-difficulty.ts`, có test khóa công thức, đổi công thức chỉ đổi 1 nơi.
   - Ví dụ: học viên lớp Movers làm đề Flyers được 80 → weighted = 80 × 1.15 = 92 ("làm đề khó hơn trình lớp mà vẫn 80 điểm"). Làm đề Starters được 80 → weighted = 68.
 - **Điểm quy đổi CHỈ ở display-layer** (chart, bảng, PDF — luôn kèm điểm thô). Rollup tháng, `progressScore`, readiness **giữ nguyên tính trên điểm thô** — không đụng chuỗi precedence `daily_rollup` hiện có, không phá 5 file test invariant.
@@ -142,14 +143,14 @@ flowchart TD
 ### PHASE SPD-A — Schema + Difficulty Engine (owner: `database-architect` + `backend-specialist`)
 
 - [x] **SPD-A1 — Migration additive cho daily entries**
-  - **Việc:** Thêm vào `StudentProgressDailyEntry`: `difficultyLevel String?` (giá trị starters/movers/flyers/ket/pet — String như `trackKey` hiện có, KHÔNG enum DB để khỏi migration enum sau này), `entryLabel String?` (tên bài tập/đề, ≤200 ký tự), `gradedByTeacherId String?` FK → `Teacher` (onDelete SetNull) + index. 1 migration `2026XXXX_progress_daily_difficulty`.
-  - **Cách:** Cột nullable → toàn bộ rows cũ hợp lệ, không backfill. Cập nhật schema.prisma + `npx prisma validate` + test isolated + `migrate deploy`.
+  - **Việc:** Thêm vào `StudentProgressDailyEntry`: `examSetLevel String?` (giá trị starters/movers/flyers/ket/pet, dùng cho trọng số), `difficultyLevel String?` (giá trị easy/medium/hard, mô tả độ khó), `entryLabel String?` (tên bài tập/đề, ≤200 ký tự), `gradedByTeacherId String?` FK → `Teacher` (onDelete SetNull) + index.
+  - **Cách:** Cột nullable → toàn bộ rows cũ hợp lệ. Migration backfill `examSetLevel` từ legacy `difficultyLevel` Cambridge và giữ DB check constraint rolling-compatible để client cũ không bị vỡ trong cache window. Cập nhật schema.prisma + `npx prisma validate` + test isolated + `migrate deploy`.
   - **Nghiệm thu:** `migrate status` clean; rows cũ đọc bình thường; TC-SPD-01.
 - [x] **SPD-A2 — `lib/progress-difficulty.ts` (engine trọng số)**
-  - **Việc:** Hàm `getDifficultyWeight(entryLevel, classTrackKey)` (thứ bậc 1..5, delta × 0.15, clamp 0.7–1.3, unknown → 1.0) và `computeWeightedScore(score, weight)` (min 100, làm tròn 1 chữ số). Export bảng hằng số để UI/PDF dùng chung chú thích.
+  - **Việc:** Hàm `getDifficultyWeight(examSetLevel, classTrackKey)` (thứ bậc 1..5, delta × 0.15, clamp 0.7–1.3, unknown → 1.0) và `computeWeightedScore(score, weight)` (min 100, làm tròn 1 chữ số). Export bảng hằng số để UI/PDF dùng chung chú thích.
   - **Nghiệm thu:** Unit test khóa từng cặp level (5×5 ma trận + unknown + null score → null); TC-SPD-02.
 - [x] **SPD-A3 — Mở rộng validation + daily API**
-  - **Việc:** `lib/validation.ts`: schema daily entry thêm `difficulty_level` (optional, enum 5 giá trị), `entry_label` (optional, max 200), `graded_by_teacher_id` (optional, cuid). `daily.ts` PUT/GET đọc-ghi 3 field mới (snake_case DTO). Entry types homework/daily_practice/mock_test giữ nguyên validation hiện có — UI sẽ expose ở Phase C.
+  - **Việc:** `lib/validation.ts`: schema daily entry tách `exam_set_level` (optional: Starters/Movers/Flyers/KET/PET) khỏi `difficulty_level` (optional: easy/medium/hard), cùng `entry_label` (optional, max 200) và `graded_by_teacher_id` (optional, cuid). `daily.ts` PUT/GET đọc-ghi các field mới (snake_case DTO). Entry types homework/daily_practice/mock_test giữ nguyên validation hiện có.
   - **Nghiệm thu:** Payload cũ (không có field mới) vẫn hợp lệ 100% (backward compat); payload sai enum → `VALIDATION_ERROR`; TC-SPD-03.
 - [x] **SPD-A4 — RBAC theo ma trận quyền**
   - **Việc:** Đổi `requireAuth(handler, ["admin"])` → `["admin","receptionist"]` cho: GET/PUT/DELETE `/student-progress/daily`, GET + upsert `/student-progress`, GET `/reports/student-progress`. **GIỮ admin-only:** action `reopen`, và finalize (upsert với `finalized: true`). Frontend route đổi `AdminOnly` → `ProtectedRoute` cho `/student-progress` (sidebar bỏ cờ adminOnly tương ứng).

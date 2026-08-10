@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
-  CAMBRIDGE_DIFFICULTY_LEVELS,
+  CAMBRIDGE_EXAM_SET_LEVELS,
   DIFFICULTY_WEIGHT_DELTA,
   MAX_DIFFICULTY_WEIGHT,
   MIN_DIFFICULTY_WEIGHT,
   computeWeightedScore,
   getDifficultyWeight,
+  normalizeProgressEntrySemantics,
 } from "../lib/progress-difficulty.js";
 
 describe("student progress difficulty engine", () => {
@@ -19,8 +21,8 @@ describe("student progress difficulty engine", () => {
       [1.3, 1.3, 1.3, 1.15, 1],
     ];
 
-    for (const [entryIndex, entryLevel] of CAMBRIDGE_DIFFICULTY_LEVELS.entries()) {
-      for (const [classIndex, classLevel] of CAMBRIDGE_DIFFICULTY_LEVELS.entries()) {
+    for (const [entryIndex, entryLevel] of CAMBRIDGE_EXAM_SET_LEVELS.entries()) {
+      for (const [classIndex, classLevel] of CAMBRIDGE_EXAM_SET_LEVELS.entries()) {
         assert.equal(
           getDifficultyWeight(entryLevel, classLevel),
           expected[entryIndex][classIndex],
@@ -28,6 +30,24 @@ describe("student progress difficulty engine", () => {
         );
       }
     }
+  });
+
+  it("keeps task difficulty descriptive until an academic rubric is approved", () => {
+    assert.equal(getDifficultyWeight("flyers", "flyers", "easy"), 1);
+    assert.equal(getDifficultyWeight("flyers", "flyers", "medium"), 1);
+    assert.equal(getDifficultyWeight("flyers", "flyers", "hard"), 1);
+    assert.equal(getDifficultyWeight("ket", "flyers", "hard"), 1.15);
+  });
+
+  it("dual-reads legacy Cambridge values during rolling deployment", () => {
+    assert.deepEqual(normalizeProgressEntrySemantics(null, "flyers"), {
+      examSetLevel: "flyers",
+      difficultyLevel: null,
+    });
+    assert.deepEqual(normalizeProgressEntrySemantics("ket", "hard"), {
+      examSetLevel: "ket",
+      difficultyLevel: "hard",
+    });
   });
 
   it("exports the approved formula constants", () => {
@@ -55,5 +75,16 @@ describe("student progress difficulty engine", () => {
     assert.equal(computeWeightedScore(null, 1.15), null);
     assert.equal(computeWeightedScore(undefined, 1.15), null);
     assert.equal(computeWeightedScore(Number.NaN, 1.15), null);
+  });
+
+  it("migrates legacy Cambridge values without inventing task difficulty", () => {
+    const migration = readFileSync(
+      "prisma/migrations/20260806_progress_exam_set_and_difficulty/migration.sql",
+      "utf8",
+    );
+    assert.match(migration, /"exam_set_level" = "difficulty_level"/);
+    assert.doesNotMatch(migration, /"difficulty_level" = NULL/);
+    assert.match(migration, /'starters', 'movers', 'flyers', 'ket', 'pet'/);
+    assert.doesNotMatch(migration, /ADD CONSTRAINT/);
   });
 });

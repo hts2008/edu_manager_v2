@@ -12,6 +12,7 @@ const GRID_EVIDENCE_TYPES = new Set(["mock_test", "homework", "daily_practice"])
 
 function normalizedEntryMetadata(entry) {
   return JSON.stringify([
+    entry?.exam_set_level || null,
     entry?.difficulty_level || null,
     entry?.entry_label?.trim() || null,
     entry?.graded_by_teacher_id || null,
@@ -161,6 +162,7 @@ export function buildDailyEntryPayload({
       skill_key: skill.skill_key,
       score: Number(skill.score),
       shield_count: 0,
+      exam_set_level: form.exam_set_level || null,
       difficulty_level: form.difficulty_level || null,
       entry_label: form.entry_label?.trim() || null,
       graded_by_teacher_id: form.graded_by_teacher_id || null,
@@ -172,6 +174,7 @@ export function buildDailyEntryPayload({
       skill_key: null,
       score: null,
       shield_count: 0,
+      exam_set_level: form.exam_set_level || null,
       difficulty_level: form.difficulty_level || null,
       entry_label: form.entry_label?.trim() || null,
       graded_by_teacher_id: form.graded_by_teacher_id || null,
@@ -185,6 +188,7 @@ export function buildDailyEntryPayload({
       skill_key: null,
       score: null,
       shield_count: shieldCount,
+      exam_set_level: null,
       difficulty_level: null,
       entry_label: form.entry_label?.trim() || null,
       graded_by_teacher_id: form.graded_by_teacher_id || null,

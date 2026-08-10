@@ -107,9 +107,9 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   const first = await api(page, "/api/student-progress/daily", {
     method: "PUT",
     body: JSON.stringify(dailyPayload("2026-08-03", [
-      { entry_type: "skill_assessment", skill_key: "listening", score: 70, difficulty_level: "flyers", entry_label: "Flyers Listening 1", graded_by_teacher_id: graderId },
-      { entry_type: "skill_assessment", skill_key: "reading", score: 68, difficulty_level: "flyers", entry_label: "Flyers Reading 1", graded_by_teacher_id: graderId },
-      { entry_type: "homework", skill_key: "homework", score: 90, difficulty_level: "flyers", entry_label: "Homework 1" },
+      { entry_type: "skill_assessment", skill_key: "listening", score: 70, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Listening 1", graded_by_teacher_id: graderId },
+      { entry_type: "skill_assessment", skill_key: "reading", score: 68, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Reading 1", graded_by_teacher_id: graderId },
+      { entry_type: "homework", skill_key: "homework", score: 90, exam_set_level: "flyers", difficulty_level: "easy", entry_label: "Homework 1" },
     ])),
   });
   expect(first.status).toBe(200);
@@ -117,9 +117,9 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   const second = await api(page, "/api/student-progress/daily", {
     method: "PUT",
     body: JSON.stringify(dailyPayload("2026-08-04", [
-      { entry_type: "skill_assessment", skill_key: "listening", score: 82, difficulty_level: "ket", entry_label: "KET Listening 2", graded_by_teacher_id: graderId },
-      { entry_type: "skill_assessment", skill_key: "reading", score: 78, difficulty_level: "ket", entry_label: "KET Reading 2", graded_by_teacher_id: graderId },
-      { entry_type: "mock_test", skill_key: "mock_test", score: null, difficulty_level: "ket", entry_label: "KET Mock 2" },
+      { entry_type: "skill_assessment", skill_key: "listening", score: 82, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Listening 2", graded_by_teacher_id: graderId },
+      { entry_type: "skill_assessment", skill_key: "reading", score: 78, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Reading 2", graded_by_teacher_id: graderId },
+      { entry_type: "mock_test", skill_key: "mock_test", score: null, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Mock 2" },
     ])),
   });
   expect(second.status).toBe(200);

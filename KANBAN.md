@@ -14,6 +14,17 @@
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
+## IN PROGRESS - STUDENT PROGRESS EVIDENCE SEMANTICS + REVIEW DATA (2026-08-06)
+
+**Objective:** separate Cambridge exam set/level from task difficulty, keep data migration lossless, remove duplicated quick-entry UI from the aggregate report, and provide clearly labelled review data without affecting attendance or finance.
+
+| Task ID | Description | Status | Evidence |
+| --- | --- | --- | --- |
+| SPSEM-2026-08-06-01 | Split `exam_set_level` from `difficulty_level` across Prisma, API, analytics and UI | IN PROGRESS | Focused contracts and migration pending |
+| SPSEM-2026-08-06-02 | Remove aggregate-report quick entry; retain editing in the per-student dashboard | PLANNED | Frontend source/browser evidence pending |
+| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | PLANNED | Seed/readback evidence pending |
+| SPSEM-2026-08-06-04 | Deploy and run authenticated browser smoke on production | PLANNED | Deployment and screenshots pending |
+
 ## IMPLEMENTED - ATTENDANCE WEEK SELECTION DURING METADATA REFRESH (2026-07-17)
 
 **Objective:** fix the operator-reported regression where past/future month week rows appeared clickable but did not open the weekly attendance panel while week metadata was refreshing.

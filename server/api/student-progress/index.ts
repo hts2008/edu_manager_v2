@@ -34,6 +34,7 @@ import {
   buildProgressRevisionSnapshot,
   normalizeReopenReason,
 } from "../../../lib/student-progress-finalization.js";
+import { normalizeProgressEntrySemantics } from "../../../lib/progress-difficulty.js";
 import {
   studentProgressUpsertSchema,
   validateBody,
@@ -48,6 +49,20 @@ const SKILL_KEYS: ProgressSkillKey[] = [
   "daily_practice",
   "mock_test",
 ];
+
+function progressEntryExamSet(entry: any) {
+  return normalizeProgressEntrySemantics(
+    entry.examSetLevel,
+    entry.difficultyLevel
+  ).examSetLevel;
+}
+
+function progressEntryDifficulty(entry: any) {
+  return normalizeProgressEntrySemantics(
+    entry.examSetLevel,
+    entry.difficultyLevel
+  ).difficultyLevel;
+}
 
 function assertAdminAction(req: AuthedRequest, action: "finalize" | "reopen") {
   if (req.user.role === "admin") return;
@@ -122,7 +137,8 @@ function progressMonthToDto(record: any) {
         skill_key: entry.skillKey,
         score: entry.score,
         shield_count: entry.shieldCount,
-        difficulty_level: entry.difficultyLevel,
+        exam_set_level: progressEntryExamSet(entry),
+        difficulty_level: progressEntryDifficulty(entry),
         entry_label: entry.entryLabel,
         graded_by_teacher_id: entry.gradedByTeacherId,
         note: entry.note,
@@ -185,7 +201,8 @@ function recordToSnapshot(record: any): ProgressMonthSnapshot {
         skill_key: entry.skillKey,
         score: entry.score,
         shield_count: entry.shieldCount,
-        difficulty_level: entry.difficultyLevel,
+        exam_set_level: progressEntryExamSet(entry),
+        difficulty_level: progressEntryDifficulty(entry),
         entry_label: entry.entryLabel,
         graded_by_teacher_id: entry.gradedByTeacherId,
         note: entry.note,
@@ -561,7 +578,8 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       skill_key: entry.skillKey,
       score: entry.score,
       shield_count: entry.shieldCount,
-      difficulty_level: entry.difficultyLevel,
+      exam_set_level: progressEntryExamSet(entry),
+      difficulty_level: progressEntryDifficulty(entry),
       entry_label: entry.entryLabel,
       graded_by_teacher_id: entry.gradedByTeacherId,
       note: entry.note,

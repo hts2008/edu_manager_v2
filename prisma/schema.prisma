@@ -915,6 +915,7 @@ model StudentProgressDailyEntry {
   skillKey          String?           @map("skill_key")
   score             Float?            @map("score")
   shieldCount       Int               @default(0) @map("shield_count")
+  examSetLevel      String?           @map("exam_set_level")
   difficultyLevel   String?           @map("difficulty_level")
   entryLabel        String?           @map("entry_label")
   gradedByTeacherId String?           @map("graded_by_teacher_id")

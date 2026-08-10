@@ -22,9 +22,9 @@ const records = [
     trackKey: "flyers",
     finalizedAt: null,
     dailyEntries: [
-      { id: "e1", entryDate: new Date("2026-06-01T00:00:00Z"), entryType: "mock_test", skillKey: "listening", score: 60, difficultyLevel: "flyers", entryLabel: "Test 1", shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
-      { id: "e2", entryDate: new Date("2026-06-03T00:00:00Z"), entryType: "mock_test", skillKey: "listening", score: 80, difficultyLevel: "ket", entryLabel: "Test 2", shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
-      { id: "e3", entryDate: new Date("2026-06-03T00:00:00Z"), entryType: "skill_assessment", skillKey: "speaking", score: null, difficultyLevel: "flyers", entryLabel: null, shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
+      { id: "e1", entryDate: new Date("2026-06-01T00:00:00Z"), entryType: "mock_test", skillKey: "listening", score: 60, examSetLevel: "flyers", difficultyLevel: "medium", entryLabel: "Test 1", shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
+      { id: "e2", entryDate: new Date("2026-06-03T00:00:00Z"), entryType: "mock_test", skillKey: "listening", score: 80, examSetLevel: "ket", difficultyLevel: "hard", entryLabel: "Test 2", shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
+      { id: "e3", entryDate: new Date("2026-06-03T00:00:00Z"), entryType: "skill_assessment", skillKey: "speaking", score: null, examSetLevel: "flyers", difficultyLevel: "easy", entryLabel: null, shieldCount: 0, note: null, gradedByTeacherId: null, gradedByTeacher: null },
     ],
   },
 ];
@@ -47,6 +47,8 @@ describe("student progress timeline domain", () => {
     assert.equal(result.days.length, 2);
     assert.equal(result.days[0]?.skills.listening.raw_score, 60);
     assert.equal(result.days[1]?.skills.listening.weighted_score, 92);
+    assert.equal(result.days[1]?.entries[0]?.exam_set_level, "ket");
+    assert.equal(result.days[1]?.entries[0]?.difficulty_level, "hard");
     assert.equal(result.days[1]?.skills.speaking.raw_score, null);
     assert.equal(result.days[1]?.delta, 20);
     const listening = result.series.listening;

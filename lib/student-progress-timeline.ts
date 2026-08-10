@@ -1,4 +1,8 @@
-import { computeWeightedScore, getDifficultyWeight } from "./progress-difficulty.js";
+import {
+  computeWeightedScore,
+  getDifficultyWeight,
+  normalizeProgressEntrySemantics,
+} from "./progress-difficulty.js";
 import { PROGRESS_SKILL_LABELS } from "./student-progress-assessment.js";
 
 export type TimelineGranularity = "day" | "week" | "month";
@@ -11,6 +15,7 @@ type TimelineEntry = {
   skillKey?: string | null;
   score?: number | null;
   shieldCount?: number | null;
+  examSetLevel?: string | null;
   difficultyLevel?: string | null;
   entryLabel?: string | null;
   note?: string | null;
@@ -122,7 +127,11 @@ export function buildStudentProgressTimeline(
           skillEntries.map((entry) =>
             computeWeightedScore(
               entry.score,
-              getDifficultyWeight(entry.difficultyLevel, entry.classTrackKey)
+              getDifficultyWeight(
+                entry.examSetLevel,
+                entry.classTrackKey,
+                entry.difficultyLevel
+              )
             )
           )
         ),
@@ -151,9 +160,20 @@ export function buildStudentProgressTimeline(
         score: entry.score ?? null,
         weighted_score: computeWeightedScore(
           entry.score,
-          getDifficultyWeight(entry.difficultyLevel, entry.classTrackKey)
+          getDifficultyWeight(
+            entry.examSetLevel,
+            entry.classTrackKey,
+            entry.difficultyLevel
+          )
         ),
-        difficulty_level: entry.difficultyLevel || null,
+        exam_set_level: normalizeProgressEntrySemantics(
+          entry.examSetLevel,
+          entry.difficultyLevel
+        ).examSetLevel,
+        difficulty_level: normalizeProgressEntrySemantics(
+          entry.examSetLevel,
+          entry.difficultyLevel
+        ).difficultyLevel,
         entry_label: entry.entryLabel || null,
         shield_count: entry.shieldCount || 0,
         note: entry.note || null,

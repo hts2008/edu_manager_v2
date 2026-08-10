@@ -23,6 +23,7 @@ import {
   type ProgressSkillKey,
 } from "../../../lib/student-progress-assessment.js";
 import { assertProgressMonthEditable } from "../../../lib/student-progress-finalization.js";
+import { normalizeProgressEntrySemantics } from "../../../lib/progress-difficulty.js";
 import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
 import {
   deriveMockTestScores,
@@ -49,6 +50,10 @@ function nextDate(value: Date) {
 }
 
 function dailyEntryToDto(entry: any) {
+  const semantics = normalizeProgressEntrySemantics(
+    entry.examSetLevel,
+    entry.difficultyLevel
+  );
   return {
     id: entry.id,
     entry_date: toDateOnly(entry.entryDate),
@@ -56,7 +61,8 @@ function dailyEntryToDto(entry: any) {
     skill_key: entry.skillKey,
     score: entry.score,
     shield_count: entry.shieldCount,
-    difficulty_level: entry.difficultyLevel,
+    exam_set_level: semantics.examSetLevel,
+    difficulty_level: semantics.difficultyLevel,
     entry_label: entry.entryLabel,
     graded_by_teacher_id: entry.gradedByTeacherId,
     note: entry.note,
@@ -359,16 +365,23 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
     );
   }
 
-  const normalizedEntries = body.entries.map((entry) => ({
-    entryType: entry.entry_type,
-    skillKey: entry.skill_key || null,
-    score: entry.score ?? null,
-    shieldCount: entry.shield_count || 0,
-    difficultyLevel: entry.difficulty_level || null,
-    entryLabel: entry.entry_label || null,
-    gradedByTeacherId: entry.graded_by_teacher_id || null,
-    note: entry.note || null,
-  }));
+  const normalizedEntries = body.entries.map((entry) => {
+    const semantics = normalizeProgressEntrySemantics(
+      entry.exam_set_level,
+      entry.difficulty_level
+    );
+    return {
+      entryType: entry.entry_type,
+      skillKey: entry.skill_key || null,
+      score: entry.score ?? null,
+      shieldCount: entry.shield_count || 0,
+      examSetLevel: semantics.examSetLevel,
+      difficultyLevel: semantics.difficultyLevel,
+      entryLabel: entry.entry_label || null,
+      gradedByTeacherId: entry.graded_by_teacher_id || null,
+      note: entry.note || null,
+    };
+  });
   if (
     body.note?.trim() &&
     !normalizedEntries.some(
@@ -380,6 +393,7 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
       skillKey: null,
       score: null,
       shieldCount: 0,
+      examSetLevel: null,
       difficultyLevel: null,
       entryLabel: null,
       gradedByTeacherId: null,
@@ -433,6 +447,7 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
           skillKey: entry.skillKey,
           score: entry.score,
           shieldCount: entry.shieldCount,
+          examSetLevel: entry.examSetLevel,
           difficultyLevel: entry.difficultyLevel,
           entryLabel: entry.entryLabel,
           gradedByTeacherId: entry.gradedByTeacherId,

@@ -11,7 +11,7 @@ const ENTRY_TYPES = [
   { value: "daily_practice", label: "Luyện tập hằng ngày" },
 ];
 
-const DIFFICULTIES = [
+const EXAM_SET_LEVELS = [
   { value: "starters", label: "Pre A1 Starters" },
   { value: "movers", label: "A1 Movers" },
   { value: "flyers", label: "A2 Flyers" },
@@ -19,10 +19,17 @@ const DIFFICULTIES = [
   { value: "pet", label: "B1 Preliminary / PET" },
 ];
 
-export function createEmptyProgressDayForm(defaultDifficulty = "") {
+const DIFFICULTY_LEVELS = [
+  { value: "easy", label: "Dễ" },
+  { value: "medium", label: "Trung bình" },
+  { value: "hard", label: "Khó" },
+];
+
+export function createEmptyProgressDayForm(defaultExamSetLevel = "") {
   return {
     entry_type: "skill_assessment",
-    difficulty_level: DIFFICULTIES.some((item) => item.value === defaultDifficulty) ? defaultDifficulty : "",
+    exam_set_level: EXAM_SET_LEVELS.some((item) => item.value === defaultExamSetLevel) ? defaultExamSetLevel : "",
+    difficulty_level: "",
     entry_label: "",
     graded_by_teacher_id: "",
     shield_count: "0",
@@ -36,7 +43,7 @@ export function createEmptyProgressDayForm(defaultDifficulty = "") {
   };
 }
 
-export function buildProgressDayForm(payload, defaultDifficulty = "") {
+export function buildProgressDayForm(payload, defaultExamSetLevel = "") {
   const entries = payload?.daily_entries || [];
   const editSafety = analyzeDailyEntriesForGrid(entries);
   const scoreEntries = entries.filter((entry) => entry.skill_key && entry.score !== null);
@@ -44,9 +51,10 @@ export function buildProgressDayForm(payload, defaultDifficulty = "") {
   const first = evidenceEntry || scoreEntries[0] || entries[0];
   const scores = new Map(scoreEntries.map((entry) => [entry.skill_key, entry.score]));
   return {
-    ...createEmptyProgressDayForm(defaultDifficulty),
+    ...createEmptyProgressDayForm(defaultExamSetLevel),
     entry_type: first?.entry_type && first.entry_type !== "shield" && first.entry_type !== "note" ? first.entry_type : "skill_assessment",
-    difficulty_level: first?.difficulty_level || defaultDifficulty || "",
+    exam_set_level: first?.exam_set_level || defaultExamSetLevel || "",
+    difficulty_level: first?.difficulty_level || "",
     entry_label: first?.entry_label || "",
     graded_by_teacher_id: first?.graded_by_teacher_id || "",
     shield_count: String(entries.reduce((sum, entry) => sum + Number(entry.shield_count || 0), 0)),
@@ -128,7 +136,7 @@ export default function ProgressDailyEntryForm({
           </div>
         )}
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <label className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">
             Ngày đánh giá
             <input className="input mt-2 w-full" type="date" value={entryDate} onChange={(event) => onDateChange(event.target.value)} data-testid="progress-entry-date" />
@@ -140,10 +148,17 @@ export default function ProgressDailyEntryForm({
             </select>
           </label>
           <label className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">
-            Độ khó đề / bài
+            Bộ đề / cấp độ
+            <select className="input mt-2 w-full" value={form.exam_set_level} onChange={(event) => setField("exam_set_level", event.target.value)} disabled={editBlocked} aria-describedby={editBlocked ? "progress-day-edit-safety" : undefined} data-testid="progress-entry-exam-set">
+              <option value="">Không quy đổi cấp độ</option>
+              {EXAM_SET_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+            Độ khó
             <select className="input mt-2 w-full" value={form.difficulty_level} onChange={(event) => setField("difficulty_level", event.target.value)} disabled={editBlocked} aria-describedby={editBlocked ? "progress-day-edit-safety" : undefined} data-testid="progress-entry-difficulty">
-              <option value="">Không quy đổi</option>
-              {DIFFICULTIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              <option value="">Chưa đánh giá</option>
+              {DIFFICULTY_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
           <label className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">

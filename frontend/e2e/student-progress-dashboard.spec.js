@@ -115,7 +115,7 @@ function timelinePayload(store, from, to) {
 
 async function mockDashboard(page) {
   const store = new Map([
-    ["2026-06-10", [{ entry_type: "skill_assessment", skill_key: "listening", score: 60, difficulty_level: "flyers", entry_label: "Flyers Test 1" }]],
+    ["2026-06-10", [{ entry_type: "skill_assessment", skill_key: "listening", score: 60, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Test 1" }]],
   ]);
   const timelineRequests = [];
   await page.addInitScript(() => {
@@ -216,14 +216,15 @@ test("list to detail supports daily evidence, ranges, charts and authenticated P
   await form.getByTestId("progress-entry-date").fill("2026-06-12");
   await expect(form.getByText(/Đang tải|Dang tai/)).toBeHidden();
   await form.getByTestId("progress-entry-type").selectOption("mock_test");
-  await form.getByTestId("progress-entry-difficulty").selectOption("ket");
+  await form.getByTestId("progress-entry-exam-set").selectOption("ket");
+  await form.getByTestId("progress-entry-difficulty").selectOption("hard");
   await form.getByTestId("progress-entry-label").fill("KET Practice Test 2");
   await form.getByTestId("progress-entry-skill-listening").fill("80");
   await form.getByTestId("progress-entry-note").fill("Luyện nghe ngoài lịch học chính khóa.");
   await form.getByTestId("save-progress-day").click();
   await expect(form.getByText("Đã lưu evidence ngày 2026-06-12.")).toBeVisible();
   expect(store.has("2026-06-10")).toBeTruthy();
-  expect(store.get("2026-06-12")?.some((entry) => entry.difficulty_level === "ket")).toBeTruthy();
+  expect(store.get("2026-06-12")?.some((entry) => entry.exam_set_level === "ket" && entry.difficulty_level === "hard")).toBeTruthy();
   await expect(page.getByTestId("progress-timeline-table")).toContainText("12/06/2026");
   await expect(page.getByTestId("progress-timeline-table")).toContainText("+20");
 
