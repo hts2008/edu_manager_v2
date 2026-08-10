@@ -10,20 +10,28 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commits `39e4fb6` + `4834e3f` + `c244e8e`, Vercel `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`, Audit V2 migrations/backup/auth/Chrome gates verified |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commit `9ca29c6`, Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, Student Progress semantics/review-data closeout deployed and static-smoked |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
-## IN PROGRESS - STUDENT PROGRESS EVIDENCE SEMANTICS + REVIEW DATA (2026-08-06)
+## IMPLEMENTED - STUDENT PROGRESS EVIDENCE SEMANTICS + REVIEW DATA (2026-08-10)
 
 **Objective:** separate Cambridge exam set/level from task difficulty, keep data migration lossless, remove duplicated quick-entry UI from the aggregate report, and provide clearly labelled review data without affecting attendance or finance.
 
 | Task ID | Description | Status | Evidence |
 | --- | --- | --- | --- |
-| SPSEM-2026-08-06-01 | Split `exam_set_level` from `difficulty_level` across Prisma, API, analytics and UI | IN PROGRESS | Focused contracts and migration pending |
-| SPSEM-2026-08-06-02 | Remove aggregate-report quick entry; retain editing in the per-student dashboard | PLANNED | Frontend source/browser evidence pending |
-| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | PLANNED | Seed/readback evidence pending |
-| SPSEM-2026-08-06-04 | Deploy and run authenticated browser smoke on production | PLANNED | Deployment and screenshots pending |
+| SPSEM-2026-08-06-01 | Split `exam_set_level` from `difficulty_level` across Prisma, API, analytics and UI | IMPLEMENTED | `tests/student-progress-daily-api.test.ts`, `tests/progress-difficulty.test.ts`, `npx tsc --noEmit`, Prisma validate/status |
+| SPSEM-2026-08-06-02 | Remove aggregate-report quick entry; retain editing in the per-student dashboard | IMPLEMENTED | Production bundle has `Mở dashboard học viên` and no `Cập nhật tiến độ tháng` / `Điền nhanh` markers in report chunk |
+| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | IMPLEMENTED | `scripts/student-progress-review-demo.ts`; safety test 4/4; preview env identity absent so no production data seeded |
+| SPSEM-2026-08-06-04 | Deploy and run production smoke | IMPLEMENTED | Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`; static production chunk smoke passed; authenticated smoke blocked by absent operator credential |
+
+**Production:** commit `9ca29c6` is pushed to `origin/main`, deployed as `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, and aliased to `https://edu-manager-gules.vercel.app`.
+
+**Verification:** root unit `523/523`, frontend unit `52/52`, focused Student Progress semantics/demo tests `27/27`, TypeScript, frontend lint, production build, Prisma validate/status, root/frontend audits, diff-check and independent reviewer `GO` passed. Production static smoke verified the canonical alias serves `index-DOGtm7sb.js`, `StudentProgressReportPage-CgHwZrEx.js` and `StudentProgressDetailPage-DJXyFcu0.js`; the detail chunk contains `Bộ đề / cấp độ` and `Độ khó`, while the report chunk contains `Mở dashboard học viên` and no aggregate quick-entry labels.
+
+**Evidence:** `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`; `docs/artifacts/student-progress-2026-08-10/README.md`.
+
+**Boundary:** production credentials are operator-managed and absent from source control; authenticated click-through was not fabricated. Demo review data is guarded to non-production preview identities and was not seeded because `STUDENT_PROGRESS_DEMO_*` env identity was absent in this shell.
 
 ## IMPLEMENTED - ATTENDANCE WEEK SELECTION DURING METADATA REFRESH (2026-07-17)
 

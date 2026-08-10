@@ -1,5 +1,19 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## 2026-08-10 Handoff - Student Progress Evidence Semantics + Review Data
+- **Outcome**: Student Progress semantics/review-data track is production-live and project-control closeout is recorded.
+- **Code/Deploy**: commit `9ca29c6`; Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`; alias `https://edu-manager-gules.vercel.app`.
+- **Invariant**: do not recombine `exam_set_level` and `difficulty_level`. Cambridge levels (`starters`, `movers`, `flyers`, `ket`, `pet`) are exam-set/curriculum metadata. Exercise difficulty is only `easy`, `medium`, `hard`.
+- **Compatibility**: keep accepting legacy Cambridge values in `difficulty_level` at the API boundary for cached clients, then normalize them before persistence.
+- **UI Boundary**: do not reintroduce aggregate-report quick entry on `/student-progress`. Monthly/daily academic input belongs in the per-student dashboard where dated evidence can be reviewed.
+- **Demo Boundary**: demo data must remain namespaced `demo-sp-review-v1`, reversible, and preview-only. The script must require `STUDENT_PROGRESS_DEMO_CONFIRM`, `STUDENT_PROGRESS_DEMO_TARGET=preview`, exact endpoint/database identity, and must reject the production Neon endpoint.
+- **Verification**: root unit `523/523`, frontend unit `52/52`, focused Student Progress semantics/demo tests `27/27`, TypeScript, lint, build, Prisma validate/status, audits, diff-check, independent reviewer `GO`, and production static chunk smoke passed.
+- **Production Evidence**: report chunk contains `Mở dashboard học viên` and no old quick-entry markers; detail chunk contains `Bộ đề / cấp độ` and `Độ khó`.
+- **Boundary**: authenticated click-through was not fabricated because production credential/session is operator-managed and unavailable in this shell. Demo fixture was not applied because preview identity vars were absent; no production review data was seeded.
+- **Evidence**: `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`; `docs/artifacts/student-progress-2026-08-10/README.md`.
+
+---
+
 ## 2026-08-03 Handoff - Audit V2 Production Remediation
 - **Outcome**: Audit V2 production remediation is deployed and independently verified at `https://edu-manager-gules.vercel.app`.
 - **Code/Deploy**: commits `39e4fb6`, `4834e3f`, `c244e8e`; Vercel `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`.

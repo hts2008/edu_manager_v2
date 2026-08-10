@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: operator-managed credential; production secret is not stored in source control.
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment**: `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`, aliased to `https://edu-manager-gules.vercel.app`, after Audit V2 remediation, secret rotation and frontend transitive security refresh.
+- **Latest production deployment**: `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, aliased to `https://edu-manager-gules.vercel.app`, after Student Progress evidence semantics/review-data closeout.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Audit V2 Remediation Closeout (2026-08-03)
@@ -19,6 +19,14 @@
 - Authenticated Google Chrome regression passed 44/44 scenarios over 22 routes x desktop/mobile. A second smoke on the final deployment passed 8/8 critical-route scenarios; both reported zero horizontal document overflow and zero API/console/page errors.
 - Context+ and Neural Memory tools were not exposed in this Codex turn; markdown-only project memory was used and this degradation is recorded in the handoff.
 - Residual accepted items: frontend React Router audit advisory without patched release (BrowserRouter app, no RSC), Node `url.parse` deprecation noise, and separately planned schema/CRUD hygiene items.
+
+## Student Progress Evidence Semantics + Review Data Closeout (2026-08-10)
+- Commit `9ca29c6` separates Student Progress `exam_set_level` from `difficulty_level` end-to-end. `exam_set_level` is Cambridge curriculum/exam-set metadata; `difficulty_level` is task calibration (`easy|medium|hard`) and legacy Cambridge values are still accepted at the API boundary for cached clients before being normalized.
+- The aggregate `/student-progress` report no longer embeds the duplicate monthly quick-entry form. It directs operators to the per-student dashboard for dated daily evidence entry.
+- Review demo data is implemented by `scripts/student-progress-review-demo.ts` with namespace `demo-sp-review-v1`, `apply|verify|cleanup`, exact preview DB identity checks, and a hard production endpoint rejection. The current shell has no `STUDENT_PROGRESS_DEMO_*` preview identity, so no DB was mutated for demo seeding.
+- Production Vercel deployment `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz` is Ready and aliased to `https://edu-manager-gules.vercel.app`. Static production smoke verified `StudentProgressReportPage-CgHwZrEx.js` contains `Mở dashboard học viên` and no quick-entry markers, while `StudentProgressDetailPage-DJXyFcu0.js` contains `Bộ đề / cấp độ` and `Độ khó`.
+- Verification passed: root unit `523/523`, frontend unit `52/52`, focused semantics/demo tests `27/27`, TypeScript, frontend lint, production build, Prisma validate/status, root/frontend audits, diff-check and independent reviewer `GO`.
+- Boundary: production credential is operator-managed and not stored in source control, so authenticated production click-through was not fabricated. Use static asset smoke plus unauthenticated 401 boundaries until an operator session is available.
 
 ## Core Ledger Remediation (2026-07-11)
 - Attendance locking now reconciles only the locked class allocation and uses UTC half-open month ranges.

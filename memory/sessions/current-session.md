@@ -1,5 +1,17 @@
 # Current Session
 
+## Latest Closeout - 2026-08-10
+
+- Objective: complete Student Progress evidence semantics and review-data closeout.
+- Code: commit `9ca29c6`; production deployment `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`.
+- Semantics: `exam_set_level` is Cambridge curriculum/exam-set metadata; `difficulty_level` is task difficulty. Cached-client legacy Cambridge difficulty values are normalized safely at the API boundary.
+- UI: aggregate `/student-progress` no longer contains the duplicate monthly quick-entry form; operators open the per-student dashboard for dated daily evidence input.
+- Demo data: `scripts/student-progress-review-demo.ts` creates three namespaced review scenarios and supports `apply|verify|cleanup`, but requires exact non-production preview DB identity. The current shell had no `STUDENT_PROGRESS_DEMO_*` vars, so no demo records were inserted into production.
+- Verification: root unit `523/523`, frontend unit `52/52`, focused semantics/demo tests `27/27`, TypeScript, frontend lint, production build, Prisma validate/status, audits, diff-check, independent reviewer `GO`, Vercel inspect Ready, and production static chunk smoke passed.
+- Evidence: `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`, `docs/artifacts/student-progress-2026-08-10/README.md`.
+- Boundary: production login is operator-managed and not stored in source control; authenticated browser smoke was not fabricated without a valid session.
+- Tooling: ClaudeKit TeamCreate is unavailable in Codex; authorized Codex subagents completed read-only production/evidence review and were closed.
+
 ## Latest Closeout - 2026-08-03
 
 - Objective: complete `Audit_V2.md` remediation through production deploy, verification and release evidence.

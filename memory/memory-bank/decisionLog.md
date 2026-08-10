@@ -394,3 +394,11 @@
 **Decision**: Keep object URLs alive while the preview exists; revoke them on preview `beforeunload`/`pagehide` or opener unload. Revoke immediately on popup creation failure.
 **Rationale**: Browser-window lifecycle is the actual ownership boundary; elapsed time is not.
 **Status**: IMPLEMENTED in `c23d9a9` and verified in the canonical production asset.
+
+### ADR-57: Student Progress Exam Set Level Is Curriculum Metadata, Difficulty Level Is Task Calibration
+
+**Date**: 2026-08-10
+**Context**: The Student Progress editor previously exposed Cambridge tracks such as Starters, Movers, Flyers, KET and PET in the same control that teachers read as task difficulty. This confused "bộ đề/cấp độ" with "độ khó bài" and made review data harder to interpret.
+**Decision**: Store and expose `exam_set_level` separately from `difficulty_level`. `exam_set_level` captures Cambridge curriculum/exam-set metadata (`starters`, `movers`, `flyers`, `ket`, `pet`). `difficulty_level` captures task calibration only (`easy`, `medium`, `hard`). The API still accepts legacy Cambridge values sent as `difficulty_level` by cached clients, normalizes them into `exam_set_level`, and stores `difficulty_level` as `null` unless an actual task difficulty was supplied.
+**Rationale**: Curriculum level and exercise difficulty are independent assessment dimensions. Keeping them separate preserves raw academic evidence, avoids hidden score inflation, and lets reports explain whether a learner is improving because they scored higher, moved to a harder set, or practiced harder tasks.
+**Status**: IMPLEMENTED in `9ca29c6`; production static smoke passed on Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`.

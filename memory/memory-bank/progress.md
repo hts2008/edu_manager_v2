@@ -1074,3 +1074,14 @@
 - Fixed the observed long-lived PDF preview failure by tying object URL cleanup to preview/opener lifecycle rather than 60/120-second timers; verified the exact canonical production asset.
 - Released commits `3f22dd5` and `c23d9a9` through deployment `dpl_215rbfRy5TrpY8UMZpEb6LoPXGys` to `https://edu-manager-gules.vercel.app`.
 - Evidence: `receipts/2026-08-06-student-progress-dashboard-closeout.md` and `docs/artifacts/student-progress-2026-08-03/`.
+
+## 2026-08-10 - Student Progress evidence semantics and review data closeout
+
+- Closed `SPSEM-2026-08-06-01..04`: `exam_set_level` and `difficulty_level` are now separate schema/API/UI concepts; legacy Cambridge values sent as `difficulty_level` remain accepted and are normalized for cached clients.
+- Removed the duplicate aggregate-report quick-entry form from `/student-progress`; editing stays in the per-student dashboard through dated daily evidence entries.
+- Added guarded review/demo fixture script `scripts/student-progress-review-demo.ts` with namespace `demo-sp-review-v1`, `apply|verify|cleanup`, preview-first identity checks and explicit production endpoint rejection.
+- Verification passed: root unit `523/523`, frontend unit `52/52`, focused Student Progress semantics/demo tests `27/27`, TypeScript, frontend lint, production build, Prisma validate/status, root/frontend audits, diff-check, and independent reviewer `GO`.
+- Deployed commit `9ca29c6` to production as Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, aliased to `https://edu-manager-gules.vercel.app`.
+- Production static smoke verified `StudentProgressReportPage-CgHwZrEx.js` contains `Mở dashboard học viên` and no old quick-entry markers; `StudentProgressDetailPage-DJXyFcu0.js` contains `Bộ đề / cấp độ` and `Độ khó`.
+- Boundary: authenticated click-through was not fabricated because the production credential/session is operator-managed and unavailable in this shell. Demo fixture was not applied because `STUDENT_PROGRESS_DEMO_*` preview identity vars are absent; no production demo data was seeded.
+- Evidence: `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`; `docs/artifacts/student-progress-2026-08-10/README.md`.
