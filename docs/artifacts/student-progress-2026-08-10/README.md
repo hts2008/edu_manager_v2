@@ -60,6 +60,8 @@ The review/demo fixture exists at `scripts/student-progress-review-demo.ts` and 
 - `[DEMO] Trần Gia Bình`: stable profile.
 - `[DEMO] Lê Khánh Chi`: needs-support profile.
 
+For review without database mutation, the same scenario shape is captured in `review-demo-data.json`.
+
 The fixture is intentionally guarded:
 
 - Namespace: `demo-sp-review-v1`.

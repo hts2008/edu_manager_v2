@@ -73,6 +73,8 @@ The fixture records `exam_set_level: "flyers"` separately from daily task diffic
 
 The script supports `apply`, `verify` and `cleanup`, uses namespace `demo-sp-review-v1`, runs in a serializable transaction and requires exact non-production preview DB identity. It rejects the known production Neon endpoint independently.
 
+For review without DB mutation, the static fixture lives at `docs/artifacts/student-progress-2026-08-10/review-demo-data.json`.
+
 ## Release Safety
 
 - No secret, credential, token or database URL is included in this receipt.

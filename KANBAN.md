@@ -22,7 +22,7 @@
 | --- | --- | --- | --- |
 | SPSEM-2026-08-06-01 | Split `exam_set_level` from `difficulty_level` across Prisma, API, analytics and UI | IMPLEMENTED | `tests/student-progress-daily-api.test.ts`, `tests/progress-difficulty.test.ts`, `npx tsc --noEmit`, Prisma validate/status |
 | SPSEM-2026-08-06-02 | Remove aggregate-report quick entry; retain editing in the per-student dashboard | IMPLEMENTED | Production bundle has `Mở dashboard học viên` and no `Cập nhật tiến độ tháng` / `Điền nhanh` markers in report chunk |
-| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | IMPLEMENTED | `scripts/student-progress-review-demo.ts`; safety test 4/4; preview env identity absent so no production data seeded |
+| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | IMPLEMENTED | `scripts/student-progress-review-demo.ts`; `docs/artifacts/student-progress-2026-08-10/review-demo-data.json`; safety test 4/4; preview env identity absent so no production data seeded |
 | SPSEM-2026-08-06-04 | Deploy and run production smoke | IMPLEMENTED | Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`; static production chunk smoke passed; authenticated smoke blocked by absent operator credential |
 
 **Production:** commit `9ca29c6` is pushed to `origin/main`, deployed as `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, and aliased to `https://edu-manager-gules.vercel.app`.

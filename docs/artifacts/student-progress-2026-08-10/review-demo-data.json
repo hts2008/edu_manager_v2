@@ -1,0 +1,87 @@
+{
+  "namespace": "demo-sp-review-v1",
+  "purpose": "Static review fixture for Student Progress UI/content review without mutating production data.",
+  "track": {
+    "exam_set_level": "flyers",
+    "label": "A2 Flyers"
+  },
+  "difficulty_scale": [
+    { "value": "easy", "label": "Dễ" },
+    { "value": "medium", "label": "Trung bình" },
+    { "value": "hard", "label": "Khó" }
+  ],
+  "months": ["2026-06", "2026-07", "2026-08"],
+  "students": [
+    {
+      "student_id": "demo-sp-review-v1-student-01",
+      "student_name": "[DEMO] Nguyễn Minh An",
+      "parent_name": "[DEMO] Phụ huynh Minh An",
+      "scenario": "Tiến bộ tốt",
+      "focus_history": ["speaking", "writing", "writing"],
+      "monthly_scores": [
+        { "month": "2026-06", "overall": 61, "readiness": "watch" },
+        { "month": "2026-07", "overall": 73, "readiness": "on_track" },
+        { "month": "2026-08", "overall": 84, "readiness": "on_track" }
+      ],
+      "daily_template": [
+        { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
+      ],
+      "parent_summary": "Minh An tăng đều qua 3 tháng, cần duy trì viết câu hoàn chỉnh và luyện nói theo chủ đề."
+    },
+    {
+      "student_id": "demo-sp-review-v1-student-02",
+      "student_name": "[DEMO] Trần Gia Bình",
+      "parent_name": "[DEMO] Phụ huynh Gia Bình",
+      "scenario": "Ổn định",
+      "focus_history": ["writing", "writing", "speaking"],
+      "monthly_scores": [
+        { "month": "2026-06", "overall": 75, "readiness": "on_track" },
+        { "month": "2026-07", "overall": 77, "readiness": "on_track" },
+        { "month": "2026-08", "overall": 78, "readiness": "on_track" }
+      ],
+      "daily_template": [
+        { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
+      ],
+      "parent_summary": "Gia Bình giữ phong độ ổn định, nên tăng độ khó bài nói và kiểm soát lỗi viết lặp lại."
+    },
+    {
+      "student_id": "demo-sp-review-v1-student-03",
+      "student_name": "[DEMO] Lê Khánh Chi",
+      "parent_name": "[DEMO] Phụ huynh Khánh Chi",
+      "scenario": "Cần hỗ trợ",
+      "focus_history": ["reading", "listening", "listening"],
+      "monthly_scores": [
+        { "month": "2026-06", "overall": 71, "readiness": "watch" },
+        { "month": "2026-07", "overall": 63, "readiness": "needs_support" },
+        { "month": "2026-08", "overall": 56, "readiness": "needs_support" }
+      ],
+      "daily_template": [
+        { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
+      ],
+      "parent_summary": "Khánh Chi đang giảm điểm khi đề khó hơn, cần ưu tiên luyện nghe chi tiết và đọc hiểu theo đoạn ngắn."
+    }
+  ],
+  "skills": [
+    "listening",
+    "speaking",
+    "reading",
+    "writing",
+    "homework",
+    "daily_practice",
+    "mock_test"
+  ],
+  "production_safety": {
+    "database_mutation": false,
+    "source_script": "scripts/student-progress-review-demo.ts",
+    "requires_preview_identity": true
+  }
+}
