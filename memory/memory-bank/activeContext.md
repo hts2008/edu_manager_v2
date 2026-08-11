@@ -36,6 +36,7 @@
 - Authenticated local browser verification rendered five students, fifteen report rows, KPI/chart data and a populated student detail timeline with no console errors. Production data and finance truth were not mutated.
 - Independent review hardening now derives each evidence label from that month's `exam_set_level` and requires every review target database name to contain `review`, `preview`, `demo`, or `test`; readback confirmed Movers-to-KET history labels are correct.
 - Final reviewer P1 was resolved by preserving complete loopback hostnames in the endpoint parser; `127.0.0.1` verification now passes. Final gates: fixture `6/6`, root unit `525/525`, TypeScript pass.
+- Commit `80b815d` was pushed to `origin/main` and deployed to Vercel production as `dpl_BxYkLec32DKLjUo7eSR9soLifgHw`; canonical root and Student Progress returned 200, while the protected API returned 401 without a token. Production demo data remains prohibited and was not seeded.
 - Evidence: `receipts/2026-08-11-student-progress-review-mock-data.md`; `docs/artifacts/student-progress-2026-08-10/review-demo-browser.png`.
 
 ## Core Ledger Remediation (2026-07-11)

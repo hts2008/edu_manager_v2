@@ -1103,4 +1103,5 @@
 - Added loopback review-database support without weakening the production denylist; local databases must be explicitly named review/demo/test.
 - Isolated PostgreSQL lifecycle passed `apply -> verify -> cleanup -> apply -> verify`; authenticated browser verification showed populated list, KPIs, charts and detail timeline with zero console errors.
 - Independent review found and closed the final loopback parser edge case (`127.0.0.1`); final verification passed fixture `6/6`, root unit `525/525` and TypeScript.
+- Released commit `80b815d` through Vercel production deployment `dpl_BxYkLec32DKLjUo7eSR9soLifgHw`; canonical route smoke passed 200/200 with protected API 401 and no production seed mutation.
 - Production and operational finance/attendance truth were not modified. Evidence: `receipts/2026-08-11-student-progress-review-mock-data.md`.

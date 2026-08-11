@@ -881,6 +881,7 @@
 - **Completed**: five-profile Cambridge fixture, loopback review-DB safety guard, isolated migration/apply/verify/cleanup lifecycle, authenticated browser list/detail/chart smoke, artifact and receipt closeout.
 - **Runtime counts**: 5 students, 5 classes, 15 progress months, 105 skills, 420 daily entries, 60 class sessions and 60 attendance rows.
 - **Final gates**: fixture `6/6`, root unit `525/525`, TypeScript, authenticated API shape, timeline readback and `127.0.0.1` review-database verification pass.
+- **Release**: commit `80b815d`, Vercel `dpl_BxYkLec32DKLjUo7eSR9soLifgHw`, canonical alias `https://edu-manager-gules.vercel.app`; root/progress 200 and unauthenticated protected API 401.
 - **Boundary**: production was not seeded. Blank production rows continue to mean no real daily evidence exists for those learners.
 - **Review target**: local isolated app at `http://127.0.0.1:3000/student-progress` while the review server remains running.
 - **Evidence**: `docs/artifacts/student-progress-2026-08-10/review-demo-browser.png`; `receipts/2026-08-11-student-progress-review-mock-data.md`.

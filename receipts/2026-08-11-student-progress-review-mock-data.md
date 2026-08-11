@@ -52,3 +52,11 @@ The screenshots were from production records. Those learners do not have dated a
 ## Boundary
 
 Production was not seeded or mutated. Existing blank production rows mean the corresponding learners still need real daily academic evidence.
+
+## Release
+
+- Source commit: `80b815d` pushed to `origin/main`.
+- Vercel production deployment: `dpl_BxYkLec32DKLjUo7eSR9soLifgHw`, status `Ready`.
+- Canonical alias: `https://edu-manager-gules.vercel.app`.
+- Smoke: `/` = 200, `/student-progress` = 200, protected report API without token = 401.
+- Release includes fixture tooling and evidence only; no demo rows were inserted into the production database.
