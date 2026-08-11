@@ -1095,3 +1095,12 @@
 - Implementation commit `8112128` was pushed to `main`. Vercel deployment `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
 - Release remains blocked because canonical `https://edu-manager-gules.vercel.app` is owned by another inaccessible Vercel team. No canonical-deployed or overall-complete claim was made.
 - Evidence: `receipts/2026-08-11-authenticated-fluid-workspace-ux.md`; `docs/artifacts/ux-fluid-2026-08-11/README.md`.
+
+## 2026-08-11 - Student Progress review mock data verified end-to-end
+
+- RCA confirmed the reported blank screens were production records without daily academic evidence; the guarded mock fixture had not been applied to production by design.
+- Expanded the fixture to five Cambridge-track scenarios (Starters, Movers, Flyers, KET, PET), 15 completed student-month rows and 420 dated evidence entries while preserving separate exam-set and difficulty semantics.
+- Added loopback review-database support without weakening the production denylist; local databases must be explicitly named review/demo/test.
+- Isolated PostgreSQL lifecycle passed `apply -> verify -> cleanup -> apply -> verify`; authenticated browser verification showed populated list, KPIs, charts and detail timeline with zero console errors.
+- Independent review found and closed the final loopback parser edge case (`127.0.0.1`); final verification passed fixture `6/6`, root unit `525/525` and TypeScript.
+- Production and operational finance/attendance truth were not modified. Evidence: `receipts/2026-08-11-student-progress-review-mock-data.md`.

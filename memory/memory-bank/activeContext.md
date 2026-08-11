@@ -28,6 +28,16 @@
 - Verification passed: root unit `523/523`, frontend unit `52/52`, focused semantics/demo tests `27/27`, TypeScript, frontend lint, production build, Prisma validate/status, root/frontend audits, diff-check and independent reviewer `GO`.
 - Boundary: production credential is operator-managed and not stored in source control, so authenticated production click-through was not fabricated. Use static asset smoke plus unauthenticated 401 boundaries until an operator session is available.
 
+## Student Progress Review Fixture Runtime Verification (2026-08-11)
+- The blank production screenshots were traced to real production learners having no daily academic evidence; the review fixture had intentionally never been inserted into production.
+- The fixture now covers five labelled profiles across Starters, Movers, Flyers, KET and PET, three completed months, four evidence dates per month, seven skill groups, separate exam-set/difficulty values, and varied attendance/readiness trajectories.
+- Safety remains fail-closed: preview requires exact Neon identity; local execution requires loopback PostgreSQL and a database name containing `review`, `demo`, or `test`; the known production Neon endpoint is rejected.
+- Runtime proof used isolated PostgreSQL `edu_manager_review`: migrations applied, fixture `apply -> verify -> cleanup -> apply -> verify` passed with 5 students, 5 classes, 15 month records, 105 skill rows, 420 daily entries, 60 sessions and 60 attendance rows.
+- Authenticated local browser verification rendered five students, fifteen report rows, KPI/chart data and a populated student detail timeline with no console errors. Production data and finance truth were not mutated.
+- Independent review hardening now derives each evidence label from that month's `exam_set_level` and requires every review target database name to contain `review`, `preview`, `demo`, or `test`; readback confirmed Movers-to-KET history labels are correct.
+- Final reviewer P1 was resolved by preserving complete loopback hostnames in the endpoint parser; `127.0.0.1` verification now passes. Final gates: fixture `6/6`, root unit `525/525`, TypeScript pass.
+- Evidence: `receipts/2026-08-11-student-progress-review-mock-data.md`; `docs/artifacts/student-progress-2026-08-10/review-demo-browser.png`.
+
 ## Core Ledger Remediation (2026-07-11)
 - Attendance locking now reconciles only the locked class allocation and uses UTC half-open month ranges.
 - Text weekday labels use final JavaScript weekday values; enrollment periods bound expected sessions inside the month.

@@ -22,7 +22,7 @@
 | --- | --- | --- | --- |
 | SPSEM-2026-08-06-01 | Split `exam_set_level` from `difficulty_level` across Prisma, API, analytics and UI | IMPLEMENTED | `tests/student-progress-daily-api.test.ts`, `tests/progress-difficulty.test.ts`, `npx tsc --noEmit`, Prisma validate/status |
 | SPSEM-2026-08-06-02 | Remove aggregate-report quick entry; retain editing in the per-student dashboard | IMPLEMENTED | Production bundle has `Mở dashboard học viên` and no `Cập nhật tiến độ tháng` / `Điền nhanh` markers in report chunk |
-| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | IMPLEMENTED | `scripts/student-progress-review-demo.ts`; `docs/artifacts/student-progress-2026-08-10/review-demo-data.json`; safety test 4/4; preview env identity absent so no production data seeded |
+| SPSEM-2026-08-06-03 | Add idempotent, labelled student-progress demo data with cleanup | IMPLEMENTED | Five Cambridge-track scenarios; isolated local PostgreSQL `apply -> verify -> cleanup -> apply -> verify` passed; authenticated browser list/detail/charts passed; `scripts/student-progress-review-demo.ts`; `docs/artifacts/student-progress-2026-08-10/review-demo-data.json`; `docs/artifacts/student-progress-2026-08-10/review-demo-browser.png`; production was not seeded |
 | SPSEM-2026-08-06-04 | Deploy and run production smoke | IMPLEMENTED | Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`; static production chunk smoke passed; authenticated smoke blocked by absent operator credential |
 
 **Production:** commit `9ca29c6` is pushed to `origin/main`, deployed as `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, and aliased to `https://edu-manager-gules.vercel.app`.
@@ -31,7 +31,7 @@
 
 **Evidence:** `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`; `docs/artifacts/student-progress-2026-08-10/README.md`.
 
-**Boundary:** production credentials are operator-managed and absent from source control; authenticated click-through was not fabricated. Demo review data is guarded to non-production preview identities and was not seeded because `STUDENT_PROGRESS_DEMO_*` env identity was absent in this shell.
+**Boundary:** production credentials are operator-managed and absent from source control. Demo review data is guarded to verified preview identities or a loopback review/test database. The fixture was exercised end-to-end only against isolated local PostgreSQL; production was not seeded, so existing production learners without daily academic evidence correctly remain blank.
 
 ## IMPLEMENTED - ATTENDANCE WEEK SELECTION DURING METADATA REFRESH (2026-07-17)
 

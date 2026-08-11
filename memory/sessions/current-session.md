@@ -874,3 +874,13 @@
 - **Design reference**: Stitch project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
 - **Current deployment**: `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8`, Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
 - **Blocker**: canonical `https://edu-manager-gules.vercel.app` belongs to another inaccessible Vercel team. Do not mark the overall goal complete or claim canonical deployment until ownership/alias routing is resolved and read back.
+
+## 2026-08-11 Student Progress Review Mock Data
+
+- **Objective**: explain blank Student Progress screens and provide reviewable mock data without contaminating production.
+- **Completed**: five-profile Cambridge fixture, loopback review-DB safety guard, isolated migration/apply/verify/cleanup lifecycle, authenticated browser list/detail/chart smoke, artifact and receipt closeout.
+- **Runtime counts**: 5 students, 5 classes, 15 progress months, 105 skills, 420 daily entries, 60 class sessions and 60 attendance rows.
+- **Final gates**: fixture `6/6`, root unit `525/525`, TypeScript, authenticated API shape, timeline readback and `127.0.0.1` review-database verification pass.
+- **Boundary**: production was not seeded. Blank production rows continue to mean no real daily evidence exists for those learners.
+- **Review target**: local isolated app at `http://127.0.0.1:3000/student-progress` while the review server remains running.
+- **Evidence**: `docs/artifacts/student-progress-2026-08-10/review-demo-browser.png`; `receipts/2026-08-11-student-progress-review-mock-data.md`.

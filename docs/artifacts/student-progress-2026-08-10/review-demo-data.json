@@ -1,33 +1,39 @@
 {
   "namespace": "demo-sp-review-v1",
   "purpose": "Static review fixture for Student Progress UI/content review without mutating production data.",
-  "track": {
-    "exam_set_level": "flyers",
-    "label": "A2 Flyers"
-  },
+  "tracks": [
+    { "exam_set_level": "starters", "label": "Pre A1 Starters" },
+    { "exam_set_level": "movers", "label": "A1 Movers" },
+    { "exam_set_level": "flyers", "label": "A2 Flyers" },
+    { "exam_set_level": "ket", "label": "A2 Key / KET" },
+    { "exam_set_level": "pet", "label": "B1 Preliminary / PET" }
+  ],
   "difficulty_scale": [
     { "value": "easy", "label": "Dễ" },
     { "value": "medium", "label": "Trung bình" },
     { "value": "hard", "label": "Khó" }
   ],
-  "months": ["2026-06", "2026-07", "2026-08"],
+  "months": ["2026-05", "2026-06", "2026-07"],
   "students": [
     {
       "student_id": "demo-sp-review-v1-student-01",
       "student_name": "[DEMO] Nguyễn Minh An",
       "parent_name": "[DEMO] Phụ huynh Minh An",
       "scenario": "Tiến bộ tốt",
+      "exam_set_level": "starters",
+      "exam_set_history": ["starters", "starters", "starters"],
+      "attendance_history": [100, 100, 100],
       "focus_history": ["speaking", "writing", "writing"],
       "monthly_scores": [
-        { "month": "2026-06", "overall": 61, "readiness": "watch" },
-        { "month": "2026-07", "overall": 73, "readiness": "on_track" },
-        { "month": "2026-08", "overall": 84, "readiness": "on_track" }
+        { "month": "2026-05", "overall": 61, "readiness": "watch" },
+        { "month": "2026-06", "overall": 73, "readiness": "on_track" },
+        { "month": "2026-07", "overall": 84, "readiness": "on_track" }
       ],
       "daily_template": [
-        { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
-        { "day": 10, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 2" },
-        { "day": 17, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 3" },
-        { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
+        { "day": 3, "difficulty_level": "easy", "entry_label": "Starters - Bộ đề 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "Starters - Bộ đề 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "Starters - Bộ đề 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "Starters - Bộ đề 4" }
       ],
       "parent_summary": "Minh An tăng đều qua 3 tháng, cần duy trì viết câu hoàn chỉnh và luyện nói theo chủ đề."
     },
@@ -36,17 +42,20 @@
       "student_name": "[DEMO] Trần Gia Bình",
       "parent_name": "[DEMO] Phụ huynh Gia Bình",
       "scenario": "Ổn định",
+      "exam_set_level": "movers",
+      "exam_set_history": ["starters", "movers", "movers"],
+      "attendance_history": [100, 100, 100],
       "focus_history": ["writing", "writing", "speaking"],
       "monthly_scores": [
-        { "month": "2026-06", "overall": 75, "readiness": "on_track" },
-        { "month": "2026-07", "overall": 77, "readiness": "on_track" },
-        { "month": "2026-08", "overall": 78, "readiness": "on_track" }
+        { "month": "2026-05", "overall": 75, "readiness": "on_track" },
+        { "month": "2026-06", "overall": 77, "readiness": "on_track" },
+        { "month": "2026-07", "overall": 78, "readiness": "on_track" }
       ],
       "daily_template": [
-        { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
-        { "day": 10, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 2" },
-        { "day": 17, "difficulty_level": "medium", "entry_label": "Flyers Practice Set 3" },
-        { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
+        { "day": 3, "difficulty_level": "easy", "entry_label": "Movers - Bộ đề 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "Movers - Bộ đề 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "Movers - Bộ đề 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "Movers - Bộ đề 4" }
       ],
       "parent_summary": "Gia Bình giữ phong độ ổn định, nên tăng độ khó bài nói và kiểm soát lỗi viết lặp lại."
     },
@@ -55,11 +64,14 @@
       "student_name": "[DEMO] Lê Khánh Chi",
       "parent_name": "[DEMO] Phụ huynh Khánh Chi",
       "scenario": "Cần hỗ trợ",
+      "exam_set_level": "flyers",
+      "exam_set_history": ["flyers", "flyers", "ket"],
+      "attendance_history": [100, 75, 50],
       "focus_history": ["reading", "listening", "listening"],
       "monthly_scores": [
-        { "month": "2026-06", "overall": 71, "readiness": "watch" },
-        { "month": "2026-07", "overall": 63, "readiness": "needs_support" },
-        { "month": "2026-08", "overall": 56, "readiness": "needs_support" }
+        { "month": "2026-05", "overall": 71, "readiness": "watch" },
+        { "month": "2026-06", "overall": 63, "readiness": "needs_support" },
+        { "month": "2026-07", "overall": 56, "readiness": "needs_support" }
       ],
       "daily_template": [
         { "day": 3, "difficulty_level": "easy", "entry_label": "Flyers Practice Set 1" },
@@ -68,6 +80,50 @@
         { "day": 24, "difficulty_level": "hard", "entry_label": "Flyers Practice Set 4" }
       ],
       "parent_summary": "Khánh Chi đang giảm điểm khi đề khó hơn, cần ưu tiên luyện nghe chi tiết và đọc hiểu theo đoạn ngắn."
+    },
+    {
+      "student_id": "demo-sp-review-v1-student-04",
+      "student_name": "[DEMO] Phạm Tuệ Nhi",
+      "parent_name": "[DEMO] Phụ huynh Tuệ Nhi",
+      "scenario": "Bứt phá luyện đề",
+      "exam_set_level": "ket",
+      "exam_set_history": ["movers", "ket", "ket"],
+      "attendance_history": [75, 100, 100],
+      "focus_history": ["reading", "writing", "speaking"],
+      "monthly_scores": [
+        { "month": "2026-05", "overall": 58, "readiness": "needs_support" },
+        { "month": "2026-06", "overall": 70, "readiness": "watch" },
+        { "month": "2026-07", "overall": 82, "readiness": "on_track" }
+      ],
+      "daily_template": [
+        { "day": 3, "difficulty_level": "easy", "entry_label": "KET - Bộ đề 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "KET - Bộ đề 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "KET - Bộ đề 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "KET - Bộ đề 4" }
+      ],
+      "parent_summary": "Tuệ Nhi cải thiện rõ qua ba tháng luyện đề, cần tiếp tục phát triển phản xạ nói và độ chính xác khi viết."
+    },
+    {
+      "student_id": "demo-sp-review-v1-student-05",
+      "student_name": "[DEMO] Đỗ Anh Khoa",
+      "parent_name": "[DEMO] Phụ huynh Anh Khoa",
+      "scenario": "Năng lực cao nhưng thiếu đều đặn",
+      "exam_set_level": "pet",
+      "exam_set_history": ["ket", "pet", "pet"],
+      "attendance_history": [100, 75, 100],
+      "focus_history": ["daily_practice", "homework", "writing"],
+      "monthly_scores": [
+        { "month": "2026-05", "overall": 82, "readiness": "on_track" },
+        { "month": "2026-06", "overall": 79, "readiness": "watch" },
+        { "month": "2026-07", "overall": 86, "readiness": "on_track" }
+      ],
+      "daily_template": [
+        { "day": 3, "difficulty_level": "easy", "entry_label": "PET - Bộ đề 1" },
+        { "day": 10, "difficulty_level": "medium", "entry_label": "PET - Bộ đề 2" },
+        { "day": 17, "difficulty_level": "medium", "entry_label": "PET - Bộ đề 3" },
+        { "day": 24, "difficulty_level": "hard", "entry_label": "PET - Bộ đề 4" }
+      ],
+      "parent_summary": "Anh Khoa có nền tảng tốt nhưng kết quả dao động theo mức độ tự luyện; cần duy trì bài tập và viết đều mỗi tuần."
     }
   ],
   "skills": [
@@ -82,6 +138,9 @@
   "production_safety": {
     "database_mutation": false,
     "source_script": "scripts/student-progress-review-demo.ts",
-    "requires_preview_identity": true
+    "allowed_targets": ["preview", "local"],
+    "requires_exact_database_identity": true,
+    "requires_named_review_database": true,
+    "production_endpoint_denied": true
   }
 }

@@ -54,24 +54,30 @@ npx vercel inspect edu-manager-4lide5zgo-hts2008s-projects.vercel.app --scope ht
 
 ## Demo Data Boundary
 
-The review/demo fixture exists at `scripts/student-progress-review-demo.ts` and creates three labelled scenarios:
+The review/demo fixture exists at `scripts/student-progress-review-demo.ts` and creates five labelled Cambridge-track scenarios:
 
 - `[DEMO] Nguyễn Minh An`: improving profile.
 - `[DEMO] Trần Gia Bình`: stable profile.
 - `[DEMO] Lê Khánh Chi`: needs-support profile.
+- `[DEMO] Phạm Tuệ Nhi`: KET exam-prep breakthrough profile.
+- `[DEMO] Đỗ Anh Khoa`: high-performing PET profile with inconsistent practice.
+
+The five records cover Starters, Movers, Flyers, KET and PET. Each record has three months, four daily evidence dates per month, seven skill groups and an `easy -> medium -> medium -> hard` difficulty progression. Exam set level and difficulty remain separate fields.
 
 For review without database mutation, the same scenario shape is captured in `review-demo-data.json`.
+
+Authenticated browser evidence from the isolated review database is captured in `review-demo-browser.png`. It shows populated report rows, KPIs, charts and the per-student daily timeline; browser console errors were zero.
 
 The fixture is intentionally guarded:
 
 - Namespace: `demo-sp-review-v1`.
 - Commands: `apply`, `verify`, `cleanup`.
 - Required confirmation: `STUDENT_PROGRESS_DEMO_CONFIRM=demo-sp-review-v1`.
-- Required target: `STUDENT_PROGRESS_DEMO_TARGET=preview`.
-- Required exact preview DB identity: `STUDENT_PROGRESS_DEMO_ENDPOINT_ID`, `STUDENT_PROGRESS_DEMO_DATABASE_NAME`.
+- Required target: `STUDENT_PROGRESS_DEMO_TARGET=preview|local`.
+- Preview requires exact endpoint/database identity. Every review database name must contain `review`, `preview`, `demo`, or `test`; local additionally requires a loopback PostgreSQL host.
 - Hard rejects the known production Neon endpoint.
 
-The current shell did not have `STUDENT_PROGRESS_DEMO_*` preview identity variables, so no demo records were inserted and production data was not mutated.
+The fixture was exercised against isolated local PostgreSQL using `apply -> verify -> cleanup -> apply -> verify`. Final verified counts were 5 parents, 5 students, 5 classes, 5 enrollments, 15 progress months, 105 skill rows, 420 daily entries, 60 sessions and 60 attendance rows. Production data was not mutated.
 
 ## Authenticated Smoke Boundary
 

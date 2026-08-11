@@ -4,7 +4,10 @@ import {
   summarizeDailyAssessmentRollup,
   type ProgressSkillKey,
 } from "../lib/student-progress-assessment.js";
-import { assertStudentProgressDemoDatabase } from "../lib/student-progress-demo-safety.js";
+import {
+  assertStudentProgressDemoDatabase,
+  studentProgressDemoEndpointId,
+} from "../lib/student-progress-demo-safety.js";
 
 const NAMESPACE = "demo-sp-review-v1";
 const CONFIRMATION = NAMESPACE;
@@ -21,12 +24,26 @@ const skills: ProgressSkillKey[] = [
   "mock_test",
 ];
 
+const examSetLabels: Record<string, string> = {
+  starters: "Pre A1 Starters",
+  movers: "A1 Movers",
+  flyers: "A2 Flyers",
+  ket: "A2 Key / KET",
+  pet: "B1 Preliminary / PET",
+};
+
 const profiles = [
   {
     id: "01",
     name: "[DEMO] Nguyễn Minh An",
     parent: "[DEMO] Phụ huynh Minh An",
     gender: "male" as const,
+    scenario: "Tiến bộ tốt",
+    trackKey: "starters",
+    trackLabel: "Pre A1 Starters",
+    classType: "foundation",
+    examSetHistory: ["starters", "starters", "starters"],
+    attendanceScores: [100, 100, 100],
     targets: [61, 73, 84],
     readiness: ["watch", "on_track", "on_track"],
     focus: ["speaking", "writing", "writing"] as ProgressSkillKey[],
@@ -36,6 +53,12 @@ const profiles = [
     name: "[DEMO] Trần Gia Bình",
     parent: "[DEMO] Phụ huynh Gia Bình",
     gender: "male" as const,
+    scenario: "Ổn định",
+    trackKey: "movers",
+    trackLabel: "A1 Movers",
+    classType: "foundation",
+    examSetHistory: ["starters", "movers", "movers"],
+    attendanceScores: [100, 100, 100],
     targets: [75, 77, 78],
     readiness: ["on_track", "on_track", "on_track"],
     focus: ["writing", "writing", "speaking"] as ProgressSkillKey[],
@@ -45,11 +68,51 @@ const profiles = [
     name: "[DEMO] Lê Khánh Chi",
     parent: "[DEMO] Phụ huynh Khánh Chi",
     gender: "female" as const,
+    scenario: "Cần hỗ trợ",
+    trackKey: "flyers",
+    trackLabel: "A2 Flyers",
+    classType: "exam_prep",
+    examSetHistory: ["flyers", "flyers", "ket"],
+    attendanceScores: [100, 75, 50],
     targets: [71, 63, 56],
     readiness: ["watch", "needs_support", "needs_support"],
     focus: ["reading", "listening", "listening"] as ProgressSkillKey[],
   },
+  {
+    id: "04",
+    name: "[DEMO] Phạm Tuệ Nhi",
+    parent: "[DEMO] Phụ huynh Tuệ Nhi",
+    gender: "female" as const,
+    scenario: "Bứt phá luyện đề",
+    trackKey: "ket",
+    trackLabel: "A2 Key / KET",
+    classType: "exam_prep",
+    examSetHistory: ["movers", "ket", "ket"],
+    attendanceScores: [75, 100, 100],
+    targets: [58, 70, 82],
+    readiness: ["needs_support", "watch", "on_track"],
+    focus: ["reading", "writing", "speaking"] as ProgressSkillKey[],
+  },
+  {
+    id: "05",
+    name: "[DEMO] Đỗ Anh Khoa",
+    parent: "[DEMO] Phụ huynh Anh Khoa",
+    gender: "male" as const,
+    scenario: "Năng lực cao nhưng thiếu đều đặn",
+    trackKey: "pet",
+    trackLabel: "B1 Preliminary / PET",
+    classType: "exam_prep",
+    examSetHistory: ["ket", "pet", "pet"],
+    attendanceScores: [100, 75, 100],
+    targets: [82, 79, 86],
+    readiness: ["on_track", "watch", "on_track"],
+    focus: ["daily_practice", "homework", "writing"] as ProgressSkillKey[],
+  },
 ];
+
+function classIdFor(profile: (typeof profiles)[number]) {
+  return `${NAMESPACE}-class-${profile.trackKey}`;
+}
 
 function requiredConfirmation() {
   if (process.env.STUDENT_PROGRESS_DEMO_CONFIRM !== CONFIRMATION) {
@@ -60,15 +123,18 @@ function requiredConfirmation() {
 function databaseEndpointId() {
   const value = process.env.DATABASE_URL;
   if (!value) throw new Error("DATABASE_URL is required");
-  const firstLabel = new URL(value).hostname.split(".")[0] || "";
-  return firstLabel.replace(/-pooler$/, "");
+  return studentProgressDemoEndpointId(value);
 }
 
 async function assertReviewDatabase() {
   requiredConfirmation();
   const expectedEndpoint = process.env.STUDENT_PROGRESS_DEMO_ENDPOINT_ID?.trim();
   const expectedDatabase = process.env.STUDENT_PROGRESS_DEMO_DATABASE_NAME?.trim();
-  if (!expectedEndpoint?.startsWith("ep-") || !expectedDatabase) {
+  const target = process.env.STUDENT_PROGRESS_DEMO_TARGET;
+  const endpointLooksValid = target === "local"
+    ? Boolean(expectedEndpoint)
+    : expectedEndpoint?.startsWith("ep-");
+  if (!endpointLooksValid || !expectedDatabase) {
     throw new Error(
       "STUDENT_PROGRESS_DEMO_ENDPOINT_ID and STUDENT_PROGRESS_DEMO_DATABASE_NAME are required",
     );
@@ -78,7 +144,7 @@ async function assertReviewDatabase() {
     Array<{ current_database: string }>
   >`SELECT current_database()`;
   assertStudentProgressDemoDatabase({
-    target: process.env.STUDENT_PROGRESS_DEMO_TARGET,
+    target,
     vercelEnvironment: process.env.VERCEL_ENV,
     expectedEndpoint,
     expectedDatabase,
@@ -93,7 +159,7 @@ function monthKey(date: Date) {
 
 function reviewMonths() {
   const now = new Date();
-  return [-2, -1, 0].map((offset) =>
+  return [-3, -2, -1].map((offset) =>
     monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1))),
   );
 }
@@ -111,7 +177,13 @@ function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function dailyRows(profileIndex: number, month: string, target: number) {
+function dailyRows(
+  profile: (typeof profiles)[number],
+  profileIndex: number,
+  monthIndex: number,
+  month: string,
+  target: number,
+) {
   const dates = [3, 10, 17, 24];
   const dayOffsets = [-6, -3, 0, 2];
   const skillOffsets: Record<ProgressSkillKey, number> = {
@@ -124,6 +196,8 @@ function dailyRows(profileIndex: number, month: string, target: number) {
     mock_test: -1,
   };
   const difficulty = ["easy", "medium", "medium", "hard"];
+  const examSetLevel = profile.examSetHistory[monthIndex];
+  const examSetLabel = examSetLabels[examSetLevel] ?? examSetLevel;
 
   return dates.flatMap((day, dayIndex) =>
     skills.map((skillKey) => ({
@@ -138,9 +212,9 @@ function dailyRows(profileIndex: number, month: string, target: number) {
               : ("skill_assessment" as const),
       skill_key: skillKey,
       score: clamp(target + dayOffsets[dayIndex] + skillOffsets[skillKey]),
-      exam_set_level: "flyers",
+      exam_set_level: examSetLevel,
       difficulty_level: difficulty[dayIndex],
-      entry_label: `[DEMO] Flyers Practice Set ${dayIndex + 1}`,
+      entry_label: `[DEMO] ${examSetLabel} - Bộ đề ${dayIndex + 1}`,
       note: `[${NAMESPACE}] Dữ liệu phục vụ review, không phải kết quả thật.`,
     })),
   );
@@ -168,13 +242,14 @@ function monthlySkills(rows: ReturnType<typeof dailyRows>) {
 async function cleanup(tx: Prisma.TransactionClient) {
   const studentIds = profiles.map((profile) => `${NAMESPACE}-student-${profile.id}`);
   const parentIds = profiles.map((profile) => `${NAMESPACE}-parent-${profile.id}`);
+  const classIds = profiles.map(classIdFor);
   await tx.attendance.deleteMany({ where: { studentId: { in: studentIds } } });
-  await tx.classSession.deleteMany({ where: { classId: `${NAMESPACE}-class-flyers` } });
+  await tx.classSession.deleteMany({ where: { classId: { in: classIds } } });
   await tx.studentProgressMonth.deleteMany({ where: { studentId: { in: studentIds } } });
   await tx.enrollmentPeriod.deleteMany({ where: { studentId: { in: studentIds } } });
   await tx.studentClass.deleteMany({ where: { studentId: { in: studentIds } } });
   await tx.student.deleteMany({ where: { id: { in: studentIds } } });
-  await tx.class.deleteMany({ where: { id: `${NAMESPACE}-class-flyers` } });
+  await tx.class.deleteMany({ where: { id: { in: classIds } } });
   await tx.teacher.deleteMany({ where: { id: `${NAMESPACE}-teacher-01` } });
   await tx.parent.deleteMany({ where: { id: { in: parentIds } } });
 }
@@ -203,24 +278,29 @@ async function applyDemo() {
           notes: `[${NAMESPACE}]`,
         },
       });
-      const classRow = await tx.class.create({
-        data: {
-          id: `${NAMESPACE}-class-flyers`,
-          className: "[DEMO] A2 Flyers - Progress Review",
-          scheduleDays: [2, 4],
-          sessionsPerWeek: 2,
-          billingPolicy: "monthly_prorated",
-          startTime: "18:00",
-          endTime: "19:30",
-          feePerDay: 0,
-          maxStudents: 10,
-          teacherId: teacher.id,
-          status: "active",
-          notes: `[${NAMESPACE}] Dữ liệu review tiến bộ học viên.`,
-        },
-      });
+      const classRows = new Map<string, { id: string }>();
+      for (const profile of profiles) {
+        const classRow = await tx.class.create({
+          data: {
+            id: classIdFor(profile),
+            className: `[DEMO] ${profile.trackLabel} - ${profile.scenario}`,
+            scheduleDays: [2, 4],
+            sessionsPerWeek: 2,
+            billingPolicy: "monthly_prorated",
+            startTime: "18:00",
+            endTime: "19:30",
+            feePerDay: 0,
+            maxStudents: 10,
+            teacherId: teacher.id,
+            status: "active",
+            notes: `[${NAMESPACE}] Dữ liệu review tiến bộ học viên, không tham gia tài chính.`,
+          },
+        });
+        classRows.set(profile.trackKey, classRow);
+      }
 
       for (const [profileIndex, profile] of profiles.entries()) {
+        const classRow = classRows.get(profile.trackKey)!;
         const parentId = `${NAMESPACE}-parent-${profile.id}`;
         const studentId = `${NAMESPACE}-student-${profile.id}`;
         await tx.parent.create({
@@ -263,7 +343,7 @@ async function applyDemo() {
         });
 
         for (const [monthIndex, month] of months.entries()) {
-          const rows = dailyRows(profileIndex, month, profile.targets[monthIndex]);
+          const rows = dailyRows(profile, profileIndex, monthIndex, month, profile.targets[monthIndex]);
           const rollup = summarizeDailyAssessmentRollup(rows);
           const focusSkillKey = profile.focus[monthIndex];
           const progressMonth = await tx.studentProgressMonth.create({
@@ -272,20 +352,20 @@ async function applyDemo() {
               studentId,
               classId: classRow.id,
               month,
-              trackKey: "flyers",
-              classType: "exam_prep",
+              trackKey: profile.trackKey,
+              classType: profile.classType,
               progressScore: profile.targets[monthIndex],
-              attendanceScore: 100,
-              consistencyScore: profileIndex === 2 ? 68 : 88,
+              attendanceScore: profile.attendanceScores[monthIndex],
+              consistencyScore: profileIndex === 2 ? 68 : profileIndex === 4 ? 72 : 88,
               learningEvidenceCoverage: 100,
               trackReadiness: profile.readiness[monthIndex],
               focusSkillKey,
               focusSkillLabel: PROGRESS_SKILL_LABELS[focusSkillKey],
-              teacherNote: `[DEMO] Nhận xét tháng ${month}; dùng để review giao diện và biểu đồ.`,
-              parentSummary: `${profile.name} có điểm tiến bộ ${profile.targets[monthIndex]}/100 trong tháng ${month}. Đây là dữ liệu minh họa.`,
+              teacherNote: `[DEMO] ${profile.scenario} trong tháng ${month}; dùng để review giao diện và biểu đồ.`,
+              parentSummary: `${profile.name} đang theo ${profile.trackLabel}, đạt ${profile.targets[monthIndex]}/100 trong tháng ${month}. Đây là dữ liệu minh họa.`,
               nextActions: [
                 `Tập trung ${PROGRESS_SKILL_LABELS[focusSkillKey]} trong tháng tiếp theo.`,
-                "Duy trì luyện đề Flyers theo mức độ tăng dần.",
+                `Duy trì luyện tập ${profile.trackLabel} theo mức độ tăng dần.`,
               ],
               evidenceNotes: [`[${NAMESPACE}] Không phải kết quả học tập thật.`],
               academicInputStatus: "complete",
@@ -325,32 +405,38 @@ async function applyDemo() {
         }
       }
 
-      for (const month of months) {
-        for (const day of [3, 10, 17, 24]) {
-          const session = await tx.classSession.create({
-            data: {
-              id: `${NAMESPACE}-session-${month}-${day}`,
-              classId: classRow.id,
-              sessionDate: dateFor(month, day),
-              billingMonth: month,
-              status: "held",
-              source: NAMESPACE,
-              notes: `[${NAMESPACE}] Điểm danh minh họa.`,
-              createdById: admin.id,
-            },
-          });
-          await tx.attendance.createMany({
-            data: profiles.map((profile) => ({
-              id: `${NAMESPACE}-attendance-${profile.id}-${month}-${day}`,
-              studentId: `${NAMESPACE}-student-${profile.id}`,
-              classId: classRow.id,
-              classSessionId: session.id,
-              attendanceDate: dateFor(month, day),
-              status: "present",
-              reason: `[${NAMESPACE}]`,
-              createdById: admin.id,
-            })),
-          });
+      for (const profile of profiles) {
+        const classRow = classRows.get(profile.trackKey)!;
+        for (const [monthIndex, month] of months.entries()) {
+          for (const [dayIndex, day] of [3, 10, 17, 24].entries()) {
+            const session = await tx.classSession.create({
+              data: {
+                id: `${NAMESPACE}-session-${profile.id}-${month}-${day}`,
+                classId: classRow.id,
+                sessionDate: dateFor(month, day),
+                billingMonth: month,
+                status: "held",
+                source: NAMESPACE,
+                notes: `[${NAMESPACE}] Điểm danh minh họa.`,
+                createdById: admin.id,
+              },
+            });
+            await tx.attendance.create({
+              data: {
+                id: `${NAMESPACE}-attendance-${profile.id}-${month}-${day}`,
+                studentId: `${NAMESPACE}-student-${profile.id}`,
+                classId: classRow.id,
+                classSessionId: session.id,
+                attendanceDate: dateFor(month, day),
+                status:
+                  dayIndex < Math.round(profile.attendanceScores[monthIndex] / 25)
+                    ? "present"
+                    : "absent_no_fee",
+                reason: `[${NAMESPACE}]`,
+                createdById: admin.id,
+              },
+            });
+          }
         }
       }
       return { months, namespace: NAMESPACE };
@@ -362,21 +448,22 @@ async function applyDemo() {
 
 async function verifyDemo(expectPresent = true) {
   const studentIds = profiles.map((profile) => `${NAMESPACE}-student-${profile.id}`);
+  const classIds = profiles.map(classIdFor);
   const [parents, students, classes, enrollments, progressMonths, skillsCount, entries, sessions, attendance] =
     await Promise.all([
       prisma.parent.count({ where: { id: { startsWith: `${NAMESPACE}-parent-` } } }),
       prisma.student.count({ where: { id: { in: studentIds } } }),
-      prisma.class.count({ where: { id: `${NAMESPACE}-class-flyers` } }),
+      prisma.class.count({ where: { id: { in: classIds } } }),
       prisma.enrollmentPeriod.count({ where: { studentId: { in: studentIds } } }),
       prisma.studentProgressMonth.count({ where: { studentId: { in: studentIds } } }),
       prisma.studentProgressSkill.count({ where: { progressMonth: { studentId: { in: studentIds } } } }),
       prisma.studentProgressDailyEntry.count({ where: { progressMonth: { studentId: { in: studentIds } } } }),
-      prisma.classSession.count({ where: { classId: `${NAMESPACE}-class-flyers` } }),
+      prisma.classSession.count({ where: { classId: { in: classIds } } }),
       prisma.attendance.count({ where: { studentId: { in: studentIds } } }),
     ]);
   const result = { parents, students, classes, enrollments, progressMonths, skills: skillsCount, entries, sessions, attendance };
   const expected = expectPresent
-    ? { parents: 3, students: 3, classes: 1, enrollments: 3, progressMonths: 9, skills: 63, entries: 252, sessions: 12, attendance: 36 }
+    ? { parents: 5, students: 5, classes: 5, enrollments: 5, progressMonths: 15, skills: 105, entries: 420, sessions: 60, attendance: 60 }
     : { parents: 0, students: 0, classes: 0, enrollments: 0, progressMonths: 0, skills: 0, entries: 0, sessions: 0, attendance: 0 };
   for (const [key, value] of Object.entries(expected)) {
     if (result[key as keyof typeof result] !== value) {
