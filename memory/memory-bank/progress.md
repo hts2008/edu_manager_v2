@@ -1085,3 +1085,13 @@
 - Production static smoke verified `StudentProgressReportPage-CgHwZrEx.js` contains `Mở dashboard học viên` and no old quick-entry markers; `StudentProgressDetailPage-DJXyFcu0.js` contains `Bộ đề / cấp độ` and `Độ khó`.
 - Boundary: authenticated click-through was not fabricated because the production credential/session is operator-managed and unavailable in this shell. Demo fixture was not applied because `STUDENT_PROGRESS_DEMO_*` preview identity vars are absent; no production demo data was seeded.
 - Evidence: `receipts/2026-08-10-student-progress-evidence-semantics-review-data.md`; `docs/artifacts/student-progress-2026-08-10/README.md`.
+
+## 2026-08-11 - Authenticated fluid workspace implementation verified; canonical release blocked
+
+- Removed the authenticated shell's global `1600px` ceiling and introduced fluid, bounded gutters without changing page/domain data behavior.
+- Updated Student Progress KPI and chart grids for mobile, tablet, desktop, wide desktop and ultrawide layouts; added focused source/layout and Playwright regression coverage.
+- Used Stitch project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, generated with `GEMINI_3_1_PRO`, as the ultrawide design reference.
+- Verification passed: root unit `523/523`, frontend unit `58/58`, `npx tsc --noEmit`, frontend lint, production build, Student fluid Playwright `6/6`, and authenticated route matrix `48/48`.
+- Implementation commit `8112128` was pushed to `main`. Vercel deployment `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
+- Release remains blocked because canonical `https://edu-manager-gules.vercel.app` is owned by another inaccessible Vercel team. No canonical-deployed or overall-complete claim was made.
+- Evidence: `receipts/2026-08-11-authenticated-fluid-workspace-ux.md`; `docs/artifacts/ux-fluid-2026-08-11/README.md`.

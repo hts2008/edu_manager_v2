@@ -864,3 +864,13 @@
 - **Pending validation**: none inside the approved SPD scope. Future product expansion should open a new KANBAN track.
 - **Expected next action**: begin a new scoped request from the production baseline.
 - **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable; one closeout subagent hit usage limits, so critical-path verification ran inline.
+
+## 2026-08-11 Authenticated Fluid Workspace UX
+
+- **Current objective**: partially complete; implementation and verification are complete, canonical release is blocked.
+- **Active task**: `UX-FLUID-04` - transfer/attach `edu-manager-gules.vercel.app` to the current Vercel project/deployment and verify canonical assets.
+- **Completed**: commit `8112128` pushed to `main`; fluid authenticated shell; responsive Student Progress layouts; focused and route-wide regression tests; six viewport screenshots; independent review `GO`.
+- **Gates**: root unit `523/523`, frontend unit `58/58`, TypeScript, lint, build, Student fluid Playwright `6/6`, authenticated route matrix `48/48`.
+- **Design reference**: Stitch project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
+- **Current deployment**: `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8`, Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
+- **Blocker**: canonical `https://edu-manager-gules.vercel.app` belongs to another inaccessible Vercel team. Do not mark the overall goal complete or claim canonical deployment until ownership/alias routing is resolved and read back.

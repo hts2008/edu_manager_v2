@@ -402,3 +402,11 @@
 **Decision**: Store and expose `exam_set_level` separately from `difficulty_level`. `exam_set_level` captures Cambridge curriculum/exam-set metadata (`starters`, `movers`, `flyers`, `ket`, `pet`). `difficulty_level` captures task calibration only (`easy`, `medium`, `hard`). The API still accepts legacy Cambridge values sent as `difficulty_level` by cached clients, normalizes them into `exam_set_level`, and stores `difficulty_level` as `null` unless an actual task difficulty was supplied.
 **Rationale**: Curriculum level and exercise difficulty are independent assessment dimensions. Keeping them separate preserves raw academic evidence, avoids hidden score inflation, and lets reports explain whether a learner is improving because they scored higher, moved to a harder set, or practiced harder tasks.
 **Status**: IMPLEMENTED in `9ca29c6`; production static smoke passed on Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`.
+
+### ADR-58: The Authenticated Shell Is Fluid; Pages Own Intentional Width Constraints
+
+**Date**: 2026-08-11
+**Context**: A global `max-width: 1600px` on the authenticated workspace left large unused gutters on wide and ultrawide displays, especially in Student Progress analytics. Removing every width constraint indiscriminately would make forms, dialogs and reading surfaces harder to use.
+**Decision**: The shared authenticated shell uses the full available width with bounded fluid gutters (`clamp(16px, 2vw, 48px)`) and `min-width: 0` containment. Dense operational dashboards may expand responsively; pages, dialogs and focused tools retain local width constraints where readability or interaction density requires them. Student Progress charts progress from one column on compact widths to two on desktop and four on ultrawide.
+**Rationale**: Shell-level fluidity fixes wasted viewport space once for all authenticated routes while preserving deliberate page-level ergonomics and avoiding horizontal overflow.
+**Status**: IMPLEMENTED and regression-verified in commit `8112128`. Vercel deployment `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`; canonical release remains BLOCKED because `edu-manager-gules.vercel.app` is owned by another inaccessible team.

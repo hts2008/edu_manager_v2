@@ -1067,3 +1067,24 @@ stop.bat
 **Evidence:** `receipts/2026-08-06-student-progress-dashboard-closeout.md`; `docs/artifacts/student-progress-2026-08-03/README.md`.
 
 **Last Updated:** 2026-08-06
+
+---
+
+## PARTIAL - AUTHENTICATED FLUID WORKSPACE UX (2026-08-11)
+
+**Objective:** remove the fixed authenticated-shell width ceiling and make Student Progress plus all authenticated routes use the available browser width from mobile through ultrawide without changing academic, attendance or finance semantics.
+
+| Task ID | Priority | Description | Status | Evidence |
+| ------- | -------- | ----------- | ------ | -------- |
+| UX-FLUID-01 | P1 | Make the shared authenticated shell fluid while preserving page-owned constraints | IMPLEMENTED | commit `8112128`; root unit `523/523`; frontend unit `58/58`; TypeScript, lint and build pass |
+| UX-FLUID-02 | P1 | Make Student Progress KPI/chart composition responsive through ultrawide | IMPLEMENTED | Student fluid Playwright `6/6`; screenshots in `docs/artifacts/ux-fluid-2026-08-11/` |
+| UX-FLUID-03 | P1 | Run authenticated route-wide overflow/track regression | IMPLEMENTED | authenticated route matrix `48/48` |
+| UX-FLUID-04 | P0 | Attach the approved build to canonical `edu-manager-gules.vercel.app` and re-verify | BLOCKED | Vercel `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `edu-manager-delta.vercel.app`; canonical alias is owned by another inaccessible Vercel team |
+
+**Design reference:** Stitch project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
+
+**Release verdict:** implementation and regression gates passed, but canonical production release is not complete. Do not mark this track or the overall goal complete until the canonical alias is transferred/attached and its deployed assets are verified.
+
+**Evidence:** `receipts/2026-08-11-authenticated-fluid-workspace-ux.md`; `docs/artifacts/ux-fluid-2026-08-11/README.md`.
+
+**Last Updated:** 2026-08-11
