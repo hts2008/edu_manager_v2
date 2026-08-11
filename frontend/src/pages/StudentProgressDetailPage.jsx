@@ -247,7 +247,7 @@ export default function StudentProgressDetailPage() {
   const focusLabel = latestRow.focus_skill_label || summary.focus_skill_key || "Chưa đủ dữ liệu";
 
   return (
-    <div className="space-y-5" data-testid="student-progress-detail-page">
+    <div className="w-full min-w-0 space-y-5" data-testid="student-progress-detail-page">
       <header className="overflow-hidden rounded-2xl border border-indigo-900/20 bg-slate-950 text-white shadow-lg">
         <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
@@ -325,7 +325,7 @@ export default function StudentProgressDetailPage() {
         </div>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric icon={BookOpenCheck} label="Điểm gần nhất" value={formatProgressValue(summary.latest_score, "/100")} helper={`Điểm đầu kỳ: ${formatProgressValue(summary.first_score, "/100")}`} tone={metricTone(summary.latest_score)} />
             <Metric icon={TrendingUp} label="Tăng trưởng" value={summary.growth === null || summary.growth === undefined ? "—" : `${summary.growth > 0 ? "+" : ""}${summary.growth}`} helper="So với evidence đầu kỳ" tone={Number(summary.growth) >= 0 ? "text-emerald-700" : "text-rose-700"} />
             <Metric icon={Target} label="Cần tập trung" value={focusLabel} helper={`${timeline?.days?.length || 0} ngày có evidence`} tone="text-amber-700" />

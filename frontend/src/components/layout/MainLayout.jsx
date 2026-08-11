@@ -15,7 +15,7 @@ export default function MainLayout() {
       <div className="flex flex-col flex-1 min-w-0 z-10 relative">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="eduflow-main flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 w-full max-w-[1600px] mx-auto">
+        <main className="eduflow-main flex-1 w-full min-w-0 overflow-auto py-6">
           <div className="sr-only" role="status" aria-live="polite">
             Giao dien san sang
           </div>

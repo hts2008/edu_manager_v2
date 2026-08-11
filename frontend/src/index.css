@@ -1097,6 +1097,9 @@ body {
 
 .eduflow-main {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  padding-inline: clamp(16px, 2vw, 48px);
 }
 
 .eduflow-main::before {

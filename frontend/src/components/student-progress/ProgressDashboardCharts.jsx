@@ -65,7 +65,7 @@ export default function ProgressDashboardCharts({ timeline, scoreMode }) {
   const hasComparison = comparisonRows.some((row) => row.current !== null || row.previous !== null);
 
   return (
-    <div className="grid min-w-0 gap-4 xl:grid-cols-2" data-testid="student-progress-charts">
+    <div className="grid min-w-0 grid-cols-1 gap-4 min-[1280px]:grid-cols-2 min-[2200px]:grid-cols-4" data-testid="student-progress-charts">
       <ChartPanel
         title="7 nhóm kỹ năng"
         description={`Chế độ đang xem: ${scoreMode === "weighted" ? "điểm quy đổi" : "điểm thô"}; khoảng trống không bị biến thành 0.`}
