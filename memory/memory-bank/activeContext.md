@@ -8,7 +8,7 @@
 - **Production URL**: https://edu-manager-gules.vercel.app
 - **Login**: operator-managed credential; production secret is not stored in source control.
 - **Repository**: https://github.com/hts2008/edu_manager_v2
-- **Latest production deployment**: `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, aliased to `https://edu-manager-gules.vercel.app`, after Student Progress evidence semantics/review-data closeout.
+- **Latest production deployment**: commit `a3cbf84`, Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G`, Ready/Production and aliased to `https://edu-manager-gules.vercel.app` after the fluid Student Progress and admin archive/delete closeout.
 - **Commit hygiene**: Avoid broad commits; stage explicit paths only and verify `git status` before each closeout.
 
 ## Audit V2 Remediation Closeout (2026-08-03)
@@ -510,13 +510,23 @@ Production is live on `https://edu-manager-gules.vercel.app` with the 2026-06-05
 - **Browser evidence**: authenticated production list rendered 50 rows; detail dashboard/charts/editor loaded with no alert errors and no horizontal document overflow; PDF endpoint returned a PDF blob. Desktop evidence is under `docs/artifacts/student-progress-2026-08-03/`.
 - **Tool degradation**: Context+ and EDU Neural Memory/MCPProxy were unavailable in the callable palette; markdown-only mode was used.
 
-## 2026-08-11 Current Context - Authenticated Fluid Workspace UX
+## 2026-08-12 Current Context - Authenticated Fluid Workspace UX Closeout
 
 - `UX-FLUID-01..03` are implemented and verified in commit `8112128`, pushed to `main`.
 - The shared authenticated shell no longer imposes a `1600px` maximum. The shell owns fluid gutters via `clamp(16px, 2vw, 48px)`; individual pages may retain intentional local reading/tool widths.
 - Student Progress uses responsive KPI and chart grids from mobile through ultrawide. The change is presentation-only and preserves raw-score truth, null-not-zero behavior, attendance and finance contracts.
 - Verification passed: root unit `523/523`, frontend unit `58/58`, TypeScript, frontend lint, production build, Student fluid Playwright `6/6`, and authenticated route matrix `48/48`.
 - Stitch reference: project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
-- Vercel deployment `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
-- Release blocker: `https://edu-manager-gules.vercel.app` is owned by another inaccessible Vercel team and is not attached to this deployment. `UX-FLUID-04` and the overall UX-FLUID goal remain blocked; do not report canonical deployment complete.
+- Vercel deployment `dpl_26jsj5wwt1s56P59AmYJYpZPA73G` is Ready/Production and attached to canonical `https://edu-manager-gules.vercel.app`.
+- `UX-FLUID-04` is closed: authenticated Chrome rendered the canonical Student Progress workspace with the fluid layout and zero console errors.
 - Evidence: `receipts/2026-08-11-authenticated-fluid-workspace-ux.md` and `docs/artifacts/ux-fluid-2026-08-11/README.md`.
+
+## 2026-08-12 Current Context - Admin Master-Data Archive/Delete
+
+- Commit `a3cbf84` restores consistent admin-only archive/delete behavior for students, parents, classes and teachers.
+- UI confirmation handlers now preserve failed dialogs, display API errors and refresh only after successful mutation.
+- Master-data removal remains archival/deactivation, preserving attendance, enrollment and financial history. Numeric `StudentClass.id` values are handled without string-only operations.
+- Full create-to-archive lifecycle passed against isolated review PostgreSQL. Canonical production Chrome confirmed all four admin delete actions and opened a confirmation modal without console errors; it intentionally did not confirm against real data.
+- Verification passed: focused `38/38`, root unit `528/528`, frontend unit `58/58`, TypeScript, frontend lint, production build and diff-check.
+- Student Progress review fixtures remain isolated, reversible and prohibited on production; blank academic evidence in production remains null rather than fabricated zero or demo data.
+- Evidence: `receipts/2026-08-12-admin-master-data-archive-delete-hotfix.md`; `docs/artifacts/admin-delete-2026-08-12/README.md`.

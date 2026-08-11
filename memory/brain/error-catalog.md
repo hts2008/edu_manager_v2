@@ -87,3 +87,26 @@ focused-tab fallback rows, and add Playwright coverage that asserts each tab
 requests and receives the expected mode.
 **Status**: Fixed and production-smoked on 2026-06-09 with production URL
 `https://edu-manager-gules.vercel.app`.
+
+## ERR-009: Master-Data Confirmation Silently Closes After API Failure
+
+**Symptom**: Admin clicks delete/archive for a student, parent, class or teacher,
+the API rejects the mutation, but the dialog closes and the list appears unchanged.
+**Cause**: Page handlers did not consistently throw on `{ success: false }` and
+closed confirmation state before awaiting a successful refresh.
+**Fix**: Require success at the service boundary, keep failed dialogs actionable,
+show the API error, and refresh only after a successful mutation. Enforce admin
+RBAC consistently in all four routers.
+**Status**: Fixed in commit `a3cbf84`; isolated lifecycle and canonical
+non-mutating Chrome smoke passed on 2026-08-12.
+
+## ERR-010: Numeric StudentClass ID Used As A String
+
+**Symptom**: Archiving linked master data can fail at runtime while closing
+enrollment periods.
+**Cause**: Enrollment code called `startsWith` on `StudentClass.id`, but the
+Prisma runtime value may be numeric.
+**Fix**: Accept `number | string` and only run legacy string-prefix logic on
+string IDs. Preserve enrollment history through deactivation/end dates.
+**Status**: Fixed in commit `a3cbf84`; numeric-ID regression and review-DB
+lifecycle tests passed on 2026-08-12.

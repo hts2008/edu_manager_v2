@@ -1,5 +1,14 @@
 # Progress Log
 
+### 2026-08-12 - Fluid Student Progress and Admin Archive/Delete Production Closeout
+- **Scope**: Close the canonical UX release and restore role-safe archive/delete workflows for Students, Parents, Classes and Teachers.
+- **Implementation**: commit `a3cbf84` adds consistent admin guards, propagates mutation failures through confirmation dialogs, refreshes only after success, preserves linked history through archive/deactivation and fixes numeric `StudentClass.id` handling.
+- **Verification**: focused `38/38`, root unit `528/528`, frontend unit `58/58`, TypeScript, lint, build, diff-check, isolated review PostgreSQL lifecycle smoke and authenticated canonical Chrome smoke passed.
+- **Production**: Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G` is Ready/Production at `https://edu-manager-gules.vercel.app`; Student Progress, Students, Parents, Classes and Teachers rendered without console errors.
+- **Safety**: production smoke opened but did not confirm a real archive. Student Progress review fixtures remain preview/review-only and were not seeded into production.
+- **Evidence**: `receipts/2026-08-12-admin-master-data-archive-delete-hotfix.md`, `docs/artifacts/admin-delete-2026-08-12/README.md`.
+- **STATUS**: IMPLEMENTED
+
 ### 2026-08-03 - Audit V2 Production Remediation Closeout
 - **Scope**: Execute `Audit_V2.md` through application fixes, migrations, encrypted backup, credential rotation, deployment, Chrome verification and auditable handoff.
 - **Outcome**: commits `39e4fb6` + `4834e3f` + `c244e8e` deployed as `dpl_8LSoPr4QHvJWcTNXNnxFb9LhJRZf`; production migration status clean; AES-GCM v3 backup verified with 28 tables.

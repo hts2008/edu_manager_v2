@@ -10,7 +10,7 @@
 
 | Environment    | URL                                  | Status  |
 | -------------- | ------------------------------------ | ------- |
-| **Production** | https://edu-manager-gules.vercel.app | Live, commit `9ca29c6`, Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`, Student Progress semantics/review-data closeout deployed and static-smoked |
+| **Production** | https://edu-manager-gules.vercel.app | Live, commit `a3cbf84`, Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G`, fluid Student Progress and admin archive/delete hotfix Chrome-verified |
 | **Local Dev**  | http://localhost:3000                | 🔧 Dev / parity testing |
 | **Dashboard**  | [dashboard.html](./dashboard.html)   | 📊      |
 
@@ -1070,7 +1070,7 @@ stop.bat
 
 ---
 
-## PARTIAL - AUTHENTICATED FLUID WORKSPACE UX (2026-08-11)
+## IMPLEMENTED - AUTHENTICATED FLUID WORKSPACE UX (2026-08-12)
 
 **Objective:** remove the fixed authenticated-shell width ceiling and make Student Progress plus all authenticated routes use the available browser width from mobile through ultrawide without changing academic, attendance or finance semantics.
 
@@ -1079,12 +1079,31 @@ stop.bat
 | UX-FLUID-01 | P1 | Make the shared authenticated shell fluid while preserving page-owned constraints | IMPLEMENTED | commit `8112128`; root unit `523/523`; frontend unit `58/58`; TypeScript, lint and build pass |
 | UX-FLUID-02 | P1 | Make Student Progress KPI/chart composition responsive through ultrawide | IMPLEMENTED | Student fluid Playwright `6/6`; screenshots in `docs/artifacts/ux-fluid-2026-08-11/` |
 | UX-FLUID-03 | P1 | Run authenticated route-wide overflow/track regression | IMPLEMENTED | authenticated route matrix `48/48` |
-| UX-FLUID-04 | P0 | Attach the approved build to canonical `edu-manager-gules.vercel.app` and re-verify | BLOCKED | Vercel `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `edu-manager-delta.vercel.app`; canonical alias is owned by another inaccessible Vercel team |
+| UX-FLUID-04 | P0 | Attach the approved build to canonical `edu-manager-gules.vercel.app` and re-verify | IMPLEMENTED | Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G` is Ready/Production; canonical root and `/student-progress` return 200; authenticated Chrome rendered the fluid Student Progress workspace with zero console errors |
 
 **Design reference:** Stitch project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
 
-**Release verdict:** implementation and regression gates passed, but canonical production release is not complete. Do not mark this track or the overall goal complete until the canonical alias is transferred/attached and its deployed assets are verified.
+**Release verdict:** complete. The canonical alias is attached to the approved Vercel project, the production Student Progress UI is live, and authenticated Chrome verified the canonical assets and layout.
 
 **Evidence:** `receipts/2026-08-11-authenticated-fluid-workspace-ux.md`; `docs/artifacts/ux-fluid-2026-08-11/README.md`.
 
-**Last Updated:** 2026-08-11
+**Last Updated:** 2026-08-12
+
+---
+
+## IMPLEMENTED - ADMIN MASTER-DATA ARCHIVE/DELETE HOTFIX (2026-08-12)
+
+**Objective:** restore clear, role-safe admin archive/delete workflows for students, parents, classes and teachers without silently closing failed confirmation dialogs or hard-deleting linked operational history.
+
+| Task ID | Priority | Description | Status | Evidence |
+| ------- | -------- | ----------- | ------ | -------- |
+| ADMDEL-01 | P0 | Enforce admin-only mutation guards consistently across all four master-data APIs | IMPLEMENTED | focused RBAC/source tests; production unauthenticated DELETE probes return 401 |
+| ADMDEL-02 | P0 | Surface API failures in all four confirmation flows and refresh only after successful mutation | IMPLEMENTED | browser review-DB student archive smoke; UI error propagation tests |
+| ADMDEL-03 | P0 | Preserve linked history through soft-delete/archive semantics and fix numeric `StudentClass.id` handling | IMPLEMENTED | review PostgreSQL lifecycle smoke; enrollment-period and numeric-ID regression tests |
+| ADMDEL-04 | P0 | Verify, push and release to canonical production | IMPLEMENTED | commit `a3cbf84`; root unit `528/528`; frontend unit `58/58`; TypeScript, lint and build pass; Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G` Ready |
+
+**Runtime acceptance:** authenticated Chrome on canonical production displayed `Xoa` actions for Students, Parents, Classes and Teachers and opened the confirmation modal without console errors. The production smoke stopped before confirmation to avoid mutating real records; the complete archive lifecycle was executed against the isolated review PostgreSQL database.
+
+**Evidence:** `receipts/2026-08-12-admin-master-data-archive-delete-hotfix.md`; `docs/artifacts/admin-delete-2026-08-12/README.md`.
+
+**Last Updated:** 2026-08-12

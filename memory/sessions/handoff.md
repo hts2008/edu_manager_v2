@@ -579,15 +579,18 @@
 - Evidence: `receipts/2026-07-17-fee-filter-overlap-hotfix.md` and `docs/artifacts/fee-filter-2026-07-17/`.
 - Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown memory is current.
 
-## 2026-08-11 Handoff - Authenticated Fluid Workspace Awaiting Canonical Alias
+## 2026-08-12 Handoff - Fluid Workspace and Admin Archive/Delete Closed
 
 - Application implementation is complete in commit `8112128`, pushed to `main`. Preserve the shared-shell rule: full-width authenticated workspace with bounded fluid gutters; intentional constraints belong to individual pages/tools.
 - Student Progress is verified across `390x844`, `768x1024`, `1024x768`, `1440x900`, `1920x1080` and `2560x1440`; raw-score, null, attendance and finance semantics are unchanged.
 - Gates passed: root unit `523/523`, frontend unit `58/58`, TypeScript, lint, build, Student fluid Playwright `6/6`, authenticated route matrix `48/48`.
 - Stitch reference: project `5084496326021058210`, screen `6afce34000f24e7a875b51b00a3007aa`, model `GEMINI_3_1_PRO`.
-- Vercel `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`.
-- **Release blocker**: `https://edu-manager-gules.vercel.app` remains owned by another inaccessible Vercel team. Transfer/attach it, verify canonical assets and authenticated layout, then close `UX-FLUID-04` and the overall goal.
+- Vercel `dpl_26jsj5wwt1s56P59AmYJYpZPA73G` is Ready/Production at canonical `https://edu-manager-gules.vercel.app`; authenticated Chrome verified the fluid Student Progress workspace with zero console errors.
+- **Admin archive/delete**: commit `a3cbf84` restores Students, Parents, Classes and Teachers admin actions with explicit API error handling and history-preserving archive/deactivation semantics.
+- **Verification**: focused `38/38`, root unit `528/528`, frontend unit `58/58`, TypeScript, lint, build, isolated review DB lifecycle and non-mutating canonical Chrome smoke passed.
+- **Safety boundary**: production Student Progress must use real evidence only. Keep `demo-sp-review-v1` isolated/reversible and never confirm destructive-looking smoke actions against real production entities.
 - Evidence: `receipts/2026-08-11-authenticated-fluid-workspace-ux.md`; `docs/artifacts/ux-fluid-2026-08-11/README.md`.
+- Admin-delete evidence: `receipts/2026-08-12-admin-master-data-archive-delete-hotfix.md`; `docs/artifacts/admin-delete-2026-08-12/README.md`.
 
 ## 2026-08-06 Handoff - Student Progress Dashboard V3 Closed
 
