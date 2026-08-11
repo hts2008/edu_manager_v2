@@ -29,12 +29,16 @@ const classesApi = source("server/api/classes/index.ts");
 const enrollmentHelper = source("lib/enrollment.ts");
 const teachersApi = source("server/api/teachers/index.ts");
 const parentsApi = source("server/api/parents/index.ts");
+const studentsApi = source("server/api/students/index.ts");
 const progressPanel = source("frontend/src/components/student-progress/ProgressInputPanel.jsx");
 const dailyProgressEditor = source(
   "frontend/src/components/student-progress/DailyProgressEditor.jsx"
 );
 const progressReportApi = source("server/api/reports/student-progress.ts");
 const classesPage = source("frontend/src/pages/ClassesPage.jsx");
+const studentsPage = source("frontend/src/pages/StudentsPage.jsx");
+const parentsPage = source("frontend/src/pages/ParentsPage.jsx");
+const teachersPage = source("frontend/src/pages/TeachersPage.jsx");
 
 function loadAttendancePlannedSessionResolver() {
   const start = attendancePage.indexOf("function resolvePlannedSessionsForMonth(");
@@ -512,6 +516,23 @@ describe("attendance workflow regressions", () => {
 });
 
 describe("archive delete regressions", () => {
+  it("requires admin access consistently for all master-data delete endpoints", () => {
+    for (const endpoint of [studentsApi, parentsApi, teachersApi, classesApi]) {
+      assert.match(
+        endpoint,
+        /if \(req\.method === "DELETE"\) \{[\s\S]*?req\.user\.role !== "admin"[\s\S]*?"FORBIDDEN"/,
+      );
+    }
+  });
+
+  it("keeps delete dialogs open and surfaces API failures in every master-data page", () => {
+    for (const page of [studentsPage, parentsPage, teachersPage, classesPage]) {
+      assert.match(page, /const response = await \w+Service\.delete/);
+      assert.match(page, /if \(!response\.success\) \{/);
+      assert.match(page, /throw new Error\(response\.error\?\.message/);
+    }
+  });
+
   it("archives classes and hides inactive classes by default instead of hard-blocking delete", () => {
     assert.match(classesApi, /status && status !== "all"/);
     assert.match(classesApi, /where\.status = "active"/);

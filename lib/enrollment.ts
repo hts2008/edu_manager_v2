@@ -8,7 +8,7 @@ type EnrollmentPeriodLike = {
 };
 
 type StudentClassSnapshot = {
-  id: string;
+  id: number | string;
   classId: string;
   status?: string | null;
 };
@@ -417,8 +417,11 @@ export async function deactivateEnrollmentPeriods(
     : initialLinks;
   assertRosterSnapshotStable(initialLinks, currentLinks);
   const linkIds = currentLinks
-    .map((link: { id: string }) => link.id)
-    .filter((id: string) => !id.startsWith("class:"));
+    .map((link: { id: number | string }) => link.id)
+    .filter(
+      (id: number | string) =>
+        typeof id !== "string" || !id.startsWith("class:"),
+    );
   const classIds = [...new Set(currentLinks.map((link: { classId: string }) => link.classId))];
 
   if (linkIds.length > 0) {

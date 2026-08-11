@@ -68,8 +68,12 @@ export default function StudentsPage() {
 
   const handleDelete = async () => {
     if (selectedStudent) {
-      await studentsService.delete(selectedStudent.id);
-      loadStudents();
+      const response = await studentsService.delete(selectedStudent.id);
+      if (!response.success) {
+        throw new Error(response.error?.message || "Không thể xóa học viên");
+      }
+      await loadStudents();
+      toast.success("Đã chuyển học viên vào thùng rác");
       setSelectedStudent(null);
     }
   };

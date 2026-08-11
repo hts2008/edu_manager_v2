@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, DollarSign, Plus, UserCheck, Users } from "lucide-
 import { teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
 import PageState from "../components/ui/PageState";
 import {
   ListPanel,
@@ -13,6 +14,7 @@ import {
 
 // VI: Trang quản lý giáo viên (Admin only) - Premium Design
 export default function TeachersPage() {
+  const toast = useToast();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -39,8 +41,12 @@ export default function TeachersPage() {
 
   const handleDelete = async () => {
     if (selectedTeacher) {
-      await teachersService.delete(selectedTeacher.id);
-      loadTeachers();
+      const response = await teachersService.delete(selectedTeacher.id);
+      if (!response.success) {
+        throw new Error(response.error?.message || "Không thể xóa giáo viên");
+      }
+      await loadTeachers();
+      toast.success("Đã lưu trữ giáo viên");
       setSelectedTeacher(null);
     }
   };

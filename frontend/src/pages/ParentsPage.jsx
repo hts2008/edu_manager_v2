@@ -69,8 +69,12 @@ export default function ParentsPage() {
 
   const handleDelete = async () => {
     if (selectedParent) {
-      await parentsService.delete(selectedParent.id);
-      loadParents();
+      const response = await parentsService.delete(selectedParent.id);
+      if (!response.success) {
+        throw new Error(response.error?.message || "Không thể xóa phụ huynh");
+      }
+      await loadParents();
+      toast.success("Đã chuyển phụ huynh vào thùng rác");
       setSelectedParent(null);
     }
   };

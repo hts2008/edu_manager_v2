@@ -436,6 +436,24 @@ describe("time-bounded enrollment ledger", () => {
     assert.equal(updateWhere, undefined);
   });
 
+  it("supports numeric StudentClass ids from the Prisma schema when archiving", async () => {
+    let updateWhere: any;
+    const tx: any = {
+      studentClass: {
+        findMany: async () => [{ id: 42, classId: "class-a" }],
+        updateMany: async (args: any) => {
+          updateWhere = args.where;
+          return { count: 1 };
+        },
+      },
+      enrollmentPeriod: { updateMany: async () => ({ count: 1 }) },
+    };
+
+    await deactivateEnrollmentPeriods(tx, { studentId: "student-1" });
+
+    assert.deepEqual(updateWhere.id.in, [42]);
+  });
+
   it("uses half-open ranges so a withdrawal does not leak into the next period", () => {
     const period = {
       startedAt: new Date("2026-05-10T00:00:00.000Z"),

@@ -859,6 +859,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   // DELETE - Delete class
   if (req.method === "DELETE") {
+    if (req.user.role !== "admin") {
+      return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
+    }
+
     try {
       const { id } = req.query;
 

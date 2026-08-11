@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { classesService, studentsService, teachersService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import Modal, { ConfirmModal } from "../components/ui/Modal";
+import { useToast } from "../components/ui/Toast";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { classFormSchema } from "../utils/formValidation";
 import { toDateKey } from "../utils/dateKeys";
@@ -24,6 +25,7 @@ import {
 
 // VI: Trang quản lý lớp học
 export default function ClassesPage() {
+  const toast = useToast();
   const [selectedClass, setSelectedClass] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -88,8 +90,12 @@ export default function ClassesPage() {
 
   const handleDelete = async () => {
     if (selectedClass) {
-      await classesService.delete(selectedClass.id);
+      const response = await classesService.delete(selectedClass.id);
+      if (!response.success) {
+        throw new Error(response.error?.message || "Không thể xóa lớp học");
+      }
       await reloadData();
+      toast.success("Đã lưu trữ lớp học");
       setSelectedClass(null);
     }
   };
