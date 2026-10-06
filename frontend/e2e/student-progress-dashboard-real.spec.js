@@ -15,6 +15,7 @@ function required(name) {
 
 async function login(page, username, password) {
   await page.goto("/login");
+  await page.locator("#tenant-slug").fill("default");
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
   const response = page.waitForResponse(

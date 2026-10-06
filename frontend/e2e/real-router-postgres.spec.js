@@ -11,6 +11,7 @@ const password = required("E2E_ADMIN_PASSWORD");
 
 test("real UI persists auth and updates center settings through router/Postgres", async ({ page }) => {
   await page.goto("/login");
+  await page.locator("#tenant-slug").fill("default");
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
 

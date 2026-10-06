@@ -102,6 +102,8 @@ jobs:
       BOOTSTRAP_ADMIN_PASSWORD: ci-aud-rm-009-password
       JWT_SECRET: ci-only-real-e2e-router-secret-at-least-32-characters
       NODE_ENV: production
+      TENANCY_MODE: enforced
+      VITE_TENANCY_MODE: enforced
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
