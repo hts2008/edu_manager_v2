@@ -8,6 +8,18 @@
 
 ---
 
+## Editable Receipt Designer - 2026-10-06
+
+GitHub sync SYNC-RECEIPT-DESIGNER-20261007: IN PROGRESS. User authorized source synchronization to hts2008/edu_manager_v2. Scoped commits and PR/CI gate; exclude private files and unrelated historical untracked artifacts.
+
+Release RELEASE-RECEIPT-DESIGNER-20261007: IMPLEMENTED / LIVE. READY dpl_8mhZaNdUxHEJJ5YBRmTZ4UH4zGch; canonical authenticated smoke and Chrome designer verified. Root540/frontend258/PDF-API16 pass; two saved templates unchanged. [deployment receipt](receipts/2026-10-07-receipt-designer-production.md). Local working-tree deploy; no GitHub push or business-data writes. Last updated 2026-10-07.
+
+| Task ID | Priority | Description | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| UX-RECEIPT-DESIGNER-01 | P1 | Editable Clay/Bento block library, drag placement, A4/A5 layouts and print-parity serialization | IMPLEMENTED | Local only:258 frontend/16 PDF-API tests, lint/typecheck/build, real Chrome drag/group/save/reload/resize and A4/A5 one-page PDFs. [receipt](receipts/2026-10-06-receipt-designer.md); user/printer acceptance and deployment separate; root3 pre-existing attendance failures |
+
+Last Updated: 2026-10-06. Designer snapshot:1 IMPLEMENTED local task,0 pending implementation tasks. Production unchanged.
+
 ## Authorized Production Business Reset - 2026-10-06
 
 | Task ID | Priority | Description | Status | Evidence |
