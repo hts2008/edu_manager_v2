@@ -8,6 +8,12 @@
 
 ---
 
+## Authorized Production Business Reset - 2026-10-06
+
+| Task ID | Priority | Description | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| PROD-CLEAR-20261006 | P0 | User-confirmed delete all production business data; preserve center/accounts/settings/templates | IMPLEMENTED |25 business tables zero,10 protected tables unchanged before re-login; encrypted backup/recovery/rehearsal/rollback,8 tests/typecheck/review, live login+8 empty APIs+browser. [receipt](receipts/2026-10-06-production-business-reset.md) |
+
 ## IN PROGRESS - TEACHER SPREADSHEET / SOFT CLAY UX (2026-10-05)
 
 
