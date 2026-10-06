@@ -1,5 +1,11 @@
 # Go-Live Execution - 2026-10-06
 
+## Verified Operational Checkpoint
+
+2026-10-06T10:04:23Z: canonical https://edu-manager-gules.vercel.app operational on811fb4b/dpl_EgFWmAYP6c41mXbktcUFvEoWM46s. Seven authenticated operational APIs200; incorrect password401, missing center400, unknown center401, tenant admin denied platform management403. Encrypted cloud backup V4 upload/verify/counts pass. Zero freeze triggers/operator roles, ownership correct, original account hashes/status/roles unchanged against frozen physical recovery. Center default/admin-live tenant-only; EFS/ACL private credential handoff. Browser dashboard/report/A4/A5 preview verified without grading/financial writes. CI811fb4b run37446705838 all four jobs pass. Final PR merge/main deployment smoke pending. Historical paragraphs below are checkpoints, not current state.24h observation and owner provenance reconciliation are separate.
+
+Review follow-up: missing-score narrative red/green12tests; release helpers8tests cover sensitive error redaction, exact production target, account field-only mismatch, explicit uniquely marked CLI/PID/start-time lock release. No automatic idle-session termination remains. No production operations in this remediation.
+
 Status: IN PROGRESS. Explicit user authorization covers GitHub sync, production deployment and new operating admin. No assertion of observation-window completion.
 
 ## Scope And Safety
@@ -27,6 +33,8 @@ Status: IN PROGRESS. Explicit user authorization covers GitHub sync, production 
 - Local fresh build avoids Windows query-engine DLL locked by running review servers; no user server stopped.
 
 ## Cutover
+
+Actual cutover2026-10-06: maintenance canonical503 verified; production30 tables frozen, ordinary writer denied. Final encrypted physical backup production-1791280231672.dump.enc.json restored, full content checksums/row counts matched and local recovery writable. Migration19-chain complete; backfill28 tables/59 relations/0 failures and protected data unchanged. First CLI resolve timeout was an exited private operator session holding advisory lock72707369, idle/no transaction; only that session terminated. Original baseline retained on retry. New admin-live created in default center, owner=false; ownership/unfreeze cleanup performed. Normal candidate promoted, authenticated smoke found extensionless settings-registry ESM import causing500. Domain immediately returned to maintenance; emitted-Node ESM regression reproduces red and passes .js fix. Replacement candidate and CI underway. Production not yet certified operational LIVE.
 
 Stage maintenance deployment without aliasing; verify503, promote, drain30s functions, fresh backup, guarded exact-target migration, provision separate admin, promote normal pinned release. If migration fails, retain maintenance while diagnosing; do not alias an old writer against contracted schema. Recovery requires validated DB restoration/compatible application, not blind alias rollback.
 

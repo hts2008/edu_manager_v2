@@ -1,5 +1,9 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Current Release - 2026-10-06
+
+Production operational: https://edu-manager-gules.vercel.app, deployment dpl_EgFWmAYP6c41mXbktcUFvEoWM46s, runtime811fb4b. Actual canonical authenticated routes/auth negatives/platform403/cloud encrypted V4 backup/counts verified. Migration19-chain, verifier28/59/0; ownership restored, zero freeze triggers/operator roles; original credentials unchanged. Center default/admin-live tenant-only, private EFS/ACL credential file .release-private/production-admin.json. Never publish credentials/backup keys/PII. Preserve final frozen encrypted physical backup and owned recovery database. Pending final release-helper hardening, PR2 merge/final main deployment smoke;24h observation not preclaimed. NM0/C+0health unavailable. Older status paragraphs below are historical checkpoints.
+
 Latest production request RELEASE-20261006-01 BLOCKED.373 local changed paths, main/origin0/0; typecheck pass but undici/brace-expansion high fail current CI. Obtain scope and center/new-empty versus existing data; remediate/rehearse before production. No push/deploy/credentials created. Preflight receipts/2026-10-06-go-live-preflight.md; preserve all local work.
 
 Latest receipt-only correction UX-RECEIPT-DESIGN-02 REVIEW: three grouped sections, neutral document, restrained teal amount accent.240 frontend tests/build/lint/six PDFs verified; review A4/A5 saved. Evidence receipts/2026-10-06-receipt-design-hierarchy.md. No report/calculation/default/deployment changes. Next user visual/printer validation; NM/C+ unavailable0/0health unavailable.

@@ -1,5 +1,11 @@
 # Go / No-Go Evidence Register
 
+## Operational Release Update - 2026-10-06
+
+Canonical https://edu-manager-gules.vercel.app is operational after the authorized production migration and admin bootstrap. Actual authenticated smoke: seven operational APIs200, incorrect password401, missing center400, unknown center401, platform management403. Encrypted cloud backup V4 upload/verification/counts pass. Migration19-chain, verifier28 tables/59 relations/0 failures; protected business records and original user credentials unchanged. Ownership restored; zero freeze triggers/operator roles. Evidence: [release execution](../../../receipts/2026-10-06-go-live-execution.md).
+
+This operational go-live does not certify historical provenance reconstruction, owner signatures, physical-printer acceptance or the future24h observation gate. Historical findings are retained without speculative recalculation. The2026-10-05 register below is historical, not the current runtime deployment status.
+
 Date: 2026-10-05. Candidate: dirty local implementation; immutable release candidate NOT CREATED. Verdict: **NO-GO**.
 
 Current evidence: [execution receipt](../../../receipts/2026-10-05-tuition-progress-execution.md), [captured verification](../../artifacts/tuition-progress-execution-2026-10-05/verification.json). Local corrections are under review, not production/history closure.

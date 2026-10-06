@@ -491,3 +491,9 @@
 **Date**:2026-10-06
 **Decision**: Explicit user correction supersedes ADR-68/69 rainbow surface styling, not layout or data contracts. Reuse system white/gray surfaces, gray borders, restrained Clay depth and primary indigo; only receipt amount gets primary-soft fill. No per-field semantic rainbow colors. Existing saved custom templates require explicit save rather than automatic overwrite.
 **Evidence**:239frontend/lint/build; six one-page PDFs/no overflow and live Chrome screenshots. User aesthetic and physical-printer acceptance remain open.
+
+### ADR-71: Authorized Data-Preserving Production Cutover
+
+**Date**:2026-10-06
+**Decision**: Preserve historical default center, original credentials/finance/progress/custom templates. Separate admin-live tenant admin, not platform owner. Rehearse exact migration manifest on physical PG17 clone; maintenance and ordinary-writer role freeze precede migration. Provider owner ADMIN OPTION means no hostile DBA isolation claim. Restore ownership/remove temporary roles/triggers before live smoke. Private EFS/ACL encrypted backup and credential handoff excluded from Git/Vercel. Rollback needs compatible application/validated DB recovery, not blind old alias. No auto idle-backend termination; recovery requires independently confirmed CLI exit and unique marker/PID/backend-start/full advisory key. Missing scores remain missing, including narrative.
+**Evidence**:19 migrations, verifier28/59/0, protected records/accounts unchanged; canonical APIs/auth/backup/browser evidence in receipts/2026-10-06-go-live-execution.md.24h observation and provenance reconstruction separate.
