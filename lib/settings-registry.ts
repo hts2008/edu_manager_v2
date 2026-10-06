@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UI_COPY_SCHEMA, UI_THEME_SCHEMA, DEFAULT_UI_THEME } from "./ui-experience";
+import { UI_COPY_SCHEMA, UI_THEME_SCHEMA, DEFAULT_UI_THEME } from "./ui-experience.js";
 
 export const SETTING_GROUPS = [
   "finance",
