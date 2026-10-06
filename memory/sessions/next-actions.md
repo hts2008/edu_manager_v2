@@ -1,5 +1,9 @@
 # Next Actions - 2026-10-05
 
+## Production Follow-Up - 2026-10-06
+
+RELEASE-20261006-01 operational LIVE, main/canonical/CI/auth/APIs/encrypted backup verified; no pending migration/bootstrap/deploy. Use private default/admin-live handoff. Observe first24h API errors, tuition/progress saves and scheduled backup cycle; review physical print A4/A5, customized template selection and user acceptance. Legacy provenance requires source evidence before reconciliation. Never reuse test-reset fixtures on production. Older local-review requests below are historical.
+
 ## Latest Clay Print Review - 2026-10-06
 
 Review Clay report preview left open at3090/student-progress; user aesthetic acceptance and physical printer settings remain. Task UX-PROGRESS-PRINT-CLAY-02 REVIEW,229tests and sixPDF/liveChrome verified. Previous CUA outage is resolved; current server launcher140908/listener83044 isolated fixture schema. No production deployment.

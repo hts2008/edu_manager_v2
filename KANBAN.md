@@ -2,6 +2,8 @@
 
 > **Status**: PRODUCTION LIVE - Audit V2 remediation deployed and production Chrome-verified on 2026-08-03
 >
+> **Latest release2026-10-06**: RELEASE-20261006-01 IMPLEMENTED. PR2 merged71d8ece; canonical main deployment dpl_CErGruqkFm4WuzVQEVD5hvS9xmP2 READY. Main CI37448630117 all four jobs pass; actual canonical auth/seven APIs/backup smoke pass. [release evidence](receipts/2026-10-06-go-live-execution.md). Operational go-live complete; future24h observation, historical owner reconciliation and aesthetic/printer acceptance are separate. Older dated local NO-GO notes below are historical snapshots.
+>
 > **Historical note**: the 2026-05-06 agency PRD reset triggered Phase A parity work. That warning is now superseded by the verified production closeouts below.
 
 ---
@@ -29,7 +31,7 @@ Last Updated: 2026-10-05. Snapshot:1 IMPLEMENTED documentation task,3 REVIEW,3 P
 | UX-RECEIPT-CLAY-01 | P1 | Editable A4/A5 Clay receipt presets with background and explicit QR placeholder | REVIEW | UI save/reload/edit; six real PDFs, long-text fitting, square QR/signature space; no payment/default changes. [review](docs/artifacts/core-skills-clay-receipts-2026-10-06/README.md); user/printer acceptance pending |
 | UX-PRINT-PALETTE-01 | P1 | Replace arbitrary pastel card colors with system-neutral surfaces and restrained primary accent | REVIEW | 2026-10-06:239 frontend tests/lint/build; six one-page PDFs without field overflow; Chrome preview and saved review templates. [receipt](receipts/2026-10-06-print-palette.md); visual/printer acceptance pending |
 | UX-RECEIPT-DESIGN-02 | P1 | Receipt-only correction: grouped document hierarchy instead of individually floating cards | REVIEW |240 frontend tests/build/lint; six PDFs; Chrome saved A4/A5. [receipt](receipts/2026-10-06-receipt-design-hierarchy.md); user/printer acceptance pending |
-| RELEASE-20261006-01 | P0 | Authorized GitHub sync, production go-live and operational tenant/admin bootstrap | IN PROGRESS | Security audits clean; dataful Neon and physical PG17 migration rehearsal; encrypted physical recovery; bootstrap privilege safeguards. [execution](receipts/2026-10-06-go-live-execution.md); cutover/smoke pending |
+| RELEASE-20261006-01 | P0 | Authorized GitHub sync, production go-live and operational tenant/admin bootstrap | IMPLEMENTED | PR2 merged/main CI green; production main READY/canonical auth+seven APIs+encrypted cloud backup verified; DB/data/credential/ownership safeguards pass. [execution](receipts/2026-10-06-go-live-execution.md);24h observation separate |
 
 ## IN PROGRESS - TUITION AND PROGRESS PRODUCTION REMEDIATION (2026-10-05)
 

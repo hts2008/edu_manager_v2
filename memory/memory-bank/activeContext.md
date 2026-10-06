@@ -1,5 +1,7 @@
 # Active Context
 
+Final RELEASE-20261006-01 IMPLEMENTED/LIVE: PR2 merged/main71d8ece, main CI37448630117 four jobs pass; canonical main dpl_CErGruqkFm4WuzVQEVD5hvS9xmP2 READY. Final canonical smoke10:17:31Z seven APIs200/auth negatives/platform403/encrypted V4 cloud backup pass. Private default/admin-live credentials .release-private/production-admin.json. Data/accounts preserved; zero operator/freeze/foreign-owner remnants. Next first24h observation/physical printer/user acceptance/historical owner reconciliation, not new release blocker. Receipt contains evidence. All earlier pending/blocked paragraphs are historical. NM/C+0/0unavailable.
+
 Latest2026-10-06: canonical production operational on811fb4b/dpl_EgFWmAYP6c41mXbktcUFvEoWM46s. Canonical authenticated seven APIs200, auth negative cases/platform403, encrypted cloud V4 backup/counts pass. Original account credentials unchanged; ownership restored, zero freeze triggers/operator roles. Pending release-helper hardening, final PR2 merge/main deployment smoke. Parent-summary null presentation fixed1347680 with red/green12tests. Older checkpoint paragraphs below are historical. NM/C+ unavailable0/0health unavailable.
 
 ## Go-Live Execution - 2026-10-06
