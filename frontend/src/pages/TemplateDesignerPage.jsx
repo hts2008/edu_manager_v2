@@ -2,6 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { templatesService } from "../services/api";
 import { useToast } from "../components/ui/Toast";
+import { ArrowLeft, Undo2, Redo2, Minus, Plus, Save, Ungroup } from "lucide-react";
+import ReceiptElementLibrary from "../components/templates/ReceiptElementLibrary";
+import { RECEIPT_ELEMENT_CATALOG, createReceiptElement, createReceiptDesignerLayout, ungroupReceiptBlock } from "../components/templates/receiptDesignerElements";
+import { canvasDropPoint, DESIGNER_ELEMENT_MIME } from "../components/templates/designerPlacement";
+import { buildDesignerPrintConfig } from "../components/templates/receiptDesignerExport";
+import { importPrintTemplate } from "../components/templates/receiptDesignerImport";
+import { designerErrorMessage } from "../components/templates/designerErrors";
+import { scaleDesignerObject } from "../components/templates/scaleDesignerObject";
+import Modal from "../components/ui/Modal";
 
 const PAPER_SIZES = {
   a4: { width: 210, height: 297, label: "A4" },
@@ -31,8 +40,11 @@ const BINDING_FIELDS = [
 
 const CUSTOM_JSON_PROPS = [
   "customType",
+  "designerLabel",
+  "receiptElementId",
   "bindingField",
   "bindingLabel",
+  "bindingBoxHeight",
   "imageUrl",
   "excludeFromExport",
   "lockMovementX",
@@ -151,6 +163,7 @@ const parseTemplateConfig = (jsonConfig) => {
 const normalizeTemplateConfig = (jsonConfig) => {
   const config = parseTemplateConfig(jsonConfig);
   if (!config || typeof config !== "object") return null;
+  if (config.editor_source?.objects) return config.editor_source;
   if (Array.isArray(config.objects)) return config;
   if (Array.isArray(config.elements)) return null;
   return null;
@@ -205,6 +218,7 @@ const scaleImageForMode = (image, canvas, mode) => {
 
 const getObjectLabel = (object) => {
   if (!object) return "Chua chon";
+  if (object.designerLabel) return object.designerLabel;
   if (object.bindingField) return `Field: ${object.bindingField}`;
   if (object.customType === "background_image") return "Background image";
   if (object.customType === "image" || object.type === "image") return "Image";
@@ -240,12 +254,16 @@ export default function TemplateDesignerPage() {
   const restoringRef = useRef(false);
   const newObjectOffsetRef = useRef(0);
   const canvasInitIdRef = useRef(0);
+  const snapEnabledRef = useRef(true);
 
   const [template, setTemplate] = useState(null);
   const [paperConfig, setPaperConfig] = useState(() => normalizePaperConfig(null));
   const [paperDraft, setPaperDraft] = useState(() => normalizePaperConfig(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pendingLayout, setPendingLayout] = useState(null);
+  const [elementBusy, setElementBusy] = useState(false);
+  const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedObject, setSelectedObject] = useState(null);
   const [canvasReady, setCanvasReady] = useState(false);
   const [canvasError, setCanvasError] = useState("");
@@ -259,6 +277,8 @@ export default function TemplateDesignerPage() {
   const [designerNoticeType, setDesignerNoticeType] = useState("idle");
   const [zoom, setZoom] = useState(1);
   const [, setSelectionVersion] = useState(0);
+  const pageStateRef = useRef({ paperConfig, orientation: template?.orientation || "portrait" });
+  pageStateRef.current = { paperConfig, orientation: template?.orientation || "portrait" };
 
   const showDesignerNotice = (message, type = "success") => {
     setDesignerNotice(message);
@@ -355,9 +375,10 @@ export default function TemplateDesignerPage() {
 
   const captureHistory = (paperOverride, orientationOverride) => {
     if (restoringRef.current || !canvasRef.current) return;
-    const effectivePaper = paperOverride?.mode ? paperOverride : paperConfig;
-    const effectiveOrientation = orientationOverride || template?.orientation || "portrait";
-    const snapshot = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
+    if (paperOverride?.target?.excludeFromExport) return;
+    const effectivePaper = paperOverride?.mode ? paperOverride : pageStateRef.current.paperConfig;
+    const effectiveOrientation = orientationOverride || pageStateRef.current.orientation;
+    const snapshot = canvasRef.current.toObject(CUSTOM_JSON_PROPS);
     snapshot.objects = (snapshot.objects || []).filter((object) => !object.excludeFromExport);
     snapshot.paper = serializePaperConfig(effectivePaper);
     snapshot.canvas = {
@@ -409,10 +430,15 @@ export default function TemplateDesignerPage() {
     canvas.on("object:added", captureHistory);
     canvas.on("object:modified", captureHistory);
     canvas.on("object:removed", captureHistory);
+    canvas.on("object:moving", event => {
+      if (!snapEnabledRef.current || event.e?.altKey || !event.target) return;
+      event.target.set({ left: Math.round(event.target.left / 20) * 20, top: Math.round(event.target.top / 20) * 20 });
+    });
 
     if (template?.json_config) {
       try {
-        const config = normalizeTemplateConfig(template.json_config);
+        const raw = parseTemplateConfig(template.json_config);
+        const config = normalizeTemplateConfig(raw) || await importPrintTemplate(fabric, raw, { width, height });
         if (config) {
           const sourceSize = getCanvasSizeFromConfig(config, template?.paper_size, orientation);
           await canvas.loadFromJSON(config);
@@ -423,15 +449,18 @@ export default function TemplateDesignerPage() {
             canvas.setWidth(width);
             canvas.setHeight(height);
           }
-          applyLoadedCanvasAlignment(canvas, width, height, sourceSize);
+          if (raw.version !== 2 && !raw.editor_source) {
+            applyLoadedCanvasAlignment(canvas, width, height, sourceSize);
+          }
           canvas.backgroundColor = "#ffffff";
         } else {
           showDesignerNotice("Canvas san sang. JSON mau in cu da duoc scaffold mac dinh.", "success");
         }
-      } catch {
+      } catch (error) {
         if (!isActiveCanvasInit(initId, canvas)) return;
-        showDesignerNotice("JSON mau in loi, da mo scaffold mac dinh.", "warning");
-        toast.error("JSON mẫu in lỗi, đã mở canvas trống.");
+        setCanvasError(error.message || "Không thể mở mẫu in hiện tại.");
+        showDesignerNotice("Không thể mở mẫu in hiện tại. Mẫu gốc vẫn được giữ nguyên.", "error");
+        return;
       }
     }
 
@@ -455,10 +484,13 @@ export default function TemplateDesignerPage() {
     setCanvasReady(true);
     if (!designerNotice) showDesignerNotice("Canvas san sang.", "success");
     refreshSelection();
+    historyRef.current = [];
+    redoRef.current = [];
     captureHistory();
 
     const handleKeyDown = (event) => {
       if (!isActiveCanvasInit(initId, canvas)) return;
+      if (event.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       const activeObject = canvas.getActiveObject();
       if ((event.key === "Delete" || event.key === "Backspace") && activeObject) {
         if (!activeObject.isEditing) {
@@ -586,31 +618,7 @@ export default function TemplateDesignerPage() {
   const getExportableObjects = (canvas) =>
     canvas.getObjects().filter((object) => !object.excludeFromExport);
 
-  const scaleCanvasObject = (object, scaleX, scaleY, options = {}) => {
-    const shouldScalePosition = options.scalePosition !== false;
-    const left = shouldScalePosition ? Number(object.left || 0) * scaleX : Number(object.left || 0);
-    const top = shouldScalePosition ? Number(object.top || 0) * scaleY : Number(object.top || 0);
-    const objectType = String(object.type || "").toLowerCase();
-    const textScale = Math.min(scaleX, scaleY);
-
-    object.set({ left, top });
-
-    if (["textbox", "text", "i-text"].includes(objectType)) {
-      object.set({
-        width: Math.max(24, Number(object.width || 120) * scaleX),
-        fontSize: Math.max(7, Number(object.fontSize || 14) * textScale),
-        scaleX: Number(object.scaleX || 1),
-        scaleY: Number(object.scaleY || 1),
-      });
-    } else {
-      object.set({
-        scaleX: Number(object.scaleX || 1) * scaleX,
-        scaleY: Number(object.scaleY || 1) * scaleY,
-      });
-    }
-
-    if (typeof object.setCoords === "function") object.setCoords();
-  };
+  const scaleCanvasObject = scaleDesignerObject;
 
   const scaleExportableObjects = (canvas, scaleX, scaleY) => {
     getExportableObjects(canvas).forEach((object) => scaleCanvasObject(object, scaleX, scaleY));
@@ -949,6 +957,7 @@ export default function TemplateDesignerPage() {
     if (direction === "back") moveToBack(canvas, activeObject);
     canvas.renderAll();
     refreshSelection();
+    captureHistory();
   };
 
   const selectLayerObject = (object) => {
@@ -975,14 +984,18 @@ export default function TemplateDesignerPage() {
     }
     canvas.renderAll();
     refreshSelection();
+    activeObject.setCoords();
+    captureHistory();
   };
 
   const updateSelected = (field, value) => {
     const activeObject = canvasRef.current?.getActiveObject();
     if (!activeObject) return;
     activeObject.set(field, value);
+    activeObject.setCoords();
     canvasRef.current.renderAll();
     refreshSelection();
+    captureHistory();
   };
 
   const toggleLock = () => {
@@ -998,6 +1011,7 @@ export default function TemplateDesignerPage() {
     });
     canvasRef.current.renderAll();
     refreshSelection();
+    captureHistory();
   };
 
   const restoreCanvasSnapshot = async (snapshot) => {
@@ -1028,7 +1042,6 @@ export default function TemplateDesignerPage() {
           : current
       );
       removeGrid(canvas);
-      applyLoadedCanvasAlignment(canvas, width, height, getCanvasSizeFromConfig(snapshot, template?.paper_size, orientation));
       drawGrid(canvas, width, height, fabric);
       canvas.discardActiveObject();
       canvas.renderAll();
@@ -1141,7 +1154,7 @@ export default function TemplateDesignerPage() {
     showDesignerNotice("Dang luu mau...", "loading");
 
     try {
-      const json = canvasRef.current.toJSON(CUSTOM_JSON_PROPS);
+      const json = canvasRef.current.toObject(CUSTOM_JSON_PROPS);
       json.objects = (json.objects || []).filter((object) => !object.excludeFromExport);
       json.paper = serializePaperConfig(paperConfig);
       json.canvas = {
@@ -1156,7 +1169,7 @@ export default function TemplateDesignerPage() {
         ...template,
         paper_size: getPersistedPaperSize(paperConfig, template?.paper_size),
         orientation: template?.orientation || "portrait",
-        json_config: JSON.stringify(json),
+        json_config: JSON.stringify(await buildDesignerPrintConfig(canvasRef.current, json)),
       });
 
       if (response.success) {
@@ -1172,7 +1185,7 @@ export default function TemplateDesignerPage() {
         toast.error(message);
       }
     } catch (error) {
-      const message = error?.message || "Không thể lưu mẫu.";
+      const message = designerErrorMessage(error);
       showDesignerNotice(message, "error");
       toast.error(message);
     } finally {
@@ -1190,6 +1203,78 @@ export default function TemplateDesignerPage() {
     updateSelected("fontStyle", selectedObject.fontStyle === "italic" ? "normal" : "italic");
   };
 
+  const addReceiptElement = async (elementId, point) => {
+    const canvas = getUsableCanvas();
+    if (!canvas) return;
+    setElementBusy(true);
+    try {
+      const fabric = await getFabric();
+      const objects = await createReceiptElement(fabric, elementId, { paper: paperConfig.preset === "a5" ? "a5" : "a4", width: Math.min(420, canvas.getWidth() - 64), ...point });
+      const object = new fabric.Group(objects, { originX: "left", originY: "top", customType: "receipt_block", receiptElementId: elementId,
+        designerLabel: RECEIPT_ELEMENT_CATALOG.find(item => item.id === elementId)?.label, subTargetCheck: true });
+      const box = object.getBoundingRect();
+      object.set({ left: Math.max(16, Math.min(object.left, canvas.getWidth() - box.width - 16)), top: Math.max(16, Math.min(object.top, canvas.getHeight() - box.height - 16)) });
+      restoringRef.current = true;
+      addObjectToCanvas(object, getObjectLabel(object), { preservePlacement: Boolean(point) });
+      restoringRef.current = false;
+      captureHistory();
+      canvas.requestRenderAll();
+    } catch (error) { showDesignerNotice(designerErrorMessage(error), "error"); }
+    finally { restoringRef.current = false; setElementBusy(false); }
+  };
+
+  const applyReceiptLayout = async (paper) => {
+    const canvas = getUsableCanvas();
+    if (!canvas) return;
+    setElementBusy(true);
+    try {
+      const fabric = await getFabric();
+      const nextPaper = normalizePaperConfig({ mode: "preset", preset: paper });
+      const size = paperToCanvasSize(nextPaper, "portrait");
+      const { objects } = await createReceiptDesignerLayout(fabric, { ...size, paper });
+      restoringRef.current = true;
+      canvas.discardActiveObject();
+      canvas.clear();
+      canvas.backgroundColor = "#ffffff";
+      canvas.setDimensions(size);
+      objects.forEach(object => canvas.add(object));
+      drawGrid(canvas, size.width, size.height, fabric);
+      setPaperConfig(nextPaper); setPaperDraft(nextPaper);
+      setTemplate(current => ({ ...current, orientation: "portrait" }));
+      canvas.requestRenderAll();
+      refreshSelection();
+      restoringRef.current = false;
+      captureHistory(nextPaper, "portrait");
+      showDesignerNotice("Đã áp dụng bố cục. Chưa lưu thay đổi.", "success");
+    } catch (error) { showDesignerNotice(designerErrorMessage(error), "error"); }
+    finally { restoringRef.current = false; setElementBusy(false); setPendingLayout(null); }
+  };
+
+  const ungroupSelected = async () => {
+    const canvas = getUsableCanvas();
+    const group = canvas?.getActiveObject();
+    if (!group || group.type !== "group") return;
+    setElementBusy(true);
+    try {
+      const fabric = await getFabric();
+      restoringRef.current = true;
+      ungroupReceiptBlock(canvas, fabric, group);
+      canvas.discardActiveObject();
+      restoringRef.current = false;
+      captureHistory(); refreshSelection(); canvas.requestRenderAll();
+    } catch (error) { showDesignerNotice(designerErrorMessage(error), "error"); }
+    finally { restoringRef.current = false; setElementBusy(false); }
+  };
+
+  const onElementDrop = (event) => {
+    const elementId = event.dataTransfer.getData(DESIGNER_ELEMENT_MIME);
+    if (!elementId || controlsDisabled) return;
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    const point = canvasDropPoint({ x: event.clientX, y: event.clientY }, canvas.lowerCanvasEl.getBoundingClientRect(), { width: canvas.getWidth(), height: canvas.getHeight() });
+    void addReceiptElement(elementId, point);
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -1203,7 +1288,7 @@ export default function TemplateDesignerPage() {
   const selectedIsShape = ["rect", "circle", "line", "image", "group"].includes(selectedObject?.type);
   const selectedLabel = getObjectLabel(selectedObject);
   const uploadBusy = uploadState.status === "loading";
-  const controlsDisabled = !canvasReady || Boolean(canvasError) || uploadBusy || saving;
+  const controlsDisabled = !canvasReady || Boolean(canvasError) || uploadBusy || saving || elementBusy;
   const statusMessage =
     (uploadBusy ? uploadState.message : "") ||
     designerNotice ||
@@ -1219,7 +1304,7 @@ export default function TemplateDesignerPage() {
           : uploadState.status;
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-slate-100">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-slate-100">
       <input
         ref={imageInputRef}
         type="file"
@@ -1229,10 +1314,10 @@ export default function TemplateDesignerPage() {
         onChange={handleImagePicked}
       />
 
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => navigate("/templates")} className="btn-secondary px-3 py-2">
-            Back
+          <button type="button" onClick={() => navigate("/templates")} className="btn-secondary px-3 py-2" title="Về thư viện mẫu" aria-label="Về thư viện mẫu">
+            <ArrowLeft size={18} aria-hidden="true" />
           </button>
           <div>
             <h1 className="font-bold text-slate-950">{template?.template_name || "Template Designer"}</h1>
@@ -1243,19 +1328,19 @@ export default function TemplateDesignerPage() {
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button type="button" onClick={undo} className="btn-secondary px-3 py-2" title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác Ctrl Z">
-            Undo
+            <Undo2 size={18} aria-hidden="true" />
           </button>
           <button type="button" onClick={redo} className="btn-secondary px-3 py-2" title="Làm lại (Ctrl+Y)" aria-label="Làm lại Ctrl Y">
-            Redo
+            <Redo2 size={18} aria-hidden="true" />
           </button>
           <button type="button" onClick={() => changeZoom(-0.1)} className="btn-secondary px-3 py-2" title="Thu nhỏ canvas" aria-label="Thu nhỏ canvas">
-            -
+            <Minus size={18} aria-hidden="true" />
           </button>
           <button type="button" onClick={resetView} className="btn-secondary px-3 py-2" title="Đặt zoom về 100%" aria-label="Đặt zoom về 100%">
             {Math.round(zoom * 100)}%
           </button>
           <button type="button" onClick={() => changeZoom(0.1)} className="btn-secondary px-3 py-2" title="Phóng to canvas" aria-label="Phóng to canvas">
-            +
+            <Plus size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -1265,7 +1350,7 @@ export default function TemplateDesignerPage() {
             data-testid="save-template"
             title="Lưu mẫu in hiện tại"
           >
-            {saving ? "Đang lưu..." : "Lưu mẫu"}
+            <Save size={16} aria-hidden="true" /> {saving ? "Đang lưu..." : "Lưu mẫu"}
           </button>
         </div>
       </header>
@@ -1285,8 +1370,10 @@ export default function TemplateDesignerPage() {
         </div>
       </div>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_minmax(0,1fr)_300px]">
-        <aside className="overflow-y-auto border-r border-slate-200 bg-white p-4">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[280px_minmax(0,1fr)_300px] lg:overflow-hidden">
+        <aside className="shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-4 lg:shrink">
+          {template?.type === "receipt" && <ReceiptElementLibrary disabled={controlsDisabled} onAdd={addReceiptElement} onLayout={setPendingLayout} />}
+          <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-600"><input type="checkbox" checked={snapEnabled} onChange={event => { snapEnabledRef.current = event.target.checked; setSnapEnabled(event.target.checked); }} /> Bám lưới</label>
           <PanelTitle title="Khổ giấy" subtitle="Chọn preset hoặc nhập kích thước riêng cho canvas." />
           <div className="mb-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
             <label className="block">
@@ -1426,7 +1513,8 @@ export default function TemplateDesignerPage() {
           </div>
         </aside>
 
-        <section className="min-w-0 overflow-auto bg-slate-100 p-4 lg:p-8">
+        <section className="min-h-[60vh] min-w-0 shrink-0 overflow-auto bg-slate-100 p-4 lg:min-h-0 lg:shrink lg:p-8" onDrop={onElementDrop}
+          onDragOver={event => { if (event.dataTransfer.types.includes(DESIGNER_ELEMENT_MIME) && !controlsDisabled) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; } }}>
           <div
             className="mx-auto w-max rounded-[1.5rem] bg-white p-5 shadow-inner ring-1 ring-slate-200 transition-transform"
             style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
@@ -1489,6 +1577,7 @@ export default function TemplateDesignerPage() {
           </div>
           {selectedObject ? (
             <div className="space-y-5">
+              {selectedObject.type === "group" && <button type="button" onClick={ungroupSelected} data-testid="ungroup-element" className="btn-secondary w-full" title="Tách khối để chỉnh từng thành phần"><Ungroup size={16} /> Tách khối</button>}
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Layer</p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1504,8 +1593,8 @@ export default function TemplateDesignerPage() {
                 <NumberField label="Y" value={selectedObject.top || 0} onChange={(value) => updateSelected("top", value)} />
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-600">Opacity</label>
+              {!selectedIsText && selectedObject.type !== "group" && <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-600">Độ trong suốt</label>
                 <input
                   type="range"
                   min="0.05"
@@ -1515,7 +1604,7 @@ export default function TemplateDesignerPage() {
                   onChange={(event) => updateSelected("opacity", Number(event.target.value))}
                   className="w-full"
                 />
-              </div>
+              </div>}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600">Canh lề</label>
@@ -1528,6 +1617,9 @@ export default function TemplateDesignerPage() {
 
               {selectedIsText && (
                 <div className="space-y-4 rounded-2xl border border-slate-200 p-3">
+                  <label className="block text-sm font-semibold text-slate-600">Nội dung
+                    <textarea className="input mt-2" value={selectedObject.text || ""} onChange={event => updateSelected("text", event.target.value)} />
+                  </label>
                   <NumberField
                     label="Cỡ chữ"
                     value={selectedObject.fontSize || 14}
@@ -1566,7 +1658,7 @@ export default function TemplateDesignerPage() {
                 </div>
               )}
 
-              {selectedIsShape && selectedObject.type !== "image" && (
+              {selectedIsShape && !["image", "group"].includes(selectedObject.type) && (
                 <div className="space-y-4 rounded-2xl border border-slate-200 p-3">
                   <ColorField
                     label="Fill"
@@ -1583,6 +1675,17 @@ export default function TemplateDesignerPage() {
                     value={selectedObject.strokeWidth || 0}
                     onChange={(value) => updateSelected("strokeWidth", value)}
                   />
+                  {selectedObject.type === "rect" && <NumberField label="Bo góc" value={selectedObject.rx || 0} onChange={value => { selectedObject.set({ rx: Math.max(0, value), ry: Math.max(0, value) }); updateSelected("rx", Math.max(0, value)); }} />}
+                  {selectedObject.type === "rect" && <label className="block text-sm font-semibold text-slate-600">Độ nổi
+                    <select className="input mt-2" value={selectedObject.shadow?.blur ? (selectedObject.shadow.blur > 6 ? "clay" : "soft") : "none"}
+                      onChange={async event => {
+                        const mode = event.target.value;
+                        const fabric = await getFabric();
+                        updateSelected("shadow", mode === "none" ? null : new fabric.Shadow({ color: "#24343d18", blur: mode === "clay" ? 12 : 4, offsetX: 0, offsetY: mode === "clay" ? 5 : 1 }));
+                      }}>
+                      <option value="none">Phẳng</option><option value="soft">Mềm</option><option value="clay">Clay</option>
+                    </select>
+                  </label>}
                 </div>
               )}
 
@@ -1614,6 +1717,13 @@ export default function TemplateDesignerPage() {
           </div>
         </aside>
       </main>
+      <Modal isOpen={Boolean(pendingLayout)} onClose={() => setPendingLayout(null)} busy={elementBusy} title="Áp dụng mẫu phiếu thu">
+        <p className="text-sm text-slate-600">Thay bố cục đang chỉnh bằng mẫu {pendingLayout?.toUpperCase()}? Mẫu đã lưu vẫn giữ nguyên cho đến khi bạn bấm Lưu mẫu.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" disabled={elementBusy} onClick={() => setPendingLayout(null)} className="btn-secondary">Hủy</button>
+          <button type="button" disabled={elementBusy} onClick={() => applyReceiptLayout(pendingLayout)} className="btn-primary">Áp dụng bố cục</button>
+        </div>
+      </Modal>
     </div>
   );
 }

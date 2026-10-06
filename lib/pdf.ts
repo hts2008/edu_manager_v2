@@ -596,7 +596,7 @@ export async function generatePdf(template: any, data: PdfData = {}) {
         data,
         mmToPt(width),
         mmToPt(height),
-        rawConfig?.clay_receipt?.schemaVersion === 1
+        rawConfig?.clay_receipt?.schemaVersion === 1 || rawConfig?.designer_print?.schemaVersion === 1
       )
     : (() => {
         try {
