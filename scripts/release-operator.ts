@@ -3,6 +3,7 @@ import {mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, openSyn
 import {spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {PrismaClient} from '@prisma/client';
+import {releaseExplicitLock, safeReleaseError} from './release-safety.js';
 
 const privateDir = resolve('.release-private');
 mkdirSync(privateDir, {recursive: true});
@@ -40,7 +41,14 @@ let db = new PrismaClient({datasources: {db: {url: target.toString()}}, log: []}
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const output = (name: string, value: unknown) => writeFileSync(resolve(privateDir, name), JSON.stringify(value, null, 2), {mode: 0o600});
 function run(args: string[], env = process.env) {
-  const result = spawnSync(process.execPath, args, {env, encoding: 'utf8', timeout: 240_000, maxBuffer: 10 * 1024 * 1024});
+  const marker=`edu_release_cli_${randomBytes(16).toString('hex')}`;
+  const cliEnv={...env};
+  for(const key of ['DATABASE_URL','DIRECT_URL']) if(cliEnv[key]) {
+    const url=new URL(cliEnv[key]);url.searchParams.set('application_name',marker);cliEnv[key]=url.toString();
+  }
+  console.info(JSON.stringify({cliMarker:marker}));
+  const result = spawnSync(process.execPath, args, {env:cliEnv, encoding: 'utf8', timeout: 240_000, maxBuffer: 10 * 1024 * 1024});
+  // No automatic termination on either outcome. Manual recovery requires verified exit and exact session evidence.
   if (result.status !== 0) throw new Error(`Release command failed: ${args.slice(0,3).join(' ')}; ${result.stderr?.replace(/postgres(?:ql)?:\/\/\S+/g, '[DATABASE_URL]')}`);
   return result.stdout;
 }
@@ -65,18 +73,6 @@ async function becomeOperator() {
   await db.$disconnect();
   db = new PrismaClient({datasources:{db:{url:operatorUrl.toString()}},log:[]});
   process.env.DATABASE_URL=operatorUrl.toString();process.env.DIRECT_URL=operatorUrl.toString();
-}
-async function releaseExitedCliLocks() {
-  // Only the private operator's idle, transaction-free Prisma CLI sessions.
-  // Never terminate application sessions or an active migration transaction.
-  const locks = await db.$queryRawUnsafe<Array<{pid:number}>>(`SELECT DISTINCT a.pid FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid
-    WHERE l.locktype='advisory' AND l.objid=72707369 AND l.granted AND a.usename=current_user
-      AND a.state='idle' AND a.xact_start IS NULL AND a.pid<>pg_backend_pid()`);
-  for (const {pid} of locks) {
-    const result = await db.$queryRawUnsafe<Array<{terminated:boolean}>>('SELECT pg_terminate_backend($1::integer) AS terminated',pid);
-    if (!result[0].terminated) throw new Error('Could not release exited migration CLI session');
-  }
-  if (locks.length) console.info(JSON.stringify({exitedOperatorCliLocksReleased:locks.length}));
 }
 async function inventory(client = db) {
   return client.$transaction(async tx => {
@@ -141,7 +137,6 @@ async function migrate() {
   const apply = async (name: string) => {
     run([prismaCli,'db','execute','--schema','prisma/schema.prisma','--file',`prisma/migrations/${name}/migration.sql`]);
     run([prismaCli,'migrate','resolve','--applied',name]);
-    await releaseExitedCliLocks();
     console.info(JSON.stringify({migration:name, applied:true, target:mode==='production-migrate'?'production':'rehearsal'}));
   };
   const migrations = await db.$queryRawUnsafe<Array<{migration_name: string}>>('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL');
@@ -169,7 +164,6 @@ async function migrate() {
   if (!verified.readyForConstrain) throw new Error('Backfill validation failed; contraction refused');
   const before = await inventory();
   run([prismaCli,'migrate','deploy']);
-  await releaseExitedCliLocks();
   if (mode === 'production-migrate') {
     const {installWriteFreeze} = await import('./release-write-freeze.js');
     await installWriteFreeze(db,operatorName);
@@ -218,8 +212,12 @@ async function provision() {
   console.info(JSON.stringify({centerCode:credentials.centerCode,username:credentials.username,created:true,existingAccountsUnchanged:true}));
 }
 try {
-  if (mode === 'production-release-lock') await releaseExitedCliLocks();
-  else if (mode === 'production-locks') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT a.pid,a.usename,a.application_name,a.state,a.xact_start::text,a.query_start::text,l.granted FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE l.locktype='advisory' AND l.objid=72707369")));}
+  if (mode === 'production-release-lock') {
+    if(process.env.RELEASE_CLI_EXIT_CONFIRMED!=='true') throw new Error('Manual lock release requires confirmed CLI exit');
+    await releaseExplicitLock(db,{pid:process.env.RELEASE_LOCK_PID,backendStart:process.env.RELEASE_LOCK_BACKEND_START,marker:process.env.RELEASE_LOCK_MARKER});
+    console.info(JSON.stringify({explicitOperatorCliLockReleased:true}));
+  }
+  else if (mode === 'production-locks') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT a.pid,a.usename,a.datname,a.application_name,a.backend_start::text,a.state,a.xact_start::text,l.classid,l.objid,l.objsubid,l.granted FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE l.locktype='advisory' AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database()) AND l.classid=0 AND l.objid=72707369 AND l.objsubid=1")));}
   else if (mode === 'inspect-roles') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT member.rolname AS member, granted.rolname AS granted, m.admin_option,m.inherit_option,m.set_option FROM pg_auth_members m JOIN pg_roles member ON member.oid=m.member JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=current_user")));}
   else if (mode === 'inspect') {const data=await inventory();output('production-inventory.json',data);console.info(JSON.stringify({targetFingerprint:sha(production.hostname+production.pathname).slice(0,12),tables:Object.keys(data).length,counts:Object.fromEntries(Object.entries(data).map(([k,v]:any)=>[k,v.count]))}));}
   else if (mode === 'backup') await backup();
@@ -274,7 +272,6 @@ try {
     } finally {await removeWriteFreeze(db);await outsider.$disconnect();}
   }
   else throw new Error('Supported modes: inspect, backup, rehearsal, production-migrate');
-} catch(error) {let message=error instanceof Error ? error.message : 'Release operation failed';
-  for(const secret of [operatorCredential.password,decodeURIComponent(production.password)]) message=message.split(secret).join('[REDACTED]');
+} catch(error) {const message=safeReleaseError(error,[operatorCredential.password,decodeURIComponent(production.password)]);
   console.error(message);process.exitCode=1;}
 finally {await db.$disconnect();}
