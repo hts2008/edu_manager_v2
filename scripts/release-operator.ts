@@ -14,7 +14,7 @@ if (production.hostname !== 'ep-silent-queen-aoujb3oc.c-2.ap-southeast-1.aws.neo
 const mode = process.argv[2];
 const rehearsalHost = 'ep-shiny-river-aoxeh0qp.c-2.ap-southeast-1.aws.neon.tech';
 const target = new URL(production);
-if (!['inspect','backup','production-migrate','production-provision','production-audit','production-freeze','production-unfreeze'].includes(mode!)) target.hostname = rehearsalHost;
+if (!['inspect','backup','production-migrate','production-provision','production-audit','production-freeze','production-unfreeze','production-locks','production-release-lock'].includes(mode!)) target.hostname = rehearsalHost;
 if (mode === 'local-rehearsal' || mode === 'local-freeze-check') {
   const inspect = spawnSync('docker', ['inspect','edu-release-recovery-20261006'], {encoding:'utf8'});
   const container = JSON.parse(inspect.stdout)[0];
@@ -22,7 +22,7 @@ if (mode === 'local-rehearsal' || mode === 'local-freeze-check') {
   target.hostname='127.0.0.1'; target.port='15433'; target.username='release'; target.password=password;
   target.pathname='/edu_release_recovery'; target.search='';
 }
-if (['production-migrate','production-provision','production-freeze','production-unfreeze'].includes(mode!) && process.env.RELEASE_CONFIRMATION !== 'EDU_MANAGER_PRODUCTION_20261006') {
+if (['production-migrate','production-provision','production-freeze','production-unfreeze','production-release-lock'].includes(mode!) && process.env.RELEASE_CONFIRMATION !== 'EDU_MANAGER_PRODUCTION_20261006') {
   throw new Error('Explicit production confirmation required');
 }
 const freezePath = resolve(privateDir,'write-freeze.json');
@@ -31,7 +31,7 @@ const {operatorName} = JSON.parse(readFileSync(freezePath,'utf8'));
 const operatorPath = resolve(privateDir,'operator-credential.json');
 if (!existsSync(operatorPath)) writeFileSync(operatorPath,JSON.stringify({roleName:operatorName,password:randomBytes(24).toString('base64url')}),{flag:'wx',mode:0o600});
 const operatorCredential = JSON.parse(readFileSync(operatorPath,'utf8'));
-if (['production-migrate','production-provision','rehearsal-operator-check'].includes(mode!)) {
+if (['production-migrate','production-provision','rehearsal-operator-check','production-release-lock'].includes(mode!)) {
   target.username=operatorCredential.roleName; target.password=operatorCredential.password;
 }
 process.env.DATABASE_URL = target.toString();
@@ -65,6 +65,18 @@ async function becomeOperator() {
   await db.$disconnect();
   db = new PrismaClient({datasources:{db:{url:operatorUrl.toString()}},log:[]});
   process.env.DATABASE_URL=operatorUrl.toString();process.env.DIRECT_URL=operatorUrl.toString();
+}
+async function releaseExitedCliLocks() {
+  // Only the private operator's idle, transaction-free Prisma CLI sessions.
+  // Never terminate application sessions or an active migration transaction.
+  const locks = await db.$queryRawUnsafe<Array<{pid:number}>>(`SELECT DISTINCT a.pid FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid
+    WHERE l.locktype='advisory' AND l.objid=72707369 AND l.granted AND a.usename=current_user
+      AND a.state='idle' AND a.xact_start IS NULL AND a.pid<>pg_backend_pid()`);
+  for (const {pid} of locks) {
+    const result = await db.$queryRawUnsafe<Array<{terminated:boolean}>>('SELECT pg_terminate_backend($1::integer) AS terminated',pid);
+    if (!result[0].terminated) throw new Error('Could not release exited migration CLI session');
+  }
+  if (locks.length) console.info(JSON.stringify({exitedOperatorCliLocksReleased:locks.length}));
 }
 async function inventory(client = db) {
   return client.$transaction(async tx => {
@@ -126,9 +138,10 @@ async function migrate() {
   const {createPostgresVerificationReader, captureTenantBackfillBaseline, verifyTenantBackfill} = await import('./verify-tenant-backfill.js');
   const reader = createPostgresVerificationReader(db);
   const prismaCli = 'node_modules/prisma/build/index.js';
-  const apply = (name: string) => {
+  const apply = async (name: string) => {
     run([prismaCli,'db','execute','--schema','prisma/schema.prisma','--file',`prisma/migrations/${name}/migration.sql`]);
     run([prismaCli,'migrate','resolve','--applied',name]);
+    await releaseExitedCliLocks();
     console.info(JSON.stringify({migration:name, applied:true, target:mode==='production-migrate'?'production':'rehearsal'}));
   };
   const migrations = await db.$queryRawUnsafe<Array<{migration_name: string}>>('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL');
@@ -144,16 +157,19 @@ async function migrate() {
   }
   output(`${mode}-migration-manifest.json`,checksums);
   const expand = '202608120001_admin_console_tenancy_expand';
-  if (!applied.has(expand)) apply(expand);
-  const baseline = await captureTenantBackfillBaseline(reader);
-  output(`${mode}-baseline.json`,baseline);
+  if (!applied.has(expand)) await apply(expand);
+  const baselinePath = resolve(privateDir,`${mode}-baseline.json`);
+  const baseline = mode === 'production-migrate' && existsSync(baselinePath)
+    ? JSON.parse(readFileSync(baselinePath,'utf8')) : await captureTenantBackfillBaseline(reader);
+  if (!existsSync(baselinePath) || mode !== 'production-migrate') output(`${mode}-baseline.json`,baseline);
   const backfill = '202608120002_admin_console_tenancy_backfill';
-  if (!applied.has(backfill)) apply(backfill);
+  if (!applied.has(backfill)) await apply(backfill);
   const verified = await verifyTenantBackfill(reader, baseline);
   output(`${mode}-backfill.json`,verified);
   if (!verified.readyForConstrain) throw new Error('Backfill validation failed; contraction refused');
   const before = await inventory();
   run([prismaCli,'migrate','deploy']);
+  await releaseExitedCliLocks();
   if (mode === 'production-migrate') {
     const {installWriteFreeze} = await import('./release-write-freeze.js');
     await installWriteFreeze(db,operatorName);
@@ -202,7 +218,9 @@ async function provision() {
   console.info(JSON.stringify({centerCode:credentials.centerCode,username:credentials.username,created:true,existingAccountsUnchanged:true}));
 }
 try {
-  if (mode === 'inspect-roles') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT member.rolname AS member, granted.rolname AS granted, m.admin_option,m.inherit_option,m.set_option FROM pg_auth_members m JOIN pg_roles member ON member.oid=m.member JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=current_user")));}
+  if (mode === 'production-release-lock') await releaseExitedCliLocks();
+  else if (mode === 'production-locks') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT a.pid,a.usename,a.application_name,a.state,a.xact_start::text,a.query_start::text,l.granted FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE l.locktype='advisory' AND l.objid=72707369")));}
+  else if (mode === 'inspect-roles') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT member.rolname AS member, granted.rolname AS granted, m.admin_option,m.inherit_option,m.set_option FROM pg_auth_members m JOIN pg_roles member ON member.oid=m.member JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=current_user")));}
   else if (mode === 'inspect') {const data=await inventory();output('production-inventory.json',data);console.info(JSON.stringify({targetFingerprint:sha(production.hostname+production.pathname).slice(0,12),tables:Object.keys(data).length,counts:Object.fromEntries(Object.entries(data).map(([k,v]:any)=>[k,v.count]))}));}
   else if (mode === 'backup') await backup();
   else if (mode === 'rehearsal' || mode === 'local-rehearsal' || mode === 'production-migrate') await migrate();
