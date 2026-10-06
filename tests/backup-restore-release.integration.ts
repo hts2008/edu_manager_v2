@@ -46,6 +46,8 @@ describe("isolated PG17 release recovery v3/v4", { skip: process.env.RUN_RELEASE
     await db.parent.create({ data: { id: "sidecar-parent", tenantId, fullName: "Synthetic Parent", phone: "0900000001", relationship: "father" } });
     await db.student.create({ data: { id: "sidecar-student", tenantId, parentId: "sidecar-parent", fullName: "Synthetic Student", gender: "male", dateOfBirth: new Date("2014-01-01"), enrollmentDate: new Date("2026-01-01") } });
     await db.class.create({ data: { id: "sidecar-class", tenantId, className: "Synthetic Class", sessionsPerWeek: 2, startTime: "18:00", endTime: "19:00", feePerDay: 100000 } });
+    await db.studentClass.create({ data: { id: 700, tenantId, studentId: "sidecar-student", classId: "sidecar-class", enrollmentDate: new Date("2026-01-01") } });
+    await db.activityLog.create({ data: { id: 900, tenantId, userId: "sidecar-user", action: "SYNTHETIC_RECOVERY_TEST" } });
     await db.classMonthPlan.create({ data: { id: "sidecar-plan", tenantId, classId: "sidecar-class", billingMonth: "2026-10" } });
     await db.classMonthPlanRevision.create({ data: { id: "sidecar-plan-revision", tenantId, planId: "sidecar-plan", revision: 1, state: "open", eventType: "create", snapshot: { synthetic: true }, actorId: "sidecar-user" } });
     await db.monthlyFee.create({ data: { id: "sidecar-fee", tenantId, studentId: "sidecar-student", month: "2026-10", totalAmount: 100000 } });
@@ -76,7 +78,7 @@ describe("isolated PG17 release recovery v3/v4", { skip: process.env.RUN_RELEASE
         await db.$executeRawUnsafe(`GRANT USAGE, CREATE ON SCHEMA public TO "${role}"`);
         await db.$executeRawUnsafe(`GRANT ALL ON ALL TABLES IN SCHEMA public TO "${role}"`);
         await db.$executeRawUnsafe(`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "${role}"`);
-        for (const table of ["class_month_plan_revisions", "monthly_fee_line_revisions", "setting_revisions", "center_settings"]) {
+        for (const table of ["class_month_plan_revisions", "monthly_fee_line_revisions", "setting_revisions", "center_settings", "student_classes", "activity_logs"]) {
           await db.$executeRawUnsafe(`ALTER TABLE "${table}" OWNER TO "${role}"`);
         }
         fallback = true;
@@ -102,6 +104,9 @@ describe("isolated PG17 release recovery v3/v4", { skip: process.env.RUN_RELEASE
       await db.tenant.create({ data: { id: `next-${version}`, slug: `next-${version}`, name: "Next Synthetic Center" } });
       const next = await db.centerSettings.create({ data: { tenantId: `next-${version}` } });
       assert.equal(next.id, 501);
+      assert.equal((await db.activityLog.create({ data: { tenantId: "tenant_default", userId: "sidecar-user", action: "AFTER_RESTORE" } })).id, 901);
+      await db.class.create({ data: { id: "next-class", tenantId: "tenant_default", className: "Next", sessionsPerWeek: 1, startTime: "18:00", endTime: "19:00", feePerDay: 1 } });
+      assert.equal((await db.studentClass.create({ data: { tenantId: "tenant_default", studentId: "sidecar-student", classId: "next-class", enrollmentDate: new Date() } })).id, 701);
     });
   }
   it("failed restore rolls back rows and leaves immutable triggers enabled", async () => {

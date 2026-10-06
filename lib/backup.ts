@@ -374,17 +374,19 @@ export async function restoreDatabaseBackup(prisma: any, backup: DatabaseBackup,
       if (typeof tx.$executeRawUnsafe === "function") {
         // ALTER SEQUENCE RESTART is transactional, unlike setval. Resolve the
         // owned sequence through the current schema rather than assuming a name.
-        await tx.$executeRawUnsafe('LOCK TABLE "center_settings" IN ACCESS EXCLUSIVE MODE');
+        for (const table of ["student_classes", "activity_logs", "center_settings"]) {
+        await tx.$executeRawUnsafe(`LOCK TABLE "${table}" IN ACCESS EXCLUSIVE MODE`);
         await tx.$executeRawUnsafe(`DO $$
 DECLARE sequence_name TEXT; next_id BIGINT;
 BEGIN
-  sequence_name := pg_get_serial_sequence('"center_settings"', 'id');
+  sequence_name := pg_get_serial_sequence('"${table}"', 'id');
   IF sequence_name IS NULL THEN
-    RAISE EXCEPTION 'Restore requires an owned center_settings id sequence';
+    RAISE EXCEPTION 'Restore requires an owned ${table} id sequence';
   END IF;
-  SELECT COALESCE(MAX("id")::BIGINT, 0) + 1 INTO next_id FROM "center_settings";
+  SELECT COALESCE(MAX("id")::BIGINT, 0) + 1 INTO next_id FROM "${table}";
   EXECUTE format('ALTER SEQUENCE %s RESTART WITH %s', sequence_name, next_id);
 END $$;`);
+        }
       }
     });
   }, { maxWait: 10_000, timeout: 120_000 });

@@ -20,4 +20,7 @@ test("restore advances sequence after inserts and bounds the transaction", async
   assert.match(events[sequenceIndex], /pg_get_serial_sequence/);
   assert.match(events[sequenceIndex], /RESTART WITH/);
   assert.doesNotMatch(events[sequenceIndex], /setval/);
+  for (const table of ["student_classes", "activity_logs", "center_settings"]) {
+    assert.ok(events.some((sql) => sql.includes(`pg_get_serial_sequence('\"${table}\"'`)), table);
+  }
 });
