@@ -52,7 +52,8 @@ async function becomeOperator() {
     await db.$executeRawUnsafe(`CREATE ROLE "${name}" LOGIN INHERIT PASSWORD '${password}' VALID UNTIL '${new Date(Date.now()+86400000).toISOString()}'`);
   }
   // Managed Neon does not allow granting the provider-created owner role.
-  // Transfer ownership for the maintenance window, without allowing runtime SET ROLE.
+  // Block ordinary application writes during maintenance, not hostile DB administration.
+  // The provider owner retains ADMIN OPTION and could deliberately regrant membership.
   await db.$transaction(async tx => {
     await tx.$executeRawUnsafe(`GRANT "${name}" TO "neondb_owner" WITH INHERIT TRUE, SET TRUE`);
     await tx.$executeRawUnsafe(`REASSIGN OWNED BY "neondb_owner" TO "${name}"`);
@@ -65,19 +66,20 @@ async function becomeOperator() {
   db = new PrismaClient({datasources:{db:{url:operatorUrl.toString()}},log:[]});
   process.env.DATABASE_URL=operatorUrl.toString();process.env.DIRECT_URL=operatorUrl.toString();
 }
-async function inventory() {
-  return db.$transaction(async tx => {
+async function inventory(client = db) {
+  return client.$transaction(async tx => {
     const tables = await tx.$queryRawUnsafe<Array<{table_name: string}>>("SELECT table_name FROM information_schema.tables WHERE table_schema=current_schema() AND table_type='BASE TABLE' ORDER BY table_name");
     const metrics: Record<string, unknown> = {};
     for (const {table_name: table} of tables) {
       if (!/^[a-z_]+$/.test(table)) throw new Error('Invalid table identifier');
-      const rows = await tx.$queryRawUnsafe<Array<{count: bigint; checksum: string}>>(`SELECT count(*) AS count, md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY row_to_json(t)::text),'')) AS checksum FROM "${table}" t`);
+      const rows = await tx.$queryRawUnsafe<Array<{count: bigint; checksum: string}>>(`SELECT count(*) AS count, md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY row_to_json(t)::text COLLATE "C"),'')) AS checksum FROM "${table}" t`);
       metrics[table] = {count: Number(rows[0].count), checksum: rows[0].checksum};
     }
     return metrics;
   }, {isolationLevel: 'RepeatableRead', timeout: 120_000});
 }
 async function backup() {
+  const sourceInventory = await inventory();
   const keyPath = resolve(privateDir, 'recovery-key.json');
   if (!existsSync(keyPath)) output('recovery-key.json', {key: randomBytes(32).toString('hex')});
   const key = Buffer.from(JSON.parse(readFileSync(keyPath, 'utf8')).key, 'hex');
@@ -104,8 +106,21 @@ async function backup() {
   const restore = spawnSync('docker', ['exec','-i','edu-release-recovery-20261006','pg_restore','-U','release',
     '-d',recoveryDatabase,'--single-transaction','--no-owner','--no-acl','--exit-on-error'], {input:clear, timeout:240_000,maxBuffer:10*1024*1024});
   if (restore.status !== 0) throw new Error('Isolated physical restore failed');
-  output('backup-verification.json', {name, checksum:sha(clear),bytes:clear.length, recoveryDatabase,restored:true, at:new Date().toISOString()});
-  console.info(JSON.stringify({backup:name, encrypted:true, checksumVerified:true, isolatedRestore:true}));
+  const metadata = JSON.parse(spawnSync('docker',['inspect','edu-release-recovery-20261006'],{encoding:'utf8'}).stdout)[0];
+  const localPassword = metadata.Config.Env.find((value:string)=>value.startsWith('POSTGRES_PASSWORD=')).slice(18);
+  const recoveryUrl = `postgresql://release:${encodeURIComponent(localPassword)}@127.0.0.1:15433/${recoveryDatabase}`;
+  const recovery = new PrismaClient({datasources:{db:{url:recoveryUrl}},log:[]});
+  try {
+    const recoveredInventory = await inventory(recovery);
+    output('backup-inventory-comparison.json',{sourceInventory,recoveredInventory,recoveryDatabase});
+    if (JSON.stringify(sourceInventory) !== JSON.stringify(recoveredInventory)) throw new Error('Recovered physical backup differs from captured source inventory; retain backup and investigate concurrent writes');
+    const {removeWriteFreeze} = await import('./release-write-freeze.js');
+    await removeWriteFreeze(recovery);
+    await recovery.$executeRawUnsafe('UPDATE users SET username=username');
+    if (JSON.stringify(sourceInventory) !== JSON.stringify(await inventory(recovery))) throw new Error('Recovery write smoke changed source content');
+    output('backup-verification.json', {name, checksum:sha(clear),bytes:clear.length, recoveryDatabase,restored:true, inventoryVerified:true,recoveryWritable:true,sourceInventory,recoveredInventory,at:new Date().toISOString()});
+  } finally {await recovery.$disconnect();}
+  console.info(JSON.stringify({backup:name, encrypted:true, checksumVerified:true, isolatedRestore:true,inventoryVerified:true,recoveryWritable:true}));
 }
 async function migrate() {
   const {createPostgresVerificationReader, captureTenantBackfillBaseline, verifyTenantBackfill} = await import('./verify-tenant-backfill.js');
