@@ -1247,3 +1247,7 @@ Final designer closeout:258frontend/16PDFAPI pass after final grouped-paper-chan
 ## 2026-10-07 - Receipt Designer Production
 
 RELEASE-RECEIPT-DESIGNER-20261007 IMPLEMENTED/LIVE: authorized local working-tree deploy READY dpl_8mhZaNdUxHEJJ5YBRmTZ4UH4zGch, explicit canonical alias, authenticated read-only smoke200/empty business data/two templates unchanged and actual Chrome library/A4/A5 canvas screenshot. Safe upload excludes private files/logs. Root540/frontend258/PDFAPI16/lint/typecheck/build pass; CRLF-sensitive test extraction repaired without attendance code changes. No seed/migration/template/default/credential changes/GitHub push. Receipt receipts/2026-10-07-receipt-designer-production.md. NM/C+0/0unavailable.
+
+## 2026-10-07 - GitHub Source Sync
+
+SYNC-RECEIPT-DESIGNER-20261007 IMPLEMENTED. Explicit user sync request; scoped branch commits published and PR3 merged0ed0489 after PR CI37503712484 verify/integration/visual-e2e/real-e2e all pass. Independent48-test review and exact private-value scan pass; no private file leakage/reset/force push. Local main safely fast-forwarded; unrelated untracked artifacts preserved. Canonical release remains8mhZa; GitHub auto-Vercel check is another inaccessible team scope, not canonical proof. Receipt receipts/2026-10-07-github-source-sync.md. NM/C+0/0health unavailable.

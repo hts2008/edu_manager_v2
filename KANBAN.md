@@ -10,7 +10,7 @@
 
 ## Editable Receipt Designer - 2026-10-06
 
-GitHub sync SYNC-RECEIPT-DESIGNER-20261007: IN PROGRESS. User authorized source synchronization to hts2008/edu_manager_v2. Scoped commits and PR/CI gate; exclude private files and unrelated historical untracked artifacts.
+GitHub sync SYNC-RECEIPT-DESIGNER-20261007: IMPLEMENTED. [PR3](https://github.com/hts2008/edu_manager_v2/pull/3) merged as0ed0489 after all four CI jobs passed (run37503712484). Scoped code/tests/evidence published, local main fast-forwarded without reset. Private files/unrelated historical artifacts excluded. [sync receipt](receipts/2026-10-07-github-source-sync.md). Production data unchanged.
 
 Release RELEASE-RECEIPT-DESIGNER-20261007: IMPLEMENTED / LIVE. READY dpl_8mhZaNdUxHEJJ5YBRmTZ4UH4zGch; canonical authenticated smoke and Chrome designer verified. Root540/frontend258/PDF-API16 pass; two saved templates unchanged. [deployment receipt](receipts/2026-10-07-receipt-designer-production.md). Local working-tree deploy; no GitHub push or business-data writes. Last updated 2026-10-07.
 

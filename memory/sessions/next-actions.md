@@ -1,5 +1,9 @@
 # Next Actions - 2026-10-05
 
+## Latest - 2026-10-07
+
+Receipt designer live and GitHub PR3 merged0ed0489 with all four PR CI jobs pass. No remaining source implementation step; finish closing-doc publication/main regression snapshot. Preserve empty production business state and saved templates. User visual/physical-printer acceptance remains separate. Older root3 attendance failures are fixed with CRLF source-loader normalization. GitHub auto-Vercel scope differs from canonical project: do not mutate integration or substitute its status for canonical runtime proof.
+
 ## Current - Receipt Composer Review (2026-10-06)
 
 UX-RECEIPT-DESIGNER-01 implemented locally. Review the retained3092/design tab and A4/A5 PDFs in docs/artifacts/receipt-designer-2026-10-06. User visual acceptance and physical-printer fidelity remain open. Resolve the3 pre-existing attendance source-parser tests in a separate scoped task before treating full root suite as green; sync/deploy only with authorization. Production remains intentionally empty of business data. Never apply review fixtures/default replacements automatically.

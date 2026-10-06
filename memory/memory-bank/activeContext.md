@@ -1,5 +1,9 @@
 # Active Context
 
+## GitHub Source Sync - 2026-10-07
+
+SYNC-RECEIPT-DESIGNER-20261007 IMPLEMENTED. User-authorized source sync PR3 merged0ed0489; PR CI37503712484 all four jobs pass, independent pre-push review/secret-value scan pass. Local main fast-forwarded safely; unrelated historical untracked artifacts retained. No DB/template/credential writes. Canonical live deployment remains verified8mhZa; GitHub auto-Vercel check points to another team scope and is not canonical deployment proof. Receipt receipts/2026-10-07-github-source-sync.md; NM/C+ unavailable0/0health unavailable. Older sync/deploy pending notes historical.
+
 ## Production Designer Release - 2026-10-07
 
 RELEASE-RECEIPT-DESIGNER-20261007 IMPLEMENTED/LIVE: READY dpl_8mhZaNdUxHEJJ5YBRmTZ4UH4zGch explicitly aliased to canonical gules. Root540/frontend258/PDF-API16/lint/typecheck/build pass. Prior root3 failures were CRLF test extraction, fixed test-only. Canonical auth/API smoke200, business collections0 and2 saved templates unchanged; actual Chrome eight-block library/A4/A5/canvas screenshot. No seed/migration/template save/credential change/GitHub push. Receipt receipts/2026-10-07-receipt-designer-production.md. NM/C+ unavailable0/0health unavailable. Older production-unchanged/test-failure statements below are historical.
