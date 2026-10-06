@@ -7,6 +7,16 @@ const onePixelPng =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 describe("PDF generation", () => {
+  it('designer V2 rejects critical financial overflow rather than truncating or falling back', async () => {
+    for (const field of ['total_amount', 'amount', 'amount_display', 'amount_in_words', 'receipt_id']) {
+      await assert.rejects(generatePdf({ type: 'receipt', json_config: {
+        version: 2, background: { src: onePixelPngDataUri }, designer_print: { schemaVersion: 1 },
+        canvas: { width: 400, height: 600 },
+        bindings: [{ field, x: 20, y: 20, width: 1, height: 1, fontSize: 12 }],
+      } }, { [field]: '12345678901234567890' }),
+      (error: any) => error?.code === 'CLAY_RECEIPT_TEXT_OVERFLOW');
+    }
+  });
   it("renders Vietnamese amount words correctly", () => {
     assert.equal(numberToWords(0), "không đồng");
     assert.equal(numberToWords(1500000), "một triệu năm trăm nghìn đồng");

@@ -12,6 +12,13 @@ import {
 } from "./fixtures/template-render-v2.js";
 
 describe("template render contract v2", () => {
+  it('render parsing ignores editable metadata without mutating persistence source', () => {
+    const source = { ...validV2Config(), designer_print: { schemaVersion: 1 },
+      editor_source: { version: '7.1.0', objects: [{ type: 'Group' }] } };
+    const parsed = parseTemplateRenderContract(source);
+    assert.equal('editor_source' in parsed, false);
+    assert.equal(source.editor_source.objects[0].type, 'Group');
+  });
   it("accepts a full-page background and absolute binding overlays", () => {
     const contract = parseTemplateRenderContract(validV2Config());
     assert.equal(contract.version, 2);

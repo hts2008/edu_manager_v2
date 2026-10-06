@@ -78,7 +78,7 @@ export default function TemplatesPage() {
       if (!response.success) throw new Error(response.error?.message || 'Không tải được mẫu in.');
       const full=response.data?.template || response.data;
       if (!full?.id) throw new Error('Mẫu in chưa sẵn sàng.');
-      if (isClayReceiptTemplate(full)) setClayEditor({template:full,paper:full.paper_size});
+      if (metadataOnly && isClayReceiptTemplate(full)) setClayEditor({template:full,paper:full.paper_size});
       else if (metadataOnly) {setEditingTemplate(full); setShowForm(true);}
       else navigate(`/templates/${template.id}/design`);
     } catch (failure) {if (mounted.current) setError(failure.message || 'Không mở được mẫu in.');}

@@ -1,5 +1,13 @@
 # Next Actions - 2026-10-05
 
+## Current - Receipt Composer Review (2026-10-06)
+
+UX-RECEIPT-DESIGNER-01 implemented locally. Review the retained3092/design tab and A4/A5 PDFs in docs/artifacts/receipt-designer-2026-10-06. User visual acceptance and physical-printer fidelity remain open. Resolve the3 pre-existing attendance source-parser tests in a separate scoped task before treating full root suite as green; sync/deploy only with authorization. Production remains intentionally empty of business data. Never apply review fixtures/default replacements automatically.
+
+## Current Production State - 2026-10-06 Business Reset
+
+PROD-CLEAR-20261006 IMPLEMENTED. Production contains no old business data, by explicit user authorization. Default/admin-live/password/settings/templates preserved. Re-login and enter genuine operational data; do not reseed old demo/history automatically. Recovery backup retained privately, restore only on explicit authorization. Historical go-live data checks are superseded; current empty-state API/browser smoke passed. No pending reset action.
+
 ## Production Follow-Up - 2026-10-06
 
 RELEASE-20261006-01 operational LIVE, main/canonical/CI/auth/APIs/encrypted backup verified; no pending migration/bootstrap/deploy. Use private default/admin-live handoff. Observe first24h API errors, tuition/progress saves and scheduled backup cycle; review physical print A4/A5, customized template selection and user acceptance. Legacy provenance requires source evidence before reconciliation. Never reuse test-reset fixtures on production. Older local-review requests below are historical.

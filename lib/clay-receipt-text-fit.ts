@@ -10,7 +10,7 @@ for (const [name, file] of Object.entries({
   regular: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf',
   italic: 'Roboto-Italic.ttf', bolditalic: 'Roboto-MediumItalic.ttf',
 })) measure.registerFont(name, Buffer.from(vfs[file], 'base64'));
-const critical = new Set(['receipt_id', 'amount_display', 'amount_in_words']);
+const critical = new Set(['receipt_id', 'payment_id', 'amount_display', 'amount_in_words', 'total_amount', 'amount']);
 
 interface TextBox {
   text: string;
