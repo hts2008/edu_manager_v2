@@ -40,11 +40,12 @@ const studentsPage = source("frontend/src/pages/StudentsPage.jsx");
 const parentsPage = source("frontend/src/pages/ParentsPage.jsx");
 const teachersPage = source("frontend/src/pages/TeachersPage.jsx");
 
-function loadAttendancePlannedSessionResolver() {
-  const start = attendancePage.indexOf("function resolvePlannedSessionsForMonth(");
-  const end = attendancePage.indexOf("\n\nexport default function AttendancePage", start);
+function loadAttendancePlannedSessionResolver(pageSource = attendancePage) {
+  pageSource = pageSource.replace(/\r\n/g, "\n");
+  const start = pageSource.indexOf("function resolvePlannedSessionsForMonth(");
+  const end = pageSource.indexOf("\n\nexport default function AttendancePage", start);
   assert.ok(start >= 0 && end > start, "AttendancePage must expose its month denominator resolver");
-  const resolverSource = attendancePage.slice(start, end);
+  const resolverSource = pageSource.slice(start, end);
   return Function(
     "countScheduleDaysInMonth",
     "countMonthBoundedWeeklySessions",
@@ -53,6 +54,20 @@ function loadAttendancePlannedSessionResolver() {
 }
 
 describe("attendance workflow regressions", () => {
+  it("loads equivalent month denominator resolvers from LF and CRLF source", () => {
+    const lfSource = attendancePage.replace(/\r\n/g, "\n");
+    const lfResolver = loadAttendancePlannedSessionResolver(lfSource);
+    const crlfResolver = loadAttendancePlannedSessionResolver(lfSource.replace(/\n/g, "\r\n"));
+    const input = {
+      classSchedule: { billing_policy: "monthly_prorated", sessions_per_week: 2 },
+      monthKey: "2026-06",
+      scheduleDayNumbers: [1, 3],
+      ledgerSessions: [],
+    };
+    assert.equal(lfResolver(input), 9);
+    assert.equal(crlfResolver(input), lfResolver(input));
+  });
+
   it("selects the exact visible calendar row instead of remapping Sunday rows to the previous Monday week", () => {
     assert.match(attendancePage, /function getCalendarRowWeekRange\(weekStart,\s*weekEnd\)/);
     assert.match(attendancePage, /handleWeekClick\(weekStart,\s*weekEnd\)/);
