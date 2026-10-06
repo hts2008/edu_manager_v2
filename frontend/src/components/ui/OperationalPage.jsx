@@ -60,7 +60,7 @@ export function OperationalPage({ children, className = "", ...props }) {
       variants={motion.container}
       initial="hidden"
       animate="visible"
-      className={`space-y-6 ${className}`}
+      className={`operational-page space-y-4 ${className}`}
       {...props}
     >
       {children}
@@ -81,42 +81,22 @@ export function PageIntro({
   return (
     <Motion.section
       variants={motion.item}
-      className="eduflow-page-intro p-5 sm:p-7"
+      className="eduflow-page-intro"
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.78fr)] xl:items-end">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            {eyebrow && (
-              <span className="eduflow-eyebrow">
-                {eyebrow}
-              </span>
-            )}
-            {status && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {status}
-              </span>
-            )}
+      <div className="operational-heading">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <div className="min-w-0">
+            {(eyebrow || status) && <div className="mb-2 flex flex-wrap items-center gap-2">
+              {eyebrow && <span className="eduflow-eyebrow">{eyebrow}</span>}
+              {status && <span role="status" className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">{status}</span>}
+            </div>}
+            <h1 className="eduflow-title text-2xl font-black">{title}</h1>
+            {description && <p className="eduflow-muted mt-1 max-w-3xl text-sm leading-5">{description}</p>}
           </div>
-          <h1 className="eduflow-title mt-4 text-2xl font-black tracking-tight sm:text-3xl">
-            {title}
-          </h1>
-          {description && (
-            <p className="eduflow-muted mt-2 max-w-3xl text-sm leading-6 sm:text-base">
-              {description}
-            </p>
-          )}
-          {actions && <div className="mt-5 flex flex-wrap gap-3">{actions}</div>}
         </div>
-
-        {metrics.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {metrics.map((metric) => (
-              <MetricTile key={metric.label} {...metric} compact />
-            ))}
-          </div>
-        )}
+        {actions && <div className="operational-heading-actions">{actions}</div>}
       </div>
+      {metrics.length > 0 && <MetricGrid metrics={metrics} />}
     </Motion.section>
   );
 }
@@ -127,7 +107,7 @@ export function MetricGrid({ metrics }) {
   return (
     <Motion.section
       variants={motion.container}
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="operational-metrics"
     >
       {metrics.map((metric) => (
         <Motion.div key={metric.label} variants={motion.item}>
@@ -144,32 +124,28 @@ export function MetricTile({
   helper,
   icon: Icon,
   tone = "indigo",
-  compact = false,
 }) {
   const classes = toneClasses[tone] || toneClasses.indigo;
 
   return (
-    <div className={`eduflow-metric p-4 ${compact ? "" : "sm:p-5"}`}>
-      <div className="flex min-w-0 items-start justify-between gap-4">
+    <div className="eduflow-metric operational-metric">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+          <p className="text-xs font-semibold text-slate-600">
             {label}
           </p>
-          <p className="mt-2 truncate text-2xl font-black tracking-tight text-slate-950">
+          <p className="operational-metric-value">
             {value}
           </p>
-          {helper && <p className="mt-1 text-sm text-slate-500">{helper}</p>}
+          {helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
         </div>
         {Icon && (
           <span
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ${classes.icon}`}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${classes.icon}`}
           >
-            <Icon size={20} aria-hidden="true" />
+            <Icon size={16} aria-hidden="true" />
           </span>
         )}
-      </div>
-      <div className="mt-4 h-1 overflow-hidden rounded-full bg-slate-100">
-        <div className={`h-full w-2/5 rounded-full ${classes.accent}`} />
       </div>
     </div>
   );

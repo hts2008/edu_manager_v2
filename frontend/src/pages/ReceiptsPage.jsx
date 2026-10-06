@@ -196,7 +196,7 @@ export default function ReceiptsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Phiếu thu</h1>
           <p className="text-gray-500">Lịch sử và in lại phiếu thu học phí</p>

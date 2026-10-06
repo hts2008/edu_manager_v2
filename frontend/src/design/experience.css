@@ -1,0 +1,53 @@
+[data-experience-root], .experience-preview { --experience-primary: #09685e; --experience-radius: 6px; color: #202a32; font-family: inherit; letter-spacing: 0; }
+[data-experience-theme="ocean"] { --experience-primary: #165b8a; }
+[data-experience-theme="berry"] { --experience-primary: #913a62; }
+[data-experience-radius="soft"] { --experience-radius: 8px; }
+[data-experience-root] .experience-console { max-width: 1080px; margin: auto; padding: 24px; background: #f6f8fa; }
+[data-experience-root] .experience-console header, [data-experience-root] .experience-console nav, [data-experience-root] .experience-console footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-block: 12px; }
+[data-experience-root] .experience-console h1 { font-size: 24px; line-height: 1.3; }
+[data-experience-root] .experience-console h2 { font-size: 20px; }
+[data-experience-root] .experience-console button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; background: #fff; color: #202a32; border: 1px solid #6d7f89; border-radius: var(--experience-radius); white-space: normal; overflow-wrap: anywhere; }
+[data-experience-root] .experience-console button[aria-pressed="true"] { background: var(--experience-primary); color: #fff; }
+[data-experience-root] .experience-console button:disabled { opacity: .65; cursor: not-allowed; }
+[data-experience-root] .experience-console :focus-visible { outline: 3px solid var(--experience-primary); outline-offset: 3px; }
+[data-experience-root] .experience-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+[data-experience-root] .experience-console label { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+[data-experience-root] .experience-console input:not([type="radio"]), [data-experience-root] .experience-console select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #6d7f89; border-radius: var(--experience-radius); background: #fff; color: #202a32; font: inherit; box-sizing: border-box; }
+[data-experience-root] .experience-console fieldset { display: flex; flex-wrap: wrap; gap: 16px; border: 0; padding: 12px 0; }
+[data-experience-root] .experience-console .experience-swatch { flex-direction: row; align-items: center; }
+[data-experience-root] .experience-color { width: 24px; height: 24px; background: var(--experience-primary); border: 1px solid #202a32; border-radius: 4px; }
+[data-experience-root] .experience-preview { padding: 20px; background: #fff; border: 1px solid #6d7f89; border-radius: var(--experience-radius); }
+[data-experience-root] .experience-console [data-experience-depth="clay"] button { box-shadow: 0 2px 0 #cfd8dd; }
+[data-experience-root] .experience-console dd { margin: 0; display: grid; gap: 8px; overflow-wrap: anywhere; }
+[data-experience-root] .experience-console ins { text-decoration: none; }
+@media (max-width: 640px) { [data-experience-root] .experience-console { padding: 12px; } [data-experience-root] .experience-fields { grid-template-columns: minmax(0, 1fr); } }
+
+/* Keep operational content unframed; clay depth belongs to controls only. */
+[data-experience-root] .teacher-shell { background: #f6f8fa; background-image: none; letter-spacing: 0; }
+[data-experience-root] .teacher-shell .teacher-shell-section { border: 0; border-radius: 0; box-shadow: none; }
+[data-experience-root] .teacher-shell a[aria-current="page"] { color: var(--experience-primary); background: #edf3f3; }
+[data-experience-root] .teacher-shell a[aria-current="page"] > div:first-child { background: #edf3f3; border-color: #d3e0e0; border-radius: var(--experience-radius); }
+[data-experience-root] .teacher-shell [data-testid="student-progress-page"] { letter-spacing: 0; }
+[data-experience-root] [data-testid="student-progress-page"] .btn-primary { background: var(--experience-primary); background-image: none; color: #fff; border-radius: var(--experience-radius); letter-spacing: 0; }
+[data-experience-root] [data-testid="student-progress-page"] .btn-secondary,
+[data-experience-root] [data-testid="progress-roster"] .input { border-radius: var(--experience-radius); letter-spacing: 0; }
+[data-experience-root] [data-testid="progress-roster"] .input { background: #fff; border: 1px solid #6d7f89; color: #202a32; min-height: 44px; }
+[data-experience-root] [data-testid="progress-roster"] .input[readonly] { background: #edf0f2; color: #53616b; }
+[data-experience-root] [data-testid="progress-roster"] :focus-visible { outline: 3px solid var(--experience-primary); outline-offset: 2px; }
+[data-experience-root] [data-testid="progress-roster"] form { background: #fff; padding: 16px 12px; }
+[data-experience-root][data-experience-depth="clay"] [data-testid="student-progress-page"] .btn-primary { box-shadow: inset 0 1px 0 #ffffff33, 0 2px 0 #cfd8dd; }
+[data-experience-root][data-experience-depth="flat"] [data-testid="student-progress-page"] .btn-primary { box-shadow: none; }
+
+/* Reduce spacing without replacing the established panels, palette or depth. */
+[data-experience-root] .teacher-shell main .eduflow-page-intro { padding: 16px 20px; }
+[data-experience-root] .operational-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+[data-experience-root] .operational-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+[data-experience-root] .operational-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; margin-top: 16px; }
+[data-experience-root] .operational-metric { padding: 12px 14px; min-width: 0; }
+[data-experience-root] .operational-metric-value { margin-top: 4px; color: #17212b; font-size: 20px; line-height: 28px; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+[data-experience-root] .operational-avatar { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #e0e7ff; color: #6366f1; font-size: 14px; font-weight: 600; }
+[data-experience-root] .teacher-shell main .eduflow-table-shell table :is(th, td) { padding-block: 10px; }
+@media (max-width: 640px) {
+  [data-experience-root] .operational-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  [data-experience-root] .operational-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}

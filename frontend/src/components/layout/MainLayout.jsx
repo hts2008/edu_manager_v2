@@ -1,19 +1,39 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import PageTransition from "../ui/PageTransition";
+import { useAuth } from "../../context/AuthContext";
+import { shellPreferenceKey, readShellPreference, writeShellPreference } from "../../utils/shellPreference";
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  const preferenceKey = shellPreferenceKey(user);
+  const storedCollapsed = useMemo(() => readShellPreference(window.localStorage, preferenceKey), [preferenceKey]);
+  const [preference, setPreference] = useState({ key: null, collapsed: false });
+  const collapsed = preference.key === preferenceKey ? preference.collapsed : storedCollapsed;
+  const toggleCollapsed = () => {
+    writeShellPreference(window.localStorage, preferenceKey, !collapsed);
+    setPreference({ key: preferenceKey, collapsed: !collapsed });
+  };
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
   const location = useLocation();
 
-  return (
-    <div className="eduflow-app-shell flex min-h-screen text-slate-900 selection:bg-blue-500/30">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => { if (desktop.matches) closeSidebar(); };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, [closeSidebar]);
 
-      <div className="flex flex-col flex-1 min-w-0 z-10 relative">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+  return (
+    <div className="teacher-shell eduflow-app-shell text-slate-900 selection:bg-blue-500/30" data-collapsed={collapsed}>
+      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} collapsed={collapsed} />
+
+      <div className="teacher-shell-content" inert={sidebarOpen}>
+        <Header onMenuClick={() => setSidebarOpen(true)} sidebarOpen={sidebarOpen}
+          collapsed={collapsed} onCollapseClick={toggleCollapsed} />
 
         <main className="eduflow-main flex-1 w-full min-w-0 overflow-auto py-6">
           <div className="sr-only" role="status" aria-live="polite">

@@ -4,6 +4,11 @@ import { authService } from '../services/api';
 // VI: Context quản lý authentication state
 const AuthContext = createContext(null);
 
+export function normalizeAuthenticatedUser(user) {
+  if (!user || !Array.isArray(user?.permissions)) return null;
+  return { ...user, permissions: [...new Set(user.permissions.filter(Boolean))] };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,25 +40,40 @@ export function AuthProvider({ children }) {
   const fetchCurrentUser = async () => {
     try {
       const response = await authService.me();
-      if (response.success) {
-        setUser(response.data.user);
-      }
+      const authenticatedUser = response.success
+        ? normalizeAuthenticatedUser(response.data?.user)
+        : null;
+      if (!authenticatedUser) throw new Error('AUTH_PROFILE_UNAVAILABLE');
+      setUser(authenticatedUser);
+      setError(null);
     } catch {
-      // Preserve the session during transient network failures.
+      setUser(null);
+      setError('AUTH_PROFILE_UNAVAILABLE');
     } finally {
       setLoading(false);
     }
   };
 
   // Login function
-  const login = async (username, password) => {
+  const login = async (username, password, tenantSlug) => {
     setError(null);
     try {
-      const response = await authService.login(username, password);
+      const response = await authService.login(username, password, tenantSlug);
       if (response.success) {
         localStorage.setItem('token', response.data.token);
         localStorage.removeItem('refreshToken');
-        setUser(response.data.user);
+        const currentUser = await authService.me();
+        const authenticatedUser = currentUser.success
+          ? normalizeAuthenticatedUser(currentUser.data?.user)
+          : null;
+        if (!authenticatedUser) {
+          localStorage.removeItem('token');
+          setUser(null);
+          const authError = { code: 'AUTH_PROFILE_UNAVAILABLE', message: 'Không thể tải quyền truy cập. Vui lòng đăng nhập lại.' };
+          setError(authError.message);
+          return { success: false, error: authError };
+        }
+        setUser(authenticatedUser);
         return { success: true };
       } else {
         setError(response.error?.message || 'Đăng nhập thất bại');
@@ -87,6 +107,9 @@ export function AuthProvider({ children }) {
   // Check if user is admin
   const isAdmin = () => hasRole('admin');
 
+  const hasPermission = (permission) =>
+    Boolean(permission && user?.permissions?.includes(permission));
+
   const value = {
     user,
     loading,
@@ -96,6 +119,7 @@ export function AuthProvider({ children }) {
     logout,
     hasRole,
     isAdmin,
+    hasPermission,
   };
 
   return (

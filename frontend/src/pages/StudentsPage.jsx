@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, UserCheck, UserPlus, UserRound, Users } from "lucide-react";
+import { CheckCircle2, UserPlus, UserRound } from "lucide-react";
 import { bulkActionsService, studentsService } from "../services/api";
 import DataTable from "../components/ui/DataTable";
 import BulkActionBar from "../components/ui/BulkActionBar";
@@ -101,7 +101,7 @@ export default function StudentsPage() {
           </div>
           <div>
             <p className="font-medium text-gray-900">{value}</p>
-            <p className="text-xs text-gray-500">{row.id}</p>
+            {row.student_code && <p className="text-xs text-gray-500">{row.student_code}</p>}
           </div>
         </div>
       ),
@@ -212,46 +212,10 @@ export default function StudentsPage() {
   const activeStudents = students.filter((s) => s.status === "active").length;
   const maleStudents = students.filter((s) => s.gender === "male").length;
   const femaleStudents = students.filter((s) => s.gender === "female").length;
-  const inactiveStudents = students.length - activeStudents;
-  const activationRate = students.length
-    ? Math.round((activeStudents / students.length) * 100)
-    : 0;
   const initialLoading = loading && students.length === 0;
-  const studentCountLabel = initialLoading ? "đang tải" : `${students.length} bản ghi`;
   const metricValue = (value) => (initialLoading ? "..." : value);
 
-  const summaryMetrics = [
-    {
-      label: "Đang học",
-      value: metricValue(activeStudents),
-      helper: `${students.length} hồ sơ`,
-      icon: CheckCircle2,
-      tone: "emerald",
-    },
-    {
-      label: "Tỷ lệ active",
-      value: metricValue(`${activationRate}%`),
-      helper: "Theo trạng thái hiện tại",
-      icon: UserCheck,
-      tone: "sky",
-    },
-    {
-      label: "Cần chăm sóc",
-      value: metricValue(inactiveStudents),
-      helper: "Học viên không active",
-      icon: AlertTriangle,
-      tone: "amber",
-    },
-  ];
-
   const metrics = [
-    {
-      label: "Tổng số",
-      value: metricValue(students.length),
-      helper: "Toàn bộ học viên",
-      icon: Users,
-      tone: "indigo",
-    },
     {
       label: "Đang học",
       value: metricValue(activeStudents),
@@ -281,8 +245,6 @@ export default function StudentsPage() {
         eyebrow="Vận hành học viên"
         title="Quản lý học viên"
         description="Theo dõi trạng thái học tập, phụ huynh liên hệ và phân bổ lớp bằng một giao diện ổn định cho thao tác hằng ngày."
-        status={studentCountLabel}
-        metrics={summaryMetrics}
         actions={
           <>
             <button onClick={handleAdd} className="btn-primary">
@@ -298,54 +260,10 @@ export default function StudentsPage() {
 
       <MetricGrid metrics={metrics} />
 
-      <div className="hidden">
-        <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
-          <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-lg shadow-cyan-300/50"></span>
-              Hồ sơ học viên • {studentCountLabel}
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-              Quản lý học viên
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100/85 sm:text-base">
-              Theo dõi trạng thái học tập, phụ huynh liên hệ và phân bổ lớp trong một không gian vận hành rõ ràng cho giáo vụ.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                onClick={handleAdd}
-                className="rounded-2xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900 shadow-xl shadow-white/10 transition-all hover:-translate-y-0.5 hover:shadow-2xl"
-              >
-                Thêm học viên
-              </button>
-              <Link
-                to="/classes"
-                className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/15"
-              >
-                Xem lớp học
-              </Link>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <StudentHeroMetric label="Đang học" value={metricValue(activeStudents)} tone="emerald" />
-            <StudentHeroMetric label="Tỷ lệ active" value={metricValue(`${activationRate}%`)} tone="cyan" />
-            <StudentHeroMetric label="Cần chăm sóc" value={metricValue(inactiveStudents)} tone="amber" wide />
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden">
-        <StudentStatCard icon="👨‍🎓" label="Tổng số" value={metricValue(students.length)} tone="from-blue-500 to-indigo-600" />
-        <StudentStatCard icon="✓" label="Đang học" value={metricValue(activeStudents)} tone="from-emerald-500 to-green-600" />
-        <StudentStatCard icon="👦" label="Nam" value={metricValue(maleStudents)} tone="from-sky-500 to-blue-600" />
-        <StudentStatCard icon="👧" label="Nữ" value={metricValue(femaleStudents)} tone="from-pink-500 to-rose-600" />
-      </div>
-
       {/* Data Table */}
       <ListPanel
         title="Danh sách học viên"
         description="Nhấn vào một dòng để chỉnh sửa nhanh hồ sơ và lớp đăng ký."
-        countLabel={`${students.length} hồ sơ`}
       >
       <BulkActionBar
         count={selectedStudentIds.length}
@@ -409,43 +327,6 @@ export default function StudentsPage() {
 }
 
 // Student Form Component with Class Enrollment
-function StudentHeroMetric({ label, value, tone, wide }) {
-  const toneClass = {
-    emerald: "from-emerald-300/25 to-green-400/10 text-emerald-100 border-emerald-300/20",
-    amber: "from-amber-300/25 to-orange-400/10 text-amber-100 border-amber-300/20",
-    cyan: "from-cyan-300/25 to-blue-400/10 text-cyan-100 border-cyan-300/20",
-  }[tone];
-
-  return (
-    <div
-      className={`rounded-3xl border bg-gradient-to-br p-4 shadow-lg ${toneClass} ${
-        wide ? "col-span-2" : ""
-      }`}
-    >
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
-        {label}
-      </p>
-      <p className="mt-2 truncate text-2xl font-black text-white">{value}</p>
-    </div>
-  );
-}
-
-function StudentStatCard({ icon, label, value, tone }) {
-  return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-sm">
-      <div className="flex items-center gap-4">
-        <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tone} flex items-center justify-center text-white shadow-lg text-2xl`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-3xl font-black text-slate-900 drop-shadow-sm">{value}</p>
-          <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">{label}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function StudentForm({ student, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     full_name: student?.full_name || "",

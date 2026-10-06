@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion as Motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Menu, User, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
+import { Menu, User, Settings, LogOut, ChevronDown, Bell, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useExperience } from "../../context/ExperienceContext";
 import ChangePasswordModal from "../auth/ChangePasswordModal";
 import { getMotionTransition } from "../../design/motion";
 
@@ -40,8 +41,9 @@ function getRouteMeta(pathname) {
   );
 }
 
-export default function Header({ onMenuClick }) {
+export default function Header({ onMenuClick, sidebarOpen, collapsed, onCollapseClick }) {
   const { user, logout, isAdmin } = useAuth();
+  const { text } = useExperience();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -76,8 +78,17 @@ export default function Header({ onMenuClick }) {
             onClick={onMenuClick}
             className="rounded-xl p-2.5 text-slate-500 transition-all hover:bg-primary-50 hover:text-primary-600 lg:hidden"
             aria-label="Mở menu"
+            aria-expanded={sidebarOpen}
+            aria-controls="teacher-shell-navigation"
           >
             <Menu size={24} />
+          </button>
+          <button type="button" onClick={onCollapseClick}
+            className="hidden lg:flex shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+            aria-expanded={!collapsed} aria-controls="teacher-shell-navigation"
+            aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
+            title={collapsed ? "Mở rộng menu" : "Thu gọn menu"}>
+            {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
 
           <Motion.div
@@ -93,7 +104,7 @@ export default function Header({ onMenuClick }) {
               <span className="hidden sm:inline tracking-widest text-slate-400">EduManager V2</span>
             </div>
             <h1 className="truncate text-xl font-black text-slate-950 tracking-tight sm:text-2xl">
-              {currentRoute.title}
+              {pathname === "/student-progress" ? text("progress.workspace.title") : pathname === "/students" ? text("nav.students") : currentRoute.title}
             </h1>
           </Motion.div>
         </div>

@@ -218,11 +218,11 @@ export default function ParentsPage() {
   const motherCount = parents.filter((p) => p.relationship === "mother").length;
   const guardianCount = parents.filter((p) => p.relationship === "guardian").length;
   const linkedChildren = parents.reduce((sum, parent) => sum + Number(parent.children_count || 0), 0);
-  const summaryMetrics = [
+  const metrics = [
     {
-      label: "Phụ huynh",
-      value: parents.length,
-      helper: `${linkedChildren} học viên liên kết`,
+      label: "Học viên liên kết",
+      value: linkedChildren,
+      helper: "Theo hồ sơ phụ huynh",
       icon: UsersRound,
       tone: "indigo",
     },
@@ -240,9 +240,7 @@ export default function ParentsPage() {
       icon: UserRound,
       tone: "rose",
     },
-  ];
-  const metrics = [
-    ...summaryMetrics,
+
     {
       label: "Giám hộ",
       value: guardianCount,
@@ -270,8 +268,6 @@ export default function ParentsPage() {
         eyebrow="Liên hệ gia đình"
         title="Phụ huynh"
         description="Quản lý người liên hệ, số điện thoại và mối liên kết với học viên để hỗ trợ vận hành thu phí và chăm sóc."
-        status={`${parents.length} hồ sơ`}
-        metrics={summaryMetrics}
         actions={
           <button onClick={handleAdd} className="btn-primary">
             <Plus size={18} aria-hidden="true" />
@@ -282,101 +278,10 @@ export default function ParentsPage() {
 
       <MetricGrid metrics={metrics} />
 
-      <div className="hidden">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gradient">
-            Phụ huynh
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Quản lý thông tin phụ huynh học viên
-          </p>
-        </div>
-        <button
-          onClick={handleAdd}
-          className="btn-primary shadow-lg shadow-primary-500/30"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Thêm phụ huynh
-        </button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white shadow-lg">
-              👨‍👩‍👧
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {parents.length}
-              </p>
-              <p className="text-sm text-gray-500">Tổng số</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-              👨
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {parents.filter((p) => p.relationship === "father").length}
-              </p>
-              <p className="text-sm text-gray-500">Bố</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-lg">
-              👩
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {parents.filter((p) => p.relationship === "mother").length}
-              </p>
-              <p className="text-sm text-gray-500">Mẹ</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card stagger-item">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-lg">
-              👤
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {parents.filter((p) => p.relationship === "guardian").length}
-              </p>
-              <p className="text-sm text-gray-500">Giám hộ</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      </div>
-
       {/* Data Table */}
       <ListPanel
         title="Danh sách phụ huynh"
         description="Nhấn vào dòng để xem hoặc sửa thông tin liên hệ."
-        countLabel={`${parents.length} hồ sơ`}
       >
       <BulkActionBar
         count={selectedParentIds.length}

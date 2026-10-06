@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileText, Palette, Plus, Star, Trash2 } from 'lucide-react';
 import { templatesService } from '../services/api';
 import Modal, { ConfirmModal } from '../components/ui/Modal';
@@ -6,9 +7,13 @@ import ActionProgressButton from '../components/ui/ActionProgressButton';
 import LoadingScene from '../components/ui/LoadingScene';
 import PageState from '../components/ui/PageState';
 import { ListPanel, MetricGrid, OperationalPage, PageIntro } from '../components/ui/OperationalPage';
+import ClayReceiptTemplateDialog from '../components/templates/ClayReceiptTemplateDialog';
+import { isClayReceiptTemplate } from '../components/templates/clayReceiptTemplate';
 
 // VI: Trang quản lý mẫu in phiếu thu/chi
 export default function TemplatesPage() {
+  const navigate = useNavigate();
+  const [clayEditor,setClayEditor] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, receipt, payment
@@ -18,6 +23,12 @@ export default function TemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(null);
+  const editorRequest = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     loadTemplates();
@@ -54,6 +65,24 @@ export default function TemplatesPage() {
     } finally {
       setActionBusy(null);
     }
+  };
+
+  const handleDesign = async (template, metadataOnly = false) => {
+    if (editorRequest.current) return;
+    editorRequest.current = true;
+    setActionBusy(`design:${template.id}`);
+    setError('');
+    try {
+      const response=await templatesService.getById(template.id);
+      if (!mounted.current) return;
+      if (!response.success) throw new Error(response.error?.message || 'Không tải được mẫu in.');
+      const full=response.data?.template || response.data;
+      if (!full?.id) throw new Error('Mẫu in chưa sẵn sàng.');
+      if (isClayReceiptTemplate(full)) setClayEditor({template:full,paper:full.paper_size});
+      else if (metadataOnly) {setEditingTemplate(full); setShowForm(true);}
+      else navigate(`/templates/${template.id}/design`);
+    } catch (failure) {if (mounted.current) setError(failure.message || 'Không mở được mẫu in.');}
+    finally {editorRequest.current = false; if (mounted.current) setActionBusy(null);}
   };
 
   const handleDelete = async () => {
@@ -113,7 +142,6 @@ export default function TemplatesPage() {
   const isDefaultTemplate = (template) => template.is_default === true || template.is_default === 1;
 
   const metrics = [
-    { label: 'Tổng mẫu', value: templates.length, helper: 'Đang quản lý', icon: FileText, tone: 'indigo' },
     { label: 'Phiếu thu', value: templates.filter((item) => item.type === 'receipt').length, helper: 'Mẫu thu tiền', icon: FileText, tone: 'emerald' },
     { label: 'Phiếu chi', value: templates.filter((item) => item.type === 'payment').length, helper: 'Mẫu chi tiền', icon: FileText, tone: 'rose' },
     { label: 'Mặc định', value: templates.filter(isDefaultTemplate).length, helper: 'Đang áp dụng', icon: Star, tone: 'amber' },
@@ -138,6 +166,11 @@ export default function TemplatesPage() {
       />
 
       <MetricGrid metrics={metrics} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-secondary" onClick={()=>setClayEditor({paper:'a4'})}><Palette size={16} aria-hidden="true"/>Phiếu thu Clay A4</button>
+        <button type="button" className="btn-secondary" onClick={()=>setClayEditor({paper:'a5'})}><Palette size={16} aria-hidden="true"/>Phiếu thu Clay A5</button>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
@@ -196,7 +229,7 @@ export default function TemplatesPage() {
           description="Mỗi mẫu có thể mở vào trình thiết kế canvas để chỉnh ảnh, field động, khổ giấy và layer."
           countLabel={`${templates.length} mẫu`}
         >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map(template => (
             <div 
               key={template.id} 
@@ -234,15 +267,17 @@ export default function TemplatesPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-3 border-t">
-                <a
-                  href={`/templates/${template.id}/design`}
+                <button
+                  type="button"
+                  disabled={Boolean(actionBusy)}
+                  onClick={()=>handleDesign(template)}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
                 >
                   <Palette size={16} aria-hidden="true" />
                   Thiết kế
-                </a>
+                </button>
                 <button
-                  onClick={() => { setEditingTemplate(template); setShowForm(true); }}
+                  onClick={() => handleDesign(template, true)}
                   aria-label={`Sua mau ${template.template_name}`}
                   title={`Sua mau ${template.template_name}`}
                   className="py-2 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -275,6 +310,8 @@ export default function TemplatesPage() {
         </div>
         </ListPanel>
       ) : null}
+
+      {clayEditor && <ClayReceiptTemplateDialog template={clayEditor.template} initialPaper={clayEditor.paper} onClose={()=>setClayEditor(null)} onSaved={()=>{setClayEditor(null);loadTemplates();}}/>}
 
       {/* Create/Edit Modal */}
       <Modal

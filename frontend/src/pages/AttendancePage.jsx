@@ -1141,10 +1141,7 @@ export default function AttendancePage() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
 
   const itemVariants = {
@@ -1165,19 +1162,17 @@ export default function AttendancePage() {
         : "empty";
 
   return (
-    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
       {/* Header */}
-      <Motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-6 shadow-2xl shadow-indigo-950/20">
+      <Motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-violet-950 via-indigo-950 to-sky-900 p-4 sm:p-5 shadow-2xl shadow-indigo-950/20">
         <div className="absolute -left-24 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl"></div>
         <div className="absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-cyan-300/20 blur-3xl"></div>
         <div className="relative">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm font-semibold text-indigo-100 backdrop-blur">
             <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-lg shadow-cyan-300/50"></span>
             SAP Timesheet Style
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-            Điểm danh
-          </h1>
+          <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Điểm danh</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100/85 sm:text-base">
             Quản lý điểm danh học viên theo tuần, tính toán học phí theo lịch học thực tế.
           </p>
@@ -1186,8 +1181,8 @@ export default function AttendancePage() {
 
       {/* Class Selector */}
       <Motion.div variants={itemVariants} className="rounded-3xl border border-slate-200/70 bg-white/95 shadow-sm overflow-hidden">
-        <div className="card-body">
-          <div className="flex items-center gap-4">
+        <div className="p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex-1 max-w-sm">
               <SelectField
                 label="Chọn lớp"
@@ -1224,7 +1219,7 @@ export default function AttendancePage() {
                   )}
                   đ
                 </p>
-                <p>
+                {(classSchedule.billing_policy !== "per_session" || Number(classSchedule.fee_per_day) !== feePerSession) && <p>
                   <strong>Học phí áp dụng/buổi:</strong>{" "}
                   {new Intl.NumberFormat("vi-VN").format(feePerSession)}đ
                   {classSchedule.billing_policy !== "per_session" && plannedSessionsInMonth ? (
@@ -1233,7 +1228,7 @@ export default function AttendancePage() {
                       / {plannedSessionsInMonth} buổi trong tháng
                     </span>
                   ) : null}
-                </p>
+                </p>}
               </div>
             )}
           </div>

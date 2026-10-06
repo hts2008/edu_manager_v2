@@ -1,4 +1,5 @@
-import { createElement, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useExperience } from "../context/ExperienceContext";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -40,11 +41,15 @@ import {
   ListPanel,
   MetricGrid,
   OperationalPage,
-  PageIntro,
 } from "../components/ui/OperationalPage";
 import SelectField from "../components/ui/SelectField";
+import ReportInlineAssessment from "../components/student-progress/ReportInlineAssessment";
+import RowProgressCharts, { reportEvidenceLabel as progressEvidenceLabel } from "../components/student-progress/ReportRowCharts";
+import ProgressPrintPreview from "../components/student-progress/ProgressPrintPreview";
+import useDraftNavigationGuard from "../hooks/useDraftNavigationGuard";
+import { formatProgressValue, formatProgressDelta } from "../utils/studentProgressDashboard";
 
-const PAGE_SIZE_OPTIONS = [50, 100, 200];
+const PAGE_SIZE_OPTIONS = [25, 50];
 const READINESS_LABELS = {
   on_track: "Đúng tiến độ",
   watch: "Theo dõi",
@@ -73,7 +78,7 @@ function currentBusinessMonth() {
 function initialFilters() {
   const month = currentBusinessMonth();
   return {
-    from: `${month.slice(0, 4)}-01`,
+    from: month,
     to: month,
     q: "",
     class_id: "all",
@@ -89,44 +94,24 @@ function formatNumber(value) {
   return new Intl.NumberFormat("vi-VN").format(Number(value || 0));
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function rowKey(row) {
   return row ? `${row.student_id}\u0000${row.class_id}\u0000${row.month}` : "";
+}
+
+function preserveDraftRows(incoming, existing, states) {
+  const keys = new Set(incoming.map(rowKey));
+  const retained = existing.filter((row) => {
+    const state = states.get(rowKey(row));
+    return !keys.has(rowKey(row)) && (state?.dirty || state?.saving);
+  });
+  return [...incoming, ...retained];
 }
 
 function getAssessment(row) {
   return row?.progress_assessment || null;
 }
 
-function getRowSkills(row) {
-  const assessmentSkills = getAssessment(row)?.skillScores;
-  if (Array.isArray(assessmentSkills) && assessmentSkills.length) {
-    return assessmentSkills.map((skill) => ({
-      key: skill.key,
-      label: skill.label,
-      score: skill.score,
-      status: skill.status,
-      note: skill.note,
-    }));
-  }
-  return (row?.skill_scores || []).map((skill) => ({
-    key: skill.key,
-    label: skill.label,
-    score: skill.score,
-    status:
-      skill.status ||
-      (skill.score === null || skill.score === undefined ? "missing_input" : "available"),
-    note: skill.note,
-  }));
-}
 
 function academicStatusLabel(row) {
   const status = getAssessment(row)?.academicInputStatus || row?.academic_input_status;
@@ -135,11 +120,6 @@ function academicStatusLabel(row) {
   return "Thiếu điểm kỹ năng";
 }
 
-function teacherInputLabel(row) {
-  return getAssessment(row)?.hasTeacherInput || row?.has_teacher_input
-    ? "Có input giáo viên"
-    : "Cần giáo viên nhập";
-}
 
 function monthLabel(month) {
   const [year, value] = String(month || "").split("-");
@@ -174,6 +154,9 @@ function exportCsv(data) {
       "track",
       "cefr",
       "progress_score",
+      "score_source",
+      "score_contributors",
+      "trend_delta",
       "attendance_score",
       "evidence_coverage",
       "readiness_band",
@@ -188,7 +171,10 @@ function exportCsv(data) {
       row.month,
       row.track_label,
       row.cefr_level,
-      row.progress_score,
+      formatProgressValue(row.progress_score),
+      row.score_source ?? row.progress_assessment?.scoreSource ?? "legacy_unknown",
+      progressEvidenceLabel(row),
+      formatProgressDelta(row.trend_delta),
       row.attendance_score,
       row.learning_evidence_coverage,
       row.readiness_band,
@@ -213,77 +199,51 @@ function exportCsv(data) {
   URL.revokeObjectURL(url);
 }
 
-function printProgressReport(row) {
-  if (!row) return;
-  const assessment = getAssessment(row);
-  const skills = getRowSkills(row)
-    .map(
-      (skill) =>
-        `<tr><td>${escapeHtml(skill.label)}</td><td>${escapeHtml(skill.score ?? "Chua nhap")}</td><td>${escapeHtml(skill.note)}</td></tr>`
-    )
-    .join("");
-  const actions = (row.next_actions || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  const evidence = (row.evidence_notes || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  const focusSkill = assessment?.focusSkillLabel || row.focus_skill_label || academicStatusLabel(row);
-  const teacherStatus = teacherInputLabel(row);
-  const html = `<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <title>Bao cao tien bo - ${escapeHtml(row.student_name)}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 32px; color: #0f172a; }
-        h1 { margin: 0; font-size: 28px; }
-        h2 { margin-top: 28px; font-size: 18px; }
-        .muted { color: #64748b; }
-        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
-        .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
-        .value { font-size: 24px; font-weight: 800; margin-top: 8px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; vertical-align: top; }
-        th { background: #f8fafc; }
-        @media print { button { display: none; } body { margin: 18mm; } }
-      </style>
-    </head>
-    <body>
-      <button onclick="window.print()">In bao cao</button>
-      <h1>Bao cao tien bo hoc vien</h1>
-      <p class="muted">${escapeHtml(row.month)} - ${escapeHtml(row.class_name)} - ${escapeHtml(row.track_label)} (${escapeHtml(row.cefr_level)})</p>
-      <h2>${escapeHtml(row.student_name)}</h2>
-      <p>Phu huynh: ${escapeHtml(row.parent_name || "Chua co")} - ${escapeHtml(row.parent_phone || "")}</p>
-      <div class="grid">
-        <div class="card"><div>Diem tien bo</div><div class="value">${escapeHtml(row.progress_score)}/100</div></div>
-        <div class="card"><div>Chuyen can</div><div class="value">${escapeHtml(row.actual_present_rate)}%</div></div>
-        <div class="card"><div>Buoi hoc</div><div class="value">${escapeHtml(row.recorded_sessions)}/${escapeHtml(row.expected_sessions)}</div></div>
-        <div class="card"><div>Do phu du lieu</div><div class="value">${escapeHtml(row.learning_evidence_coverage)}%</div></div>
-      </div>
-      <h2>Nhan xet thang</h2>
-      <p>${escapeHtml(row.parent_summary)}</p>
-      <p class="muted">Input hoc thuat: ${escapeHtml(teacherStatus)}. Trong tam thang toi: ${escapeHtml(focusSkill)}.</p>
-      <h2>Ky nang Cambridge</h2>
-      <table>
-        <thead><tr><th>Ky nang</th><th>Diem</th><th>Ghi chu</th></tr></thead>
-        <tbody>${skills}</tbody>
-      </table>
-      <h2>Khuyen nghi thang toi</h2>
-      <ul>${actions}</ul>
-      <h2>Ghi chu du lieu</h2>
-      <ul>${evidence}</ul>
-    </body>
-  </html>`;
-  const printWindow = window.open("", "_blank", "width=980,height=720");
-  if (!printWindow) return;
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-}
 
 export default function StudentProgressReportPage() {
+  const {text} = useExperience();
+  const rowStates = useRef(new Map());
+  const reportRows = useRef([]);
+  const navigationState = useRef({dirty:false,saving:false});
+  const [draftEpoch, setDraftEpoch] = useState(0);
+  const [navigationFlags, setNavigationFlags] = useState({dirty:false,saving:false});
+  const handleRowStateChange = useCallback((key, state) => {
+    if (state.dirty || state.saving) rowStates.current.set(key, state);
+    else rowStates.current.delete(key);
+    const states = [...rowStates.current.values()];
+    const flags = {
+      dirty: states.some((item) => item.dirty),
+      saving: states.some((item) => item.saving),
+    };
+    navigationState.current = flags;
+    setNavigationFlags((current) => current.dirty === flags.dirty && current.saving === flags.saving ? current : flags);
+  }, []);
+  useDraftNavigationGuard({ ...navigationFlags, pending: () => navigationState.current.saving });
+  function allowScopeChange({ discard = false } = {}) {
+    const {dirty,saving} = navigationState.current;
+    if (saving) return false;
+    if (dirty && !window.confirm(discard ? 'Bỏ các thay đổi chưa lưu?' : 'Chuyển tab? Bản nhập chưa lưu được giữ.')) return false;
+    if (dirty && discard) {
+      rowStates.current.clear();
+      navigationState.current = {dirty:false,saving:false};
+      setNavigationFlags({dirty:false,saving:false});
+      setDraftEpoch((value) => value + 1);
+    }
+    return true;
+  }
+  const switchTab = key => {
+    if (key === activeTab) return true;
+    if (!allowScopeChange()) return false;
+    setActiveTab(key);
+    return true;
+  };
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("report");
   const [filters, setFilters] = useState(initialFilters);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const handleCanonicalSaved = useCallback(() => setRefreshNonce((value) => value + 1), []);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [printRow, setPrintRow] = useState(null);
   const deferredSearch = useDeferredValue(filters.q);
   const query = useMemo(
     () => makeQuery(filters, deferredSearch, refreshNonce),
@@ -295,10 +255,20 @@ export default function StudentProgressReportPage() {
     if (!response.success) {
       throw new Error(response.error?.message || "Không tải được báo cáo tiến độ.");
     }
-    return { ...response.data, __requestKey: requestKey };
+    return {
+      ...response.data,
+      students: preserveDraftRows(response.data.students || [], reportRows.current, rowStates.current),
+      __requestKey: requestKey,
+    };
   }, requestKey);
   const data = progressState.data;
   const rows = data?.students || [];
+  const printUnavailable = navigationFlags.saving || progressState.loading || Boolean(progressState.error) || data?.__requestKey !== requestKey;
+  function openPrintPreview(row) {
+    if (navigationState.current.saving || printUnavailable) return;
+    setPrintRow(row);
+  }
+  useEffect(() => { reportRows.current = rows; }, [rows]);
   const summary = data?.summary || {};
   const charts = data?.charts || {};
   const isInitialLoading = progressState.loading && !data;
@@ -326,7 +296,8 @@ export default function StudentProgressReportPage() {
       return;
     }
     const latest = rows.find((row) => rowKey(row) === rowKey(selectedRow));
-    if (latest && latest !== selectedRow) setSelectedRow(latest);
+    if (!latest) setSelectedRow(rows[0]);
+    else if (latest !== selectedRow) setSelectedRow(latest);
   }, [rows, selectedRow]);
 
   const metrics = [
@@ -339,14 +310,14 @@ export default function StudentProgressReportPage() {
     },
     {
       label: "Điểm tiến bộ TB",
-      value: `${summary.average_progress_score || 0}/100`,
-      helper: "Proxy từ dữ liệu vận hành thật",
+      value: formatProgressValue(summary.average_progress_score, "/100"),
+      helper: "Điểm tháng theo nguồn dữ liệu",
       icon: TrendingUp,
       tone: "emerald",
     },
     {
       label: "Chuyên cần TB",
-      value: `${summary.average_attendance_score || 0}/100`,
+      value: formatProgressValue(summary.average_attendance_score, "/100"),
       helper: "Từ điểm danh và lịch học",
       icon: Activity,
       tone: "sky",
@@ -361,22 +332,24 @@ export default function StudentProgressReportPage() {
   ];
 
   function updateFilter(key, value) {
+    if (!allowScopeChange({ discard: true })) return;
     setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? value : 1 }));
+  }
+
+  function refreshReport() {
+    if (!allowScopeChange({ discard: true })) return;
+    setRefreshNonce((value) => value + 1);
   }
 
   return (
     <OperationalPage data-testid="student-progress-page">
-      <PageIntro
-        eyebrow="Học thuật · Parent Report"
-        title="Báo cáo tiến bộ học viên"
-        description="Theo dõi tiến độ hàng tháng cho phụ huynh dựa trên dữ liệu lớp, điểm danh, học phí và khung Starters/Movers/Flyers/KET/PET. Các điểm kỹ năng chưa có input sẽ được ghi rõ, không tự suy diễn."
-        status="Evidence-first"
-        actions={
-          <>
+      <header className="eduflow-page-intro operational-heading">
+        <h1 className="text-xl font-bold">{text('progress.workspace.title')}</h1>
+        <div className="flex gap-2">
             <button
               type="button"
               className="btn-secondary inline-flex items-center gap-2"
-              onClick={() => setRefreshNonce((value) => value + 1)}
+              onClick={refreshReport}
               disabled={progressState.loading}
             >
               <RefreshCw size={16} className={progressState.loading ? "animate-spin" : ""} />
@@ -391,10 +364,20 @@ export default function StudentProgressReportPage() {
               <Download size={16} />
               Export CSV
             </button>
-          </>
-        }
-      />
+        </div>
+      </header>
 
+      <div role="tablist" aria-label="Tiến bộ học viên" className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+        {[["report", "Báo cáo"], ["overview", "Tổng quan"]].map(([key, label]) => <button key={key} id={`progress-tab-${key}`} role="tab" tabIndex={activeTab === key ? 0 : -1} aria-selected={activeTab === key} aria-controls={`progress-panel-${key}`} className={activeTab === key ? "btn-primary" : "btn-secondary"} onClick={() => switchTab(key)} onKeyDown={event => {
+          const keys = ["report", "overview"];
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const index = keys.indexOf(key);
+          const target = keys[event.key === "Home" ? 0 : event.key === "End" ? 1 : (index + 1) % 2];
+          if (switchTab(target)) document.getElementById(`progress-tab-${target}`)?.focus();
+        }}>{label}</button>)}
+      </div>
+      <div className="space-y-4">
       <section className="eduflow-panel p-4">
         <div className="grid gap-3 lg:grid-cols-[1fr_1fr_minmax(260px,1.4fr)_auto]">
           <label className="text-sm font-bold text-slate-700">
@@ -450,7 +433,7 @@ export default function StudentProgressReportPage() {
             onChange={(event) => updateFilter("class_id", event.target.value)}
             state={classSelectorState}
             error={progressState.error?.message}
-            onRetry={() => setRefreshNonce((value) => value + 1)}
+            onRetry={refreshReport}
             data-testid="progress-class-field"
             placeholder={{ value: "all", label: "Tất cả lớp" }}
             options={classOptions}
@@ -527,7 +510,7 @@ export default function StudentProgressReportPage() {
           <button
             className="btn-primary mt-5"
             type="button"
-            onClick={() => setRefreshNonce((value) => value + 1)}
+            onClick={refreshReport}
           >
             Thử lại
           </button>
@@ -538,6 +521,7 @@ export default function StudentProgressReportPage() {
             <LoadingProgress label="Đang cập nhật báo cáo, dữ liệu cũ vẫn được giữ trên màn hình..." />
           )}
 
+          <div id="progress-panel-overview" role="tabpanel" aria-labelledby="progress-tab-overview" hidden={activeTab !== "overview"} className="space-y-4">
           <MetricGrid metrics={metrics} />
 
           <section className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr_0.8fr]">
@@ -608,7 +592,7 @@ export default function StudentProgressReportPage() {
                   height="100%"
                 >
                   <BarChart
-                    data={charts.skill_averages || []}
+                    data={(charts.skill_averages || []).filter(skill => ['listening','speaking','reading','writing'].includes(skill.key))}
                     margin={{ top: 12, right: 18, bottom: 20, left: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -666,7 +650,8 @@ export default function StudentProgressReportPage() {
             </ListPanel>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)]">
+          </div>
+          <section id="progress-panel-report" role="tabpanel" aria-labelledby="progress-tab-report" hidden={activeTab !== "report"} className="space-y-4">
             <ListPanel
               title="Danh sách tiến độ học viên"
               description="Một dòng là một học viên - một lớp - một tháng."
@@ -678,10 +663,11 @@ export default function StudentProgressReportPage() {
                     <tr>
                       <th className="px-4 py-3 text-left">Học viên</th>
                       <th className="px-4 py-3 text-left">Lớp / Track</th>
-                      <th className="px-4 py-3 text-left">Tháng</th>
-                      <th className="px-4 py-3 text-left">Điểm TB / Delta</th>
-                      <th className="px-4 py-3 text-left">Bài đã chấm</th>
-                      <th className="px-4 py-3 text-left">Lần chấm cuối</th>
+                      <th className="px-4 py-3 text-left">Kỹ năng</th>
+                      <th className="px-4 py-3 text-left">Nỗ lực cộng dồn</th>
+                      <th className="px-4 py-3 text-left">Lần cập nhật / Evidence</th>
+                      <th className="px-4 py-3 text-left">Cập nhật cuối</th>
+                      <th className="px-4 py-3 text-left">Chấm điểm</th>
                       <th className="px-4 py-3 text-left">Cần chú ý</th>
                       <th className="px-4 py-3 text-left">Trạng thái</th>
                       <th className="px-4 py-3 text-right">Thao tác</th>
@@ -689,42 +675,30 @@ export default function StudentProgressReportPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {rows.map((row) => (
-                      <tr key={`${row.student_id}-${row.class_id}-${row.month}`} className="hover:bg-slate-50">
+                      <tr key={rowKey(row)} className="hover:bg-slate-50">
                         <td className="px-4 py-4">
                           <div className="font-black text-slate-950">{row.student_name}</div>
                           <div className="text-xs text-slate-500">{row.parent_name || "Chưa có phụ huynh"}</div>
                         </td>
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-800">{row.class_name}</div>
+                          <div className="mt-1 text-xs text-slate-500">Tháng {monthLabel(row.month)}</div>
                           <div className="mt-1 inline-flex rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
                             {row.track_label} · {row.cefr_level}
                           </div>
                         </td>
-                        <td className="px-4 py-4 font-bold text-slate-700">{monthLabel(row.month)}</td>
+                        <RowProgressCharts row={row} />
                         <td className="px-4 py-4">
-                          <div className="font-black text-slate-950">
-                            {row.daily_average_score ?? "—"}{row.daily_average_score === null ? "" : "/100"}
-                          </div>
-                          <div className="mt-1 h-2 w-28 rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full bg-indigo-500"
-                              style={{ width: `${Math.min(100, row.daily_average_score || 0)}%` }}
-                            />
-                          </div>
-                          <div className="mt-1 text-xs text-slate-500">
-                            <span className={Number(row.daily_score_delta) >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                              {row.daily_score_delta === null ? "Chưa có delta" : `${row.daily_score_delta > 0 ? "+" : ""}${row.daily_score_delta} điểm`}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
+                          <div className="font-black text-slate-900">{row.assessment_submission_count == null ? "—" : formatNumber(row.assessment_submission_count)} lần cập nhật</div>
                           <div className="font-black text-slate-900">{row.daily_assessment_count || 0}</div>
                           <div className="mt-1 text-xs text-slate-500">evidence kỹ năng</div>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="font-bold text-slate-800">{row.last_entry_date || "—"}</div>
+                          <div className="font-bold text-slate-800">{row.last_submission_at ? new Date(row.last_submission_at).toLocaleString("vi-VN") : "—"}</div>
+                          <div className="mt-1 text-xs text-slate-500">Evidence cuối: {row.last_entry_date || "—"}</div>
                           <div className="mt-1 text-xs text-slate-500">{academicStatusLabel(row)}</div>
                         </td>
+                        <InlineAssessmentCell key={`${rowKey(row)}:${draftEpoch}`} row={row} onCanonicalSaved={handleCanonicalSaved} onRowStateChange={handleRowStateChange} />
                         <td className="px-4 py-4">
                           <div className="font-bold text-slate-800">{row.focus_skill_label || "Chưa xác định"}</div>
                           {row.alert_score_drop && (
@@ -756,7 +730,8 @@ export default function StudentProgressReportPage() {
                             <button
                               type="button"
                               className="btn-primary inline-flex items-center gap-2 px-3 py-2 text-xs"
-                              onClick={() => printProgressReport(row)}
+                              onClick={() => openPrintPreview(row)}
+                              disabled={printUnavailable}
                             >
                               <Printer size={14} />
                               In
@@ -799,7 +774,7 @@ export default function StudentProgressReportPage() {
             <ListPanel
               title="Bản in phụ huynh"
               description="Chọn một học viên để xem nội dung trước khi in."
-              className="xl:sticky xl:top-4 xl:self-start"
+              className="w-full"
             >
               {selectedRow ? (
                 <div className="space-y-4">
@@ -816,10 +791,11 @@ export default function StudentProgressReportPage() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                     <MiniStat icon={GraduationCap} label="Track" value={`${selectedRow.track_label} · ${selectedRow.cefr_level}`} />
-                    <MiniStat icon={BookOpenCheck} label="Tiến bộ" value={`${selectedRow.progress_score}/100`} />
+                    <MiniStat icon={BookOpenCheck} label="Tiến bộ" value={formatProgressValue(selectedRow.progress_score, "/100")} />
                     <MiniStat icon={Activity} label="Buổi học" value={`${selectedRow.recorded_sessions}/${selectedRow.expected_sessions}`} />
                     <MiniStat icon={ShieldAlert} label="Độ phủ dữ liệu" value={`${selectedRow.learning_evidence_coverage}%`} />
                   </div>
+                  <p className="text-xs text-slate-500">{progressEvidenceLabel(selectedRow)} · Delta: {formatProgressDelta(selectedRow.trend_delta)}</p>
                   <div>
                     <h4 className="text-sm font-black text-slate-950">Khuyến nghị</h4>
                     <ul className="mt-2 space-y-2 text-sm text-slate-600">
@@ -845,7 +821,8 @@ export default function StudentProgressReportPage() {
                   <button
                     type="button"
                     className="btn-primary w-full inline-flex items-center justify-center gap-2"
-                    onClick={() => printProgressReport(selectedRow)}
+                    onClick={() => openPrintPreview(selectedRow)}
+                    disabled={printUnavailable}
                     data-testid="print-selected-progress"
                   >
                     <Printer size={16} />
@@ -864,7 +841,20 @@ export default function StudentProgressReportPage() {
           </section>
         </>
       )}
+      </div>
+      {printRow && <ProgressPrintPreview row={printRow} onClose={() => setPrintRow(null)} />}
     </OperationalPage>
+  );
+}
+
+function InlineAssessmentCell({ row, onCanonicalSaved, onRowStateChange }) {
+  const key = rowKey(row);
+  const onStateChange = useCallback((state) => onRowStateChange(key, state), [key, onRowStateChange]);
+  useEffect(() => () => onRowStateChange(key, {dirty:false,saving:false}), [key, onRowStateChange]);
+  return (
+    <td className="px-4 py-4 align-top">
+      <ReportInlineAssessment row={row} onCanonicalSaved={onCanonicalSaved} onStateChange={onStateChange} />
+    </td>
   );
 }
 

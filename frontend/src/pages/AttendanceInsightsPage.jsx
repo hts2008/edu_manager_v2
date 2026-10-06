@@ -27,7 +27,7 @@ function heatColor(day) {
 function statCard(label, value, tone = "text-gray-900") {
   return (
     <div className="card">
-      <div className="card-body">
+      <div className="card-body p-4">
         <p className="text-sm text-gray-500">{label}</p>
         <p className={`mt-1 text-3xl font-bold ${tone}`}>{value}</p>
       </div>
@@ -71,18 +71,15 @@ export default function AttendanceInsightsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Insight điểm danh</h1>
           <p className="text-gray-500">Heatmap 365 ngày cho học viên, lớp học hoặc toàn trung tâm.</p>
         </div>
-        <button onClick={reload} className="btn-secondary self-start lg:self-auto">
-          Làm mới
-        </button>
+        <button onClick={reload} className="btn-secondary self-start lg:self-auto">Làm mới</button>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {statCard("Tỷ lệ có mặt", `${summary.attendance_rate || 0}%`, "text-emerald-700")}
         {statCard("Buổi có dữ liệu", activeDays)}
         {statCard("Có mặt", summary.present || 0, "text-emerald-700")}

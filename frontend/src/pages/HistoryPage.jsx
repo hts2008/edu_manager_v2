@@ -116,7 +116,7 @@ export default function HistoryPage() {
     <Motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-8 pb-12"
+      className="space-y-6 pb-8"
     >
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -141,8 +141,8 @@ export default function HistoryPage() {
         </Motion.button>
       </div>
 
-      {/* Hero Stats Glass Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Transaction totals */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { title: "Tổng Thu", value: totalReceipts, type: "receipt", icon: ArrowUpRight, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-200/50" },
           { title: "Tổng Chi", value: totalPayments, type: "payment", icon: ArrowDownRight, color: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-200/50" },
@@ -153,16 +153,15 @@ export default function HistoryPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.1 + idx * 0.1 }}
-            className={`relative overflow-hidden rounded-3xl border ${stat.border} bg-white/60 backdrop-blur-xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all`}
+            className={`relative min-w-0 overflow-hidden rounded-3xl border ${stat.border} bg-white/60 backdrop-blur-xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all`}
           >
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${stat.bg} blur-2xl pointer-events-none`} />
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-slate-500 font-semibold">{stat.title}</span>
               <div className={`p-2 rounded-xl ${stat.bg} ${stat.color}`}>
                 <stat.icon size={20} strokeWidth={2.5} />
               </div>
             </div>
-            <p className={`text-3xl font-black tracking-tight ${stat.color}`}>
+            <p className={`break-words text-2xl font-black ${stat.color}`}>
               {formatCurrency(stat.value)}
             </p>
           </Motion.div>
@@ -174,7 +173,7 @@ export default function HistoryPage() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="flex flex-col lg:flex-row gap-4 justify-between items-center bg-white/70 backdrop-blur-lg border border-slate-200/60 rounded-2xl p-2 shadow-sm"
+        className="flex flex-col lg:flex-row gap-3 justify-between items-center bg-white/70 backdrop-blur-lg border border-slate-200/60 rounded-2xl p-2 shadow-sm"
       >
         <div className="flex p-1 bg-slate-100/80 rounded-xl w-full lg:w-auto">
           {[

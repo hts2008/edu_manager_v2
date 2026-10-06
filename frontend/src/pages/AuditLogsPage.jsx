@@ -111,38 +111,27 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Nhật ký hoạt động</h1>
           <p className="text-gray-500">Theo dõi thao tác hệ thống và audit mutation.</p>
         </div>
-        <button onClick={reload} className="btn-secondary self-start lg:self-auto">
-          Làm mới
-        </button>
+        <button onClick={reload} className="btn-secondary self-start lg:self-auto">Làm mới</button>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="card">
-          <div className="card-body">
-            <p className="text-sm text-gray-500">Tổng bản ghi</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">{data?.total || 0}</p>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body">
-            <p className="text-sm text-gray-500">Người dùng liên quan</p>
-            <p className="mt-1 text-3xl font-bold text-gray-900">{uniqueUsers}</p>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-body">
-            <p className="text-sm text-gray-500">Mới nhất</p>
-            <p className="mt-1 text-sm font-semibold text-gray-900">
-              {latest ? formatDateTime(latest.created_at) : "Chưa có dữ liệu"}
-            </p>
-          </div>
-        </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="card"><div className="card-body p-4">
+          <p className="text-sm text-gray-500">Tổng bản ghi</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{data?.total || 0}</p>
+        </div></div>
+        <div className="card"><div className="card-body p-4">
+          <p className="text-sm text-gray-500">Người dùng liên quan</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{uniqueUsers}</p>
+        </div></div>
+        <div className="card"><div className="card-body p-4">
+          <p className="text-sm text-gray-500">Mới nhất</p>
+          <p className="mt-1 text-sm font-semibold text-gray-900">{latest ? formatDateTime(latest.created_at) : "Chưa có dữ liệu"}</p>
+        </div></div>
       </div>
 
       <div className="card">

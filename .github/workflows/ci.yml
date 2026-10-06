@@ -19,6 +19,9 @@ jobs:
       - run: npm audit --audit-level=high
       - run: npm run audit:frontend-policy
       - run: npm run test:unit
+      - run: npm run test:admin-console
+      - run: npm run test:tuition-progress
+      - run: npx tsx --test tests/release-maintenance.test.ts tests/release-permission-migration.test.ts tests/tenant-backfill-immutable-history.test.ts tests/backup-restore-sequence.test.ts
       - run: npm run test:student-progress-safety
       - run: npm run test:unit
         working-directory: frontend

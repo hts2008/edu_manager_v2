@@ -106,7 +106,7 @@ export default function ImportPage() {
     preview && preview.summary.valid_rows > 0 && preview.summary.invalid_rows === 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Import CSV</h1>

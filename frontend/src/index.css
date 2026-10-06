@@ -1271,3 +1271,93 @@ textarea {
     animation: none;
   }
 }
+
+/* UXW-03: shared shell geometry; keep page/theme styles outside this scope. */
+.teacher-shell {
+  --teacher-rail-width: 240px;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.teacher-shell .teacher-shell-rail {
+  position: fixed;
+  width: 240px;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.teacher-shell .teacher-shell-rail > :first-child {
+  flex-shrink: 0;
+  padding-inline: 16px;
+}
+.teacher-shell .teacher-shell-nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.teacher-shell .teacher-shell-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.teacher-shell .teacher-shell-content > header {
+  flex-shrink: 0;
+}
+.teacher-shell .eduflow-main {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.teacher-shell .teacher-shell-footer {
+  flex-shrink: 0;
+}
+.teacher-shell .eduflow-main > div:last-child {
+  height: auto;
+  min-height: 100%;
+  will-change: opacity;
+  transform: none !important;
+}
+.teacher-shell .teacher-shell-section { border-radius: 8px; }
+.teacher-shell button:focus-visible,
+.teacher-shell a:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: -2px;
+}
+@media (min-width: 1024px) {
+  .teacher-shell[data-collapsed="true"] { --teacher-rail-width: 72px; }
+  .teacher-shell .teacher-shell-rail {
+    width: var(--teacher-rail-width);
+    transform: none;
+  }
+  .teacher-shell .teacher-shell-content {
+    margin-left: var(--teacher-rail-width);
+  }
+  .teacher-shell[data-collapsed="true"] .teacher-shell-brand,
+  .teacher-shell[data-collapsed="true"] .teacher-shell-group,
+  .teacher-shell[data-collapsed="true"] .teacher-shell-section-toggle,
+  .teacher-shell[data-collapsed="true"] .teacher-shell-link-label,
+  .teacher-shell[data-collapsed="true"] .teacher-shell-footer {
+    display: none;
+  }
+  .teacher-shell[data-collapsed="true"] .teacher-shell-nav { padding: 16px 4px; scrollbar-gutter: auto; }
+  .teacher-shell[data-collapsed="true"] .teacher-shell-section {
+    border: 0;
+    box-shadow: none;
+  }
+  .teacher-shell[data-collapsed="true"] .teacher-shell-section a {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .teacher-shell[data-collapsed="true"] .teacher-shell-section a > div { flex-shrink: 0; }
+}
+@media (max-width: 639px) {
+  .teacher-shell .teacher-shell-content > header { padding-inline: 8px; }
+  .teacher-shell header > div,
+  .teacher-shell header > div > div { gap: 8px; }
+  .teacher-shell header h1 { font-size: 16px; }
+}

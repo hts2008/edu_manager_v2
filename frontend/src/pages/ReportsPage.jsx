@@ -412,9 +412,9 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6" data-testid="report-bi-page">
-      <section className="eduflow-page-intro relative overflow-hidden p-6 md:p-8">
+      <section className="eduflow-page-intro relative overflow-hidden p-5 md:p-6">
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(238,242,255,0.92),rgba(255,255,255,0.62),rgba(236,254,255,0.58))]" />
-        <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="relative z-10 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <div className="eduflow-eyebrow">
               <BarChart3 size={15} />
@@ -425,18 +425,16 @@ export default function ReportsPage() {
             </h1>
             <p className="eduflow-muted mt-3 max-w-2xl text-sm leading-6 md:text-base">
               Phân tích chuyên cần, học phí và rủi ro theo từng học viên, từng lớp, từng tháng.
-              Dữ liệu được tách theo grain student-class-month để tránh gộp học phí sai khi một học viên học nhiều lớp.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[520px]">
-            <HeroMetric label="Học viên" value={formatNumber(summary.student_count)} />
-            <HeroMetric label="Lớp" value={formatNumber(summary.class_count)} />
-            <HeroMetric label="Dòng phân tích" value={formatNumber(summary.student_class_month_count)} />
-          </div>
+
         </div>
       </section>
 
       <section className="eduflow-panel p-4" aria-label="Bộ lọc báo cáo">
+        <p className="mb-3 text-sm leading-5 text-slate-600" data-testid="report-grain-note">
+          Dữ liệu được tách theo grain student-class-month để tránh gộp học phí sai khi một học viên học nhiều lớp.
+        </p>
         <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.1fr_1.2fr_auto] lg:items-end">
           <Field label="Từ tháng">
             <input
@@ -762,15 +760,6 @@ function Field({ label, children }) {
   );
 }
 
-function HeroMetric({ label, value }) {
-  return (
-    <div className="eduflow-card p-4">
-      <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-950">{value || 0}</p>
-    </div>
-  );
-}
-
 function MetricCard({ icon, label, value, helper, tone }) {
   const styles = {
     indigo: "border-primary-100 bg-primary-50 text-primary-700",
@@ -780,14 +769,14 @@ function MetricCard({ icon, label, value, helper, tone }) {
     amber: "border-amber-100 bg-amber-50 text-amber-700",
   };
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${styles[tone]}`}>
+    <div className={`min-w-0 rounded-3xl border p-4 shadow-sm ${styles[tone]}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-wide opacity-75">{label}</p>
-          <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
+          <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
           <p className="mt-2 text-xs font-semibold opacity-80">{helper}</p>
         </div>
-        <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
+        <div className="rounded-2xl bg-white/80 p-2 shadow-sm">
           {createElement(icon, { size: 20 })}
         </div>
       </div>

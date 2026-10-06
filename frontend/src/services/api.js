@@ -1,5 +1,7 @@
 // VI: API service module - Gọi backend APIs
 
+import { buildLoginPayload } from "./authTenancy.js";
+
 const API_BASE = (import.meta.env.VITE_API_BASE || "/api").replace(/\/$/, "");
 const RETRYABLE_METHODS = new Set(["GET", "HEAD"]);
 const GET_CACHE_TTL_MS = 15_000;
@@ -283,10 +285,10 @@ async function request(endpoint, options = {}) {
 
 // Auth API
 export const authService = {
-  login: (username, password) =>
+  login: (username, password, tenantSlug) =>
     request("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify(buildLoginPayload(username, password, tenantSlug)),
     }),
 
   logout: () => request("/auth/logout", { method: "POST" }),
@@ -613,6 +615,20 @@ export const reportsService = {
 
 // Student Progress Assessment API
 export const studentProgressService = {
+  getSubmission: (params = {}, options = {}) => {
+    const query = new URLSearchParams({ ...params, mode: "submission" }).toString();
+    return request(`/student-progress/roster?${query}`, { ...options, cache: "no-store", skipCache: true });
+  },
+  submitAssessment: (data) => request("/student-progress/roster", {
+    method: "POST", body: JSON.stringify(data),
+  }),
+  getRoster: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/student-progress/roster?${query}`, { ...options, cache: "no-store" });
+  },
+  saveRosterRow: (data) => request("/student-progress/roster", {
+    method: "PATCH", body: JSON.stringify(data),
+  }),
   getAll: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return request(`/student-progress${query ? `?${query}` : ""}`);
@@ -664,6 +680,65 @@ export const centerSettingsService = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+};
+
+export const adminSettingsService = {
+  getAll: (params = {}, options = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/admin/settings${query ? `?${query}` : ""}`, options);
+  },
+  update: (key, data) =>
+    request(`/admin/settings/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  getRevisions: (key, params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/admin/settings/${encodeURIComponent(key)}/revisions${query ? `?${query}` : ""}`);
+  },
+  rollback: (key, revisionId, changeNote) =>
+    request(`/admin/settings/${encodeURIComponent(key)}/rollback`, {
+      method: "POST",
+      body: JSON.stringify({ revisionId, changeNote }),
+    }),
+  simulate: (data) =>
+    request("/admin/settings/simulate", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+function consoleData(response, fallbackMessage) {
+  if (response?.success) return response.data || {};
+  const error = new Error(response?.error?.message || fallbackMessage);
+  error.code = response?.error?.code || "CONSOLE_REQUEST_FAILED";
+  throw error;
+}
+
+export const adminPermissionsService = {
+  get: (options = {}) => request("/admin/permissions", options).then((response) => consoleData(response, "Không tải được ma trận quyền")),
+  update: (data) => request("/admin/permissions", { method: "PUT", body: JSON.stringify(data) }).then((response) => consoleData(response, "Không cập nhật được quyền")),
+};
+
+export const adminFeaturesService = {
+  list: (options = {}) => request("/admin/features", options).then((response) => consoleData(response, "Không tải được feature flags")),
+  update: (data) => request("/admin/features", { method: "PUT", body: JSON.stringify(data) }).then((response) => consoleData(response, "Không cập nhật được feature flag")),
+};
+
+export const adminIntegrationsService = {
+  list: (options = {}) => request("/admin/integrations", options).then((response) => consoleData(response, "Không tải được tích hợp")),
+  update: (data) => request("/admin/integrations", { method: "PUT", body: JSON.stringify(data) }).then((response) => consoleData(response, "Không cập nhật được tích hợp")),
+  test: (kind) => request(`/admin/integrations/${encodeURIComponent(kind)}/test`, { method: "POST" }).then((response) => consoleData(response, "Không gửi thử được tích hợp")),
+};
+
+export const adminTenantsService = {
+  list: (options = {}) => request("/admin/tenants", options).then((response) => consoleData(response, "Không tải được trung tâm")),
+  create: (data) => request("/admin/tenants", { method: "POST", body: JSON.stringify(data) }).then((response) => consoleData(response, "Không tạo được trung tâm")),
+  update: (data) => request("/admin/tenants", { method: "PATCH", body: JSON.stringify(data) }).then((response) => consoleData(response, "Không cập nhật được trung tâm")),
+};
+
+export const adminSystemService = {
+  getStatus: (options = {}) => request("/admin/system-status", options).then((response) => consoleData(response, "Không tải được trạng thái hệ thống")),
 };
 
 // Users API
@@ -722,6 +797,11 @@ export const attendancePeriodsService = {
 };
 
 // Monthly Fees API (Fee Collection with Status)
+export const experienceService = {
+  get: () => request("/ui-experience", { cache: "no-store", skipCache: true }),
+  save: (data) => request("/ui-experience", { method: "PUT", body: JSON.stringify(data) }),
+};
+
 export const monthlyFeesService = {
   getAll: (params = {}) => {
     const query = new URLSearchParams(params).toString();

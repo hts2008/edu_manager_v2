@@ -9,9 +9,9 @@ const page = readFileSync(
 
 describe("fee collection filter layout", () => {
   it("reserves enough desktop width for independent month and class controls", () => {
-    assert.match(page, /xl:grid-cols-\[minmax\(20rem,1\.4fr\)_repeat\(4,minmax\(0,1fr\)\)\]/);
-    assert.match(page, /className="eduflow-card min-w-0 p-4"/);
-    assert.match(page, /className="grid min-w-0 gap-4"/);
+    assert.match(page, /lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,1fr\)\]/);
+    assert.match(page, /className="grid min-w-0 gap-3 sm:grid-cols-2"/);
+    assert.doesNotMatch(page, /repeat\(4,minmax\(0,1fr\)\)/);
   });
 
   it("keeps both month navigation buttons and the month input in separate hit targets", () => {
