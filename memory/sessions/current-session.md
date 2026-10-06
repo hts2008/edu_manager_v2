@@ -1,6 +1,6 @@
 # Current Session
 
-Current objective RELEASE-20261006-01 BLOCKED: authorized go-live preflight found security audit failures and unclosed migration/recovery gates. Await release scope and operational tenant identity. No GitHub push/Vercel deploy/admin creation. Evidence receipts/2026-10-06-go-live-preflight.md.
+Current objective RELEASE-20261006-01 IN PROGRESS: user explicitly authorizes production go-live and remediation. Release branch and PR2 published; maintenance and normal deployments READY but canonical still old. Production remains unmigrated; operating admin not yet provisioned. CI verify/integration pass; E2E fixtures are being corrected, not waived. Managed Neon child freeze/operator/unfreeze rehearsed. Recovery now advances all three serial IDs (student_classes, activity_logs, center_settings); seven PG17 checks pass. Exact migration manifest and complete write-freeze guards added. Next: fresh E2E/CI, final pinned candidate, maintenance promotion, DB freeze, fresh encrypted backup/restore, migration, admin provision, candidate promotion, ownership/unfreeze cleanup and authenticated smoke. Credentials remain EFS/ACL protected and excluded Git/Vercel. NM/C+ unavailable0/0, health unavailable. Evidence receipts/2026-10-06-go-live-execution.md.
 
 Latest objective UX-RECEIPT-DESIGN-02 REVIEW: receipt-only hierarchy redesign,240 frontend tests/build/lint/six PDFs verified. A4/A5 review templates saved; browser Templates retained. User visual/printer acceptance pending. NM/C+ unavailable0/0.
 

@@ -19,6 +19,10 @@ Status: IN PROGRESS. Explicit user authorization covers GitHub sync, production 
 - Final migration bytes rehearsed on independently restored PostgreSQL17 production clone; business checksums protected. Earlier Neon rehearsal alone is not proof of later revised owner migration.
 - AES-GCM encrypted physical dump, checksum/decrypt verification and successful isolated PostgreSQL17 physical restore.
 - v3/v4 encrypted application recovery:6/6 real PG17 checks plus17/17 focused unit checks, including sequence, rollback and immutable triggers.
+- Follow-up recovery correction: all three serial IDs (student_classes, activity_logs, center_settings) restart transactionally after imported IDs. Seven focused/real PG17 checks pass; inserts after restore no longer collide. Rollback/immutable-trigger checks retained.
+- Independent freeze findings remediated: authorization uses a separate database role, not discoverable application_name. Real PG17 regression rejects catalog-marker spoof and refresh protects newly created tables; three freeze/maintenance checks pass. Managed Neon child ownership transfer/operator CLI/unfreeze exercised, production untouched.
+- Production migration now refuses any checksum mismatch with the verified physical-clone manifest or missing/enabled-state-invalid write-freeze trigger.
+- GitHub PR2 published. Current CI verify/integration pass; visual/real E2E fixture failures are under correction. Canonical production has not been promoted; no admin credential has been provisioned yet.
 - Local fresh build avoids Windows query-engine DLL locked by running review servers; no user server stopped.
 
 ## Cutover
