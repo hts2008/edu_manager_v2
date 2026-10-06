@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mockTenantExperience } from "./helpers/tenant-session.js";
 
 const templateId = "tpl-template-designer-hardening";
 const token = "mock-admin-token";
@@ -26,6 +27,7 @@ async function seedAuth(page) {
 }
 
 async function mockDesignerApi(page, state) {
+  await mockTenantExperience(page);
   await page.route("**/api/auth/me", async (route) => {
     await route.fulfill({
       status: 200,
@@ -38,6 +40,9 @@ async function mockDesignerApi(page, state) {
             username: "admin",
             role: "admin",
             full_name: "Admin",
+            tenant_id: "tenant_default",
+            is_platform_owner: false,
+            permissions: ["console.access", "templates.manage"],
           },
         },
       }),

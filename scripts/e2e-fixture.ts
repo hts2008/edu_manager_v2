@@ -29,6 +29,15 @@ try {
   const result = await bootstrapDatabase(prisma, {
     adminPasswordHash: await bcrypt.hash(bootstrapPassword, 12),
   });
+  const admin = await prisma.user.findUnique({
+    where: { tenantId_username: { tenantId: "tenant_default", username } },
+    include: { tenant: true },
+  });
+  if (!admin || admin.role !== "admin" || admin.status !== "active" ||
+      admin.tenant.status !== "active" || admin.isPlatformOwner ||
+      !await bcrypt.compare(password, admin.passwordHash)) {
+    throw new Error("Real E2E requires the active tenant-only bootstrap admin with the supplied credential; existing credentials are not overwritten");
+  }
   console.info("Real E2E fixture applied", result);
 } finally {
   await prisma.$disconnect();

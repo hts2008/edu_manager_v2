@@ -34,7 +34,7 @@ test("real UI persists auth and updates center settings through router/Postgres"
   expect(persistedMe.body.data.user.username).toBe(username);
 
   await page.goto("/settings");
-  const centerName = `AUD-RM-009 ${Date.now()}`;
+  const centerName = "AUD-RM-009 E2E Verified";
   await page.locator("#center_name").fill(centerName);
 
   const updateResponse = page.waitForResponse(

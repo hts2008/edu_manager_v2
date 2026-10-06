@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { mockTenantExperience } from "./helpers/tenant-session.js";
 
 const studentId = "student-dashboard";
 const classId = "class-dashboard";
@@ -114,6 +115,7 @@ function timelinePayload(store, from, to) {
 }
 
 async function mockDashboard(page) {
+  await mockTenantExperience(page);
   const store = new Map([
     ["2026-06-10", [{ entry_type: "skill_assessment", skill_key: "listening", score: 60, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Test 1" }]],
   ]);
@@ -125,7 +127,7 @@ async function mockDashboard(page) {
   await page.route("**/api/auth/me", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ success: true, data: { user: { id: "admin", username: "admin", role: "admin", full_name: "Admin" } } }),
+    body: JSON.stringify({ success: true, data: { user: { id: "admin", username: "admin", role: "admin", full_name: "Admin", tenant_id: "tenant_default", is_platform_owner: false, permissions: ["console.access", "progress.view", "progress.grade"] } } }),
   }));
   await page.route("**/api/teachers**", (route) => route.fulfill({
     status: 200,
@@ -221,8 +223,21 @@ test("list to detail supports daily evidence, ranges, charts and authenticated P
   await form.getByTestId("progress-entry-label").fill("KET Practice Test 2");
   await form.getByTestId("progress-entry-skill-listening").fill("80");
   await form.getByTestId("progress-entry-note").fill("Luyện nghe ngoài lịch học chính khóa.");
+  const savedDay = page.waitForResponse((response) => response.url().includes("/api/student-progress/daily") && response.request().method() === "PUT");
+  await form.evaluate((node) => {
+    window.savedEvidenceMessage = false;
+    const observer = new MutationObserver(() => {
+      if (node.textContent.includes("Đã lưu evidence ngày 2026-06-12.")) {
+        window.savedEvidenceMessage = true;
+        observer.disconnect();
+      }
+    });
+    observer.observe(node, { childList: true, subtree: true, characterData: true });
+  });
   await form.getByTestId("save-progress-day").click();
-  await expect(form.getByText("Đã lưu evidence ngày 2026-06-12.")).toBeVisible();
+  expect((await savedDay).status()).toBe(200);
+  await expect.poll(() => page.evaluate(() => window.savedEvidenceMessage)).toBe(true);
+  await expect(form.getByTestId("progress-entry-skill-listening")).toHaveValue("80");
   expect(store.has("2026-06-10")).toBeTruthy();
   expect(store.get("2026-06-12")?.some((entry) => entry.exam_set_level === "ket" && entry.difficulty_level === "hard")).toBeTruthy();
   await expect(page.getByTestId("progress-timeline-table")).toContainText("12/06/2026");
