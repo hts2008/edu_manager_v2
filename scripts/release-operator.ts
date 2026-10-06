@@ -8,7 +8,7 @@ const privateDir = resolve('.release-private');
 mkdirSync(privateDir, {recursive: true});
 process.loadEnvFile('.env');
 const production = new URL(process.env.DIRECT_URL!);
-if (production.hostname !== 'ep-silent-queen-aoujb3oc.c-2.ap-southeast-1.aws.neon.tech' || production.pathname !== '/neondb') {
+if (production.hostname !== 'ep-silent-queen-aoujb3oc.c-2.ap-southeast-1.aws.neon.tech' || production.pathname !== '/neondb' || production.username !== 'neondb_owner') {
   throw new Error('Release target does not match the verified EDUMANAGER production identity');
 }
 const mode = process.argv[2];
@@ -28,16 +28,42 @@ if (['production-migrate','production-provision','production-freeze','production
 const freezePath = resolve(privateDir,'write-freeze.json');
 if (!existsSync(freezePath)) writeFileSync(freezePath,JSON.stringify({operatorName:`edu_release_${randomBytes(16).toString('hex')}`}),{flag:'wx',mode:0o600});
 const {operatorName} = JSON.parse(readFileSync(freezePath,'utf8'));
-target.searchParams.set('application_name',operatorName);
+const operatorPath = resolve(privateDir,'operator-credential.json');
+if (!existsSync(operatorPath)) writeFileSync(operatorPath,JSON.stringify({roleName:operatorName,password:randomBytes(24).toString('base64url')}),{flag:'wx',mode:0o600});
+const operatorCredential = JSON.parse(readFileSync(operatorPath,'utf8'));
+if (['production-migrate','production-provision','rehearsal-operator-check'].includes(mode!)) {
+  target.username=operatorCredential.roleName; target.password=operatorCredential.password;
+}
 process.env.DATABASE_URL = target.toString();
 process.env.DIRECT_URL = target.toString();
-const db = new PrismaClient({datasources: {db: {url: target.toString()}}, log: []});
+let db = new PrismaClient({datasources: {db: {url: target.toString()}}, log: []});
 const sha = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
 const output = (name: string, value: unknown) => writeFileSync(resolve(privateDir, name), JSON.stringify(value, null, 2), {mode: 0o600});
 function run(args: string[], env = process.env) {
   const result = spawnSync(process.execPath, args, {env, encoding: 'utf8', timeout: 240_000, maxBuffer: 10 * 1024 * 1024});
   if (result.status !== 0) throw new Error(`Release command failed: ${args.slice(0,3).join(' ')}; ${result.stderr?.replace(/postgres(?:ql)?:\/\/\S+/g, '[DATABASE_URL]')}`);
   return result.stdout;
+}
+async function becomeOperator() {
+  const name = operatorCredential.roleName, password = operatorCredential.password;
+  if (!/^edu_release_[a-f0-9]{32}$/.test(name) || !/^[a-zA-Z0-9_-]{32}$/.test(password)) throw new Error('Invalid operator credential');
+  const roles = await db.$queryRawUnsafe<Array<{rolname:string}>>('SELECT rolname FROM pg_roles WHERE rolname=$1',name);
+  if (!roles.length) {
+    await db.$executeRawUnsafe(`CREATE ROLE "${name}" LOGIN INHERIT PASSWORD '${password}' VALID UNTIL '${new Date(Date.now()+86400000).toISOString()}'`);
+  }
+  // Managed Neon does not allow granting the provider-created owner role.
+  // Transfer ownership for the maintenance window, without allowing runtime SET ROLE.
+  await db.$transaction(async tx => {
+    await tx.$executeRawUnsafe(`GRANT "${name}" TO "neondb_owner" WITH INHERIT TRUE, SET TRUE`);
+    await tx.$executeRawUnsafe(`REASSIGN OWNED BY "neondb_owner" TO "${name}"`);
+    await tx.$executeRawUnsafe(`GRANT "${name}" TO "neondb_owner" WITH INHERIT FALSE, SET FALSE`);
+  },{timeout:120_000});
+  const permission = await db.$queryRawUnsafe<Array<{allowed:boolean}>>('SELECT pg_has_role(current_user,$1,\'SET\') AS allowed',name);
+  if (permission[0].allowed && target.hostname !== '127.0.0.1') throw new Error('Runtime role can assume release operator; refused freeze');
+  const operatorUrl = new URL(target); operatorUrl.username=name; operatorUrl.password=password;
+  await db.$disconnect();
+  db = new PrismaClient({datasources:{db:{url:operatorUrl.toString()}},log:[]});
+  process.env.DATABASE_URL=operatorUrl.toString();process.env.DIRECT_URL=operatorUrl.toString();
 }
 async function inventory() {
   return db.$transaction(async tx => {
@@ -94,6 +120,13 @@ async function migrate() {
   const applied = new Set(migrations.map(m => m.migration_name));
   const checksums = Object.fromEntries(readdirSync('prisma/migrations', {withFileTypes:true}).filter(item=>item.isDirectory())
     .map(item=>[item.name,sha(readFileSync(`prisma/migrations/${item.name}/migration.sql`))]));
+  if (mode === 'production-migrate') {
+    const rehearsed = JSON.parse(readFileSync(resolve(privateDir,'local-rehearsal-migration-manifest.json'),'utf8'));
+    if (JSON.stringify(checksums) !== JSON.stringify(rehearsed)) throw new Error('Migration bytes differ from verified physical-clone rehearsal');
+    const frozen = await db.$queryRawUnsafe<Array<{unguarded:bigint}>>(`SELECT count(*) AS unguarded FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='public' AND c.relkind='r' AND NOT EXISTS (SELECT 1 FROM pg_trigger t WHERE t.tgrelid=c.oid AND t.tgname='edu_release_write_freeze' AND t.tgenabled='O')`);
+    if (Number(frozen[0].unguarded) !== 0) throw new Error('Production migration requires all existing tables write-frozen');
+  }
   output(`${mode}-migration-manifest.json`,checksums);
   const expand = '202608120001_admin_console_tenancy_expand';
   if (!applied.has(expand)) apply(expand);
@@ -106,6 +139,10 @@ async function migrate() {
   if (!verified.readyForConstrain) throw new Error('Backfill validation failed; contraction refused');
   const before = await inventory();
   run([prismaCli,'migrate','deploy']);
+  if (mode === 'production-migrate') {
+    const {installWriteFreeze} = await import('./release-write-freeze.js');
+    await installWriteFreeze(db,operatorName);
+  }
   const after = await inventory();
   for (const table of ['receipts','payments','monthly_fees','monthly_fee_lines','student_progress_months','student_progress_daily_entries']) {
     if (JSON.stringify(before[table])!==JSON.stringify(after[table])) throw new Error(`Protected data changed during contraction: ${table}`);
@@ -150,23 +187,49 @@ async function provision() {
   console.info(JSON.stringify({centerCode:credentials.centerCode,username:credentials.username,created:true,existingAccountsUnchanged:true}));
 }
 try {
-  if (mode === 'inspect') {const data=await inventory();output('production-inventory.json',data);console.info(JSON.stringify({targetFingerprint:sha(production.hostname+production.pathname).slice(0,12),tables:Object.keys(data).length,counts:Object.fromEntries(Object.entries(data).map(([k,v]:any)=>[k,v.count]))}));}
+  if (mode === 'inspect-roles') {console.info(JSON.stringify(await db.$queryRawUnsafe("SELECT member.rolname AS member, granted.rolname AS granted, m.admin_option,m.inherit_option,m.set_option FROM pg_auth_members m JOIN pg_roles member ON member.oid=m.member JOIN pg_roles granted ON granted.oid=m.roleid WHERE member.rolname=current_user")));}
+  else if (mode === 'inspect') {const data=await inventory();output('production-inventory.json',data);console.info(JSON.stringify({targetFingerprint:sha(production.hostname+production.pathname).slice(0,12),tables:Object.keys(data).length,counts:Object.fromEntries(Object.entries(data).map(([k,v]:any)=>[k,v.count]))}));}
   else if (mode === 'backup') await backup();
   else if (mode === 'rehearsal' || mode === 'local-rehearsal' || mode === 'production-migrate') await migrate();
   else if (mode === 'production-audit' || mode === 'rehearsal-audit') await audit();
   else if (mode === 'production-provision') await provision();
-  else if (mode === 'production-freeze') {
+  else if (mode === 'rehearsal-operator-check') {
+    run(['node_modules/prisma/build/index.js','db','execute','--schema','prisma/schema.prisma','--file','prisma/migrations/202610060001_experience_permissions/migration.sql']);
+    console.info(JSON.stringify({managedNeonOperatorCliVerified:true}));
+  }
+  else if (mode === 'production-freeze' || mode === 'rehearsal-freeze') {
+    await becomeOperator();
     const {installWriteFreeze} = await import('./release-write-freeze.js');
     const result = await installWriteFreeze(db,operatorName); output('production-write-freeze.json',{...result,at:new Date().toISOString()});
-    console.info(JSON.stringify({frozen:true,...result}));
-  } else if (mode === 'production-unfreeze') {
+    const normal = new PrismaClient({datasources:{db:{url:target.toString()}},log:[]});
+    try {
+      let denied=false;
+      try {await normal.$executeRawUnsafe('UPDATE users SET username=username');} catch(error:any) {denied=error?.meta?.code==='55000';}
+      if (!denied) throw new Error('Ordinary production writer not denied');
+      console.info(JSON.stringify({frozen:true,ordinaryWriterDenied:true,...result}));
+    } finally {await normal.$disconnect();}
+  } else if (mode === 'production-unfreeze' || mode === 'rehearsal-unfreeze') {
+    await db.$transaction(async tx => {
+      await tx.$executeRawUnsafe(`GRANT "${operatorName}" TO "neondb_owner" WITH INHERIT TRUE, SET TRUE`);
+      await tx.$executeRawUnsafe(`REASSIGN OWNED BY "${operatorName}" TO "neondb_owner"`);
+    },{timeout:120_000});
     const {removeWriteFreeze} = await import('./release-write-freeze.js'); await removeWriteFreeze(db);
+    await db.$executeRawUnsafe(`DROP ROLE "${operatorName}"`);
     console.info(JSON.stringify({frozen:false}));
   } else if (mode === 'local-freeze-check') {
     const {installWriteFreeze,removeWriteFreeze} = await import('./release-write-freeze.js');
-    const outsiderUrl = new URL(target); outsiderUrl.searchParams.set('application_name','old_deployment');
+    const localOwner=decodeURIComponent(target.username);
+    const existedRole=await db.$queryRawUnsafe<Array<{rolname:string}>>('SELECT rolname FROM pg_roles WHERE rolname=$1',operatorName);
+    if (!existedRole.length) {
+      await db.$executeRawUnsafe(`CREATE ROLE "${operatorName}" LOGIN INHERIT PASSWORD '${operatorCredential.password}'`);
+      await db.$executeRawUnsafe(`GRANT "${localOwner}" TO "${operatorName}"`);
+    }
+    const outsiderUrl = new URL(target); outsiderUrl.searchParams.set('application_name',operatorName);
     const outsider = new PrismaClient({datasources:{db:{url:outsiderUrl.toString()}},log:[]});
     const before = await inventory();
+    const operatorUrl=new URL(target); operatorUrl.username=operatorName;operatorUrl.password=operatorCredential.password;
+    await db.$disconnect();db=new PrismaClient({datasources:{db:{url:operatorUrl.toString()}},log:[]});
+    process.env.DATABASE_URL=operatorUrl.toString();process.env.DIRECT_URL=operatorUrl.toString();
     try {
       await installWriteFreeze(db,operatorName);
       let denied = false;
@@ -178,5 +241,7 @@ try {
     } finally {await removeWriteFreeze(db);await outsider.$disconnect();}
   }
   else throw new Error('Supported modes: inspect, backup, rehearsal, production-migrate');
-} catch(error) {console.error(error instanceof Error ? error.message : 'Release operation failed');process.exitCode=1;}
+} catch(error) {let message=error instanceof Error ? error.message : 'Release operation failed';
+  for(const secret of [operatorCredential.password,decodeURIComponent(production.password)]) message=message.split(secret).join('[REDACTED]');
+  console.error(message);process.exitCode=1;}
 finally {await db.$disconnect();}

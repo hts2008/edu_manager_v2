@@ -5,7 +5,7 @@ export async function installWriteFreeze(db: PrismaClient, operatorName: string)
   return db.$transaction(async tx => {
     await tx.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION public.edu_release_refuse_write() RETURNS trigger
       LANGUAGE plpgsql AS $$ BEGIN
-      IF current_setting('application_name') <> '${operatorName}' THEN
+      IF current_user <> '${operatorName}' THEN
         RAISE EXCEPTION 'EDU_RELEASE_MAINTENANCE' USING ERRCODE='55000';
       END IF; RETURN NULL; END $$`);
     const tables = await tx.$queryRawUnsafe<Array<{table_name:string}>>(
