@@ -43,6 +43,12 @@ function row(overrides: Partial<ReportCubeRow> = {}): ReportCubeRow {
 }
 
 describe("student progress parent report", () => {
+  it("describes missing progress without leaking null as a score", () => {
+    const result = buildStudentProgressReport({ rows: [row({ expected_sessions: 0, recorded_sessions: 0 })] });
+    assert.equal(result.rows[0].progress_score, null);
+    assert.doesNotMatch(result.rows[0].parent_summary, /null\/100/);
+    assert.match(result.rows[0].parent_summary, /chua co diem tien do/);
+  });
   it("single-month endpoint selection emits one row per student/class and keeps baseline comparison", () => {
     const source = readFileSync(new URL("../server/api/reports/student-progress.ts", import.meta.url), "utf8");
     const selection = source.match(/const filteredRows = ([\s\S]*?);/);

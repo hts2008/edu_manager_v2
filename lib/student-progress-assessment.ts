@@ -680,7 +680,7 @@ export function buildProgressAssessment(input: {
 
   const parentSummary =
     progressMonth?.parentSummary?.trim() ||
-    `${row.student_name} hoc lop ${row.class_name} theo track ${track.label}. Thang ${row.month}, he thong ghi nhan ${row.recorded_sessions}/${row.expected_sessions} buoi, ty le co mat ${row.actual_present_rate}%, diem tien do ${progressScore}/100${hasTeacherInput ? ` va co ${teacherEntries.skillCount} nhom diem hoc thuat duoc nhap.` : " va cac diem hoc thuat van dang missing input."}`;
+    `${row.student_name} hoc lop ${row.class_name} theo track ${track.label}. Thang ${row.month}, he thong ghi nhan ${row.recorded_sessions}/${row.expected_sessions} buoi, ty le co mat ${row.actual_present_rate}%, ${progressScore === null ? "chua co diem tien do" : `diem tien do ${progressScore}/100`}${hasTeacherInput ? ` va co ${teacherEntries.skillCount} nhom diem hoc thuat duoc nhap.` : " va cac diem hoc thuat van dang missing input."}`;
 
   return {
     trackKey,
