@@ -6,9 +6,43 @@ import {
   assertProgressMonthEditable,
   buildProgressRevisionSnapshot,
   normalizeReopenReason,
+  runSerializableProgressTransaction,
+  appendProgressActivity,
 } from "../lib/student-progress-finalization.js";
 
 const source = (path: string) => fs.readFileSync(path, "utf8");
+
+test("progress audit uses the transaction and propagates audit failure", async () => {
+  const req = { user: { id: "actor", tenantId: "tenant" }, headers: {} } as any;
+  const calls: any[] = [];
+  await appendProgressActivity({ activityLog: { create: async (value: any) => { calls.push(value); } } } as any,
+    req, "REOPEN_STUDENT_PROGRESS", "month");
+  assert.equal(calls[0].data.tenantId, "tenant");
+  assert.equal(calls[0].data.entityId, "month");
+  const failure = new Error("audit unavailable");
+  await assert.rejects(appendProgressActivity({ activityLog: { create: async () => { throw failure; } } } as any,
+    req, "REPLACE_STUDENT_PROGRESS_DAILY", "month"), error => error === failure);
+  await assert.rejects(appendProgressActivity({} as any, { user: { id: "actor" }, headers: {} } as any,
+    "DELETE_STUDENT_PROGRESS_DAILY", "month"), (error: any) => error.code === "TENANT_REQUIRED");
+});
+
+test("serialization retries re-read evidence and return typed conflict after three attempts", async () => {
+  let attempts = 0;
+  const db = { $transaction: async (operation: any, options: any) => {
+    assert.equal(options.isolationLevel, "Serializable");
+    if (++attempts < 3) throw { code: "P2034" };
+    return operation({ evidence: "fresh" });
+  } };
+  assert.equal(await runSerializableProgressTransaction(db as any, async (tx: any) => tx.evidence,
+    { isolationLevel: "Serializable" }), "fresh");
+  assert.equal(attempts, 3);
+  attempts = 0;
+  await assert.rejects(runSerializableProgressTransaction({ $transaction: async () => {
+    attempts++; throw { code: "P2034" };
+  } } as any, async () => true, { isolationLevel: "Serializable" }),
+  (error: any) => error.code === "PROGRESS_CONFLICT" && error.statusCode === 409);
+  assert.equal(attempts, 3);
+});
 
 test("AUD-RM-007 blocks silent edits to a finalized progress month", () => {
   assert.doesNotThrow(() => assertProgressMonthEditable(null));
@@ -80,7 +114,7 @@ test("AUD-RM-007 wires revision persistence and transactional mutation guards", 
 
   assert.match(schema, /model StudentProgressRevision/);
   assert.match(schema, /snapshot\s+Json/);
-  assert.match(schema, /@@unique\(\[progressMonthId, revisionNumber\]\)/);
+  assert.match(schema, /@@unique\(\[tenantId, progressMonthId, revisionNumber\]/);
   assert.match(monthlyApi, /eventType: "finalized"/);
   assert.match(monthlyApi, /eventType: "reopened"/);
   assert.match(monthlyApi, /isolationLevel: "Serializable"/);

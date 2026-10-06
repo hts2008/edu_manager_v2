@@ -1,17 +1,17 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
-  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, logActivity, sendApiError } from "../../../lib/api-utils.js";
 import { bulkActionSchema, validateBody } from "../../../lib/validation.js";
 import { deactivateEnrollmentPeriods } from "../../../lib/enrollment.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
+import { getSetting } from "../../../lib/settings.js";
 
 type BulkResource = "students" | "parents" | "receipts" | "payments";
 type BulkAction = "archive" | "delete";
@@ -60,28 +60,28 @@ function notFound(id: string, action: BulkAction): BulkResult {
   };
 }
 
-async function archiveStudent(id: string): Promise<BulkResult> {
-  const student = await prisma.student.findFirst({
+async function archiveStudent(db: AuthedRequest["db"], id: string): Promise<BulkResult> {
+  const student = await db.student.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
   });
   if (!student) return notFound(id, "archive");
 
-  await runSerializableTransaction(prisma, async (tx) => {
+  await runSerializableTransaction(db, async (tx) => {
     await deactivateEnrollmentPeriods(tx, { studentId: id });
     await tx.student.update({ where: { id }, data: { status: "inactive" } });
   }, BULK_ACTION_TRANSACTION_OPTIONS);
   return { id, action: "archive", success: true };
 }
 
-async function deleteStudent(id: string): Promise<BulkResult> {
-  const student = await prisma.student.findFirst({
+async function deleteStudent(db: AuthedRequest["db"], id: string): Promise<BulkResult> {
+  const student = await db.student.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
   });
   if (!student) return notFound(id, "delete");
 
-  await runSerializableTransaction(prisma, async (tx) => {
+  await runSerializableTransaction(db, async (tx) => {
     await deactivateEnrollmentPeriods(tx, { studentId: id });
     await tx.student.update({
       where: { id },
@@ -91,25 +91,25 @@ async function deleteStudent(id: string): Promise<BulkResult> {
   return { id, action: "delete", success: true };
 }
 
-async function deleteParent(id: string): Promise<BulkResult> {
-  const parent = await prisma.parent.findFirst({
+async function deleteParent(db: AuthedRequest["db"], id: string): Promise<BulkResult> {
+  const parent = await db.parent.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
   });
   if (!parent) return notFound(id, "delete");
-  const activeChildren = await prisma.student.count({
+  const activeChildren = await db.student.count({
     where: { parentId: id, deletedAt: null },
   });
   if (activeChildren > 0) {
     return dependencyError(id, "delete", "Parent has linked students");
   }
 
-  await prisma.parent.update({ where: { id }, data: { deletedAt: new Date() } });
+  await db.parent.update({ where: { id }, data: { deletedAt: new Date() } });
   return { id, action: "delete", success: true };
 }
 
-async function deleteReceipt(id: string): Promise<BulkResult> {
-  return runSerializableTransaction(prisma, async (tx) => {
+async function deleteReceipt(db: AuthedRequest["db"], id: string): Promise<BulkResult> {
+  return runSerializableTransaction(db, async (tx) => {
     const receiptIdentity = await tx.receipt.findFirst({
       where: { id, deletedAt: null },
       select: { studentId: true, month: true },
@@ -163,28 +163,29 @@ async function deleteReceipt(id: string): Promise<BulkResult> {
   }, BULK_ACTION_TRANSACTION_OPTIONS);
 }
 
-async function deletePayment(id: string): Promise<BulkResult> {
-  const payment = await prisma.payment.findFirst({
+async function deletePayment(db: AuthedRequest["db"], id: string): Promise<BulkResult> {
+  const payment = await db.payment.findFirst({
     where: { id, deletedAt: null },
     select: { id: true },
   });
   if (!payment) return notFound(id, "delete");
 
-  await prisma.payment.update({ where: { id }, data: { deletedAt: new Date() } });
+  await db.payment.update({ where: { id }, data: { deletedAt: new Date() } });
   return { id, action: "delete", success: true };
 }
 
 async function runAction(
+  db: AuthedRequest["db"],
   resource: BulkResource,
   action: BulkAction,
   id: string
 ): Promise<BulkResult> {
   try {
-    if (resource === "students" && action === "archive") return archiveStudent(id);
-    if (resource === "students" && action === "delete") return deleteStudent(id);
-    if (resource === "parents" && action === "delete") return deleteParent(id);
-    if (resource === "receipts" && action === "delete") return deleteReceipt(id);
-    if (resource === "payments" && action === "delete") return deletePayment(id);
+    if (resource === "students" && action === "archive") return archiveStudent(db, id);
+    if (resource === "students" && action === "delete") return deleteStudent(db, id);
+    if (resource === "parents" && action === "delete") return deleteParent(db, id);
+    if (resource === "receipts" && action === "delete") return deleteReceipt(db, id);
+    if (resource === "payments" && action === "delete") return deletePayment(db, id);
   } catch (error) {
     return {
       id,
@@ -213,9 +214,26 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const body = validateBody(bulkActionSchema, req.body);
+    const tenantId = req.user.tenantId;
+    if (!tenantId) {
+      throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+    }
+    const bulkLimit = await getSetting(req.db, {
+      tenantId,
+      key: "finance.bulk_actions_max",
+    });
+    const maxRecords = Number(bulkLimit.value);
     const resource = body.resource as BulkResource;
     const action = body.action as BulkAction;
     const ids = [...new Set(body.ids)];
+
+    if (ids.length > maxRecords) {
+      throw new ApiError(
+        "BULK_ACTION_LIMIT_EXCEEDED",
+        `bulk actions are limited to ${maxRecords} records`,
+        400,
+      );
+    }
 
     if (!supportedActions[resource].includes(action)) {
       throw new ApiError(
@@ -227,7 +245,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const results: BulkResult[] = [];
     for (const id of ids) {
-      results.push(await runAction(resource, action, id));
+      results.push(await runAction(req.db, resource, action, id));
     }
 
     const succeeded = results.filter((result) => result.success).length;
@@ -258,4 +276,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("bulk_actions.run", handler);

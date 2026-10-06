@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -14,11 +13,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
+    const db = req.db;
     const classId = getRequiredString(req.query.class_id, "class_id");
     const month = getRequiredString(req.query.month, "month");
     const { startDate, endDate } = parseMonthRange(month);
 
-    const records = await prisma.attendance.findMany({
+    const records = await db.attendance.findMany({
       where: {
         classId,
         attendanceDate: {

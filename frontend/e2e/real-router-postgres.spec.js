@@ -11,6 +11,7 @@ const password = required("E2E_ADMIN_PASSWORD");
 
 test("real UI persists auth and updates center settings through router/Postgres", async ({ page }) => {
   await page.goto("/login");
+  await page.locator("#tenant-slug").fill("default");
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
 
@@ -34,7 +35,7 @@ test("real UI persists auth and updates center settings through router/Postgres"
   expect(persistedMe.body.data.user.username).toBe(username);
 
   await page.goto("/settings");
-  const centerName = `AUD-RM-009 ${Date.now()}`;
+  const centerName = "AUD-RM-009 E2E Verified";
   await page.locator("#center_name").fill(centerName);
 
   const updateResponse = page.waitForResponse(

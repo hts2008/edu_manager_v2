@@ -1,24 +1,23 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../../lib/auth.js";
+import { requirePermission } from "../../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError } from "../../../../lib/api-utils.js";
 import { userUpdateSchema, validateBody } from "../../../../lib/validation.js";
 import { userToDto } from "../shared.js";
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
   try {
     const id = getString(req.query.id);
     if (!id) throw new ApiError("MISSING_ID", "id is required", 400);
 
-    const existing = await prisma.user.findUnique({ where: { id } });
+    const existing = await req.db.user.findUnique({ where: { id } });
     if (!existing) throw new ApiError("USER_NOT_FOUND", "User not found", 404);
 
     if (req.method === "GET") {
@@ -31,7 +30,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         throw new ApiError("SELF_DEACTIVATE_FORBIDDEN", "Cannot deactivate your own account", 400);
       }
 
-      const user = await prisma.user.update({
+      const user = await req.db.user.update({
         where: { id },
         data: {
           ...(payload.full_name !== undefined ? { fullName: payload.full_name } : {}),
@@ -50,7 +49,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         throw new ApiError("SELF_DEACTIVATE_FORBIDDEN", "Cannot deactivate your own account", 400);
       }
 
-      const user = await prisma.user.update({
+      const user = await req.db.user.update({
         where: { id },
         data: { status: "inactive" },
       });
@@ -64,4 +63,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("users.manage", handler);

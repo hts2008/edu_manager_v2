@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion as Motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
+import { useExperience } from "../../context/ExperienceContext";
 import {
   Home, Users, UsersRound, School, GraduationCap,
   CalendarCheck, BarChart2, Lock, Receipt, CircleDollarSign,
@@ -42,22 +43,22 @@ const menuGroups = [
         title: "Vận hành",
         items: [
           { title: "Tổng quan", icon: "home", path: "/" },
-          { title: "Học viên", icon: "users", path: "/students" },
-          { title: "Phụ huynh", icon: "parents", path: "/parents" },
-          { title: "Lớp học", icon: "building", path: "/classes" },
-          { title: "Giáo viên", icon: "teacher", path: "/teachers", adminOnly: true },
-          { title: "Điểm danh", icon: "check", path: "/attendance" },
-          { title: "Insight điểm danh", icon: "chart", path: "/attendance-insights" },
-          { title: "Chốt điểm danh", icon: "lock", path: "/attendance-periods" },
+          { title: "Học viên", icon: "users", path: "/students", requiredPermission: "students.manage" },
+          { title: "Phụ huynh", icon: "parents", path: "/parents", requiredPermission: "students.manage" },
+          { title: "Lớp học", icon: "building", path: "/classes", requiredPermission: "classes.manage" },
+          { title: "Giáo viên", icon: "teacher", path: "/teachers", requiredPermission: "users.manage" },
+          { title: "Điểm danh", icon: "check", path: "/attendance", requiredPermission: "attendance.manage" },
+          { title: "Insight điểm danh", icon: "chart", path: "/attendance-insights", requiredPermission: "attendance.manage" },
+          { title: "Chốt điểm danh", icon: "lock", path: "/attendance-periods", requiredPermission: "attendance.manage" },
         ],
       },
       {
         title: "Tài chính",
         items: [
-          { title: "Thu tiền", icon: "fee", path: "/fee-collection" },
-          { title: "Phiếu thu", icon: "receipt", path: "/receipts" },
-          { title: "Chi tiền", icon: "wallet", path: "/payments", adminOnly: true },
-          { title: "Lịch sử giao dịch", icon: "history", path: "/history" },
+          { title: "Thu tiền", icon: "fee", path: "/fee-collection", requiredPermission: "fees.collect" },
+          { title: "Phiếu thu", icon: "receipt", path: "/receipts", requiredPermission: "receipts.manage" },
+          { title: "Chi tiền", icon: "wallet", path: "/payments", requiredPermission: "reports.view" },
+          { title: "Lịch sử giao dịch", icon: "history", path: "/history", requiredPermission: "receipts.manage" },
         ],
       },
     ],
@@ -68,22 +69,22 @@ const menuGroups = [
       {
         title: "Báo cáo",
         items: [
-          { title: "Trung tâm phân tích", icon: "report", path: "/reports", adminOnly: true },
-          { title: "Tiến bộ học viên", icon: "teacher", path: "/student-progress" },
-          { title: "Báo cáo nâng cao", icon: "chart", path: "/advanced-reports", adminOnly: true },
-          { title: "Nhật ký", icon: "audit", path: "/audit-logs", adminOnly: true },
+          { title: "Trung tâm phân tích", icon: "report", path: "/reports", requiredPermission: "reports.view" },
+          { title: "Tiến bộ học viên", icon: "teacher", path: "/student-progress", requiredPermission: "progress.view" },
+          { title: "Báo cáo nâng cao", icon: "chart", path: "/advanced-reports", requiredPermission: "reports.view" },
+          { title: "Nhật ký", icon: "audit", path: "/audit-logs", requiredPermission: "audit_logs.view" },
         ],
       },
       {
         title: "Quản trị",
         items: [
-          { title: "Mẫu in", icon: "template", path: "/templates", adminOnly: true },
-          { title: "Người dùng", icon: "users", path: "/users", adminOnly: true },
-          { title: "Import CSV", icon: "import", path: "/imports", adminOnly: true },
-          { title: "Nhắc học phí", icon: "bell", path: "/fee-reminders", adminOnly: true },
-          { title: "Sao lưu", icon: "backup", path: "/backups", adminOnly: true },
-          { title: "Thùng rác", icon: "trash", path: "/recycle-bin", adminOnly: true },
-          { title: "Cài đặt", icon: "settings", path: "/settings", adminOnly: true },
+          { title: "Mẫu in", icon: "template", path: "/templates", requiredPermission: "templates.manage" },
+          { title: "Người dùng", icon: "users", path: "/users", requiredPermission: "users.manage" },
+          { title: "Import CSV", icon: "import", path: "/imports", requiredPermission: "imports.run" },
+          { title: "Nhắc học phí", icon: "bell", path: "/fee-reminders", requiredPermission: "fee_reminders.send" },
+          { title: "Sao lưu", icon: "backup", path: "/backups", requiredPermission: "backups.manage" },
+          { title: "Thùng rác", icon: "trash", path: "/recycle-bin", requiredPermission: "recycle_bin.manage" },
+          { title: "Cài đặt", icon: "settings", path: "/settings", requiredPermission: "console.organization.view" },
         ],
       },
     ],
@@ -95,8 +96,40 @@ function isActivePath(pathname, path) {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
-export default function Sidebar({ isOpen, onClose }) {
-  const { isAdmin } = useAuth();
+export default function Sidebar({ isOpen, onClose, collapsed = false }) {
+  const railRef = useRef(null);
+  useEffect(() => {
+    const rail = railRef.current;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const syncVisibility = () => { rail.inert = !desktop.matches && !isOpen; };
+    syncVisibility();
+    desktop.addEventListener("change", syncVisibility);
+    if (!isOpen) return () => desktop.removeEventListener("change", syncVisibility);
+    const previousFocus = document.activeElement;
+    const focusable = () => [...rail.querySelectorAll('a[href], button:not([disabled])')]
+      .filter((element) => element.getClientRects().length > 0);
+    focusable()[0]?.focus();
+    const handleKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
+      if (event.key !== "Tab") return;
+      const elements = focusable();
+      const first = elements[0];
+      const last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      desktop.removeEventListener("change", syncVisibility);
+      document.removeEventListener("keydown", handleKey);
+      previousFocus?.focus();
+    };
+  }, [isOpen, onClose]);
+  const { hasPermission } = useAuth();
+  const { text } = useExperience();
   const { pathname } = useLocation();
   const reducedMotion = useReducedMotion();
   const visibleGroups = useMemo(
@@ -107,12 +140,14 @@ export default function Sidebar({ isOpen, onClose }) {
           sections: block.sections
             .map((section) => ({
               ...section,
-              items: section.items.filter((item) => !item.adminOnly || isAdmin()),
+              items: section.items.map(item => ({ ...item, title: item.path === "/student-progress" ? text("nav.progress") : item.path === "/students" ? text("nav.students") : item.title })).filter(
+                (item) => !item.requiredPermission || hasPermission(item.requiredPermission),
+              ),
             }))
             .filter((section) => section.items.length > 0),
         }))
         .filter((block) => block.sections.length > 0),
-    [isAdmin]
+    [hasPermission, text]
   );
 
   const activeSection = visibleGroups
@@ -147,7 +182,12 @@ export default function Sidebar({ isOpen, onClose }) {
       </AnimatePresence>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] xl:w-[300px] transform flex-col border-r border-slate-200/70 bg-white shadow-2xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:static lg:translate-x-0 lg:shadow-none ${
+        ref={railRef}
+        id="teacher-shell-navigation"
+        role={isOpen ? "dialog" : undefined}
+        aria-modal={isOpen ? true : undefined}
+        aria-label="Điều hướng chính"
+        className={`teacher-shell-rail fixed inset-y-0 left-0 z-50 flex transform flex-col border-r border-slate-200/70 bg-white shadow-2xl transition-transform duration-300 motion-reduce:transition-none lg:translate-x-0 lg:shadow-none ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -157,7 +197,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <Sparkles size={20} />
               <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/20"></div>
             </div>
-            <div className="min-w-0">
+            <div className="teacher-shell-brand min-w-0">
               <p className="truncate text-base font-black tracking-tight text-slate-900">EduManager</p>
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-primary-600">EduFlow V2</p>
             </div>
@@ -172,23 +212,23 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
+        <nav aria-label="Menu chính" className="teacher-shell-nav flex-1 px-4 py-6">
           {visibleGroups.map((block) => (
             <div key={block.label} className="mb-6">
-              <div className="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <div className="teacher-shell-group mb-3 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 {block.label}
               </div>
               <div className="space-y-3">
                 {block.sections.map((section) => {
                   const hasActive = section.title === activeSection;
-                  const isClosed = closedSections.has(section.title) && !hasActive;
+                  const isClosed = !collapsed && closedSections.has(section.title) && !hasActive;
 
                   return (
-                    <div key={section.title} className="rounded-[18px] border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all duration-300 motion-reduce:transition-none">
+                    <div key={section.title} className="teacher-shell-section rounded-[18px] border border-slate-200/80 bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
                         aria-expanded={!isClosed}
-                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-slate-50"
+                        className="teacher-shell-section-toggle flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-slate-50"
                         onClick={() => toggleSection(section.title)}
                       >
                         <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{section.title}</span>
@@ -199,7 +239,7 @@ export default function Sidebar({ isOpen, onClose }) {
                       </button>
 
                       <AnimatePresence initial={false}>
-                        {!isClosed && (
+                        {(collapsed || !isClosed) && (
                           <Motion.div
                             initial={reducedMotion ? false : { height: 0, opacity: 0 }}
                             animate={reducedMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
@@ -214,6 +254,8 @@ export default function Sidebar({ isOpen, onClose }) {
                                   <NavLink
                                     key={item.path}
                                     to={item.path}
+                                    aria-label={item.title}
+                                    title={item.title}
                                     end={item.path === "/"}
                                     onClick={onClose}
                                     className={({ isActive }) =>
@@ -237,7 +279,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                         <div className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${isActive ? 'bg-white text-primary-600 shadow-sm' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'}`}>
                                           <IconComp size={16} strokeWidth={isActive ? 2.5 : 2} />
                                         </div>
-                                        <span className="relative z-10 truncate tracking-tight">{item.title}</span>
+                                        <span className="teacher-shell-link-label relative z-10 truncate tracking-tight">{item.title}</span>
                                       </>
                                     )}
                                   </NavLink>
@@ -255,7 +297,7 @@ export default function Sidebar({ isOpen, onClose }) {
           ))}
         </nav>
 
-        <div className="border-t border-slate-200/50 p-4">
+        <div className="teacher-shell-footer border-t border-slate-200/50 p-4">
           <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 shadow-sm">
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Version</span>

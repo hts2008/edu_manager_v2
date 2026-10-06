@@ -57,18 +57,18 @@ function MetricCard({ title, value, note, icon, tone = "indigo", loading }) {
   };
 
   return (
-    <div className={`eduflow-metric bg-gradient-to-br ${tones[tone]} p-5 ring-1`}>
+    <div className={`eduflow-metric bg-gradient-to-br ${tones[tone]} p-4 ring-1`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-500">{title}</p>
           {loading ? (
             <div className="mt-3 h-8 w-24 animate-pulse rounded-lg bg-slate-200/80" />
           ) : (
-            <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</p>
+            <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
           )}
           <p className="mt-1 text-sm text-slate-500">{loading ? "Đang tải dữ liệu" : note}</p>
         </div>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm">
           <Icon size={21} />
         </div>
       </div>
@@ -79,10 +79,10 @@ function MetricCard({ title, value, note, icon, tone = "indigo", loading }) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="h-44 animate-pulse rounded-3xl bg-white/85 ring-1 ring-slate-200" />
+      <div className="h-28 animate-pulse rounded-3xl bg-white/85 ring-1 ring-slate-200" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-32 animate-pulse rounded-2xl bg-white/85 ring-1 ring-slate-200" />
+          <div key={item} className="h-28 animate-pulse rounded-2xl bg-white/85 ring-1 ring-slate-200" />
         ))}
       </div>
     </div>
@@ -161,33 +161,25 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <section className="eduflow-page-intro overflow-hidden">
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="eduflow-eyebrow">
-                  {todayLabel}
-                </span>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="eduflow-eyebrow">{todayLabel}</span>
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-100">
                   {refreshing ? "Đang cập nhật" : "Production online"}
                 </span>
               </div>
-              <h1 className="eduflow-title text-3xl font-black tracking-tight sm:text-4xl">
-                Tổng quan vận hành
-              </h1>
-              <p className="eduflow-muted mt-3 max-w-2xl text-base leading-7">
+              <h1 className="eduflow-title text-3xl font-black tracking-tight sm:text-4xl">Tổng quan vận hành</h1>
+              <p className="eduflow-muted mt-2 max-w-2xl text-base leading-6">
                 Theo dõi điểm danh, học phí, dòng tiền và các việc cần xử lý trong ngày từ dữ liệu thật của hệ thống.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link to="/attendance" className="btn-secondary">
-                <CalendarCheck size={18} /> Điểm danh
-              </Link>
-              <Link to="/fee-collection" className="btn-primary">
-                <CircleDollarSign size={18} /> Thu học phí
-              </Link>
+              <Link to="/attendance" className="btn-secondary"><CalendarCheck size={18} /> Điểm danh</Link>
+              <Link to="/fee-collection" className="btn-primary"><CircleDollarSign size={18} /> Thu học phí</Link>
             </div>
           </div>
         </div>
@@ -237,18 +229,17 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <section className="eduflow-panel min-w-0 p-5 sm:p-6">
+      <div className="grid gap-3 xl:grid-cols-[1.4fr_1fr]">
+        <section className="eduflow-panel min-w-0 p-3 sm:p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-950">Dòng tiền tháng hiện tại</h2>
-              <p className="mt-1 text-sm text-slate-500">Không hiển thị dữ liệu giả khi chưa có giao dịch.</p>
             </div>
             <Link to="/reports" className="text-sm font-bold text-indigo-600 hover:text-indigo-700">
               Báo cáo
             </Link>
           </div>
-          <ChartFrame className="mt-5" height={288}>
+          <ChartFrame className="mt-3" height={hasFinancialData ? 240 : 128}>
             {hasFinancialData ? (
               <ResponsiveContainer {...SAFE_RECHARTS_CONTAINER_PROPS} width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
@@ -268,9 +259,8 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full flex-col items-center justify-center rounded-2xl bg-slate-50 text-center ring-1 ring-slate-100">
-                <CircleDollarSign className="text-slate-300" size={40} />
+                <CircleDollarSign className="text-slate-300" size={24} />
                 <p className="mt-3 font-semibold text-slate-700">Chưa có dữ liệu thu chi trong tháng</p>
-                <p className="mt-1 text-sm text-slate-500">Khi có phiếu thu hoặc phiếu chi, biểu đồ sẽ tự cập nhật.</p>
               </div>
             )}
           </ChartFrame>
@@ -280,7 +270,6 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-lg font-black text-slate-950">Việc cần xử lý</h2>
-              <p className="text-sm text-slate-500">Từ dashboard API hiện tại</p>
             </div>
             <AlertTriangle className="text-amber-500" size={20} />
           </div>
@@ -293,18 +282,20 @@ export default function DashboardPage() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-slate-900">{item.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {item.amount ? formatMoney(item.amount) : `${item.count || 0} mục`}
-                  </p>
                 </div>
                 <ArrowRight className="shrink-0 text-slate-400" size={18} />
               </Link>
             ))}
+            {attentionItems.length === 0 && (
+              <p className="px-4 py-4 text-sm text-slate-500">
+                {refreshing ? "Đang tải việc cần xử lý..." : "Không có việc cần xử lý."}
+              </p>
+            )}
           </div>
         </section>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-3 xl:grid-cols-[1fr_1fr]">
         <section className="eduflow-panel">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
             <div>

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -23,6 +22,7 @@ import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollm
 import { acquireClassMonthRosterAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { scheduleSnapshotForWrite } from "../../../lib/class-month-schedule-snapshot.js";
 import { attendanceBulkSchema, validateBody } from "../../../lib/validation.js";
+import { classSessionUniqueWhere } from "../../../lib/tenant-selectors.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -41,6 +41,14 @@ type AttendanceReplacementCell = {
 
 function replacementCellKey(cell: AttendanceReplacementCell) {
   return `${cell.studentId}:${cell.attendanceDate.toISOString().slice(0, 10)}`;
+}
+
+function requireTenantId(req: AuthedRequest) {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
+  return tenantId;
 }
 
 function validateReplacementScope(
@@ -102,6 +110,8 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
+    requireTenantId(req);
+    const prisma = req.db;
     const { records, class_id, dates, replacement_scope } = validateBody(
       attendanceBulkSchema,
       req.body,
@@ -209,9 +219,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
         const allHoliday = rows.every((row: any) => row.status === "holiday");
         const sessionDate = new Date(`${date}T00:00:00.000Z`);
         const existingSession = await tx.classSession.findUnique({
-          where: {
-            classId_sessionDate: { classId: class_id, sessionDate },
-          },
+          where: classSessionUniqueWhere(tx, class_id, sessionDate),
           select: {
             id: true,
             source: true,

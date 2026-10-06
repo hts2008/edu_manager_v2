@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -23,6 +22,8 @@ import {
 import { buildStudentTuitionV3 } from "../../../lib/tuition-v3-service.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
+import { loadTuitionSettings } from "../../../lib/tuition-settings.js";
+import { monthlyFeeUniqueWhere } from "../../../lib/tenant-selectors.js";
 
 const CALCULATE_TRANSACTION_OPTIONS = {
   isolationLevel: "Serializable" as const,
@@ -110,8 +111,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     );
     const month = getRequiredString(req.body?.month, "month");
     const { startDate, endDate } = parseMonthRange(month);
+    const tuitionSettings = await loadTuitionSettings(req.db, {
+      tenantId: req.user.tenantId!,
+      effectiveMonth: month,
+    });
 
-    const result = await runSerializableTransaction(prisma, async (tx) => {
+    const result = await runSerializableTransaction(req.db, async (tx) => {
       await acquireAttendanceFeeAdvisoryLocks(tx, [studentId], month);
 
       const student = await tx.student.findFirst({
@@ -197,6 +202,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           enrollment: { periods: enrollment.periods },
           sessions: classSessions,
           attendance: attendanceRows,
+          settings: tuitionSettings,
         });
 
         breakdown.push({
@@ -231,7 +237,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const existing = await tx.monthlyFee.findUnique({
-        where: { studentId_month: { studentId, month } },
+        where: monthlyFeeUniqueWhere(tx, studentId, month),
         include: {
           lines: {
             select: {

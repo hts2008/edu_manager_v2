@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
@@ -41,6 +40,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
+    const db = req.db;
     const today = new Date();
     const defaultFrom = new Date(today.getTime() - 364 * DAY_MS);
     const from = parseBoundary(getString(req.query.from), defaultFrom);
@@ -61,7 +61,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     if (studentId) where.studentId = studentId;
     if (classId) where.classId = classId;
 
-    const records = await prisma.attendance.findMany({
+    const records = await db.attendance.findMany({
       where,
       select: {
         attendanceDate: true,

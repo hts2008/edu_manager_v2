@@ -2,10 +2,10 @@ import type { VercelResponse } from "../../../lib/vercel-types.js";
 import {
   AuthedRequest,
   handleCors,
-  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import {
   ApiError,
   getRequiredString,
@@ -33,10 +33,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
-  if (req.user.role !== "admin") {
-    return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
-  }
-
   try {
     const filename = getRequiredString(req.body?.filename, "filename");
     const contentType = getRequiredString(req.body?.contentType, "contentType");
@@ -53,4 +49,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("templates.manage", handler);

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -65,7 +64,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const fee = await prisma.monthlyFee.findUnique({
+    const fee = await req.db.monthlyFee.findUnique({
       where: { id },
       include: {
         student: {

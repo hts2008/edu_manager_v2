@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import type { TDocumentDefinitions } from "pdfmake/interfaces.js";
 import { parseJsonConfig } from "./api-utils.js";
+import { fitClayReceiptText } from "./clay-receipt-text-fit.js";
 import {
   fetchTemplateImage,
   isTemplateRenderContractV2,
@@ -160,7 +161,8 @@ async function contractV2Content(
   contract: TemplateRenderContractV2,
   data: PdfData,
   pageWidthPt: number,
-  pageHeightPt: number
+  pageHeightPt: number,
+  clayReceipt = false
 ) {
   const background = await fetchTemplateImage(contract.background.src);
   const xScale = contract.canvas ? pageWidthPt / contract.canvas.width : mmToPt(1);
@@ -178,9 +180,18 @@ async function contractV2Content(
       const value = rawValue === undefined || rawValue === null || rawValue === ""
         ? binding.fallback || ""
         : String(rawValue);
+      const text = `${binding.prefix || ""}${value}${binding.suffix || ""}`;
+      const fitted = clayReceipt ? fitClayReceiptText({
+        text, field: binding.field,
+        width: (binding.width ?? 0) * xScale,
+        height: (binding.height ?? 0) * yScale,
+        fontSize: binding.fontSize || 12, bold: binding.bold, italic: binding.italic,
+      }) : undefined;
       return {
-        text: `${binding.prefix || ""}${value}${binding.suffix || ""}`,
-        fontSize: binding.fontSize || 12,
+        // noWrap suppresses PDFMake newline parsing; separate nodes retain fitted lines.
+        ...(fitted ? { stack: fitted.text.split('\n').map(line => ({ text: line, noWrap: true })) } : { text }),
+        fontSize: fitted?.fontSize ?? binding.fontSize ?? 12,
+        ...(fitted ? { noWrap: true } : {}),
         bold: binding.bold,
         italics: binding.italic,
         color: binding.color || "#111827",
@@ -584,7 +595,8 @@ export async function generatePdf(template: any, data: PdfData = {}) {
         parseTemplateRenderContract(rawConfig),
         data,
         mmToPt(width),
-        mmToPt(height)
+        mmToPt(height),
+        rawConfig?.clay_receipt?.schemaVersion === 1
       )
     : (() => {
         try {

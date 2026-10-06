@@ -1,3 +1,8 @@
+import {
+  DEFAULT_TUITION_SETTINGS,
+  type TuitionSettingsContext,
+} from "./tuition-settings.js";
+
 export type TuitionBillingPlan =
   | { mode: "monthly_prorated"; monthlyAmount: number }
   | { mode: "per_session"; sessionAmount: number };
@@ -35,6 +40,7 @@ export type TuitionV3Input = {
   slots: TuitionSlot[];
   enrollment?: TuitionEnrollment;
   extraSurchargePerSlot?: number;
+  settings?: TuitionSettingsContext;
 };
 
 export type TuitionLedgerDisposition =
@@ -90,11 +96,6 @@ export type TuitionV3Failure = {
 
 export type TuitionV3Result = TuitionV3Success | TuitionV3Failure;
 
-const CHARGEABLE_STATUSES = new Set<TuitionSlotStatus>([
-  "present",
-  "absent_with_fee",
-]);
-
 function isInMonth(date: string, month: string) {
   return date.slice(0, 7) === month;
 }
@@ -113,11 +114,14 @@ export function isEnrollmentEligible(
   return true;
 }
 
-function regularDisposition(status: TuitionSlotStatus): TuitionLedgerDisposition {
+function regularDisposition(
+  status: TuitionSlotStatus,
+  chargeableStatuses: ReadonlySet<TuitionSlotStatus>,
+): TuitionLedgerDisposition {
   if (status === "absent_no_fee") return "waived_absence";
   if (status === "center_cancelled") return "credited_center_cancelled";
   if (status === "holiday") return "credited_holiday";
-  return CHARGEABLE_STATUSES.has(status) ? "charged" : "not_chargeable";
+  return chargeableStatuses.has(status) ? "charged" : "not_chargeable";
 }
 
 function compareLedgerRows(a: TuitionLedgerRow, b: TuitionLedgerRow) {
@@ -125,6 +129,9 @@ function compareLedgerRows(a: TuitionLedgerRow, b: TuitionLedgerRow) {
 }
 
 export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
+  const chargeableStatuses = new Set<TuitionSlotStatus>(
+    (input.settings ?? DEFAULT_TUITION_SETTINGS).chargeableStatuses,
+  );
   const monthSlots = input.slots.filter((slot) => isInMonth(slot.date, input.month));
   const regularSlots = monthSlots.filter((slot) => slot.kind === "regular");
 
@@ -143,11 +150,11 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
   const validReplacementIds = new Set<string>();
 
   for (const slot of monthSlots) {
-    if (slot.kind !== "makeup" || !CHARGEABLE_STATUSES.has(slot.status)) continue;
+    if (slot.kind !== "makeup" || !chargeableStatuses.has(slot.status)) continue;
     if (!slot.replacesSlotId) continue;
     const original = regularById.get(slot.replacesSlotId);
     if (!original || !isInMonth(original.date, input.month)) continue;
-    if (CHARGEABLE_STATUSES.has(original.status)) continue;
+    if (chargeableStatuses.has(original.status)) continue;
     if (!isEnrollmentEligible(original.date, input.enrollment)) continue;
     validReplacementIds.add(original.id);
   }
@@ -193,7 +200,7 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
       disposition = "ineligible";
     } else if (slot.kind === "regular") {
       eligibleRegularSlots += 1;
-      if (CHARGEABLE_STATUSES.has(slot.status)) {
+      if (chargeableStatuses.has(slot.status)) {
         deliveredRegularSlots += 1;
         disposition = "charged";
         amount = input.plan.mode === "monthly_prorated"
@@ -208,7 +215,7 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
           : perSessionAmount;
         chargedRegularSlots += 1;
       } else {
-        disposition = regularDisposition(slot.status);
+        disposition = regularDisposition(slot.status, chargeableStatuses);
         if (slot.status === "center_cancelled" || slot.status === "holiday") {
           centerCreditSlots += 1;
         } else if (slot.status === "absent_no_fee") {
@@ -217,7 +224,7 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
       }
     } else if (slot.kind === "makeup") {
       makeupSlots += 1;
-      if (!CHARGEABLE_STATUSES.has(slot.status)) {
+      if (!chargeableStatuses.has(slot.status)) {
         disposition = "not_chargeable";
       } else if (original) {
         disposition = "replacement_makeup";
@@ -226,9 +233,9 @@ export function calculateTuitionV3(input: TuitionV3Input): TuitionV3Result {
       } else {
         disposition = "included_makeup";
       }
-    } else if (!CHARGEABLE_STATUSES.has(slot.status)) {
+    } else if (!chargeableStatuses.has(slot.status)) {
       disposition = "not_chargeable";
-    } else if (slot.extraFeeMode === "surcharge" && surcharge > 0) {
+    } else if (slot.extraFeeMode === "surcharge") {
       disposition = "surcharged_extra";
       amount = surcharge;
       chargedExtraSlots += 1;

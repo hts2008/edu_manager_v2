@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -19,6 +18,10 @@ import {
 import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
 import { acquireClassMonthRosterAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { scheduleSnapshotForWrite } from "../../../lib/class-month-schedule-snapshot.js";
+import {
+  attendanceUniqueWhere,
+  classSessionUniqueWhere,
+} from "../../../lib/tenant-selectors.js";
 
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -60,10 +63,20 @@ function toAttendanceResponse(record: any) {
   };
 }
 
+function requireTenantId(req: AuthedRequest) {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) {
+    throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
+  return tenantId;
+}
+
 export async function handler(req: AuthedRequest, res: VercelResponse) {
   // GET - Get attendance records
   if (req.method === "GET") {
     try {
+      requireTenantId(req);
+      const prisma = req.db;
       const { class_id, date, student_id, month } = req.query;
 
       const where: any = {};
@@ -95,6 +108,8 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
   // POST - Create single attendance record
   if (req.method === "POST") {
     try {
+      requireTenantId(req);
+      const prisma = req.db;
       const { student_id, class_id, attendance_date, status, reason } = req.body;
 
       if (!student_id || !class_id || !attendance_date || !status) {
@@ -145,9 +160,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
           records: [{ studentId: student_id, attendanceDate }],
         });
         const existingSession = await tx.classSession.findUnique({
-          where: {
-            classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
-          },
+          where: classSessionUniqueWhere(tx, class_id, attendanceDate),
           select: {
             source: true,
             replacementSessions: { select: { id: true }, take: 1 },
@@ -162,9 +175,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
           },
         );
         const session = await tx.classSession.upsert({
-          where: {
-            classId_sessionDate: { classId: class_id, sessionDate: attendanceDate },
-          },
+          where: classSessionUniqueWhere(tx, class_id, attendanceDate),
           create: {
             classId: class_id,
             sessionDate: attendanceDate,
@@ -178,13 +189,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
           update: sessionUpdate,
         });
         const attendance = await tx.attendance.upsert({
-          where: {
-            studentId_classId_attendanceDate: {
-              studentId: student_id,
-              classId: class_id,
-              attendanceDate,
-            },
-          },
+          where: attendanceUniqueWhere(tx, student_id, class_id, attendanceDate),
           create: {
             studentId: student_id,
             classId: class_id,

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -10,12 +9,12 @@ import {
 import {
   ApiError,
   getRequiredString,
-  logActivity,
   sendApiError,
 } from "../../../../lib/api-utils.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 import { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
+import { logActivity } from "../request-db.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -26,7 +25,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const updated = await runSerializableTransaction(prisma, async (tx) => {
+    const updated = await runSerializableTransaction(req.db, async (tx) => {
       const feeIdentity = await tx.monthlyFee.findUnique({
         where: { id },
         select: { studentId: true, month: true },
@@ -86,7 +85,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         timeout: 15_000,
       },
     });
-    await logActivity(req, req.user.id, "CANCEL_MONTHLY_FEE", "monthly_fee", id);
+    await logActivity(req, "CANCEL_MONTHLY_FEE", "monthly_fee", id);
 
     return successResponse(res, { id: updated.id, status: updated.status });
   } catch (error) {

@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, logActivity, sendApiError } from "../../../lib/api-utils.js";
 import {
   commitStudentImport,
@@ -33,11 +32,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const csv = readCsv(req.body);
 
     if (mode === "preview") {
-      const preview = await previewStudentImport(prisma, csv);
+      const preview = await previewStudentImport(req.db, csv);
       return successResponse(res, preview);
     }
 
-    const result = await commitStudentImport(prisma, csv);
+    const result = await commitStudentImport(req.db, csv);
     if (!result.ok) {
       return res.status(400).json({
         success: false,
@@ -76,4 +75,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("imports.run", handler);

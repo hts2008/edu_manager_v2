@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
 import {
   buildReportCharts,
@@ -58,7 +57,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     };
     if (query.student_id) enrollmentPeriodWhere.studentId = query.student_id;
 
-    const enrollmentRows = await prisma.studentClass.findMany({
+    const enrollmentRows = await req.db.studentClass.findMany({
         where: enrollmentWhere,
         select: {
           studentId: true,
@@ -80,7 +79,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           { class: { className: "asc" } },
         ],
       });
-    const enrollmentPeriodRows = await prisma.enrollmentPeriod.findMany({
+    const enrollmentPeriodRows = await req.db.enrollmentPeriod.findMany({
         where: enrollmentPeriodWhere,
         select: {
           studentId: true,
@@ -119,7 +118,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       classMonthPlanRows,
       classSessionRows,
     ] = await Promise.all([
-            prisma.attendance.findMany({
+            req.db.attendance.findMany({
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
@@ -133,7 +132,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 isMakeUp: true,
               },
             }),
-            prisma.monthlyFeeLine.findMany({
+            req.db.monthlyFeeLine.findMany({
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
@@ -152,7 +151,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 allocationConfidence: true,
               },
             }),
-            prisma.monthlyFee.findMany({
+            req.db.monthlyFee.findMany({
               where: {
                 studentId: { in: studentIds },
                 month: { in: query.months },
@@ -168,7 +167,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 paidAt: true,
               },
             }),
-            prisma.classMonthPlan.findMany({
+            req.db.classMonthPlan.findMany({
               where: {
                 classId: { in: classIds },
                 billingMonth: { in: query.months },
@@ -182,7 +181,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 },
               },
             }),
-            prisma.classSession.findMany({
+            req.db.classSession.findMany({
               where: {
                 classId: { in: classIds },
                 billingMonth: { in: query.months },
@@ -339,4 +338,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("reports.view", handler);

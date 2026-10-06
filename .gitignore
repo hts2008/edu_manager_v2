@@ -11,6 +11,8 @@ build/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # Logs
 logs/
@@ -64,3 +66,6 @@ frontend/update*.ps1
 .codex/*.bak
 
 .vercel
+
+# Release operator secrets and production-derived recovery data.
+.release-private/

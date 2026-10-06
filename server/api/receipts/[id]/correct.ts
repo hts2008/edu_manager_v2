@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -27,6 +26,7 @@ import {
   syncMonthlyFeeLines,
 } from "../../../../lib/monthly-fee-lines.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
+import { monthlyFeeUniqueWhere } from "../../../../lib/tenant-selectors.js";
 
 const PROTECTED_FINANCE_STATUSES = new Set(["confirmed", "paid", "cancelled"]);
 
@@ -138,12 +138,7 @@ export async function correctReceiptInTransaction(
   const linkedFee =
     receipt.monthlyFees.find((fee: any) => fee.receiptId === receipt.id) ||
     (await tx.monthlyFee.findUnique({
-      where: {
-        studentId_month: {
-          studentId: receipt.studentId,
-          month: receipt.month,
-        },
-      },
+      where: monthlyFeeUniqueWhere(tx, receipt.studentId, receipt.month),
       include: monthlyFeeProtectionInclude(),
     }));
   const receiptAnomaly = detectReceiptAnomaly(receipt);
@@ -325,7 +320,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       );
     }
 
-    const result = await runSerializableTransaction(prisma, (tx) =>
+    const result = await runSerializableTransaction(req.db, (tx) =>
       correctReceiptInTransaction(tx, id, reason, {
         actorId: req.user.id,
         ipAddress:

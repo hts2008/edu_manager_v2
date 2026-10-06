@@ -40,9 +40,9 @@ type PlanState = "open" | "frozen";
 describe("ClassMonthPlan persistence contract", () => {
   it("declares one aggregate per class-month and immutable revision history", () => {
     assert.match(schemaSource, /model ClassMonthPlan\s*\{/);
-    assert.match(schemaSource, /@@unique\(\[classId, billingMonth\]\)/);
+    assert.match(schemaSource, /@@unique\(\[tenantId, classId, billingMonth\]/);
     assert.match(schemaSource, /model ClassMonthPlanRevision\s*\{/);
-    assert.match(schemaSource, /@@unique\(\[planId, revision\]\)/);
+    assert.match(schemaSource, /@@unique\(\[tenantId, planId, revision\]/);
     assert.match(migrationSource, /ON DELETE RESTRICT/);
     assert.match(migrationSource, /BEFORE UPDATE OR DELETE ON "class_month_plan_revisions"/);
   });

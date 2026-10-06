@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -11,15 +10,14 @@ import {
   ApiError,
   getNumber,
   getString,
-  logActivity,
   parseUtcDateRange,
-  resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
 import { receiptCreateSchema, validateBody } from "../../../lib/validation.js";
 import { detectReceiptAnomaly } from "../../../lib/finance-corrections.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../lib/serializable-transaction.js";
+import { logReceiptActivity, resolveReceiptTemplateId } from "./request-db.js";
 
 export function assertAggregateReceiptAllowed(monthlyFee: any) {
   if (monthlyFee?.lines?.length) {
@@ -98,7 +96,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const [receipts, total] = await Promise.all([
-        prisma.receipt.findMany({
+        req.db.receipt.findMany({
           where,
           include: {
             student: { include: { parent: { select: { fullName: true, phone: true } } } },
@@ -116,7 +114,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           skip: (page - 1) * limit,
           take: limit,
         }),
-        prisma.receipt.count({ where }),
+        req.db.receipt.count({ where }),
       ]);
 
       return successResponse(res, {
@@ -142,17 +140,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         monthly_fee_id: req.body?.monthly_fee_id || req.body?.monthlyFeeId,
       });
 
-      const student = await prisma.student.findFirst({
+      const student = await req.db.student.findFirst({
         where: { id: body.student_id, deletedAt: null },
       });
       if (!student) throw new ApiError("STUDENT_NOT_FOUND", "Student not found", 404);
 
-      const templateId = await resolveTemplateId(
-        "receipt",
+      const templateId = await resolveReceiptTemplateId(
+        req.db,
         body.template_id
       );
 
-      const receipt = await runSerializableTransaction(prisma, async (tx) => {
+      const receipt = await runSerializableTransaction(req.db, async (tx) => {
         await acquireAttendanceFeeAdvisoryLocks(
           tx,
           [body.student_id],
@@ -276,7 +274,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
-      await logActivity(req, req.user.id, "CREATE_RECEIPT", "receipt", receipt.id);
+      await logReceiptActivity(req, "CREATE_RECEIPT", receipt.id);
 
       return successResponse(res, receiptToDto(receipt), 201);
     } catch (error) {

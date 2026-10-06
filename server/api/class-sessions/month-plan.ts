@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import { type AuthedRequest, errorResponse, requireAuth, successResponse } from "../../../lib/auth.js";
 import { ApiError, getRequiredString, sendApiError } from "../../../lib/api-utils.js";
 import {
@@ -45,6 +44,7 @@ import {
   classMonthPlanReplaceSchema,
   validateBody,
 } from "../../../lib/validation.js";
+import { classSessionUniqueWhere } from "../../../lib/tenant-selectors.js";
 
 function requestIdentity(req: AuthedRequest) {
   const classId = getRequiredString(req.body?.class_id ?? req.query.class_id, "class_id");
@@ -240,20 +240,25 @@ async function loadPlan(db: any, classId: string, month: string) {
 
 async function ensurePlanAggregate(
   db: any,
+  tenantId: string,
   classId: string,
   month: string,
   scheduleSnapshot: ScheduleSnapshot,
   actorId?: string | null,
 ) {
   const existingPlan = await db.classMonthPlan.findUnique({
-    where: { classId_billingMonth: { classId, billingMonth: month } },
+    where: {
+      tenantId_classId_billingMonth: { tenantId, classId, billingMonth: month },
+    },
     select: { id: true, revision: true },
   });
   const persistedScheduleSnapshot = existingPlan
     ? await loadPersistedScheduleSnapshot(db, existingPlan)
     : null;
   const period = await db.attendancePeriod.findUnique({
-    where: { classId_periodMonth: { classId, periodMonth: month } },
+    where: {
+      tenantId_classId_periodMonth: { tenantId, classId, periodMonth: month },
+    },
     select: { status: true },
   });
   const aggregate = await ensureClassMonthPlan(db, {
@@ -270,39 +275,50 @@ async function ensurePlanAggregate(
 }
 
 async function getMonthPlan(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
   const { classId, month } = requestIdentity(req);
-  const classData = await prisma.class.findUnique({
+  const classData = await db.class.findUnique({
     where: { id: classId },
     select: { id: true },
   });
   if (!classData) throw new ApiError("CLASS_NOT_FOUND", "Class not found", 404);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const aggregate = await prisma.classMonthPlan.findUnique({
-      where: { classId_billingMonth: { classId, billingMonth: month } },
+    const aggregate = await db.classMonthPlan.findUnique({
+      where: {
+        tenantId_classId_billingMonth: { tenantId, classId, billingMonth: month },
+      },
       select: { id: true, state: true, revision: true },
     });
     const period = aggregate
       ? null
-      : await prisma.attendancePeriod.findUnique({
-          where: { classId_periodMonth: { classId, periodMonth: month } },
+      : await db.attendancePeriod.findUnique({
+          where: {
+            tenantId_classId_periodMonth: { tenantId, classId, periodMonth: month },
+          },
           select: { id: true, status: true },
         });
-    const rows = await loadPlan(prisma, classId, month);
+    const rows = await loadPlan(db, classId, month);
     assertPlanSessionMonthInvariant(rows, classId, month);
-    const coverage = await resolveAuthoritativeRegularPlan(prisma, {
+    const coverage = await resolveAuthoritativeRegularPlan(db, {
       month,
       sessions: rows,
       plan: aggregate,
     });
-    const verifiedAggregate = await prisma.classMonthPlan.findUnique({
-      where: { classId_billingMonth: { classId, billingMonth: month } },
+    const verifiedAggregate = await db.classMonthPlan.findUnique({
+      where: {
+        tenantId_classId_billingMonth: { tenantId, classId, billingMonth: month },
+      },
       select: { id: true, state: true, revision: true },
     });
     const verifiedPeriod = aggregate
       ? null
-      : await prisma.attendancePeriod.findUnique({
-          where: { classId_periodMonth: { classId, periodMonth: month } },
+      : await db.attendancePeriod.findUnique({
+          where: {
+            tenantId_classId_periodMonth: { tenantId, classId, periodMonth: month },
+          },
           select: { id: true, status: true },
         });
     const sameRevision = (aggregate?.id ?? null) === (verifiedAggregate?.id ?? null)
@@ -330,13 +346,16 @@ async function getMonthPlan(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
   req.body = validateBody(classMonthPlanReplaceSchema, req.body);
   const { classId, month } = requestIdentity(req);
   const body = req.body;
   const aggregateVersion = expectedRevision(body.expected_version);
   const changeReason = requiredChangeReason(body.reason);
   const { aggregate, plan, rows, scheduleSnapshot } = await withClassMonthPlanRosterWrite(
-    prisma,
+    db,
     classId,
     month,
     async (tx) => {
@@ -368,6 +387,7 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
       const currentScheduleSnapshot = buildScheduleSnapshot(classData, month);
       const ensured = await ensurePlanAggregate(
         tx,
+        tenantId,
         classId,
         month,
         currentScheduleSnapshot,
@@ -434,7 +454,7 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
         for (const date of plan.dates) {
           const billingMonth = billingMonthForDate(date, month);
           await claimTx.classSession.upsert({
-            where: { classId_sessionDate: { classId, sessionDate: parseDateOnly(date) } },
+            where: classSessionUniqueWhere(claimTx, classId, parseDateOnly(date)),
             create: {
               classId,
               sessionDate: parseDateOnly(date),
@@ -480,6 +500,9 @@ async function replaceMonthPlan(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
   req.body = validateBody(classMonthPlanPatchSchema, req.body);
   const { classId, month } = requestIdentity(req);
   const body = req.body;
@@ -500,7 +523,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
     remove_session_ids: removeIds,
   };
   const { aggregate, rows, scheduleSnapshot, scheduleWarnings } = await withClassMonthPlanRosterWrite(
-    prisma,
+    db,
     classId,
     month,
     async (tx) => {
@@ -512,6 +535,7 @@ async function patchMonthPlan(req: AuthedRequest, res: VercelResponse) {
       const currentScheduleSnapshot = buildScheduleSnapshot(classData, month);
       const ensured = await ensurePlanAggregate(
         tx,
+        tenantId,
         classId,
         month,
         currentScheduleSnapshot,

@@ -410,3 +410,90 @@
 **Decision**: The shared authenticated shell uses the full available width with bounded fluid gutters (`clamp(16px, 2vw, 48px)`) and `min-width: 0` containment. Dense operational dashboards may expand responsively; pages, dialogs and focused tools retain local width constraints where readability or interaction density requires them. Student Progress charts progress from one column on compact widths to two on desktop and four on ultrawide.
 **Rationale**: Shell-level fluidity fixes wasted viewport space once for all authenticated routes while preserving deliberate page-level ergonomics and avoiding horizontal overflow.
 **Status**: IMPLEMENTED and regression-verified in commit `8112128`. Vercel deployment `dpl_3BYJ2YjxgDpSYBYWph5UJNmLFWz8` is Ready/Current/Production at `https://edu-manager-delta.vercel.app`; canonical release remains BLOCKED because `edu-manager-gules.vercel.app` is owned by another inaccessible team.
+
+### ADR-59: Remediation Planning Separates Contracts, History And Release Evidence
+
+**Date**: 2026-10-05
+**Context**: The current dirty local review found R1-R5 in tuition/progress while Admin Console release prerequisites and whole-repository runtime verification remain incomplete. The user requested implementation docs/plans, not product implementation or deployment.
+**Decision**: Use `plans/2026-10-05-tuition-progress-production/plan.md` with six phases and `docs/production-readiness/tuition-progress/` for explicit contracts, 50 scenario groups, historical reconciliation, recovery and 13 Go/No-Go gates. Keep protected monetary/academic originals and require audited corrections. Admin Console foundations precede joint release evidence; neither plan waits circularly for the other to deploy.
+**Alternatives considered**: UI-only patches leave write/PDF/history gaps; a full scoring/finance rewrite would change unapproved business semantics and enlarge migration risk.
+**Status**: DOCUMENTED planning strategy only. TP-1 pricing/metric defaults are PROPOSED and require named finance/academic owner acceptance in TPR-01. No runtime architecture migration or production action is approved by this ADR. Release remains NO-GO.
+
+### ADR-60: Canonical Local Remediation, Atomic Provenance And Guarded Evidence
+
+**Date**: 2026-10-05
+**Context**: User subsequently authorized team/cook implementation of the named plan. Real HTTP verification exposed generator raw-lock routing and independent review exposed composition, provenance, grader/settings and commit-freshness races.
+**Decision**: Keep existing finance/tenant boundaries. Use canonical source-aware nullable scoring and comparison signatures; preserve finalized originals. Read mutable months from actual evidence; persist revision/activity with Serializable writes and bounded conflict retries. Use existing tenant-aware raw transaction only for parameterized advisory locks, retaining model guards. Settings preview submits accepted numeric config version; transaction atomically claims that version before any value/revision/audit write, with tenant-first lock order for all settings writers. Optional precondition preserves old client compatibility; new reviewed preview path cannot commit against a changed basis.
+**Safety**: Explicit loopback tpr_test database/schema target guard before runtime imports. HTTP and browser fixture ownership markers plus persisted names prevent accidental cross-purpose cleanup. Dry-run inventory exports hashed references and cannot apply or access remote/production targets.
+**Status**: IMPLEMENTED LOCAL / REVIEW. Defaults are tested assumptions under user execution authorization, not named finance/academic approvals. Security audits fail, coverage/history/dataful recovery/full matrix remain unclosed; release NO-GO. No dependency install, production access, deployment, historical repair, push or global memory update.
+
+### ADR-61: Proposed Teacher Spreadsheet And Bounded Experience Configuration
+
+**Date**: 2026-10-05
+**Context**: User finds progress report difficult, requests direct row input/no right inspector/fixed collapsible rail, Claymorphism research and editable copy/theme. User explicitly selected always-visible score cells over expanded row editor.
+**Decision**: Document spreadsheet-first class/month workflow with explicit row save, daily/manual separation and safe partial-write/evidence CAS prerequisite. Derived scores remain read-only canonical TP-1. Fixed shared rail; bounded clay controls, flat dense data surfaces. Extend typed tenant settings/content registry with explicit experience edit permission and config history/CAS; no arbitrary HTML/CSS CMS or editable domain enums.
+**Alternatives**: Expanded editor rejected by user; implicit auto-save/bulk copy deferred for data integrity. Parallax and broad blur rejected for operational entry. June dashboard-only input boundary is proposed to change intentionally at roster tab level, not by reinstating unsafe report quick entry.
+**Status**: PROPOSED / PLANNED, except always-visible interaction choice confirmed. Complete visual/API/identity scope approval pending. No teacher role exists and none added. Stitch required model unavailable, Figma file pending; no visual parity or production readiness claim. Receipt receipts/2026-10-05-teacher-workspace-ux-plan.md.
+
+### ADR-62: Local Dated Roster Fingerprint And Bounded Presentation Execution
+
+**Date**: 2026-10-05
+**Decision**: Under explicit user execution authorization, replace proposed schema version with a stable SHA256 evidence/basis fingerprint, checked inside Serializable transactions. Durable tenant/actor operation replay prevents duplicate writes; exact cell patch preserves ownership, metadata, finalization and canonical TP-1. Monthly manual scores remain separate. This supersedes ADR-61 planning-only status for delivered local scope, not teacher identity or visual-source approval.
+**Experience**: Twelve typed plain-text keys and fixed theme tokens use existing settings CAS/revision services; explicit transaction delegates avoid cached Prisma client poisoning. Shared navigation guards retain drafts and block pending writes without storing student drafts in localStorage.
+**Evidence**: Real PostgreSQL concurrent/stale/replay/rollback tests, browser10 checks, load30/100/500 and mounted navigation tests in execution review package.
+**Limits**: Permission DB allowlist extension not applied without explicit migration approval. Admin defaults work; read-only-grant test skipped. No invented teacher role, production readiness, deployment or Figma parity. Security/history/recovery/full matrix/trial remain gates.
+
+### ADR-63: Compact Operational Presentation Contract
+
+**Date**: 2026-10-06
+**Decision**: Reuse OperationalPage/PageIntro/MetricGrid with unframed compact headings, one meaningful metric strip and common token-based actions across authenticated routes. Keep financial policy/provenance warnings beside relevant controls; remove repeated summary values only when equivalent. Portalled forms inherit the published theme through CSS, without changing modal lifecycle or authorization.
+**Evidence**: Frontend193/193, lint/build/typecheck pass;23 desktop and23 mobile route geometry checks and three screenshots in docs/artifacts/teacher-workspace-execution-2026-10-05/consistency-review.md.
+**Limits**: Route geometry is not full workflow/accessibility coverage. Keyboard dirty-confirm runtime test awaits human dismissal and draft restoration; UX-CONSISTENCY-01 REVIEW. No production readiness, design-source parity, DB migration or deployment claim.
+
+### ADR-64: Preserve Established Visual Identity During Density Changes
+
+**Date**: 2026-10-06
+**Decision**: Explicit user rejection supersedes ADR-63 global flattening/token override direction. Restore former page styling and original operational palette, panel depth/backgrounds and typography. Density work is limited to whitespace and duplicate information, not a new visual language. Preserve spreadsheet/CAS/sidebar/console and earlier functionality.
+**Evidence**:194 frontend tests, lint/build pass; restored Students screenshot and computed panel/purple-primary styles. User visual acceptance pending, not production sign-off.
+
+### ADR-65: Append Assessments From Report Rows
+
+**Date**: 2026-10-06
+**Decision**: User-directed grading moves into report rows; each Update appends a new assessment rather than editing one date-cell. Server owns Asia/Ho_Chi_Minh date and timestamp. One durable UUID operation counts once regardless of skill count or retry; legacy evidence counts remain separate. Current-month new entries only; existing historical/detail editing remains explicit. Homework does not require attendance. Preserve tenant permissions, enrollment/grader eligibility, finalized-month locks, CAS and canonical rollup.
+**Risk Review**: Reusing dated PATCH would overwrite same-day homework. Append operations avoid that, but require immutable retry payload, refresh-safe drafts and month rollover rejection. No new schema or dependency required; existing daily entries and activity operation log carry evidence/provenance. Runtime verification underway; no production sign-off.
+
+### ADR-66: Compact Per-Learner Report Charts
+
+**Date**: 2026-10-06
+**Decision**: User-directed radar and cumulative evidence charts replace standalone Month/Average report columns; score input layout2x2. Reuse daily raw seven-skill timeline with the report's existing previous-calendar-month comparison; cumulative evidence points are effort, not ability/average. Missing is null, true zero retained. Month remains internal identity and compact class context, not a separate column. Batched tenant-scoped report projection avoids per-row network calls. No schema/dependency/calculation changes; preserve restored visual style. Unlike the detail dashboard's equal-window comparison, report rows preserve their monthly baseline semantics.
+**Risk Review**: fixed compact chart geometry/table-contained scroll limits width; explicit empty state and single-point marker prevent blank/misleading charts. Tests and real browser save/refresh required before local completion.
+
+### ADR-67: Canonical Chart Print Snapshot
+
+**Date**: 2026-10-06
+**Decision**: Render report with React and mounted existing Recharts before serializing escaped document DOM into standalone print window. Allowlist A4/A5/Letter and orientation, @page margins12mm, wrapping and page flow rather than forced one-page scaling. Preserve missing/zero and cumulative effort distinction. Printing guards save/load/error/request-key mismatch; AbortController cancels resource wait on close/unmount, closes failed popup. No dependency/schema changes.
+**Evidence**:228 frontend tests, actual mounted SVG/PDF six-size/orientation matrix, A4/A5 visual renders, independent recheck. User-tab and physical printer verification remain pending; browser native dialog authoritative.
+
+### ADR-68: Print-Safe Clay Presentation
+
+**Date**:2026-10-06
+**Decision**: Explicit user rejection of flat PRINT-01 overrides its visual treatment only. Use individual pastel Clay tiles/chart figures (two inset shadows+outer shadow), balanced4/2-column metrics, unframed evidence timeline and planned actions. Vibrancy only on screen, solid pastel on paper. Keep rendered canonical charts, missing/zero, safe serialization/cancellation and saved-data guards. Bars clamp presentation only; no new scoring/calculation. Timeline shows six actual recorded days, steps never imply completion. No dependency/schema changes.
+**Evidence**:229frontend/lint/typecheck/build/sixPDFs/liveChrome, source reviewer no findings. User aesthetic acceptance and physicalprinter remain separate. Stitch requiredmodel unsupported; unrelated Figma file not modified.
+
+### ADR-69: Four-Skill Reports And Clay Receipt Contracts
+
+**Date**:2026-10-06
+**Decision**: Removal of homework/practice/mock-test criteria applies to presentation/input, not historical deletion/recalculation. Clay uses V2 PNG+absolute bindings. Both pencil/design fetch full config and regenerate paper/config atomically. PDF fitting is Clay schema1 only, existing bundled Roboto/PDFKit metrics; critical ID/amount/words remain complete or visibly reject422, nonfinancial long text may ellipsize. QR is placeholder; Save never auto-selects default.
+**Evidence**:237frontend/536root/25PDF, sixPDFs/Chrome save-reload, independent findings closed. Physical printer/user acceptance separate; no dependency/schema/deployment.
+
+### ADR-70: Restrained System Palette For Print Cards
+
+**Date**:2026-10-06
+**Decision**: Explicit user correction supersedes ADR-68/69 rainbow surface styling, not layout or data contracts. Reuse system white/gray surfaces, gray borders, restrained Clay depth and primary indigo; only receipt amount gets primary-soft fill. No per-field semantic rainbow colors. Existing saved custom templates require explicit save rather than automatic overwrite.
+**Evidence**:239frontend/lint/build; six one-page PDFs/no overflow and live Chrome screenshots. User aesthetic and physical-printer acceptance remain open.
+
+### ADR-71: Authorized Data-Preserving Production Cutover
+
+**Date**:2026-10-06
+**Decision**: Preserve historical default center, original credentials/finance/progress/custom templates. Separate admin-live tenant admin, not platform owner. Rehearse exact migration manifest on physical PG17 clone; maintenance and ordinary-writer role freeze precede migration. Provider owner ADMIN OPTION means no hostile DBA isolation claim. Restore ownership/remove temporary roles/triggers before live smoke. Private EFS/ACL encrypted backup and credential handoff excluded from Git/Vercel. Rollback needs compatible application/validated DB recovery, not blind old alias. No auto idle-backend termination; recovery requires independently confirmed CLI exit and unique marker/PID/backend-start/full advisory key. Missing scores remain missing, including narrative.
+**Evidence**:19 migrations, verifier28/59/0, protected records/accounts unchanged; canonical APIs/auth/backup/browser evidence in receipts/2026-10-06-go-live-execution.md.24h observation and provenance reconstruction separate.

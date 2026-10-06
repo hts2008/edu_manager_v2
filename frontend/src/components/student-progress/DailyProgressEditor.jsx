@@ -1,4 +1,5 @@
 import { CalendarDays, Save, Shield, Trash2, TrendingUp } from "lucide-react";
+import { formatProgressValue } from "../../utils/studentProgressDashboard";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -7,7 +8,7 @@ function formatDate(value) {
 }
 
 function displayMetric(value) {
-  return value === null || value === undefined ? "missing_input" : String(value);
+  return formatProgressValue(value);
 }
 
 function lastDateOfMonth(month) {
@@ -140,7 +141,7 @@ function DailyTimeline({ entries, loading }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <time className="font-black text-slate-900" dateTime={item.entryDate}>{formatDate(item.entryDate)}</time>
                 <span className="text-xs font-bold text-slate-500">
-                  {item.scores.filter((entry) => entry.score !== null).length}/7 kỹ năng
+                  {item.scores.filter((entry) => Number.isFinite(entry.score)).length}/7 kỹ năng
                   {item.shieldCount ? ` · ${item.shieldCount} khiên` : ""}
                 </span>
               </div>

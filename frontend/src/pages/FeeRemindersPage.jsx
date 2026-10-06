@@ -68,7 +68,7 @@ export default function FeeRemindersPage() {
   const items = data?.results || data?.items || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fee Reminders</h1>

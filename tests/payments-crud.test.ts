@@ -16,6 +16,8 @@ const AUTH = {
 process.env.NODE_ENV = "test";
 setAuthConfigForTests(AUTH);
 
+const TENANT_ID = "tenant-test-payments";
+
 function stub(t: any, target: any, method: string, implementation: any) {
   const original = target[method];
   target[method] = implementation;
@@ -23,7 +25,7 @@ function stub(t: any, target: any, method: string, implementation: any) {
 }
 
 function token(role: "admin" | "receptionist") {
-  return jwt.sign({ typ: "user", ver: 0, role }, AUTH.secret, {
+  return jwt.sign({ typ: "user", ver: 0, role, tid: TENANT_ID, pown: false }, AUTH.secret, {
     algorithm: AUTH.algorithm,
     issuer: AUTH.issuer,
     audience: AUTH.audience,
@@ -34,10 +36,11 @@ function token(role: "admin" | "receptionist") {
 }
 
 function mockAuth(t: any, role: "admin" | "receptionist") {
-  stub(t, prisma.authSession as any, "findFirst", async () => ({ id: "session" }));
+  stub(t, prisma.tenant as any, "findUnique", async () => ({ id: TENANT_ID, status: "active" }));
+  stub(t, prisma.authSession as any, "findFirst", async () => ({ id: "session", tenantId: TENANT_ID }));
   stub(t, prisma.user as any, "findUnique", async () => ({
     id: `${role}-1`, username: role, fullName: role, email: null, phone: null,
-    role, status: "active", lastLogin: null, tokenVersion: 0,
+    role, status: "active", lastLogin: null, tokenVersion: 0, tenantId: TENANT_ID, isPlatformOwner: false,
   }));
 }
 

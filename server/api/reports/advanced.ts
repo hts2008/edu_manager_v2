@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError, toDateOnly } from "../../../lib/api-utils.js";
 
 type GroupBy = "day" | "week" | "month" | "year";
@@ -73,17 +72,17 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const dateWindow = { gte: from, lte: to };
     const [receipts, payments, classes, attendance, students] = await Promise.all([
-      prisma.receipt.findMany({
+      req.db.receipt.findMany({
         where: { createdAt: dateWindow, deletedAt: null },
         select: { amount: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
-      prisma.payment.findMany({
+      req.db.payment.findMany({
         where: { createdAt: dateWindow, deletedAt: null },
         select: { amount: true, createdAt: true },
         orderBy: { createdAt: "asc" },
       }),
-      prisma.class.findMany({
+      req.db.class.findMany({
         where: { status: "active" },
         include: {
           teacher: { select: { id: true, fullName: true } },
@@ -94,11 +93,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
         orderBy: { className: "asc" },
       }),
-      prisma.attendance.findMany({
+      req.db.attendance.findMany({
         where: { attendanceDate: dateWindow },
         select: { classId: true, status: true },
       }),
-      prisma.student.findMany({
+      req.db.student.findMany({
         where: { enrollmentDate: dateWindow, deletedAt: null },
         select: { id: true, enrollmentDate: true, status: true },
       }),
@@ -268,4 +267,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("reports.view", handler);

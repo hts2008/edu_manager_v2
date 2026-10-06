@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -18,6 +17,10 @@ import {
 } from "../../../lib/api-utils.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   if (handleCors(req, res)) return;
 
   if (req.method === "GET") {
@@ -26,7 +29,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const where: any = {};
       if (type && type !== "all") where.type = type;
 
-      const templates = await prisma.template.findMany({
+      const templates = await req.db.template.findMany({
         where,
         orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
       });
@@ -62,8 +65,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         throw new ApiError("INVALID_TYPE", "Invalid template type", 400);
       }
 
-      const template = await prisma.template.create({
+      const template = await req.db.template.create({
         data: {
+          tenantId,
           templateName,
           type,
           paperSize,

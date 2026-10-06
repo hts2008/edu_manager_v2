@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
@@ -9,8 +8,6 @@ import {
 } from "../../../lib/auth.js";
 import {
   ApiError,
-  logActivity,
-  resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
 import { logApiError } from "../../../lib/observability.js";
@@ -23,6 +20,8 @@ import {
   receiptLineDataFromMonthlyFeeLine,
   refreshMonthlyFeeAggregateFromLines,
 } from "../../../lib/monthly-fee-lines.js";
+import { logActivity, resolveTemplateId } from "./request-db.js";
+import { getSetting } from "../../../lib/settings.js";
 
 const ITEMS_PER_INVOCATION = 50;
 const TERMINAL_ITEM_STATUSES = ["paid", "already_paid", "failed"];
@@ -83,30 +82,35 @@ export function bulkFeePaymentResponse(batch: any) {
   };
 }
 
-async function loadBatch(batchId: string) {
-  return prisma.bulkFeePaymentBatch.findUnique({
+async function loadBatch(db: AuthedRequest["db"], batchId: string) {
+  return db.bulkFeePaymentBatch.findUnique({
     where: { id: batchId },
     include: { items: { orderBy: { position: "asc" } } },
   });
 }
 
 async function findOrCreateBatch(
+  db: AuthedRequest["db"],
+  tenantId: string,
   actorId: string,
   key: string,
   payload: ReturnType<typeof canonicalizeBulkFeePayment>,
   payloadHash: string,
   templateId: string
 ) {
-  const existing = await prisma.bulkFeePaymentBatch.findUnique({
-    where: { actorId_idempotencyKey: { actorId, idempotencyKey: key } },
+  const existing = await db.bulkFeePaymentBatch.findUnique({
+    where: {
+      tenantId_actorId_idempotencyKey: { tenantId, actorId, idempotencyKey: key },
+    },
     include: { items: { orderBy: { position: "asc" } } },
   });
   if (existing) return existing;
 
   try {
-    return await runSerializableTransaction(prisma, async (tx) => {
+    return await runSerializableTransaction(db, async (tx) => {
       const batch = await tx.bulkFeePaymentBatch.create({
         data: {
+          tenantId,
           actorId,
           idempotencyKey: key,
           payloadHash,
@@ -119,6 +123,7 @@ async function findOrCreateBatch(
       });
       await tx.bulkFeePaymentItem.createMany({
         data: payload.line_ids.map((lineId, position) => ({
+          tenantId,
           batchId: batch.id,
           lineId,
           position,
@@ -131,18 +136,25 @@ async function findOrCreateBatch(
     });
   } catch (error: any) {
     if (error?.code !== "P2002") throw error;
-    return prisma.bulkFeePaymentBatch.findUniqueOrThrow({
-      where: { actorId_idempotencyKey: { actorId, idempotencyKey: key } },
+    return db.bulkFeePaymentBatch.findUniqueOrThrow({
+      where: {
+        tenantId_actorId_idempotencyKey: { tenantId, actorId, idempotencyKey: key },
+      },
       include: { items: { orderBy: { position: "asc" } } },
     });
   }
 }
 
-async function collectItem(batch: any, item: any, userId: string) {
+async function collectItem(
+  db: AuthedRequest["db"],
+  batch: any,
+  item: any,
+  userId: string,
+) {
   try {
-    return await runSerializableTransaction(prisma, async (tx) => {
+    return await runSerializableTransaction(db, async (tx) => {
       const claimedItem = await tx.bulkFeePaymentItem.updateMany({
-        where: { id: item.id, status: "pending" },
+        where: { tenantId: batch.tenantId, id: item.id, status: "pending" },
         data: { status: "processing" },
       });
       if (claimedItem.count !== 1) {
@@ -217,6 +229,7 @@ async function collectItem(batch: any, item: any, userId: string) {
 
       const receipt = await tx.receipt.create({
         data: {
+          tenantId: batch.tenantId,
           studentId: line.studentId,
           month: line.month,
           daysCount: line.chargedSessions,
@@ -243,7 +256,12 @@ async function collectItem(batch: any, item: any, userId: string) {
           409
         );
       }
-      await tx.receiptLine.create({ data: receiptLineDataFromMonthlyFeeLine(line, receipt.id) });
+      await tx.receiptLine.create({
+        data: {
+          tenantId: batch.tenantId,
+          ...receiptLineDataFromMonthlyFeeLine(line, receipt.id),
+        },
+      });
       await refreshMonthlyFeeAggregateFromLines(tx, line.monthlyFeeId);
 
       const result = {
@@ -264,7 +282,7 @@ async function collectItem(batch: any, item: any, userId: string) {
       });
     }, { transactionOptions: BULK_PAY_TRANSACTION_OPTIONS });
   } catch (error: any) {
-    return prisma.bulkFeePaymentItem.update({
+    return db.bulkFeePaymentItem.update({
       where: { id: item.id },
       data: {
         status: "failed",
@@ -282,16 +300,20 @@ async function collectItem(batch: any, item: any, userId: string) {
   }
 }
 
-async function processBatch(batch: any, userId: string) {
+async function processBatch(
+  db: AuthedRequest["db"],
+  batch: any,
+  userId: string,
+) {
   const pending = batch.items
     .filter((item: any) => !TERMINAL_ITEM_STATUSES.includes(item.status))
     .slice(0, ITEMS_PER_INVOCATION);
-  for (const item of pending) await collectItem(batch, item, userId);
+  for (const item of pending) await collectItem(db, batch, item, userId);
 
-  const refreshed = await loadBatch(batch.id);
+  const refreshed = await loadBatch(db, batch.id);
   if (!refreshed) throw new ApiError("BATCH_NOT_FOUND", "Bulk payment batch not found", 404);
   const response = bulkFeePaymentResponse(refreshed);
-  await prisma.bulkFeePaymentBatch.update({
+  await db.bulkFeePaymentBatch.update({
     where: { id: batch.id },
     data: {
       status: response.status,
@@ -304,19 +326,40 @@ async function processBatch(batch: any, userId: string) {
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   if (handleCors(req, res)) return;
   if (req.method !== "POST") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only POST allowed", 405);
   }
 
   try {
-    const key = idempotencyKey(req);
-    const validated = validateBody(bulkFeePaymentSchema, req.body);
-    const payload = canonicalizeBulkFeePayment(validated);
+      const key = idempotencyKey(req);
+      const validated = validateBody(bulkFeePaymentSchema, req.body);
+      const bulkLimit = await getSetting(req.db, {
+        tenantId,
+        key: "finance.bulk_pay_max_lines",
+      });
+      const maxLines = Number(bulkLimit.value);
+      const payload = canonicalizeBulkFeePayment(validated, maxLines);
 
     const payloadHash = hashBulkFeePaymentPayload(payload);
-    const templateId = await resolveTemplateId("receipt", payload.template_id || undefined);
-    const batch = await findOrCreateBatch(req.user.id, key, payload, payloadHash, templateId);
+    const templateId = await resolveTemplateId(
+      req.db,
+      "receipt",
+      payload.template_id || undefined,
+    );
+    const batch = await findOrCreateBatch(
+      req.db,
+      tenantId,
+      req.user.id,
+      key,
+      payload,
+      payloadHash,
+      templateId,
+    );
     if (batch.payloadHash !== payloadHash) {
       throw new ApiError(
         "IDEMPOTENCY_KEY_REUSED",
@@ -328,10 +371,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     if (batch.status === "completed" && batch.response) {
       return successResponse(res, batch.response);
     }
-    const response = await processBatch(batch, req.user.id);
+    const response = await processBatch(req.db, batch, req.user.id);
 
     try {
-      await logActivity(req, req.user.id, "BULK_COLLECT_FEE", "bulk_fee_payment_batch", batch.id);
+      await logActivity(req, "BULK_COLLECT_FEE", "bulk_fee_payment_batch", batch.id);
     } catch (error) {
       logApiError(error, {
         code: "ACTIVITY_LOG_FAILED",

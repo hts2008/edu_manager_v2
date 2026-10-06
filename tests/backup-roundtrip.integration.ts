@@ -17,14 +17,18 @@ describe("Audit V2 backup round-trip", { skip: !databaseUrl }, () => {
 
   before(async () => {
     await reset();
+    await prisma.tenant.create({
+      data: { id: "tenant_default", slug: "default", name: "Audit Default Tenant" },
+    });
     await prisma.user.create({
-      data: { id: "audit-user", username: "audit-admin", passwordHash: "test-only", role: "admin", fullName: "Audit Admin" },
+      data: { tenantId: "tenant_default", id: "audit-user", username: "audit-admin", passwordHash: "test-only", role: "admin", fullName: "Audit Admin" },
     });
     await prisma.parent.create({
-      data: { id: "audit-parent", fullName: "Audit Parent", phone: "0900000001", relationship: "father" },
+      data: { tenantId: "tenant_default", id: "audit-parent", fullName: "Audit Parent", phone: "0900000001", relationship: "father" },
     });
     await prisma.student.create({
       data: {
+        tenantId: "tenant_default",
         id: "audit-student",
         fullName: "Audit Student",
         dateOfBirth: new Date("2014-01-01T00:00:00.000Z"),
@@ -35,6 +39,7 @@ describe("Audit V2 backup round-trip", { skip: !databaseUrl }, () => {
     });
     await prisma.class.create({
       data: {
+        tenantId: "tenant_default",
         id: "audit-class",
         className: "Audit Class",
         sessionsPerWeek: 2,
@@ -45,32 +50,32 @@ describe("Audit V2 backup round-trip", { skip: !databaseUrl }, () => {
       },
     });
     await prisma.studentClass.create({
-      data: { studentId: "audit-student", classId: "audit-class", enrollmentDate: new Date("2026-06-01T00:00:00.000Z") },
+      data: { tenantId: "tenant_default", studentId: "audit-student", classId: "audit-class", enrollmentDate: new Date("2026-06-01T00:00:00.000Z") },
     });
     await prisma.enrollmentPeriod.create({
-      data: { id: "audit-enrollment", studentId: "audit-student", classId: "audit-class", startedAt: new Date("2026-06-01T00:00:00.000Z"), source: "audit-v2" },
+      data: { tenantId: "tenant_default", id: "audit-enrollment", studentId: "audit-student", classId: "audit-class", startedAt: new Date("2026-06-01T00:00:00.000Z"), source: "audit-v2" },
     });
     await prisma.classSession.createMany({ data: [
-      { id: "audit-session-1", classId: "audit-class", sessionDate: new Date("2026-06-03T00:00:00.000Z"), billingMonth: "2026-06", createdById: "audit-user" },
-      { id: "audit-session-2", classId: "audit-class", sessionDate: new Date("2026-06-05T00:00:00.000Z"), billingMonth: "2026-06", createdById: "audit-user" },
+      { tenantId: "tenant_default", id: "audit-session-1", classId: "audit-class", sessionDate: new Date("2026-06-03T00:00:00.000Z"), billingMonth: "2026-06", createdById: "audit-user" },
+      { tenantId: "tenant_default", id: "audit-session-2", classId: "audit-class", sessionDate: new Date("2026-06-05T00:00:00.000Z"), billingMonth: "2026-06", createdById: "audit-user" },
     ] });
     await prisma.classMonthPlan.create({
-      data: { id: "audit-plan", classId: "audit-class", billingMonth: "2026-06", state: "frozen", revision: 1, createdById: "audit-user", frozenById: "audit-user", frozenAt: new Date("2026-06-30T00:00:00.000Z") },
+      data: { tenantId: "tenant_default", id: "audit-plan", classId: "audit-class", billingMonth: "2026-06", state: "frozen", revision: 1, createdById: "audit-user", frozenById: "audit-user", frozenAt: new Date("2026-06-30T00:00:00.000Z") },
     });
     await prisma.classMonthPlanRevision.create({
-      data: { id: "audit-plan-revision", planId: "audit-plan", revision: 1, state: "frozen", eventType: "freeze", reason: "audit", snapshot: { sessions: 2 }, actorId: "audit-user" },
+      data: { tenantId: "tenant_default", id: "audit-plan-revision", planId: "audit-plan", revision: 1, state: "frozen", eventType: "freeze", reason: "audit", snapshot: { sessions: 2 }, actorId: "audit-user" },
     });
     await prisma.attendance.create({
-      data: { id: "audit-attendance", studentId: "audit-student", classId: "audit-class", classSessionId: "audit-session-1", attendanceDate: new Date("2026-06-03T00:00:00.000Z"), status: "present", createdById: "audit-user" },
+      data: { tenantId: "tenant_default", id: "audit-attendance", studentId: "audit-student", classId: "audit-class", classSessionId: "audit-session-1", attendanceDate: new Date("2026-06-03T00:00:00.000Z"), status: "present", createdById: "audit-user" },
     });
     await prisma.monthlyFee.create({
-      data: { id: "audit-fee", studentId: "audit-student", month: "2026-06", totalDays: 2, totalAmount: 200_000, status: "ready" },
+      data: { tenantId: "tenant_default", id: "audit-fee", studentId: "audit-student", month: "2026-06", totalDays: 2, totalAmount: 200_000, status: "ready" },
     });
     await prisma.monthlyFeeLine.create({
-      data: { id: "audit-line", monthlyFeeId: "audit-fee", studentId: "audit-student", classId: "audit-class", allocationKey: "class:audit-class", month: "2026-06", expectedSessions: 2, chargedSessions: 2, feePerSession: 100_000, monthlyTuition: 200_000, amount: 200_000, status: "ready" },
+      data: { tenantId: "tenant_default", id: "audit-line", monthlyFeeId: "audit-fee", studentId: "audit-student", classId: "audit-class", allocationKey: "class:audit-class", month: "2026-06", expectedSessions: 2, chargedSessions: 2, feePerSession: 100_000, monthlyTuition: 200_000, amount: 200_000, status: "ready" },
     });
     await prisma.monthlyFeeLineRevision.create({
-      data: { id: "audit-line-revision", monthlyFeeLineId: "audit-line", revisionNumber: 1, runId: "audit-run", eventType: "calculated", reason: "audit", afterSnapshot: { amount: 200_000 }, actorId: "audit-user" },
+      data: { tenantId: "tenant_default", id: "audit-line-revision", monthlyFeeLineId: "audit-line", revisionNumber: 1, runId: "audit-run", eventType: "calculated", reason: "audit", afterSnapshot: { amount: 200_000 }, actorId: "audit-user" },
     });
   });
 
@@ -148,6 +153,7 @@ describe("Audit V2 backup round-trip", { skip: !databaseUrl }, () => {
       });
       await tx.classMonthPlanRevision.create({
         data: {
+          tenantId: "tenant_default",
           planId: reopened.id,
           revision: reopened.revision,
           state: "open",

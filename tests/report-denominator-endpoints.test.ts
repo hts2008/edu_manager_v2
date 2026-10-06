@@ -10,11 +10,12 @@ const endpoints = [
   "server/api/reports/bi.ts",
   "server/api/reports/student-progress.ts",
   "server/api/student-progress/index.ts",
-].map((path) => ({ path, source: source(path) }));
+].map((path) => ({ path, source: source(path) + (path === "server/api/student-progress/index.ts"
+  ? source("lib/student-progress-operational-row.ts") : "") }));
 
 function prismaQueryBlock(endpoint: string, model: string) {
   const match = new RegExp(
-    `prisma\\.${model}\\.find(?:Many|Unique)\\(\\{([\\s\\S]*?)\\n\\s*\\}\\),`,
+    `(?:prisma|req\\.db|db)\\.${model}\\.find(?:Many|Unique)\\(\\{([\\s\\S]*?)\\n\\s*\\}\\),?`,
   ).exec(endpoint);
   assert.ok(match, `missing ${model} denominator query`);
   return match[1];
@@ -54,11 +55,12 @@ describe("report endpoint denominator source contract", () => {
     it(`${endpoint.path} bounds denominator reads to report classes and months`, () => {
       const monthPlanQuery = prismaQueryBlock(endpoint.source, "classMonthPlan");
       assert.match(monthPlanQuery, /classId:\s*\{\s*in:\s*classIds\s*\}/);
-      assert.match(monthPlanQuery, /billingMonth:\s*\{\s*in:\s*query\.months\s*\}/);
+      const months = endpoint.path === "server/api/reports/student-progress.ts" ? "businessMonths" : "query\\.months";
+      assert.match(monthPlanQuery, new RegExp(`billingMonth:\\s*\\{\\s*in:\\s*${months}\\s*\\}`));
 
       const classSessionQuery = prismaQueryBlock(endpoint.source, "classSession");
       assert.match(classSessionQuery, /classId:\s*\{\s*in:\s*classIds\s*\}/);
-      assert.match(classSessionQuery, /billingMonth:\s*\{\s*in:\s*query\.months\s*\}/);
+      assert.match(classSessionQuery, new RegExp(`billingMonth:\\s*\\{\\s*in:\\s*${months}\\s*\\}`));
     });
   }
 
@@ -73,7 +75,7 @@ describe("report endpoint denominator source contract", () => {
 
   it("the single-student operational read prefers a period intersecting the requested month", () => {
     const endpoint = endpoints[2].source;
-    assert.match(endpoint, /const enrollmentPeriod = await prisma\.enrollmentPeriod\.findFirst/);
+    assert.match(endpoint, /const enrollmentPeriod = await db\.enrollmentPeriod\.findFirst/);
     assert.match(endpoint, /startedAt:\s*\{\s*lt:\s*endDate\s*\}/);
     assert.match(endpoint, /OR:\s*\[\{\s*endedAt:\s*null\s*\},\s*\{\s*endedAt:\s*\{\s*gt:\s*startDate\s*\}\s*\}\s*\]/);
     assert.match(endpoint, /const legacyEnrollment = enrollmentPeriod\s*\n\s*\? null/);
@@ -84,7 +86,7 @@ describe("report endpoint denominator source contract", () => {
     const endpoint = endpoints[0].source;
     assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lt:\s*rangeEnd\s*\}/);
     assert.match(endpoint, /OR:\s*\[\{\s*endedAt:\s*null\s*\},\s*\{\s*endedAt:\s*\{\s*gt:\s*rangeStart\s*\}\s*\}\s*\]/);
-    assert.match(endpoint, /prisma\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
+    assert.match(endpoint, /req\.db\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
     assert.match(endpoint, /const reportEnrollmentRows[^=]*=\s*\[\s*\.\.\.enrollmentPeriodRows\.map/);
     assert.match(endpoint, /enrollmentDate:\s*period\.startedAt/);
     assert.match(endpoint, /enrollmentEndDate:\s*period\.endedAt/);
@@ -94,7 +96,7 @@ describe("report endpoint denominator source contract", () => {
   it("uses EnrollmentPeriod as the primary universe in the student progress report", () => {
     const endpoint = endpoints[1].source;
     assert.match(endpoint, /const enrollmentPeriodWhere[\s\S]*startedAt:\s*\{\s*lt:\s*rangeEnd\s*\}/);
-    assert.match(endpoint, /prisma\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
+    assert.match(endpoint, /req\.db\.enrollmentPeriod\.findMany\(\{[\s\S]*?where:\s*enrollmentPeriodWhere/);
     assert.match(endpoint, /const reportEnrollmentRows[^=]*=\s*\[\s*\.\.\.enrollmentPeriodRows\.map/);
     assert.match(endpoint, /\.\.\.enrollmentRows\.filter\(\s*\(row\) => !periodKeys\.has/);
   });

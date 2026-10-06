@@ -419,8 +419,9 @@ describe("monthly fee generator protected fee immutability", () => {
     assert.match(endpoint, /timeout:\s*15_?000/);
     assert.match(
       endpoint,
-      /runSerializableTransaction\(prisma,[\s\S]*?transactionOptions:\s*GENERATOR_TRANSACTION_OPTIONS/,
+      /runSerializableTransaction\(lockTransactionClient,[\s\S]*?transactionOptions:\s*GENERATOR_TRANSACTION_OPTIONS/,
     );
+    assert.match(endpoint, /prisma\.\$tenantRawTransaction\.bind\(prisma\)/);
   });
 
   it("locks and re-reads authoritative fee state before preserving a protected row", async () => {

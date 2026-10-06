@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import { errorResponse, handleCors, successResponse } from "../../../lib/auth.js";
 import { sendApiError, toDateOnly } from "../../../lib/api-utils.js";
 import { verifyParentToken } from "../../../lib/parent-auth.js";
@@ -56,36 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const auth = await verifyParentToken(req);
+    const prisma = auth.db;
     const since = new Date();
     since.setDate(since.getDate() - 365);
     const parent = await prisma.parent.findFirst({
       where: { id: auth.parentId, deletedAt: null },
-      include: {
-        students: {
-          where: { deletedAt: null },
-          include: {
-            monthlyFees: {
-              orderBy: { month: "desc" },
-              take: 24,
-              include: {
-                lines: {
-                  include: { class: { include: { teacher: true } } },
-                  orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
-                },
-              },
-            },
-            receipts: {
-              where: { deletedAt: null },
-              orderBy: { createdAt: "desc" },
-              take: 24,
-            },
-            attendance: {
-              where: { attendanceDate: { gte: since } },
-              orderBy: { attendanceDate: "desc" },
-              take: 500,
-            },
-          },
-        },
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        email: true,
+        relationship: true,
       },
     });
 
@@ -93,24 +73,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return errorResponse(res, "PARENT_NOT_FOUND", "Parent not found", 404);
     }
 
-    const students = parent.students.map((student: any) => ({
+    const studentRows = await prisma.student.findMany({
+      where: { parentId: parent.id, deletedAt: null },
+      orderBy: { fullName: "asc" },
+    });
+    const students = await Promise.all(studentRows.map(async (student: any) => {
+      const [fees, receipts, attendance] = await Promise.all([
+        prisma.monthlyFee.findMany({
+          where: { studentId: student.id },
+          orderBy: { month: "desc" },
+          take: 24,
+        }),
+        prisma.receipt.findMany({
+          where: { studentId: student.id, deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 24,
+        }),
+        prisma.attendance.findMany({
+          where: { studentId: student.id, attendanceDate: { gte: since } },
+          orderBy: { attendanceDate: "desc" },
+          take: 500,
+        }),
+      ]);
+      const feeIds = fees.map((fee: any) => fee.id);
+      const lines = feeIds.length > 0
+        ? await prisma.monthlyFeeLine.findMany({
+            where: { monthlyFeeId: { in: feeIds } },
+            orderBy: [{ classNameSnapshot: "asc" }, { createdAt: "asc" }],
+          })
+        : [];
+      const linesByFee = new Map<string, any[]>();
+      for (const line of lines) {
+        const bucket = linesByFee.get(line.monthlyFeeId) || [];
+        bucket.push(line);
+        linesByFee.set(line.monthlyFeeId, bucket);
+      }
+      return {
       id: student.id,
       full_name: student.fullName,
       date_of_birth: toDateOnly(student.dateOfBirth),
       status: student.status,
-      attendance: student.attendance.map((record: any) => ({
+      attendance: attendance.map((record: any) => ({
         id: record.id,
         date: toDateOnly(record.attendanceDate),
         status: record.status,
         class_id: record.classId,
         notes: record.notes,
       })),
-      fees: student.monthlyFees.map((fee: any) =>
-        feeToDto({ ...fee, student })
+      fees: fees.map((fee: any) =>
+        feeToDto({ ...fee, lines: linesByFee.get(fee.id) || [], student })
       ),
-      receipts: student.receipts.map((receipt: any) =>
+      receipts: receipts.map((receipt: any) =>
         receiptToDto({ ...receipt, student })
       ),
+      };
     }));
 
     return successResponse(res, {

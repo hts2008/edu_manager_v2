@@ -1,4 +1,8 @@
 import type { ReportCubeRow } from "./report-cube.js";
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
+import type { AcademicSettingsContext } from "./academic-settings.js";
+import { compareProgressScores, previousProgressMonth, type ProgressScoreMetric } from "./student-progress-evidence.js";
 import {
   buildProgressAssessment,
   buildProgressFramework,
@@ -30,7 +34,9 @@ export type ProgressReportRow = ReportCubeRow & {
   english_track: EnglishTrackKey;
   track_label: string;
   cefr_level: string;
-  progress_score: number;
+  progress_score: number | null;
+  score_source: ProgressAssessmentResult["scoreSource"];
+  comparison: ReturnType<typeof compareProgressScores>;
   attendance_score: number;
   consistency_score: number;
   learning_evidence_coverage: number;
@@ -45,7 +51,87 @@ export type ProgressReportRow = ReportCubeRow & {
   academic_input_status: "missing_input" | "partial" | "complete";
   has_teacher_input: boolean;
   progress_assessment: ProgressAssessmentResult;
+  assessment_submission_count: number;
+  last_submission_at: string | null;
+  is_finalized: boolean;
 };
+
+type SubmissionReportIdentity = Pick<ReportCubeRow, "student_id" | "class_id" | "month">;
+type SubmissionOperation = {
+  tenantId: string;
+  userId: string;
+  entityType: string | null;
+  entityId: string | null;
+  action: string;
+};
+type SubmissionSummary = {
+  assessment_submission_count: number;
+  last_submission_at: string | null;
+};
+const submissionIdentity = z.object({
+  student_id: z.string().min(1),
+  class_id: z.string().min(1),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  submitted_at: z.string().datetime({ offset: true }),
+  request_hash: z.string().regex(/^[a-fA-F0-9]{64}$/),
+});
+const operationId = z.string().uuid();
+
+export async function loadProgressSubmissionOperations(
+  db: Pick<Prisma.TransactionClient, "activityLog">,
+  tenantId: string,
+  rows: readonly SubmissionReportIdentity[],
+): Promise<SubmissionOperation[]> {
+  if (!rows.length) return [];
+  // Action is text: prefilter candidates in one query, then validate exact JSON identities.
+  return db.activityLog.findMany({
+    where: {
+      tenantId,
+      entityType: "progress_submission_operation",
+      AND: [
+        { OR: [...new Set(rows.map((row) => row.student_id))].map((id) => ({ action: { contains: id } })) },
+        { OR: [...new Set(rows.map((row) => row.month))].map((month) => ({ action: { contains: month } })) },
+      ],
+    },
+    select: { tenantId: true, userId: true, entityType: true, entityId: true, action: true },
+  });
+}
+
+export function buildProgressSubmissionSummary(
+  tenantId: string,
+  rows: readonly SubmissionReportIdentity[],
+  operations: readonly SubmissionOperation[],
+): Map<string, SubmissionSummary> {
+  const allowedKeys = new Set(rows.map(progressKeyFor));
+  const summaries = new Map<string, SubmissionSummary>();
+  const seenOperations = new Set<string>();
+  for (const operation of operations) {
+    if (operation.tenantId !== tenantId || operation.entityType !== "progress_submission_operation" ||
+      !operation.userId || !operationId.safeParse(operation.entityId).success) continue;
+    let payload: unknown;
+    try {
+      payload = JSON.parse(operation.action);
+    } catch {
+      // Malformed historical activity rows cannot establish accepted submissions.
+      continue;
+    }
+    const parsed = submissionIdentity.safeParse(payload);
+    if (!parsed.success) continue;
+    const key = progressKeyFor(parsed.data);
+    if (!allowedKeys.has(key)) continue;
+    const identity = JSON.stringify([operation.tenantId, operation.userId, operation.entityId]);
+    if (seenOperations.has(identity)) continue;
+    seenOperations.add(identity);
+    const timestamp = new Date(parsed.data.submitted_at).toISOString();
+    const current = summaries.get(key) || { assessment_submission_count: 0, last_submission_at: null };
+    current.assessment_submission_count += 1;
+    if (!current.last_submission_at || timestamp > current.last_submission_at) {
+      current.last_submission_at = timestamp;
+    }
+    summaries.set(key, current);
+  }
+  return summaries;
+}
 
 export type StudentProgressSummary = {
   student_count: number;
@@ -240,71 +326,72 @@ export function buildStudentProgressReport(input: {
   rows: ReportCubeRow[];
   parentsByStudentId?: Map<string, { name: string | null; phone: string | null }>;
   progressMonthsByKey?: Map<string, ProgressMonthSnapshot>;
+  academicSettingsByMonth?: ReadonlyMap<string, AcademicSettingsContext>;
+  baselineRows?: ReportCubeRow[];
+  tenantId?: string;
+  submissionOperations?: readonly SubmissionOperation[];
 }) {
-  const sorted = [...input.rows].sort(
+  const submissions = input.tenantId
+    ? buildProgressSubmissionSummary(input.tenantId, input.rows, input.submissionOperations || [])
+    : new Map<string, SubmissionSummary>();
+  const sorted = [...(input.baselineRows || []), ...input.rows].sort(
     (a, b) =>
-      a.student_name.localeCompare(b.student_name) ||
-      a.class_name.localeCompare(b.class_name) ||
+      a.student_id.localeCompare(b.student_id) ||
+      a.class_id.localeCompare(b.class_id) ||
       a.month.localeCompare(b.month)
   );
-  const previousByKey = new Map<string, number>();
+  const previousByKey = new Map<string, ProgressScoreMetric>();
+  const visibleKeys = new Set(input.rows.map(progressKeyFor));
   const reportRows: ProgressReportRow[] = [];
 
   for (const row of sorted) {
-    const attendanceScore = scoreAttendance(row);
-    const consistencyScore = scoreConsistency(row);
-    const progressScore = round1(clamp(attendanceScore * 0.72 + consistencyScore * 0.28));
-    const previousScore = previousByKey.get(keyFor(row));
-    const trendDelta = previousScore === undefined ? null : round1(progressScore - previousScore);
-    previousByKey.set(keyFor(row), progressScore);
-
-    const englishTrack = detectEnglishTrack(row.class_name);
-    const track = TRACKS[englishTrack];
-    const band = readinessBand(row, progressScore);
     const parent = input.parentsByStudentId?.get(row.student_id);
     const progressMonth = input.progressMonthsByKey?.get(progressKeyFor(row)) || null;
     const assessment = buildProgressAssessment({
       row,
       progressMonth,
       parentName: parent?.name || null,
-      previousScore: previousScore === undefined ? null : previousScore,
+      settings: input.academicSettingsByMonth?.get(row.month),
     });
+    const metric = { value: assessment.progressScore, source: assessment.scoreSource,
+      signature: assessment.comparisonSignature };
+    const comparison = compareProgressScores(metric, previousByKey.get(
+      `${keyFor(row)}\u0000${previousProgressMonth(row.month)}`,
+    ));
+    previousByKey.set(progressKeyFor(row), metric);
+    if (!visibleKeys.has(progressKeyFor(row))) continue;
+    const trendDelta = comparison.delta;
     const useAssessment = assessment.hasTeacherInput;
 
     reportRows.push({
       ...row,
       parent_name: parent?.name || null,
       parent_phone: parent?.phone || null,
-      english_track: useAssessment ? assessment.trackKey : englishTrack,
-      track_label: useAssessment ? assessment.trackLabel : track.label,
-      cefr_level: useAssessment ? assessment.cefrLevel : track.cefr,
-      progress_score: useAssessment ? assessment.progressScore : progressScore,
-      attendance_score: useAssessment ? assessment.attendanceScore : attendanceScore,
-      consistency_score: useAssessment ? assessment.consistencyScore : consistencyScore,
+      english_track: assessment.trackKey,
+      track_label: assessment.trackLabel,
+      cefr_level: assessment.cefrLevel,
+      progress_score: assessment.progressScore,
+      score_source: assessment.scoreSource,
+      comparison,
+      attendance_score: assessment.attendanceScore,
+      consistency_score: assessment.consistencyScore,
       learning_evidence_coverage: useAssessment
         ? assessment.learningEvidenceCoverage
         : evidenceCoverage(row),
-      trend_delta: useAssessment
-        ? previousScore === undefined
-          ? null
-          : round1(assessment.progressScore - previousScore)
-        : trendDelta,
-      trend_label: useAssessment
-        ? trendLabel(
-            previousScore === undefined ? null : round1(assessment.progressScore - previousScore)
-          )
-        : trendLabel(trendDelta),
-      readiness_band: useAssessment ? assessment.readinessBand : band,
+      trend_delta: trendDelta,
+      trend_label: trendLabel(trendDelta),
+      readiness_band: assessment.readinessBand,
       skill_scores: useAssessment ? assessment.skillScores : buildMissingSkillScores(),
-      parent_summary: useAssessment
-        ? assessment.parentSummary
-        : parentSummary(row, track, progressScore, band),
-      next_actions: useAssessment ? assessment.nextActions : nextActions(row, englishTrack),
+      parent_summary: assessment.parentSummary,
+      next_actions: assessment.nextActions,
       evidence_notes: useAssessment ? assessment.evidenceNotes : evidenceNotes(row),
       progress_month_id: progressMonth?.id || null,
       academic_input_status: assessment.academicInputStatus,
       has_teacher_input: assessment.hasTeacherInput,
       progress_assessment: assessment,
+      assessment_submission_count: submissions.get(progressKeyFor(row))?.assessment_submission_count || 0,
+      last_submission_at: submissions.get(progressKeyFor(row))?.last_submission_at || null,
+      is_finalized: Boolean(progressMonth?.finalizedAt),
     });
   }
 
@@ -343,7 +430,7 @@ export function summarizeStudentProgress(rows: ProgressReportRow[]): StudentProg
     student_count: students.size,
     class_count: classes.size,
     row_count: rows.length,
-    average_progress_score: average(rows.map((row) => row.progress_score)),
+    average_progress_score: average(rows.map((row) => row.progress_score).filter((score): score is number => score !== null)),
     average_attendance_score: average(rows.map((row) => row.attendance_score)),
     average_learning_evidence_coverage: average(
       rows.map((row) => row.learning_evidence_coverage)
@@ -406,7 +493,7 @@ export function buildStudentProgressCharts(rows: ProgressReportRow[]) {
     monthly: Array.from(monthly.entries())
       .map(([month, items]) => ({
         month,
-        progress_score: average(items.map((row) => row.progress_score)),
+        progress_score: average(items.map((row) => row.progress_score).filter((score): score is number => score !== null)),
         attendance_score: average(items.map((row) => row.attendance_score)),
         evidence_coverage: average(items.map((row) => row.learning_evidence_coverage)),
         row_count: items.length,

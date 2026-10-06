@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useMemo, useState } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -24,6 +24,12 @@ import {
   buildDailyEntryPayload,
   formatProgressValue,
   getProgressPeriodRange,
+  createProgressRequestGuard,
+  selectedProgressMonthTrack,
+  formatProgressDelta,
+  progressDeltaTone,
+  progressEvidenceLabel,
+  loadProgressGraders,
 } from "../utils/studentProgressDashboard";
 
 const PERIODS = [
@@ -47,7 +53,7 @@ function initialAnchor(month) {
 }
 
 function metricTone(value) {
-  if (value === null || value === undefined) return "text-slate-500";
+  if (!Number.isFinite(value)) return "text-slate-500";
   if (value >= 80) return "text-emerald-700";
   if (value >= 60) return "text-amber-700";
   return "text-rose-700";
@@ -81,6 +87,9 @@ export default function StudentProgressDetailPage() {
   const [timeline, setTimeline] = useState(null);
   const [reportRows, setReportRows] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [teachersError, setTeachersError] = useState("");
+  const requestGuard = useRef(null);
+  if (!requestGuard.current) requestGuard.current = createProgressRequestGuard();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -101,6 +110,11 @@ export default function StudentProgressDetailPage() {
   );
 
   const loadTimeline = useCallback(async () => {
+    const request = requestGuard.current.begin();
+    setTimeline(null);
+    setReportRows([]);
+    setTeachers([]);
+    setTeachersError("");
     if (!studentId || !classId) {
       setError("Thiếu class_id. Hãy mở dashboard từ danh sách tiến bộ học viên.");
       setLoading(false);
@@ -118,25 +132,29 @@ export default function StudentProgressDetailPage() {
           to: range.to.slice(0, 7),
           page_size: 200,
         }, { skipCache: true }),
-        teachersService.getAll(),
+        loadProgressGraders(() => teachersService.getAll()),
       ]);
+      if (!request.isCurrent()) return;
       if (!timelineResponse.success) throw new Error(timelineResponse.error?.message || "Không tải được timeline tiến bộ.");
       if (!reportResponse.success) throw new Error(reportResponse.error?.message || "Không tải được chỉ số tổng hợp tiến bộ.");
       setTimeline(timelineResponse.data);
       setReportRows(reportResponse.data?.students || []);
-      setTeachers(teachersResponse.success ? teachersResponse.data?.teachers || teachersResponse.data || [] : []);
+      setTeachers(teachersResponse.teachers);
+      setTeachersError(teachersResponse.unavailable ? "Không tải được danh sách người chấm; lựa chọn người chấm không khả dụng." : "");
       const latestDate = timelineResponse.data?.days?.at(-1)?.date;
       const preferred = latestDate || (range.from <= today() && today() <= range.to ? today() : range.from);
       setEntryDate((current) => current >= range.from && current <= range.to ? current : preferred);
     } catch (requestError) {
+      if (!request.isCurrent()) return;
       setError(requestError.message || "Không tải được dashboard tiến bộ.");
     } finally {
-      setLoading(false);
+      if (request.isCurrent()) setLoading(false);
     }
   }, [studentId, classId, range.from, range.to, refreshNonce]);
 
   useEffect(() => {
     loadTimeline();
+    return () => requestGuard.current.cancel();
   }, [loadTimeline]);
 
   useEffect(() => {
@@ -146,7 +164,7 @@ export default function StudentProgressDetailPage() {
     setEntryReady(false);
     setEntryHasData(false);
     setEntryLocked(false);
-    setEntryForm(createEmptyProgressDayForm(timeline?.class?.track_key));
+    setEntryForm(createEmptyProgressDayForm(selectedProgressMonthTrack(null, reportRows, entryDate)));
     setEntryMessage(null);
     studentProgressService.getDaily(
       { student_id: studentId, class_id: classId, entry_date: entryDate },
@@ -157,7 +175,7 @@ export default function StudentProgressDetailPage() {
         setEntryMessage({ type: "error", text: response.error?.message || "Không tải được evidence ngày." });
         return;
       }
-      const track = response.data?.progress_month?.track_key || timeline?.class?.track_key || timeline?.class?.trackKey || "";
+      const track = selectedProgressMonthTrack(response.data, reportRows, entryDate);
       setEntryForm(buildProgressDayForm(response.data, track));
       setEntryHasData((response.data?.daily_entries || []).length > 0);
       setEntryLocked(Boolean(response.data?.progress_month?.is_finalized));
@@ -168,7 +186,7 @@ export default function StudentProgressDetailPage() {
       if (active) setEntryLoading(false);
     });
     return () => { active = false; };
-  }, [studentId, classId, entryDate, timeline?.class?.track_key]);
+  }, [studentId, classId, entryDate, reportRows]);
 
   async function saveEntry() {
     setEntrySaving(true);
@@ -197,7 +215,7 @@ export default function StudentProgressDetailPage() {
     try {
       const response = await studentProgressService.deleteDay({ student_id: studentId, class_id: classId, entry_date: entryDate });
       if (!response.success) throw new Error(response.error?.message || "Không xóa được evidence ngày.");
-      setEntryForm(createEmptyProgressDayForm(timeline?.class?.track_key));
+      setEntryForm(createEmptyProgressDayForm(selectedProgressMonthTrack(null, reportRows, entryDate)));
       setEntryHasData(false);
       setEntryMessage({ type: "success", text: `Đã xóa evidence ngày ${entryDate}.` });
       setRefreshNonce((value) => value + 1);
@@ -222,7 +240,7 @@ export default function StudentProgressDetailPage() {
       setEntryMessage({ type: "error", text: response.error?.message || "Không sao chép được ngày trước." });
       return;
     }
-    setEntryForm(buildProgressDayForm(response.data, timeline?.class?.track_key));
+    setEntryForm(buildProgressDayForm(response.data, selectedProgressMonthTrack(null, reportRows, entryDate)));
     setEntryMessage({ type: "success", text: `Đã sao chép dữ liệu từ ${previous.date}; chưa lưu.` });
   }
 
@@ -239,6 +257,7 @@ export default function StudentProgressDetailPage() {
   }
 
   const summary = timeline?.summary || {};
+  const latestAcademicDay = timeline?.days?.findLast((day) => Number.isFinite(day.raw_score));
   const latestRow = [...reportRows].sort((left, right) =>
     String(right.month || "").localeCompare(String(left.month || ""))
   )[0] || {};
@@ -327,13 +346,15 @@ export default function StudentProgressDetailPage() {
         <>
           <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Metric icon={BookOpenCheck} label="Điểm gần nhất" value={formatProgressValue(summary.latest_score, "/100")} helper={`Điểm đầu kỳ: ${formatProgressValue(summary.first_score, "/100")}`} tone={metricTone(summary.latest_score)} />
-            <Metric icon={TrendingUp} label="Tăng trưởng" value={summary.growth === null || summary.growth === undefined ? "—" : `${summary.growth > 0 ? "+" : ""}${summary.growth}`} helper="So với evidence đầu kỳ" tone={Number(summary.growth) >= 0 ? "text-emerald-700" : "text-rose-700"} />
+            <Metric icon={TrendingUp} label="Tăng trưởng" value={formatProgressDelta(summary.growth)} helper="So với evidence đầu kỳ" tone={progressDeltaTone(summary.growth)} />
             <Metric icon={Target} label="Cần tập trung" value={focusLabel} helper={`${timeline?.days?.length || 0} ngày có evidence`} tone="text-amber-700" />
             <Metric icon={Sparkles} label="Điểm cộng dồn" value={formatProgressValue(summary.cumulative_points)} helper={summary.alert_score_drop ? "Cảnh báo giảm trên 15%" : "Chưa phát hiện giảm mạnh"} tone={summary.alert_score_drop ? "text-rose-700" : "text-indigo-700"} />
           </section>
+          <p className="text-xs text-slate-500">{progressEvidenceLabel({ score_source: latestAcademicDay?.source || "missing", contributors: latestAcademicDay?.skill_keys || [] })}</p>
 
           <ProgressDashboardCharts timeline={timeline} scoreMode={scoreMode} />
           <ProgressTimelineTable days={timeline?.days || []} selectedDate={entryDate} onSelectDate={setEntryDate} />
+          {teachersError && <p className="text-sm text-amber-700" role="status">{teachersError}</p>}
           <ProgressDailyEntryForm
             entryDate={entryDate}
             form={entryForm}
@@ -346,7 +367,7 @@ export default function StudentProgressDetailPage() {
             hasEntries={entryHasData}
             message={entryMessage}
             onDateChange={setEntryDate}
-            onChange={setEntryForm}
+            onChange={(form) => setEntryForm((current) => teachersError ? { ...form, graded_by_teacher_id: current.graded_by_teacher_id } : form)}
             onCopyPrevious={copyPrevious}
             onSave={saveEntry}
             onDelete={deleteEntry}

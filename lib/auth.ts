@@ -7,6 +7,9 @@ import {
   verifySessionToken,
   type SessionTokenPayload,
 } from "./auth-session.js";
+import { getTenancyMode, resolveEffectiveTenantId } from "./tenancy.js";
+import { getTenantClient } from "./prisma-tenant.js";
+import type { PrismaClient } from "@prisma/client";
 
 export interface AuthUser {
   userId: string;
@@ -18,11 +21,14 @@ export interface AuthUser {
   role: "admin" | "receptionist";
   status?: "active" | "inactive";
   lastLogin?: Date | null;
+  tenantId?: string | null;
+  isPlatformOwner: boolean;
 }
 
 export interface AuthedRequest extends VercelRequest {
   user: AuthUser;
   authToken: SessionTokenPayload;
+  db: PrismaClient;
 }
 
 type AuthFailure = {
@@ -58,6 +64,8 @@ export function verifyAuth(req: VercelRequest): AuthUser | null {
       id: decoded.sub,
       username: decoded.username,
       role: decoded.role,
+      tenantId: decoded.tid ?? null,
+      isPlatformOwner: decoded.pown === true,
     };
   } catch {
     return null;
@@ -99,6 +107,8 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
           status: true,
           lastLogin: true,
           tokenVersion: true,
+          tenantId: true,
+          isPlatformOwner: true,
         },
       }),
     ]);
@@ -115,6 +125,34 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
       };
     }
 
+    let effectiveTenantId: string | null;
+    try {
+      effectiveTenantId = resolveEffectiveTenantId({
+        mode: getTenancyMode(),
+        tokenTenantId: decoded.tid,
+        sessionTenantId: session.tenantId,
+        subjectTenantId: user.tenantId,
+      });
+    } catch {
+      return {
+        ok: false,
+        error: { code: "TOKEN_INVALID", message: "Invalid tenant identity" },
+      };
+    }
+
+    if (effectiveTenantId) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: effectiveTenantId },
+        select: { status: true },
+      });
+      if (!tenant || tenant.status !== "active") {
+        return {
+          ok: false,
+          error: { code: "TOKEN_INVALID", message: "Tenant is unavailable" },
+        };
+      }
+    }
+
     return {
       ok: true,
       user: {
@@ -127,6 +165,8 @@ async function authenticate(req: VercelRequest): Promise<AuthResult> {
         role: user.role,
         status: user.status,
         lastLogin: user.lastLogin,
+        tenantId: effectiveTenantId,
+        isPlatformOwner: user.isPlatformOwner,
       },
       token: decoded,
     };
@@ -173,6 +213,9 @@ export function requireAuth(
     const authedReq = req as AuthedRequest;
     authedReq.user = result.user;
     authedReq.authToken = result.token;
+    authedReq.db = result.user.tenantId
+      ? getTenantClient(result.user.tenantId)
+      : prisma;
     return handler(authedReq, res, result.user);
   };
 }

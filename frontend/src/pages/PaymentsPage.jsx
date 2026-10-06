@@ -13,7 +13,6 @@ import { useToast } from '../components/ui/Toast';
 import { paymentFormSchema } from '../utils/formValidation';
 import PageState from '../components/ui/PageState';
 
-// PREMIUM UI: Chi Tiền (MotionSites style)
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,8 +98,8 @@ export default function PaymentsPage() {
   };
 
   return (
-    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
-      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-6 text-white shadow-2xl shadow-sky-900/20 md:p-8">
+    <Motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+      <Motion.section variants={itemVariants} className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-indigo-950 to-sky-900 p-5 text-white shadow-2xl shadow-sky-900/20 md:p-6">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
         <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -144,7 +143,7 @@ export default function PaymentsPage() {
       {/* Control Panel */}
       <Motion.section
         variants={itemVariants}
-        className="flex gap-4 justify-between items-center bg-white/70 backdrop-blur-lg border border-slate-200/60 rounded-2xl p-2 shadow-sm"
+        className="flex gap-3 justify-between items-center bg-white/70 backdrop-blur-lg border border-slate-200/60 rounded-2xl p-2 shadow-sm"
       >
         <div className="relative group w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={18} />
@@ -161,7 +160,7 @@ export default function PaymentsPage() {
       {/* Modern Card List instead of basic table */}
       <Motion.section
         variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         <AnimatePresence>
           {loading ? (
@@ -198,11 +197,11 @@ export default function PaymentsPage() {
                   transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
                   key={payment.id}
                   onClick={() => toggleSelect(payment.id)}
-                  className={`relative cursor-pointer overflow-hidden rounded-2xl border transition-all ${
+                  className={`relative min-w-0 cursor-pointer overflow-hidden rounded-2xl border transition-all ${
                     isSelected
                     ? 'border-orange-400 shadow-[0_8px_30px_rgb(249,115,22,0.15)] bg-orange-50/50'
                     : 'border-slate-200/60 bg-white/80 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)]'
-                  } backdrop-blur-xl p-5 group`}
+                  } backdrop-blur-xl p-4 group`}
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex gap-3 items-center">
@@ -241,7 +240,7 @@ export default function PaymentsPage() {
                   </div>
 
                   {payment.notes && (
-                    <div className="mt-3 text-sm text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100 line-clamp-2">
+                    <div className="mt-3 text-sm text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 line-clamp-2">
                       <span className="font-medium mr-1 text-slate-700">Ghi chú:</span>
                       {payment.notes}
                     </div>
@@ -464,13 +463,13 @@ function PaymentForm({ onSuccess, onCancel }) {
       </div>
 
       <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-        <button type="button" onClick={onCancel} className="px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+        <button type="button" onClick={onCancel} className="btn-secondary">
           Hủy bỏ
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-8 py-3 bg-gradient-to-r from-orange-500 to-rose-500 shadow-lg shadow-orange-500/25 rounded-xl text-white font-bold hover:shadow-orange-500/40 transition-all disabled:opacity-50 active:scale-95"
+          className="btn-primary"
         >
           {loading ? 'Đang khởi tạo...' : 'Xác nhận tạo phiếu'}
         </button>

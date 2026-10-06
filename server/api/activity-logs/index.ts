@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { getNumber, getString, sendApiError } from "../../../lib/api-utils.js";
 
 function parseDateRange(from?: string, to?: string) {
@@ -39,10 +38,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only GET allowed", 405);
   }
 
-  if (req.user.role !== "admin") {
-    return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
-  }
-
   try {
     const limit = Math.min(Math.max(getNumber(req.query.limit) || 50, 1), 100);
     const offset = Math.max(getNumber(req.query.offset) || 0, 0);
@@ -60,7 +55,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     if (createdAt) where.createdAt = createdAt;
 
     const [logs, total] = await Promise.all([
-      prisma.activityLog.findMany({
+      req.db.activityLog.findMany({
         where,
         include: {
           user: {
@@ -76,7 +71,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         take: limit,
         skip: offset,
       }),
-      prisma.activityLog.count({ where }),
+      req.db.activityLog.count({ where }),
     ]);
 
     return successResponse(res, {
@@ -97,4 +92,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("audit_logs.view", handler);

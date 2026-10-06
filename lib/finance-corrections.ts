@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { ApiError, parseMonthRange } from "./api-utils.js";
 import { buildStudentTuitionV3 } from "./tuition-v3-service.js";
+import type { TuitionSettingsContext } from "./tuition-settings.js";
 
 export type FinanceAnomalyCode =
   | "RECEIPT_WITH_ZERO_DAYS"
@@ -197,18 +198,24 @@ export async function createReceiptCorrectionLineRevisions(
 export async function calculateStudentMonthlyFee(
   client: any,
   studentId: string,
-  month: string
+  month: string,
+  options: {
+    tenantId?: string;
+    settings?: TuitionSettingsContext;
+  } = {},
 ) {
   const { startDate, endDate } = parseMonthRange(month);
+  const tenantScope = options.tenantId ? { tenantId: options.tenantId } : {};
   const student = await client.student.findFirst({
-    where: { id: studentId, deletedAt: null },
+    where: { id: studentId, deletedAt: null, ...tenantScope },
     include: {
       studentClasses: {
-        where: { status: "active", enrollmentDate: { lt: endDate } },
+        where: { ...tenantScope, status: "active", enrollmentDate: { lt: endDate } },
         include: { class: { include: { teacher: true } } },
       },
       enrollmentPeriods: {
         where: {
+          ...tenantScope,
           startedAt: { lt: endDate },
           OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
         },
@@ -247,11 +254,12 @@ export async function calculateStudentMonthlyFee(
   for (const enrollment of enrollments.values()) {
     const [sessions, attendance] = await Promise.all([
       client.classSession.findMany({
-        where: { classId: enrollment.classId, billingMonth: month },
+        where: { ...tenantScope, classId: enrollment.classId, billingMonth: month },
         orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
       }),
       client.attendance.findMany({
         where: {
+          ...tenantScope,
           studentId,
           classId: enrollment.classId,
           attendanceDate: { gte: startDate, lt: endDate },
@@ -276,6 +284,7 @@ export async function calculateStudentMonthlyFee(
       enrollment: { periods: enrollment.periods },
       sessions,
       attendance,
+      settings: options.settings,
     });
     const chargedLedger = tuition.calculationSnapshot.ledger.filter(
       (row: any) => Number(row.amount || 0) > 0,

@@ -7,6 +7,10 @@
 
 ---
 
+## Remediation Addendum - 2026-10-05
+
+The historical implementation status above is not readiness evidence for the current dirty local Admin Console candidate. New R2-R5 findings are tracked in the [tuition/progress production plan](plans/2026-10-05-tuition-progress-production/plan.md) and [proposed business contract](docs/production-readiness/tuition-progress/business-contract.md). They cover source-correct trends, daily/monthly/finalize consistency, comparable skill evidence, effective settings and PDF parity. New semantics require owner acceptance in TPR-01; no historical decision or finalized score is silently overridden.
+
 ## PHẦN 1 — VẤN ĐỀ & MỤC TIÊU
 
 ### 1.1 Vấn đề hiện tại (theo phản ánh của chủ dự án)

@@ -1,18 +1,19 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   type AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError } from "../../../lib/api-utils.js";
 import {
   buildStudentProgressComparison,
   buildStudentProgressTimeline,
   MAX_PROGRESS_RANGE_DAYS,
+  getTimelineBaseline,
 } from "../../../lib/student-progress-timeline.js";
+import { loadTimelineAcademicSettings } from "../../../lib/student-progress-timeline-settings.js";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -66,14 +67,12 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       );
     }
     const endDate = nextDate(inclusiveEndDate);
-    const previousEndDate = new Date(startDate);
-    previousEndDate.setUTCDate(previousEndDate.getUTCDate() - 1);
-    const previousStartDate = new Date(previousEndDate);
-    previousStartDate.setUTCDate(previousStartDate.getUTCDate() - rangeDays + 1);
-    const previousFrom = previousStartDate.toISOString().slice(0, 10);
-    const previousTo = previousEndDate.toISOString().slice(0, 10);
+    const baseline = getTimelineBaseline(from, to);
+    const previousFrom = baseline.from;
+    const previousTo = baseline.to;
+    const previousStartDate = parseDate(previousFrom, "previous_from");
 
-    const months = await prisma.studentProgressMonth.findMany({
+    const months = await req.db.studentProgressMonth.findMany({
       where: {
         studentId,
         classId,
@@ -96,8 +95,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       orderBy: { month: "asc" },
     });
 
-    const timeline = buildStudentProgressTimeline(months, from, to);
-    const previousTimeline = buildStudentProgressTimeline(months, previousFrom, previousTo);
+    const settings = await loadTimelineAcademicSettings(req.db, req.user.tenantId, months);
+    const timeline = buildStudentProgressTimeline(months, from, to, settings);
+    const previousTimeline = buildStudentProgressTimeline(months, previousFrom, previousTo, settings);
+    const comparison = buildStudentProgressComparison(timeline, previousTimeline);
+    timeline.summary.alert_score_drop = comparison.alert_score_drop;
     const identity = months.find((month) => month.month >= from.slice(0, 7)) || months[0];
     return successResponse(res, {
       student: {
@@ -115,7 +117,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       comparison: {
         previous_from: previousFrom,
         previous_to: previousTo,
-        ...buildStudentProgressComparison(timeline, previousTimeline),
+        ...comparison,
       },
     });
   } catch (error) {
@@ -123,4 +125,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin", "receptionist"]);
+export default requirePermission("progress.view", handler);

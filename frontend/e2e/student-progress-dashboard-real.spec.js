@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { setTimeout as backoff } from "node:timers/promises";
 
 const fixture = {
   studentId: "e2e-spd-student",
@@ -14,6 +15,7 @@ function required(name) {
 
 async function login(page, username, password) {
   await page.goto("/login");
+  await page.locator("#tenant-slug").fill("default");
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
   const response = page.waitForResponse(
@@ -22,10 +24,11 @@ async function login(page, username, password) {
   await page.locator("form button[type='submit']").click();
   expect((await response).status()).toBe(200);
   await expect(page).not.toHaveURL(/\/login$/);
+  await page.waitForLoadState("networkidle");
 }
 
 async function api(page, path, options = {}) {
-  return page.evaluate(async ({ path, options }) => {
+  const perform = () => page.evaluate(async ({ path, options }) => {
     const token = localStorage.getItem("token");
     const response = await fetch(path, {
       ...options,
@@ -41,6 +44,11 @@ async function api(page, path, options = {}) {
       : Array.from(new Uint8Array(await response.arrayBuffer()));
     return { status: response.status, contentType, body };
   }, { path, options });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = await perform();
+    if (result.status !== 409 || !["DAILY_PROGRESS_CONFLICT", "PROGRESS_CONFLICT"].includes(result.body?.error?.code) || attempt === 2) return result;
+    await backoff(150 * (attempt + 1));
+  }
 }
 
 function dailyPayload(date, entries) {
@@ -53,7 +61,10 @@ function dailyPayload(date, entries) {
   };
 }
 
-test("real Student Progress persists two days, compares periods, enforces RBAC and renders PDF", async ({ page }) => {
+test("real Student Progress persists two days, compares periods, enforces RBAC and renders PDF", async ({ page }, testInfo) => {
+  fixture.studentId = `e2e-spd-student-${testInfo.project.name}`;
+  const adminUsername = `spd-admin-${testInfo.project.name}`;
+  const receptionistUsername = `spd-receptionist-${testInfo.project.name}`;
   const errors = [];
   page.on("console", (message) => {
     if (
@@ -63,7 +74,7 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   });
   page.on("requestfailed", (request) => errors.push(`requestfailed: ${request.method()} ${request.url()}`));
 
-  await login(page, required("E2E_ADMIN_USERNAME"), required("E2E_ADMIN_PASSWORD"));
+  await login(page, adminUsername, required("E2E_ADMIN_PASSWORD"));
   const teachers = await api(page, "/api/teachers?page_size=500");
   expect(teachers.status).toBe(200);
   const graderId = teachers.body.data.teachers.find(
@@ -88,7 +99,7 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
       ],
     }),
   });
-  expect([200, 201]).toContain(monthlyInput.status);
+  expect([200, 201], JSON.stringify(monthlyInput.body)).toContain(monthlyInput.status);
 
   const wrongGrader = await api(page, "/api/student-progress/daily", {
     method: "PUT",
@@ -107,8 +118,8 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   const first = await api(page, "/api/student-progress/daily", {
     method: "PUT",
     body: JSON.stringify(dailyPayload("2026-08-03", [
-      { entry_type: "skill_assessment", skill_key: "listening", score: 70, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Listening 1", graded_by_teacher_id: graderId },
-      { entry_type: "skill_assessment", skill_key: "reading", score: 68, exam_set_level: "flyers", difficulty_level: "medium", entry_label: "Flyers Reading 1", graded_by_teacher_id: graderId },
+      { entry_type: "skill_assessment", skill_key: "listening", score: 70, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Listening 1", graded_by_teacher_id: graderId },
+      { entry_type: "skill_assessment", skill_key: "reading", score: 68, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Reading 1", graded_by_teacher_id: graderId },
       { entry_type: "homework", skill_key: "homework", score: 90, exam_set_level: "flyers", difficulty_level: "easy", entry_label: "Homework 1" },
     ])),
   });
@@ -122,7 +133,7 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
       { entry_type: "mock_test", skill_key: "mock_test", score: null, exam_set_level: "ket", difficulty_level: "hard", entry_label: "KET Mock 2" },
     ])),
   });
-  expect(second.status).toBe(200);
+  expect(second.status, JSON.stringify(second.body)).toBe(200);
   expect(second.body.data.progress_month.daily_assessment_count).toBe(4);
   expect(second.body.data.progress_month.mock_test_score).toBe(80);
 
@@ -155,13 +166,13 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   expect(pdf.contentType).toContain("application/pdf");
   expect(String.fromCharCode(...pdf.body.slice(0, 4))).toBe("%PDF");
 
-  await page.goto(`/student-progress/${fixture.studentId}?class_id=${fixture.classId}`);
+  await page.goto(`/student-progress/${fixture.studentId}?class_id=${fixture.classId}&month=${fixture.month}`);
   await expect(page.getByTestId("student-progress-detail-page")).toBeVisible();
   await expect(page.getByTestId("progress-timeline-table")).toContainText("03/08/2026");
   await expect(page.getByTestId("progress-timeline-table")).toContainText("04/08/2026");
 
   await page.evaluate(() => localStorage.clear());
-  await login(page, "spd-receptionist", required("E2E_RECEPTIONIST_PASSWORD"));
+  await login(page, receptionistUsername, required("E2E_RECEPTIONIST_PASSWORD"));
   const receptionistRead = await api(
     page,
     `/api/student-progress/daily?student_id=${fixture.studentId}&class_id=${fixture.classId}&entry_date=2026-08-04`
@@ -181,7 +192,7 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
   expect(forbiddenFinalize.body.error.code).toBe("FORBIDDEN");
 
   await page.evaluate(() => localStorage.clear());
-  await login(page, required("E2E_ADMIN_USERNAME"), required("E2E_ADMIN_PASSWORD"));
+  await login(page, adminUsername, required("E2E_ADMIN_PASSWORD"));
   const finalized = await api(page, "/api/student-progress", {
     method: "PUT",
     body: JSON.stringify({
@@ -237,7 +248,7 @@ test("real Student Progress persists two days, compares periods, enforces RBAC a
     expect(deleted.status).toBe(200);
     if (date === "2026-08-04") {
       expect(deleted.body.data.progress_month.daily_assessment_count).toBe(0);
-      expect(deleted.body.data.progress_month.progress_score).toBe(0);
+      expect(deleted.body.data.progress_month.progress_score).toBeNull();
     }
   }
   expect(errors).toEqual([]);

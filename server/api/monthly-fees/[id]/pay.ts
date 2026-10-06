@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -10,14 +9,13 @@ import {
 import {
   ApiError,
   getRequiredString,
-  logActivity,
-  resolveTemplateId,
   sendApiError,
 } from "../../../../lib/api-utils.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
 import { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
 import { monthlyFeePaySchema, validateBody } from "../../../../lib/validation.js";
+import { logActivity, resolveTemplateId } from "../request-db.js";
 
 export { assertAggregatePaymentAllowed } from "../../../../lib/monthly-fee-lines.js";
 
@@ -39,10 +37,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const paymentMethod = body.payment_method;
     const notes = body.notes || undefined;
     const templateId = await resolveTemplateId(
+      req.db,
       "receipt",
       body.template_id,
     );
-    const result = await runSerializableTransaction(prisma, async (tx) => {
+    const result = await runSerializableTransaction(req.db, async (tx) => {
       const feeIdentity = await tx.monthlyFee.findUnique({
         where: { id },
         select: { studentId: true, month: true },
@@ -157,7 +156,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       },
     });
 
-    await logActivity(req, req.user.id, "COLLECT_FEE", "monthly_fee", id);
+    await logActivity(req, "COLLECT_FEE", "monthly_fee", id);
 
     return successResponse(res, {
       receiptId: result.receipt.id,

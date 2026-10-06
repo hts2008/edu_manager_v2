@@ -59,6 +59,35 @@ function mockResponse() {
   };
 }
 
+const TENANT_ID = "tenant-1";
+
+function authPayload(role: "admin" | "receptionist") {
+  return {
+    typ: "user",
+    ver: 0,
+    username: role,
+    role,
+    tid: TENANT_ID,
+    pown: false,
+  };
+}
+
+function authUser(role: "admin" | "receptionist") {
+  return {
+    id: `${role}-1`,
+    username: role,
+    fullName: role === "admin" ? "Admin" : "Receptionist",
+    email: null,
+    phone: null,
+    role,
+    status: "active",
+    lastLogin: null,
+    tokenVersion: 0,
+    tenantId: TENANT_ID,
+    isPlatformOwner: false,
+  };
+}
+
 describe("class session month plans", () => {
   it("normalizes audit reasons and rejects whitespace-only values", () => {
     assert.equal(requiredChangeReason("  publish June plan  "), "publish June plan");
@@ -453,6 +482,7 @@ describe("class session month-plan API behavior", () => {
       transaction: mockedPrisma.$transaction,
       userFindUnique: mockedPrisma.user.findUnique,
       authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      tenantFindUnique: mockedPrisma.tenant.findUnique,
     };
     const previousNodeEnv = process.env.NODE_ENV;
     const authConfig = {
@@ -470,20 +500,11 @@ describe("class session month-plan API behavior", () => {
         transactionCalls += 1;
         throw new Error("reason validation must happen before the transaction");
       };
-      mockedPrisma.user.findUnique = async () => ({
-        id: "admin-1",
-        username: "admin",
-        fullName: "Admin",
-        email: null,
-        phone: null,
-        role: "admin",
-        status: "active",
-        lastLogin: null,
-        tokenVersion: 0,
-      });
-      mockedPrisma.authSession.findFirst = async () => ({ id: "session-reason" });
+      mockedPrisma.user.findUnique = async () => authUser("admin");
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-reason", tenantId: TENANT_ID });
+      mockedPrisma.tenant.findUnique = async () => ({ id: TENANT_ID, status: "active" });
       const token = jwt.sign(
-        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authPayload("admin"),
         authConfig.secret,
         {
           algorithm: authConfig.algorithm,
@@ -535,6 +556,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.$transaction = originals.transaction;
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.tenant.findUnique = originals.tenantFindUnique;
       setAuthConfigForTests(null);
       if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = previousNodeEnv;
@@ -550,6 +572,7 @@ describe("class session month-plan API behavior", () => {
       transaction: mockedPrisma.$transaction,
       userFindUnique: mockedPrisma.user.findUnique,
       authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      tenantFindUnique: mockedPrisma.tenant.findUnique,
       classFindUnique: mockedPrisma.class.findUnique,
       attendancePeriodFindUnique: mockedPrisma.attendancePeriod.findUnique,
       attendancePeriodFindFirst: mockedPrisma.attendancePeriod.findFirst,
@@ -586,18 +609,9 @@ describe("class session month-plan API behavior", () => {
       setAuthConfigForTests(authConfig);
       mockedPrisma.$transaction = async (work: (tx: any) => Promise<unknown>) => work(mockedPrisma);
       mockedPrisma.$queryRaw = async () => [];
-      mockedPrisma.user.findUnique = async () => ({
-        id: "admin-1",
-        username: "admin",
-        fullName: "Admin",
-        email: null,
-        phone: null,
-        role: "admin",
-        status: "active",
-        lastLogin: null,
-        tokenVersion: 0,
-      });
-      mockedPrisma.authSession.findFirst = async () => ({ id: "session-patch-schedule" });
+      mockedPrisma.user.findUnique = async () => authUser("admin");
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-patch-schedule", tenantId: TENANT_ID });
+      mockedPrisma.tenant.findUnique = async () => ({ id: TENANT_ID, status: "active" });
       mockedPrisma.class.findUnique = async () => ({
         id: "class-1",
         scheduleDays: [],
@@ -669,7 +683,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.classSession.updateMany = async () => ({ count: dates.length });
 
       const token = jwt.sign(
-        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authPayload("admin"),
         authConfig.secret,
         {
           algorithm: authConfig.algorithm,
@@ -722,6 +736,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.$transaction = originals.transaction;
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.tenant.findUnique = originals.tenantFindUnique;
       mockedPrisma.class.findUnique = originals.classFindUnique;
       mockedPrisma.attendancePeriod.findUnique = originals.attendancePeriodFindUnique;
       mockedPrisma.attendancePeriod.findFirst = originals.attendancePeriodFindFirst;
@@ -836,6 +851,7 @@ describe("class session month-plan API behavior", () => {
       transaction: mockedPrisma.$transaction,
       userFindUnique: mockedPrisma.user.findUnique,
       authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      tenantFindUnique: mockedPrisma.tenant.findUnique,
       classFindUnique: mockedPrisma.class.findUnique,
       classMonthPlanFindUnique: mockedPrisma.classMonthPlan.findUnique,
       classMonthPlanUpsert: mockedPrisma.classMonthPlan.upsert,
@@ -866,18 +882,9 @@ describe("class session month-plan API behavior", () => {
         transactionCalls += 1;
         throw new Error("GET month-plan attempted to open a write transaction");
       };
-      mockedPrisma.user.findUnique = async () => ({
-        id: "admin-1",
-        username: "admin",
-        fullName: "Admin",
-        email: null,
-        phone: null,
-        role: "admin",
-        status: "active",
-        lastLogin: null,
-        tokenVersion: 0,
-      });
-      mockedPrisma.authSession.findFirst = async () => ({ id: "session-read" });
+      mockedPrisma.user.findUnique = async () => authUser("admin");
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-read", tenantId: TENANT_ID });
+      mockedPrisma.tenant.findUnique = async () => ({ id: TENANT_ID, status: "active" });
       mockedPrisma.class.findUnique = async () => ({ id: "class-1" });
       mockedPrisma.classMonthPlan.findUnique = async () => ({
         id: "plan-1",
@@ -923,7 +930,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.classMonthPlanRevision.create = mutationAttempt;
 
       const token = jwt.sign(
-        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authPayload("admin"),
         authConfig.secret,
         {
           algorithm: authConfig.algorithm,
@@ -962,6 +969,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.$transaction = originals.transaction;
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.tenant.findUnique = originals.tenantFindUnique;
       mockedPrisma.class.findUnique = originals.classFindUnique;
       mockedPrisma.classMonthPlan.findUnique = originals.classMonthPlanFindUnique;
       mockedPrisma.classMonthPlan.upsert = originals.classMonthPlanUpsert;
@@ -984,6 +992,7 @@ describe("class session month-plan API behavior", () => {
     const originals = {
       userFindUnique: mockedPrisma.user.findUnique,
       authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      tenantFindUnique: mockedPrisma.tenant.findUnique,
       classFindUnique: mockedPrisma.class.findUnique,
       classMonthPlanFindUnique: mockedPrisma.classMonthPlan.findUnique,
       classMonthPlanRevisionFindUnique: mockedPrisma.classMonthPlanRevision.findUnique,
@@ -1003,18 +1012,9 @@ describe("class session month-plan API behavior", () => {
     try {
       process.env.NODE_ENV = "test";
       setAuthConfigForTests(authConfig);
-      mockedPrisma.user.findUnique = async () => ({
-        id: "admin-1",
-        username: "admin",
-        fullName: "Admin",
-        email: null,
-        phone: null,
-        role: "admin",
-        status: "active",
-        lastLogin: null,
-        tokenVersion: 0,
-      });
-      mockedPrisma.authSession.findFirst = async () => ({ id: "session-stable-read" });
+      mockedPrisma.user.findUnique = async () => authUser("admin");
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-stable-read", tenantId: TENANT_ID });
+      mockedPrisma.tenant.findUnique = async () => ({ id: TENANT_ID, status: "active" });
       mockedPrisma.class.findUnique = async () => ({ id: "class-1" });
       mockedPrisma.classMonthPlan.findUnique = async () => {
         const revision = revisions[aggregateReads++] ?? 2;
@@ -1024,10 +1024,10 @@ describe("class session month-plan API behavior", () => {
         snapshot: {
           payload: {
             operation: "replace",
-            requested_dates: where.planId_revision.revision === 1
+            requested_dates: (where.planId_revision?.revision ?? where.tenantId_planId_revision?.revision) === 1
               ? ["2026-07-01"]
               : ["2026-07-01", "2026-07-08"],
-            expected_regular_sessions: where.planId_revision.revision === 1 ? 1 : 2,
+            expected_regular_sessions: (where.planId_revision?.revision ?? where.tenantId_planId_revision?.revision) === 1 ? 1 : 2,
           },
         },
       });
@@ -1053,7 +1053,7 @@ describe("class session month-plan API behavior", () => {
         },
       ];
       const token = jwt.sign(
-        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authPayload("admin"),
         authConfig.secret,
         {
           algorithm: authConfig.algorithm,
@@ -1084,6 +1084,7 @@ describe("class session month-plan API behavior", () => {
     } finally {
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.tenant.findUnique = originals.tenantFindUnique;
       mockedPrisma.class.findUnique = originals.classFindUnique;
       mockedPrisma.classMonthPlan.findUnique = originals.classMonthPlanFindUnique;
       mockedPrisma.classMonthPlanRevision.findUnique = originals.classMonthPlanRevisionFindUnique;
@@ -1104,6 +1105,7 @@ describe("class session month-plan API behavior", () => {
       transaction: mockedPrisma.$transaction,
       userFindUnique: mockedPrisma.user.findUnique,
       authSessionFindFirst: mockedPrisma.authSession.findFirst,
+      tenantFindUnique: mockedPrisma.tenant.findUnique,
       classFindUnique: mockedPrisma.class.findUnique,
       attendancePeriodFindUnique: mockedPrisma.attendancePeriod.findUnique,
       attendancePeriodFindFirst: mockedPrisma.attendancePeriod.findFirst,
@@ -1133,18 +1135,9 @@ describe("class session month-plan API behavior", () => {
       setAuthConfigForTests(authConfig);
       mockedPrisma.$transaction = async (work: (tx: any) => Promise<unknown>) => work(mockedPrisma);
       mockedPrisma.$queryRaw = async () => [];
-      mockedPrisma.user.findUnique = async () => ({
-        id: "admin-1",
-        username: "admin",
-        fullName: "Admin",
-        email: null,
-        phone: null,
-        role: "admin",
-        status: "active",
-        lastLogin: null,
-        tokenVersion: 0,
-      });
-      mockedPrisma.authSession.findFirst = async () => ({ id: "session-1" });
+      mockedPrisma.user.findUnique = async () => authUser("admin");
+      mockedPrisma.authSession.findFirst = async () => ({ id: "session-1", tenantId: TENANT_ID });
+      mockedPrisma.tenant.findUnique = async () => ({ id: TENANT_ID, status: "active" });
       mockedPrisma.class.findUnique = async () => ({
         id: "class-1",
         scheduleDays: [],
@@ -1175,7 +1168,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.classSession.deleteMany = async () => ({ count: 0 });
 
       const token = jwt.sign(
-        { typ: "user", ver: 0, username: "admin", role: "admin" },
+        authPayload("admin"),
         authConfig.secret,
         {
           algorithm: authConfig.algorithm,
@@ -1238,6 +1231,7 @@ describe("class session month-plan API behavior", () => {
       mockedPrisma.$transaction = originals.transaction;
       mockedPrisma.user.findUnique = originals.userFindUnique;
       mockedPrisma.authSession.findFirst = originals.authSessionFindFirst;
+      mockedPrisma.tenant.findUnique = originals.tenantFindUnique;
       mockedPrisma.class.findUnique = originals.classFindUnique;
       mockedPrisma.attendancePeriod.findUnique = originals.attendancePeriodFindUnique;
       mockedPrisma.attendancePeriod.findFirst = originals.attendancePeriodFindFirst;

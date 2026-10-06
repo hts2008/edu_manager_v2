@@ -1,6 +1,10 @@
 import { ApiError } from "./api-utils.js";
 import { acquireClassMonthRosterAdvisoryLocks } from "./attendance-lock-transaction.js";
 import { runSerializableTransaction } from "./serializable-transaction.js";
+import {
+  classMonthPlanRevisionUniqueWhere,
+  classMonthPlanUniqueWhere,
+} from "./tenant-selectors.js";
 
 export type AttendancePeriodPlanStatus = "open" | "submitted" | "approved" | "locked";
 export type ClassMonthPlanState = "open" | "frozen";
@@ -52,7 +56,12 @@ export async function withClassMonthPlanRosterWrite<T>(
   billingMonth: string,
   work: (tx: any) => Promise<T>,
 ) {
-  return runSerializableTransaction(db, async (tx) => {
+  const transactionDb =
+    typeof db.$tenantRawTransaction === "function"
+      ? { $transaction: db.$tenantRawTransaction.bind(db) }
+      : db;
+
+  return runSerializableTransaction(transactionDb, async (tx) => {
     await acquireClassMonthRosterAdvisoryLocks(
       tx,
       [classId],
@@ -196,12 +205,7 @@ export async function ensureClassMonthPlan(
   return inTransaction(db, async (tx: any) => {
     const now = new Date();
     const plan = await tx.classMonthPlan.upsert({
-      where: {
-        classId_billingMonth: {
-          classId: input.classId,
-          billingMonth: input.billingMonth,
-        },
-      },
+      where: classMonthPlanUniqueWhere(tx, input.classId, input.billingMonth),
       create: {
         classId: input.classId,
         billingMonth: input.billingMonth,
@@ -211,25 +215,33 @@ export async function ensureClassMonthPlan(
         updatedById: input.actorId ?? null,
         frozenById: desiredState === "frozen" ? input.actorId ?? null : null,
         frozenAt: desiredState === "frozen" ? now : null,
-        revisions: {
-          create: {
-            revision: 1,
-            state: desiredState,
-            eventType: "ensure",
-            snapshot: {
-              schema_version: 1,
-              class_id: input.classId,
-              billing_month: input.billingMonth,
-              state: desiredState,
-              revision: 1,
-              payload: input.snapshot ?? null,
-            },
-            actorId: input.actorId ?? null,
-          },
-        },
       },
       update: {},
     });
+
+    const initialRevision = await tx.classMonthPlanRevision.findUnique({
+      where: classMonthPlanRevisionUniqueWhere(tx, plan.id, 1),
+      select: { id: true },
+    });
+    if (!initialRevision) {
+      await tx.classMonthPlanRevision.create({
+        data: {
+          planId: plan.id,
+          revision: 1,
+          state: plan.state,
+          eventType: "ensure",
+          snapshot: {
+            schema_version: 1,
+            class_id: input.classId,
+            billing_month: input.billingMonth,
+            state: plan.state,
+            revision: 1,
+            payload: input.snapshot ?? null,
+          },
+          actorId: input.actorId ?? null,
+        },
+      });
+    }
 
     if (desiredState === "frozen" && plan.state === "open") {
       return claimInTransaction(tx, {
@@ -273,12 +285,7 @@ export async function recordClassMonthPlanWrite(
   },
 ) {
   const existing = await tx.classMonthPlan.findUnique({
-    where: {
-      classId_billingMonth: {
-        classId: input.classId,
-        billingMonth: input.billingMonth,
-      },
-    },
+    where: classMonthPlanUniqueWhere(tx, input.classId, input.billingMonth),
   });
   if (!existing) {
     return ensureClassMonthPlan(tx, {
@@ -310,12 +317,7 @@ export async function reopenClassMonthPlan(
   },
 ) {
   const plan = await tx.classMonthPlan.findUnique({
-    where: {
-      classId_billingMonth: {
-        classId: input.classId,
-        billingMonth: input.billingMonth,
-      },
-    },
+    where: classMonthPlanUniqueWhere(tx, input.classId, input.billingMonth),
   });
   if (!plan) return null;
   const supportsSessionGuard = typeof tx.$executeRawUnsafe === "function";

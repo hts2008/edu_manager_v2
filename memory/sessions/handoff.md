@@ -1,5 +1,102 @@
 # Session Handoff - EDU_MANAGER_V2 Phase C Closeout
 
+## Current Release - 2026-10-06
+
+Production operational: https://edu-manager-gules.vercel.app, deployment dpl_EgFWmAYP6c41mXbktcUFvEoWM46s, runtime811fb4b. Actual canonical authenticated routes/auth negatives/platform403/cloud encrypted V4 backup/counts verified. Migration19-chain, verifier28/59/0; ownership restored, zero freeze triggers/operator roles; original credentials unchanged. Center default/admin-live tenant-only, private EFS/ACL credential file .release-private/production-admin.json. Never publish credentials/backup keys/PII. Preserve final frozen encrypted physical backup and owned recovery database. Pending final release-helper hardening, PR2 merge/final main deployment smoke;24h observation not preclaimed. NM0/C+0health unavailable. Older status paragraphs below are historical checkpoints.
+
+Latest production request RELEASE-20261006-01 BLOCKED.373 local changed paths, main/origin0/0; typecheck pass but undici/brace-expansion high fail current CI. Obtain scope and center/new-empty versus existing data; remediate/rehearse before production. No push/deploy/credentials created. Preflight receipts/2026-10-06-go-live-preflight.md; preserve all local work.
+
+Latest receipt-only correction UX-RECEIPT-DESIGN-02 REVIEW: three grouped sections, neutral document, restrained teal amount accent.240 frontend tests/build/lint/six PDFs verified; review A4/A5 saved. Evidence receipts/2026-10-06-receipt-design-hierarchy.md. No report/calculation/default/deployment changes. Next user visual/printer validation; NM/C+ unavailable0/0health unavailable.
+
+## Latest Handoff - Print Palette (2026-10-06)
+
+UX-PRINT-PALETTE-01 REVIEW. Neutral white card fills and gray borders replace rainbow receipt/progress print cards; only receipt amount softly accented. Current/previous charts indigo/gray. All layout/bindings/calculations preserved.239 frontend tests/lint/build; six actual one-page PDFs without field overflow; browser review templates saved. Review3090 retained,3088 untouched. Evidence receipts/2026-10-06-print-palette.md. Next: user visual approval and physical-printer validation. Existing customized templates not bulk migrated. NM/C+ unavailable0/0health unavailable; no global memory write, deployment or dependency changes.
+
+## Latest Handoff - Core Skills / Clay Receipts (2026-10-06)
+
+Tasks CORE-03/RECEIPT-CLAY-01 REVIEW. Receipt receipts/2026-10-06-core-skills-clay-receipts.md:237frontend/536root/25PDF, six actual PDFs, lint/typecheck/build, Chrome four skills and two saved/reloaded Clay templates. Review server3090 final launcher117796;3088 untouched. Historical evidence/cumulative score calculations not changed. Clay uses existing V2 bitmap+absolute fields; both edit buttons fetch full config and route to dedicated editor. Overlong nonfinancial text ellipsizes; critical field overflow rejects422 rather than losing financial text. No default/receipt transaction/migration/deployment. Next user visual approval, physical printer, existing release gates. NM/C+ unavailable0/0health unavailable; no Stitch fallback or unrelated Figma edit.
+
+
+## Latest Clay Print Handoff - 2026-10-06
+
+UX-PROGRESS-PRINT-CLAY-02 REVIEW supersedes PRINT-01 visual design after explicit user rejection. Clay metrics/charts Bento, bounded bars, actual latest-six-day timeline, numbered recommendations; print-safe pastel fallback.229tests/lint/typecheck/build/sixPDF/liveChrome pass; independent review no findings. Receipt receipts/2026-10-06-progress-print-clay.md. Local3090 launcher140908/listener83044 isolated schema restored, A4preview open. No learner data/schema/dependency/production changes; local login writes session only. Next user visual acceptance/physicalprinter, production gates unchanged. NM/C+ unavailable0/0health unavailable; required Stitch model unsupported, Figma other-project metadata only.
+
+## Latest Handoff - Parent Print Report (2026-10-06)
+
+UX-PROGRESS-PRINT-01 REVIEW. Component/helper/page/tests implemented;228 frontend tests and six actual PDFs, lint/typecheck/build pass. Canonical data guard and close cancellation reviewed/fixed. A4/A5 render inspected. Receipt receipts/2026-10-06-progress-print-report.md. Next: reload3090/student-progress, learner In, confirm preview and final printer settings. CUA Debugger unattached twice prevents user-tab verification; isolated mounted Chromium passed. No physical printer, production, schema or dependency changes. NM/C+ unavailable0/0 health unavailable; production gates unchanged.
+
+## Latest Handoff - Compact Learner Charts (2026-10-06)
+
+Local UX-PROGRESS-CHARTS-01 IMPLEMENTED. Report charts consume row.chart_timeline canonical rawskills/days/current-priorcalendar comparison; month internal/classcaption; no averagecolumn, scoregrid2x2. Tests222frontend/536root/13focused/5realHTTP, lint/typecheck/buildpass. Screenshot and actual save/reload evidence receipts/2026-10-06-progress-row-charts.md. Fixture save listening80 changed radar3.5->18.8/cumulative233->313/count5->6. Missingpaths disconnected, zero kept; opaque singlepointdot.
+
+Review3090PID49832,3088unchanged/cachedoldbackend. Viewportreset, no draft/dialog. Mobilegeometry434px no documentoverflow, tablecontainedscroll. No performancebenchmark/fullteachertrial/useracceptance claim. No schema/dependency/production/migration/deployment. NM/C+ unavailable0/0health unavailable; workspace ADR-66 only. All older PID/objective entries below are historical.
+
+## Latest Handoff - Inline Report Assessments (2026-10-06)
+
+Local feature IMPLEMENTED; report rows now accept independent assessments, server date/time and one count per UUID submission; Update tab removed, original restored style retained. Empty new drafts, real zero, multiple same-day homework submissions, live canonical refresh and guarded retries/navigation. Historical/finalized rows read-only for new submissions, existing corrections preserved. Backend/report/frontend tests and real PostgreSQL/HTTP/browser evidence in receipts/2026-10-06-inline-report-assessments.md. Frontend216/root536/contracts18; HTTP19 x3; lint/typecheck/build pass. Independent review closure29backend/22frontend tests, no additional scope findings.
+
+Current server3090 PID61916; user3088 untouched/cached old backend. Browser deliverable shows synthetic tenant one row60/100,2 updates,3 evidence after final restart. Multi-row preservation verified with mounted mocked-API tests, not a live multi-row browser trial. Mobile geometry effective CSS434px due browser zoom; viewport reset. No pending dialog/draft. Prior blockers below are historical. NM/C+ unavailable, counts0/0, health unavailable, no NM decisions stored; workspace ADR-65 records contract. No deployment/migration/dependency changes; production NO-GO and prior approval-bearing gates remain.
+
+## Latest Handoff - Cross-Route Consistency Review (2026-10-06)
+
+Local headers/KPIs/tokens/avatars/progress disclosures unified. UX-CONSISTENCY-01 REVIEW; frontend193/193, lint/build/typecheck pass;23desktop/23mobile geometry checks no overflow. Receipt receipts/2026-10-06-ui-consistency-review.md, review and three screenshots in existing teacher execution artifact folder.
+
+IMPORTANT: native confirm remains open from a keyboard draft trial; user was asked to Cancel. Listening20 is a temporary unsaved draft; original value empty. Restore it before leaving browser; no Save/DB mutation performed. Browser focus emulation timed out, so runtime focus acceptance is not proven. Screenshot sweep stopped after three capture failures, temporary viewport/media reset. Independent P2 focus finding fixed with return boolean/accepted-only focus and regression. NM/C+ unavailable0/0; existing production NO-GO unchanged.
+
+## Latest Handoff - Teacher Workspace Local Execution
+
+Always-visible dated rows, canonical saves/CAS/replay, fixed collapsible shell, editable copy/theme console and unsaved/saving navigation guards implemented locally. Review package docs/artifacts/teacher-workspace-execution-2026-10-05/README.md and receipt receipts/2026-10-05-teacher-workspace-execution.md contain logs/screenshots and remaining gates. Root533/admin216/frontend161 pass; focused55 pass/1 skip; browser10/no pageErrors; lint/type/build pass.
+
+UXW-02/03/04 REVIEW,01/05/06 PARTIAL; production NO-GO. Await explicit permission CHECK migration approval; no schema apply performed. Stitch/Figma source, teacher mapping, teacher trial/full matrix and security/history/recovery remain open. Preserve dirty work; no credentials, production writes or deployment. Local fixture port15432/application3088 may need owned-service restart after runtime cleanup. NM/C+ calls0/0, health unavailable, NM decisions0; workspace ADR-62 only.
+
+## Latest Handoff: Teacher Workspace UX Planning
+
+- Read plans/2026-10-05-teacher-workspace-clay/plan.md and docs/ux/teacher-workspace-2026-10-05/README.md. User explicitly chose always-visible spreadsheet cells, not expanded editor. Fixed collapsible sidebar and no right print/editor panel requested.
+-13 Markdown files/18 local links/acyclic6-phase graph/diff-check verified;22 future scenarios. No app/DB/dependency/deploy changes or product test claims in this planning turn.
+- Daily PUT replaces all selected-date entries; grid needs safe partial patch/evidence CAS/shared finalization version before writes. UserRole lacks teacher; scope mapping requires explicit design. TP-1 canonical sources/null/zero/frozen history preserved.
+- Console copy/theme proposed typed safe overrides with CAS/history/rollback; defaults/domain enums remain code-owned, protected meaning cannot be edited away.
+- Stitch inventory succeeds but required3.1Pro unavailable in generation schema; no substitution. Figma auth succeeds, target file key not supplied/found; no visual frames created. CLI/orchestrator skill missing, manual docs fallback. NM/C+ calls0/0, health unavailable, NM decisions0.
+- Next design/API approval and actual Stitch/Figma source freeze; UX phases planned, prior production NO-GO and calculate500/security/history/recovery tasks remain unresolved. Existing local data/password/services unchanged.
+
+Local review dataset local-review-v1 exists in browser fixture tenant, July-October2026. Script refuses unsafe targets and preserves existing rows; no password changes.24 fees generated through real API. Manual calculate500 UNSAFE_RAW_QUERY newly tracked TPR-CALC-LOCK-01; do not treat working generator as proof that manual calculation works. Receipt receipts/2026-10-05-local-review-data.md. NM/C+ calls0/0 health unavailable.
+
+## Local Login Recovery - 2026-10-05
+
+Local browser fixture admin password reset with session revocation/tokenVersion increment. Frontend must build with VITE_TENANCY_MODE=enforced to match backend; legacy build hides tenant input. Browser login and wrong-password feedback verified. Fixture IDs unchanged, password omitted from files; future browser tests require the newly supplied fixture password. See receipts/2026-10-05-local-login-recovery.md. NM/C+ unavailable, calls0/0, health unavailable.
+
+## Latest Handoff - Local Tuition/Progress Fixes Under Review
+
+- Begin with execution receipt and captured verification JSON, not the older documentation-only checkpoint below. User authorized implementation via team/cook; product code was changed, no production action occurred.
+- R1 surcharge; R2 canonical comparable trends; R3 daily-only/finalized provenance; R4 coverage/calibration/baselines; R5 effective/frozen settings and UI/PDF corrected locally. Settings preview commits include accepted config version and atomic tenant CAS. Revisions/activity are transactional with bounded retries.
+- Board: phases01/05 PARTIAL,02/03/04 REVIEW,06 BLOCKED; follow-upsR1-R5 REVIEW. NO-GO. Security high findings and coverage/matrix/history/recovery/sign-off gaps are tracked, not waived.
+- Real PostgreSQL/HTTP with independent persisted readback and synthetic fixtures; three viewport browser reloads. Fresh verification outputs are under `docs/artifacts/tuition-progress-execution-2026-10-05/`; logs/trace/screenshot are bounded local evidence only.
+- Local server3088/containerPG15432 remains for inspection. Production-derived data/rehearsal unavailable and not accessed. Inventory tool is read-only and refuses apply/remote/production.
+- Important test incident: manual cleanup used a browser run's IDs without checking ownership; only local test rows were deleted. Corrected fixture and cleanup guard now verifies purpose, run marker, exact tenant IDs, database identity and persisted tenant names. No more unverified manual cleanup.
+- HTTP fixture graphs containing append-only setting revisions are intentionally retained in the disposable database with count/hash evidence. Never disable immutable-history triggers to clean a test fixture.
+- Do next: authorize dependency patch investigation, finish thresholds/matrix/race/load tests, obtain named finance/academic sign-off and approved operator dataful rehearsal/restore/PITR; freeze reviewed candidate before release.
+- NM/C+ unavailable, calls0/0, health unavailable, NM decisions stored0. Claude TeamCreate unavailable; user-authorized Codex agents used. No global memory writes.
+
+## 2026-10-05 Handoff - Production Remediation Plan Created
+
+- Read `plans/2026-10-05-tuition-progress-production/plan.md`, then `docs/production-readiness/tuition-progress/README.md`. Planning is complete; implementation and production certification are not.
+- R1 -> TPR-02; R2/R3/R4 -> TPR-03; R5 and all consumers -> TPR-04; historical data/real tests/rehearsal -> TPR-05; authorized release/observation -> TPR-06. Begin with TPR-01 baseline and owner-approved contract freeze.
+- Proposed scoring preserves daily-only raw80 through finalize; explicit manual/daily/proxy sources and comparison signatures prevent mixed-source/cross-skill false trends. New policy defaults require acceptance; do not treat them as an already approved formula change.
+- Data repairs must preserve paid/finalized originals and use audited adjustments/new revisions. No unknown wrong historical balance or score can be waived to obtain GO.
+- Documentation checks PASS: 13 Markdown files, 38 links, 6 phases, 50 scenario groups, 13 gates. Receipt: `receipts/2026-10-05-tuition-progress-production-plan.md`. No product tests were run in this planning turn.
+- Audit_V2, progress detail/editor, backup guide and PG/browser harness were read during planning. Critical harness gaps: SELECT1/router404 is not business persistence evidence; current real Playwright discovery/viewport coverage must be expanded.
+- Preserve all dirty app work. Admin Console remains NO-GO; board AC-07 maps to old detailed plan release AC-12. Local guarded restore and dataful Neon migration rehearsal are distinct targets; do not weaken restore safety.
+- Context+ was unavailable this session; Neural Memory was unavailable this session. Calls0/0; health unavailable; decisions stored in NM=0; workspace ADR-59 records planning only. No global memory or production writes.
+
+## 2026-10-05 Handoff - System Comprehension Review Is Partial
+
+- Read `reports/2026-10-05-system-review/review.md` first for current tuition formulas, three distinct progress metrics, domain/API mapping and R1-R5.
+- Two checked-in review probes reproduce current local behaviors with synthetic inputs and no DB queries. They assert the observed defects, not desired product behavior. Existing focused academic tests passed 21/21.
+- Main issue: local per-session extra/surcharge resolves to zero by default. Other issues: mixed-source monthly trend; daily-only/monthly assessment mismatch; cross-skill delta; academic difficulty settings not reaching timeline/PDF.
+- Still pending: full repository/UI/docs review, full tests/typecheck and HTTP/DB/browser validation. OneDrive recall/read failures blocked many files; `Audit_V2.md` and historical release receipts were not verified directly. Do not use historical 530/530 as current evidence.
+- No app implementation, migration, deploy, production seed or global settings changes. Preserve dirty worktree and Admin Console NO-GO.
+- Board: REV-20261005-01 PARTIAL, R1-R5 PLANNED. Receipt: `receipts/2026-10-05-system-comprehension-review.md`.
+- Context+ was unavailable this session; Neural Memory was unavailable this session. Calls NM=0, C+=0; health unavailable; decisions stored=0. Paperclip offline, KANBAN mode.
+
 ## 2026-08-10 Handoff - Student Progress Evidence Semantics + Review Data
 - **Outcome**: Student Progress semantics/review-data track is production-live and project-control closeout is recorded.
 - **Code/Deploy**: commit `9ca29c6`; Vercel `dpl_CAFAZ1hnHTvbsQNnVVEVCnwCJpQz`; alias `https://edu-manager-gules.vercel.app`.
@@ -602,3 +699,14 @@
 - Production Chrome evidence: list/detail/charts/editor loaded, no alert errors or horizontal overflow; PDF endpoint returned an inline PDF blob.
 - Evidence: `receipts/2026-08-06-student-progress-dashboard-closeout.md` and `docs/artifacts/student-progress-2026-08-03/README.md`.
 - Context+ and EDU Neural Memory/MCPProxy were unavailable; markdown memory is current.
+
+## 2026-08-15 Handoff - Admin Console Static Gates Green, Release Still NO-GO
+
+- Admin Console code/test stabilization advanced but the control-plane track is not production-closeout ready.
+- Tenant selector fix: `lib/monthly-fee-generator.ts` now wraps read and transaction clients with a tenant marker so shared selectors use the tenant composite monthly-fee key.
+- Gates passed: focused contract suite `93/93`, Admin Console suite `216/216`, root unit `530/530`, TypeScript, frontend lint, build, diff-check and tenant runtime audit `PASS` with `0` findings.
+- Preserve the release boundary: no production migration, tenant backfill, session revocation, settings mutation or IMPLEMENTED status until dataful Neon rehearsal, restore/rollback/PITR, schema diff, auth/session and canonical production smoke evidence pass.
+- Evidence: `receipts/2026-08-15-admin-console-static-gates-and-tenant-selector.md`.
+# Latest Handoff - User-Directed Visual Restoration - 2026-10-06
+
+Restored pre-consistency page visual style; removed global flattening/palette/dialog overrides. Keep compact padding, metric dedup, internal ID hiding and keyboard guard fix.194 frontend tests/lint/build pass; browser Students restored purple primary/white rounded shadowed panels. Screenshot restoration-students.jpg. User visual acceptance remains pending; previous route sweep belongs to rejected design. Browser confirm no longer present; no DB write. NM/C+ unavailable0/0, health unavailable. Do not resume flattened redesign or production changes.

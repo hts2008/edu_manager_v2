@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -10,9 +9,9 @@ import {
 import {
   ApiError,
   getRequiredString,
-  logActivity,
   sendApiError,
 } from "../../../../lib/api-utils.js";
+import { logPaymentActivity } from "../request-db.js";
 
 function paymentToDto(payment: any) {
   return {
@@ -38,7 +37,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getRequiredString(req.query.id, "id");
 
     if (req.method === "GET") {
-      const payment = await prisma.payment.findFirst({
+      const payment = await req.db.payment.findFirst({
         where: { id, deletedAt: null },
         include: { template: { select: { templateName: true } } },
       });
@@ -51,11 +50,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      const payment = await prisma.payment.findFirst({ where: { id, deletedAt: null } });
+      const payment = await req.db.payment.findFirst({ where: { id, deletedAt: null } });
       if (!payment) throw new ApiError("NOT_FOUND", "Payment not found", 404);
 
-      await prisma.payment.update({ where: { id }, data: { deletedAt: new Date() } });
-      await logActivity(req, req.user.id, "DELETE_PAYMENT", "payment", id);
+      await req.db.payment.update({ where: { id }, data: { deletedAt: new Date() } });
+      await logPaymentActivity(req, "DELETE_PAYMENT", id);
       return successResponse(res, { message: "Payment moved to recycle bin" });
     }
 

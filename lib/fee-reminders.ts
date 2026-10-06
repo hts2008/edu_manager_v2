@@ -1,4 +1,15 @@
 import { getBusinessMonthKey, parseMonthRange } from "./api-utils.js";
+import { renderReminderMessage } from "./feature-flags.js";
+
+export interface FeeReminderRuntime {
+  liveSendEnabled: boolean;
+  messageTemplate: string;
+  delivery?: {
+    url: string;
+    enabled: boolean;
+    secret: string | null;
+  };
+}
 
 function currentMonth() {
   return getBusinessMonthKey();
@@ -12,7 +23,11 @@ function formatCurrency(value: number) {
   }).format(value || 0);
 }
 
-export async function buildFeeReminders(prisma: any, month = currentMonth()) {
+export async function buildFeeReminders(
+  prisma: any,
+  month = currentMonth(),
+  runtime?: Pick<FeeReminderRuntime, "messageTemplate">,
+) {
   parseMonthRange(month);
   const fees = await prisma.monthlyFee.findMany({
     where: {
@@ -46,7 +61,13 @@ export async function buildFeeReminders(prisma: any, month = currentMonth()) {
       month: fee.month,
       status: fee.status,
       total_amount: fee.totalAmount,
-      message: `Trung tam thong bao hoc phi thang ${fee.month} cua ${fee.student.fullName}: ${formatCurrency(fee.totalAmount)}. Vui long thanh toan khi thuan tien. Cam on quy phu huynh.`,
+      message: runtime?.messageTemplate
+        ? renderReminderMessage(runtime.messageTemplate, {
+            studentName: fee.student.fullName,
+            month: fee.month,
+            amount: fee.totalAmount,
+          })
+        : `Trung tam thong bao hoc phi thang ${fee.month} cua ${fee.student.fullName}: ${formatCurrency(fee.totalAmount)}. Vui long thanh toan khi thuan tien. Cam on quy phu huynh.`,
     }));
 
   return {
@@ -59,8 +80,11 @@ export async function buildFeeReminders(prisma: any, month = currentMonth()) {
   };
 }
 
-async function sendWebhookReminder(item: any) {
-  if (process.env.REMINDER_SEND_ENABLED !== "true") {
+async function sendWebhookReminder(item: any, runtime?: FeeReminderRuntime) {
+  const liveSendEnabled = runtime
+    ? runtime.liveSendEnabled
+    : process.env.REMINDER_SEND_ENABLED === "true";
+  if (!liveSendEnabled) {
     return {
       ...item,
       send_status: "disabled",
@@ -69,7 +93,19 @@ async function sendWebhookReminder(item: any) {
     };
   }
 
-  const url = process.env.REMINDER_WEBHOOK_URL || process.env.SMS_WEBHOOK_URL;
+  if (runtime?.delivery && !runtime.delivery.enabled) {
+    return {
+      ...item,
+      send_status: "disabled",
+      provider: "webhook",
+      error: "Tenant integration delivery is disabled",
+    };
+  }
+
+  const url =
+    runtime?.delivery?.url ||
+    process.env.REMINDER_WEBHOOK_URL ||
+    process.env.SMS_WEBHOOK_URL;
   if (!url) {
     return {
       ...item,
@@ -78,13 +114,15 @@ async function sendWebhookReminder(item: any) {
       error: "REMINDER_WEBHOOK_URL is not configured",
     };
   }
+  const secret =
+    runtime?.delivery?.secret ?? process.env.REMINDER_WEBHOOK_TOKEN;
 
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(process.env.REMINDER_WEBHOOK_TOKEN
-        ? { Authorization: `Bearer ${process.env.REMINDER_WEBHOOK_TOKEN}` }
+      ...(secret
+        ? { Authorization: `Bearer ${secret}` }
         : {}),
     },
     body: JSON.stringify(item),
@@ -100,9 +138,13 @@ async function sendWebhookReminder(item: any) {
 
 export async function runFeeReminders(
   prisma: any,
-  { month = currentMonth(), dryRun = true }: { month?: string; dryRun?: boolean }
+  {
+    month = currentMonth(),
+    dryRun = true,
+    runtime,
+  }: { month?: string; dryRun?: boolean; runtime?: FeeReminderRuntime }
 ) {
-  const preview = await buildFeeReminders(prisma, month);
+  const preview = await buildFeeReminders(prisma, month, runtime);
   if (dryRun) {
     return {
       dry_run: true,
@@ -116,7 +158,7 @@ export async function runFeeReminders(
 
   const results = [];
   for (const item of preview.items) {
-    results.push(await sendWebhookReminder(item));
+    results.push(await sendWebhookReminder(item, runtime));
   }
 
   return {

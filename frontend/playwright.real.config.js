@@ -5,7 +5,7 @@ if (!baseURL) throw new Error("E2E_BASE_URL is required for the real E2E suite")
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: ["real-router-postgres.spec.js", "student-progress-dashboard-real.spec.js"],
+  testMatch: ["real-router-postgres.spec.js", "student-progress-dashboard-real.spec.js", "tuition-progress-remediation*.spec.js"],
   outputDir: process.env.E2E_OUTPUT_DIR || "./test-results-real",
   timeout: 45_000,
   expect: { timeout: 10_000 },
@@ -20,7 +20,15 @@ export default defineConfig({
   projects: [
     {
       name: "real-chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: "real-mobile-chromium",
+      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "real-tablet-chromium",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true },
     },
   ],
 });

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -26,7 +25,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getRequiredString(req.query.id, "id");
 
     if (req.method === "GET") {
-      const template = await prisma.template.findUnique({ where: { id } });
+      const template = await req.db.template.findUnique({ where: { id } });
       if (!template) throw new ApiError("NOT_FOUND", "Template not found", 404);
       return successResponse(res, { template: templateToDto(template) });
     }
@@ -36,7 +35,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      const existing = await prisma.template.findUnique({ where: { id } });
+      const existing = await req.db.template.findUnique({ where: { id } });
       if (!existing) throw new ApiError("NOT_FOUND", "Template not found", 404);
 
       const data: any = {};
@@ -53,7 +52,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         data.jsonConfig = parseJsonConfig(req.body?.json_config || req.body?.jsonConfig);
       }
 
-      const template = await prisma.template.update({
+      const template = await req.db.template.update({
         where: { id },
         data,
       });
@@ -68,8 +67,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const [receiptCount, paymentCount] = await Promise.all([
-        prisma.receipt.count({ where: { templateId: id } }),
-        prisma.payment.count({ where: { templateId: id } }),
+        req.db.receipt.count({ where: { templateId: id } }),
+        req.db.payment.count({ where: { templateId: id } }),
       ]);
 
       if (receiptCount || paymentCount) {
@@ -80,7 +79,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
       }
 
-      await prisma.template.delete({ where: { id } });
+      await req.db.template.delete({ where: { id } });
       await logActivity(req, req.user.id, "DELETE_TEMPLATE", "template", id);
       return successResponse(res, { message: "Template deleted" });
     }

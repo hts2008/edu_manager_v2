@@ -1,18 +1,17 @@
 import bcrypt from "bcryptjs";
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../../lib/auth.js";
+import { requirePermission } from "../../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError } from "../../../../lib/api-utils.js";
 import { userResetPasswordSchema, validateBody } from "../../../../lib/validation.js";
 import { userToDto } from "../shared.js";
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
   if (req.method !== "POST") {
@@ -23,21 +22,22 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getString(req.query.id);
     if (!id) throw new ApiError("MISSING_ID", "id is required", 400);
 
-    const existing = await prisma.user.findUnique({ where: { id } });
+    const existing = await req.db.user.findUnique({ where: { id } });
     if (!existing) throw new ApiError("USER_NOT_FOUND", "User not found", 404);
 
     const payload = validateBody(userResetPasswordSchema, req.body);
     const passwordHash = await bcrypt.hash(payload.password, 10);
-    const [user] = await prisma.$transaction([
-      prisma.user.update({
+    const user = await req.db.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
         where: { id },
         data: { passwordHash, tokenVersion: { increment: 1 } },
-      }),
-      prisma.authSession.updateMany({
+      });
+      await tx.authSession.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-    ]);
+      });
+      return updatedUser;
+    });
 
     return successResponse(res, { user: userToDto(user), message: "Password reset" });
   } catch (error) {
@@ -45,4 +45,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("users.reset_password", handler);

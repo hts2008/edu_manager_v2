@@ -238,50 +238,11 @@ export default function ClassesPage() {
       )
     : 0;
 
-  const statCards = [
+  const metrics = [
     {
       label: "Lớp đang mở",
       value: activeClasses,
-      helper: `${classes.length} lớp trong hệ thống`,
-      icon: "🏫",
-      tone: "from-sky-500 to-blue-600",
-      bg: "from-sky-50 to-blue-50",
-    },
-    {
-      label: "Học viên đang học",
-      value: totalStudents,
-      helper: "Tổng lượt ghi danh active",
-      icon: "👥",
-      tone: "from-emerald-500 to-teal-600",
-      bg: "from-emerald-50 to-teal-50",
-    },
-    {
-      label: "Buổi/tuần",
-      value: totalWeeklySessions,
-      helper: "Từ lịch cố định hoặc số buổi",
-      icon: "📅",
-      tone: "from-violet-500 to-indigo-600",
-      bg: "from-violet-50 to-indigo-50",
-    },
-    {
-      label: "Học phí TB/tháng",
-      value: new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-        maximumFractionDigits: 0,
-      }).format(averageFee),
-      helper: "Theo biểu phí hiện hành",
-      icon: "💎",
-      tone: "from-amber-500 to-orange-600",
-      bg: "from-amber-50 to-orange-50",
-    },
-  ];
-
-  const summaryMetrics = [
-    {
-      label: "Lớp đang mở",
-      value: activeClasses,
-      helper: `${classes.length} lớp`,
+      helper: "Trạng thái active",
       icon: School,
       tone: "sky",
     },
@@ -299,10 +260,7 @@ export default function ClassesPage() {
       icon: CalendarDays,
       tone: "indigo",
     },
-  ];
 
-  const metrics = [
-    ...summaryMetrics,
     {
       label: "Học phí TB/tháng",
       value: new Intl.NumberFormat("vi-VN", {
@@ -322,8 +280,6 @@ export default function ClassesPage() {
         eyebrow="Academic operations"
         title="Lớp học"
         description="Điều phối lớp, giáo viên, lịch học và biểu phí trong một không gian vận hành thống nhất cho trung tâm."
-        status={`${classes.length} lớp`}
-        metrics={summaryMetrics}
         actions={
           <button
             onClick={() => {
@@ -340,75 +296,10 @@ export default function ClassesPage() {
 
       <MetricGrid metrics={metrics} />
 
-      <section className="hidden">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/30 blur-3xl" />
-        <div className="absolute -bottom-24 left-16 h-72 w-72 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-4">
-            <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100 backdrop-blur">
-              Academic operations
-            </span>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight md:text-5xl">
-                Lớp học
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">
-                Điều phối lớp, giáo viên, lịch học và biểu phí trong một bảng vận hành thống nhất cho trung tâm.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setEditingClass(null);
-              setShowForm(true);
-            }}
-            className="group inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 font-semibold text-slate-950 shadow-xl shadow-cyan-500/20 transition-all hover:-translate-y-0.5 hover:bg-cyan-50"
-          >
-            <svg className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Thêm lớp học
-          </button>
-        </div>
-      </section>
-
-      <section className="hidden">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            className={`group relative overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br ${card.bg} p-5 shadow-lg shadow-slate-200/70 transition-all hover:-translate-y-1 hover:shadow-2xl`}
-          >
-            <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br ${card.tone} opacity-20 blur-2xl transition-opacity group-hover:opacity-40`} />
-            <div className="relative flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-500">{card.label}</p>
-                <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                  {card.value}
-                </p>
-                <p className="mt-2 text-xs font-medium text-slate-500">{card.helper}</p>
-              </div>
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tone} text-xl shadow-lg shadow-slate-300/60`}>
-                {card.icon}
-              </div>
-            </div>
-          </div>
-        ))}
-      </section>
-
       <ListPanel
         title="Danh sách lớp học"
         description="Nhấn vào một dòng để chỉnh sửa nhanh thông tin lớp."
-        countLabel={`${classes.length} records`}
       >
-        <div className="hidden">
-          <div>
-            <h2 className="text-lg font-bold text-slate-950">Danh sách lớp học</h2>
-            <p className="text-sm text-slate-500">Nhấn vào một dòng để chỉnh sửa nhanh thông tin lớp.</p>
-          </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-            {classes.length} records
-          </span>
-        </div>
         <DataTable
           columns={columns}
           data={classes}

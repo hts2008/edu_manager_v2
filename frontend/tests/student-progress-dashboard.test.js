@@ -182,8 +182,9 @@ describe("student progress dashboard", () => {
     const charts = readFileSync(new URL("../src/components/student-progress/ProgressDashboardCharts.jsx", import.meta.url), "utf8");
     const dailyForm = readFileSync(new URL("../src/components/student-progress/ProgressDailyEntryForm.jsx", import.meta.url), "utf8");
 
-    assert.match(app, /path="student-progress" element=\{withSuspense\(<StudentProgressReportPage \/>\)\}/);
-    assert.match(app, /path="student-progress\/:studentId"/);
+    assert.match(app, /path="student-progress" element=\{withSuspense\(<RequirePermission permission="progress\.view"><StudentProgressReportPage \/><\/RequirePermission>\)\}/);
+    assert.match(app, /path="student-progress\/:studentId" element=\{withSuspense\(<RequirePermission permission="progress\.view"><StudentProgressDetailPage \/><\/RequirePermission>\)\}/);
+    assert.match(app, /<ProtectedRoute requiredPermission=\{permission\}>\{children\}<\/ProtectedRoute>/);
     assert.doesNotMatch(sidebar, /Tiến bộ học viên"[^\n]+adminOnly/);
     assert.match(list, /open-student-progress-detail/);
     assert.match(charts, /student-progress-charts/);

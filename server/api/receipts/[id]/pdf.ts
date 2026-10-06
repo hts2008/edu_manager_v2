@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -22,7 +21,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const receipt = await prisma.receipt.findFirst({
+    const receipt = await req.db.receipt.findFirst({
       where: { id, deletedAt: null },
       include: {
         student: {
@@ -79,6 +78,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       fee_per_day: receipt.feePerDay,
       amount: receipt.amount,
       total_amount: receipt.amount,
+      amount_display: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(receipt.amount),
       payment_method: receipt.paymentMethod === "cash" ? "Tiền mặt" : "Chuyển khoản",
       amount_in_words: numberToWords(receipt.amount),
       notes: receipt.notes || "",

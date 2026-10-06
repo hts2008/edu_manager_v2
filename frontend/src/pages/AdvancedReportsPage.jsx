@@ -45,7 +45,7 @@ function formatCompactCurrency(value) {
 function summaryCard(label, value, tone = "text-gray-900") {
   return (
     <div className="card">
-      <div className="card-body">
+      <div className="card-body p-4">
         <p className="text-sm text-gray-500">{label}</p>
         <p className={`mt-1 text-2xl font-bold ${tone}`}>{value}</p>
       </div>
@@ -85,21 +85,15 @@ export default function AdvancedReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Báo cáo nâng cao</h1>
-          <p className="text-gray-500">
-            Theo dõi xu hướng doanh thu, hiệu suất giáo viên và cohort học viên.
-          </p>
+          <p className="text-gray-500">Theo dõi xu hướng doanh thu, hiệu suất giáo viên và cohort học viên.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={reload} className="btn-secondary">
-            Làm mới
-          </button>
-          <button onClick={exportReport} disabled={!data} className="btn-primary disabled:opacity-50">
-            Export CSV
-          </button>
+          <button onClick={reload} className="btn-secondary">Làm mới</button>
+          <button onClick={exportReport} disabled={!data} className="btn-primary disabled:opacity-50">Export CSV</button>
         </div>
       </div>
 
@@ -144,7 +138,7 @@ export default function AdvancedReportsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCard("Tổng thu", formatCurrency(summary.total_receipts), "text-emerald-700")}
         {summaryCard("Tổng chi", formatCurrency(summary.total_payments), "text-red-700")}
         {summaryCard("Doanh thu ròng", formatCurrency(summary.net_revenue), "text-blue-700")}

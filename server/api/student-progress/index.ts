@@ -1,22 +1,20 @@
-import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
+import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import {
   ApiError,
   getNumber,
   getString,
-  logActivity,
   parseMonthRange,
   sendApiError,
   toDateOnly,
 } from "../../../lib/api-utils.js";
-import { buildReportCube } from "../../../lib/report-cube.js";
+import { loadProgressOperationalRow } from "../../../lib/student-progress-operational-row.js";
 import {
   buildProgressAssessment,
   buildProgressRubric,
@@ -31,14 +29,19 @@ import {
 } from "../../../lib/student-progress-assessment.js";
 import {
   assertProgressMonthEditable,
+  appendProgressActivity,
   buildProgressRevisionSnapshot,
   normalizeReopenReason,
+  runSerializableProgressTransaction,
 } from "../../../lib/student-progress-finalization.js";
 import { normalizeProgressEntrySemantics } from "../../../lib/progress-difficulty.js";
 import {
   studentProgressUpsertSchema,
   validateBody,
 } from "../../../lib/validation.js";
+import { getSettings } from "../../../lib/settings.js";
+import type { AcademicSettingsContext } from "../../../lib/academic-settings.js";
+import { storedProgressScore } from "../../../lib/student-progress-evidence.js";
 
 const SKILL_KEYS: ProgressSkillKey[] = [
   "listening",
@@ -49,6 +52,25 @@ const SKILL_KEYS: ProgressSkillKey[] = [
   "daily_practice",
   "mock_test",
 ];
+
+async function loadAcademicSettings(
+  req: AuthedRequest,
+  month: string,
+  db = req.db,
+): Promise<AcademicSettingsContext> {
+  if (!req.user.tenantId) {
+    throw new ApiError("TENANT_REQUIRED", "Tenant context is required", 403);
+  }
+  const resolved = await getSettings(db, {
+    tenantId: req.user.tenantId,
+    group: "academic",
+    effectiveMonth: month,
+  });
+  if (resolved.settings.some((setting) => setting.warnings?.length)) {
+    throw new ApiError("INVALID_SETTING_VALUE", "Invalid academic settings", 409);
+  }
+  return { settings: resolved.settings };
+}
 
 function progressEntryExamSet(entry: any) {
   return normalizeProgressEntrySemantics(
@@ -89,7 +111,8 @@ function progressMonthToDto(record: any) {
     month: record.month,
     track_key: record.trackKey,
     class_type: record.classType,
-    progress_score: record.progressScore,
+    progress_score: storedProgressScore(record),
+    score_source: record.rubricSnapshot?.scoreEvidence?.source || (record.finalizedAt ? "legacy_unknown" : null),
     attendance_score: record.attendanceScore,
     consistency_score: record.consistencyScore,
     learning_evidence_coverage: record.learningEvidenceCoverage,
@@ -214,13 +237,14 @@ function normalizeSkillInputs(input: {
   skills: ProgressSkillInput[];
   trackKey: ProgressTrackKey;
   classType: ProgressClassType;
+  settings?: AcademicSettingsContext;
 }) {
   const byKey = new Map<ProgressSkillKey, ProgressSkillInput>();
   for (const skill of input.skills || []) {
     if (SKILL_KEYS.includes(skill.skill_key)) byKey.set(skill.skill_key, skill);
   }
 
-  return buildProgressRubric(input.trackKey, input.classType).map((rubricSkill) => {
+  return buildProgressRubric(input.trackKey, input.classType, input.settings).map((rubricSkill) => {
     const source = byKey.get(rubricSkill.key);
     const rawScore = source?.score;
     const score =
@@ -242,176 +266,6 @@ function normalizeSkillInputs(input: {
   });
 }
 
-async function loadOperationalRow(studentId: string, classId: string, month: string) {
-  const { startDate, endDate } = parseMonthRange(month);
-  const enrollmentPeriod = await prisma.enrollmentPeriod.findFirst({
-    where: {
-      studentId,
-      classId,
-      startedAt: { lt: endDate },
-      OR: [{ endedAt: null }, { endedAt: { gt: startDate } }],
-      student: { deletedAt: null },
-    },
-    select: {
-      startedAt: true,
-      endedAt: true,
-      student: { select: { fullName: true } },
-      class: {
-        select: {
-          className: true,
-          feePerDay: true,
-          scheduleDays: true,
-          sessionsPerWeek: true,
-        },
-      },
-    },
-    orderBy: { startedAt: "desc" },
-  });
-  const legacyEnrollment = enrollmentPeriod
-    ? null
-    : await prisma.studentClass.findFirst({
-        where: {
-          studentId,
-          classId,
-          student: { deletedAt: null },
-        },
-        include: {
-          student: { select: { fullName: true } },
-          class: {
-            select: {
-              className: true,
-              feePerDay: true,
-              scheduleDays: true,
-              sessionsPerWeek: true,
-            },
-          },
-        },
-      });
-  const enrollment = enrollmentPeriod
-    ? {
-        enrollmentDate: enrollmentPeriod.startedAt,
-        enrollmentEndDate: enrollmentPeriod.endedAt,
-        student: enrollmentPeriod.student,
-        class: enrollmentPeriod.class,
-      }
-    : legacyEnrollment
-      ? { ...legacyEnrollment, enrollmentEndDate: null }
-      : null;
-
-  if (!enrollment) {
-    throw new ApiError("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class", 404);
-  }
-
-  const [
-    attendanceRows,
-    feeLineRows,
-    monthlyFeeRows,
-    classMonthPlanRows,
-    classSessionRows,
-  ] = await Promise.all([
-    prisma.attendance.findMany({
-      where: {
-        studentId,
-        classId,
-        attendanceDate: { gte: startDate, lt: endDate },
-      },
-      select: {
-        studentId: true,
-        classId: true,
-        attendanceDate: true,
-        status: true,
-        isMakeUp: true,
-      },
-    }),
-    prisma.monthlyFeeLine.findMany({
-      where: { studentId, classId, month },
-      select: {
-        id: true,
-        monthlyFeeId: true,
-        studentId: true,
-        classId: true,
-        month: true,
-        expectedSessions: true,
-        calculationSnapshot: true,
-        amount: true,
-        status: true,
-        allocationConfidence: true,
-      },
-    }),
-    prisma.monthlyFee.findMany({
-      where: { studentId, month },
-      select: {
-        id: true,
-        studentId: true,
-        month: true,
-        totalDays: true,
-        totalAmount: true,
-        status: true,
-        receiptId: true,
-        paidAt: true,
-      },
-    }),
-    prisma.classMonthPlan.findMany({
-      where: { classId, billingMonth: month },
-      select: {
-        classId: true,
-        billingMonth: true,
-        revisions: {
-          orderBy: { revision: "desc" },
-          select: { revision: true, snapshot: true },
-        },
-      },
-    }),
-    prisma.classSession.findMany({
-      where: { classId, billingMonth: month, kind: "regular" },
-      select: {
-        classId: true,
-        billingMonth: true,
-        sessionDate: true,
-        kind: true,
-        status: true,
-      },
-    }),
-  ]);
-
-  const cube = buildReportCube({
-    months: [month],
-    enrollments: [
-      {
-        studentId,
-        studentName: enrollment.student.fullName,
-        classId,
-        className: enrollment.class.className,
-        enrollmentDate: enrollment.enrollmentDate,
-        enrollmentEndDate: enrollment.enrollmentEndDate,
-        feePerDay: enrollment.class.feePerDay,
-        scheduleDays: enrollment.class.scheduleDays,
-        sessionsPerWeek: enrollment.class.sessionsPerWeek,
-      },
-    ],
-    attendance: attendanceRows,
-    feeLines: feeLineRows,
-    monthlyFees: monthlyFeeRows,
-    classMonthPlans: classMonthPlanRows.map((row) => ({
-      classId: row.classId,
-      billingMonth: row.billingMonth,
-      revisions: row.revisions,
-    })),
-    classSessions: classSessionRows,
-  });
-
-  const row = cube.students.find(
-    (item) => item.student_id === studentId && item.class_id === classId && item.month === month
-  );
-  if (!row) {
-    throw new ApiError(
-      "PROGRESS_MONTH_OUT_OF_ENROLLMENT",
-      "Progress month is before the enrollment month",
-      400
-    );
-  }
-  return row;
-}
 
 async function listProgress(req: AuthedRequest, res: VercelResponse) {
   const where: any = {};
@@ -433,7 +287,7 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
   if (classId && classId !== "all") where.classId = classId;
 
   const [records, total] = await Promise.all([
-    prisma.studentProgressMonth.findMany({
+    req.db.studentProgressMonth.findMany({
       where,
       include: {
         student: { select: { fullName: true, parent: { select: { fullName: true, phone: true } } } },
@@ -446,11 +300,27 @@ async function listProgress(req: AuthedRequest, res: VercelResponse) {
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.studentProgressMonth.count({ where }),
+    req.db.studentProgressMonth.count({ where }),
   ]);
 
+  const progressMonths = [];
+  const monthSettings = new Map<string, Awaited<ReturnType<typeof loadAcademicSettings>>>();
+  for (const record of records) {
+    const dto = progressMonthToDto(record);
+    if (!record.finalizedAt) {
+      if (!monthSettings.has(record.month)) monthSettings.set(record.month, await loadAcademicSettings(req, record.month));
+      const row = await loadProgressOperationalRow(req.db, record.studentId, record.classId, record.month);
+      const assessment = buildProgressAssessment({ row, settings: monthSettings.get(record.month),
+        progressMonth: recordToSnapshot(record) });
+      Object.assign(dto, { progress_score: assessment.progressScore, score_source: assessment.scoreSource,
+        attendance_score: assessment.attendanceScore, consistency_score: assessment.consistencyScore,
+        track_readiness: assessment.readinessBand, learning_evidence_coverage: assessment.learningEvidenceCoverage,
+        rubric_snapshot: assessment.rubricSnapshot });
+    }
+    progressMonths.push(dto);
+  }
   return successResponse(res, {
-    progress_months: records.map(progressMonthToDto),
+    progress_months: progressMonths,
     total,
     page,
     limit,
@@ -471,9 +341,13 @@ async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
   }
   const reason = normalizeReopenReason(req.body?.reason || req.body?.reopen_reason);
 
-  const record = await prisma.$transaction(async (tx) => {
+  const record = await runSerializableProgressTransaction(req.db, async (tx) => {
     const current = await tx.studentProgressMonth.findUnique({
-      where: { studentId_classId_month: { studentId, classId, month } },
+      where: {
+        tenantId_studentId_classId_month: {
+          tenantId: req.user.tenantId!, studentId, classId, month,
+        },
+      },
       include: {
         skills: { orderBy: { sortOrder: "asc" } },
         dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
@@ -489,6 +363,7 @@ async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
     const revisionNumber = current.revisionNumber + 1;
     await tx.studentProgressRevision.create({
       data: {
+        tenantId: req.user.tenantId!,
         progressMonthId: current.id,
         revisionNumber,
         eventType: "reopened",
@@ -501,6 +376,7 @@ async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
       where: { id: current.id },
       data: { finalizedAt: null, revisionNumber, updatedById: req.user.id },
     });
+    await appendProgressActivity(tx, req, "REOPEN_STUDENT_PROGRESS", current.id);
     return tx.studentProgressMonth.findUniqueOrThrow({
       where: { id: current.id },
       include: {
@@ -513,7 +389,6 @@ async function reopenProgress(req: AuthedRequest, res: VercelResponse) {
     });
   }, { isolationLevel: "Serializable" });
 
-  await logActivity(req, req.user.id, "REOPEN_STUDENT_PROGRESS", "student_progress", record.id);
   return successResponse(res, { progress_month: progressMonthToDto(record) });
 }
 
@@ -543,10 +418,13 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
   });
   if (body.finalized) assertAdminAction(req, "finalize");
 
-  const row = await loadOperationalRow(body.student_id, body.class_id, body.month);
-  const existing = await prisma.studentProgressMonth.findUnique({
+  const result = await runSerializableProgressTransaction(req.db, async (tx) => {
+  const academicSettings = await loadAcademicSettings(req, body.month, tx as typeof req.db);
+  const row = await loadProgressOperationalRow(tx, body.student_id, body.class_id, body.month);
+  const existing = await tx.studentProgressMonth.findUnique({
     where: {
-      studentId_classId_month: {
+      tenantId_studentId_classId_month: {
+        tenantId: req.user.tenantId!,
         studentId: body.student_id,
         classId: body.class_id,
         month: body.month,
@@ -559,16 +437,21 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
   });
   assertProgressMonthEditable(existing?.finalizedAt);
 
-  const trackKey = (body.track_key || existing?.trackKey || detectProgressTrackKey(row.class_name)) as ProgressTrackKey;
+  const trackKey = (body.track_key || existing?.trackKey || detectProgressTrackKey(
+    row.class_name,
+    academicSettings,
+  )) as ProgressTrackKey;
   const classType = body.class_type
     ? normalizeProgressClassType(body.class_type)
     : existing?.classType
       ? normalizeProgressClassType(existing.classType)
       : defaultClassTypeForTrack(trackKey);
   const normalizedSkills = normalizeSkillInputs({
-    skills: body.skills,
+    skills: Object.prototype.hasOwnProperty.call(req.body || {}, "skills")
+      ? body.skills : recordToSnapshot(existing || {}).skills?.filter((skill) => skill.source !== "daily_rollup") || [],
     trackKey,
     classType,
+    settings: academicSettings,
   });
   const skills = normalizedSkills;
   const dailyEntries =
@@ -621,7 +504,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     shieldTotal,
     pointsTotal,
     mockTestScore,
-    finalizedAt: body.finalized ? existing?.finalizedAt || new Date() : null,
+    finalizedAt: null,
     skills,
     dailyEntries,
   };
@@ -629,36 +512,27 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     row,
     progressMonth: snapshot,
     previousScore: existing?.progressScore ?? null,
+    settings: academicSettings,
   });
   const finalizedAt = body.finalized ? existing?.finalizedAt || new Date() : null;
 
-  const record = await prisma.$transaction(async (tx) => {
-    const transactionalExisting = await tx.studentProgressMonth.findUnique({
-      where: {
-        studentId_classId_month: {
-          studentId: body.student_id,
-          classId: body.class_id,
-          month: body.month,
-        },
-      },
-    });
-    assertProgressMonthEditable(transactionalExisting?.finalizedAt);
-
     const saved = await tx.studentProgressMonth.upsert({
       where: {
-        studentId_classId_month: {
+        tenantId_studentId_classId_month: {
+          tenantId: req.user.tenantId!,
           studentId: body.student_id,
           classId: body.class_id,
           month: body.month,
         },
       },
       create: {
+        tenantId: req.user.tenantId!,
         studentId: body.student_id,
         classId: body.class_id,
         month: body.month,
         trackKey: assessment.trackKey,
         classType: assessment.classType,
-        progressScore: assessment.progressScore,
+        progressScore: assessment.progressScore ?? 0,
         attendanceScore: assessment.attendanceScore,
         consistencyScore: assessment.consistencyScore,
         learningEvidenceCoverage: assessment.learningEvidenceCoverage,
@@ -681,7 +555,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       update: {
         trackKey: assessment.trackKey,
         classType: assessment.classType,
-        progressScore: assessment.progressScore,
+        progressScore: assessment.progressScore ?? 0,
         attendanceScore: assessment.attendanceScore,
         consistencyScore: assessment.consistencyScore,
         learningEvidenceCoverage: assessment.learningEvidenceCoverage,
@@ -706,6 +580,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
     if (skills.length) {
       await tx.studentProgressSkill.createMany({
         data: skills.map((skill) => ({
+          tenantId: req.user.tenantId!,
           progressMonthId: saved.id,
           skillKey: skill.skill_key,
           skillLabel: skill.skill_label || skill.skill_key,
@@ -732,6 +607,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       });
       await tx.studentProgressRevision.create({
         data: {
+          tenantId: req.user.tenantId!,
           progressMonthId: saved.id,
           revisionNumber,
           eventType: "finalized",
@@ -741,7 +617,7 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
       });
     }
 
-    return tx.studentProgressMonth.findUniqueOrThrow({
+    const record = await tx.studentProgressMonth.findUniqueOrThrow({
       where: { id: saved.id },
       include: {
         student: { select: { fullName: true, parent: { select: { fullName: true, phone: true } } } },
@@ -751,19 +627,16 @@ async function upsertProgress(req: AuthedRequest, res: VercelResponse) {
         revisions: { orderBy: { revisionNumber: "desc" }, take: 20 },
       },
     });
+    await appendProgressActivity(tx, req, "UPSERT_STUDENT_PROGRESS", record.id);
+    return { record, assessment, existing };
   }, { isolationLevel: "Serializable" });
-
-  await logActivity(req, req.user.id, "UPSERT_STUDENT_PROGRESS", "student_progress", record.id);
+  const { record, assessment, existing } = result;
 
   return successResponse(
     res,
     {
       progress_month: progressMonthToDto(record),
-      assessment: buildProgressAssessment({
-        row,
-        progressMonth: recordToSnapshot(record),
-        previousScore: existing?.progressScore ?? null,
-      }),
+      assessment,
       key: progressKey(body.student_id, body.class_id, body.month),
     },
     existing ? 200 : 201
@@ -788,4 +661,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin", "receptionist"]);
+const viewHandler = requirePermission("progress.view", handler);
+const gradeHandler = requirePermission("progress.grade", handler);
+
+export default function route(req: VercelRequest, res: VercelResponse) {
+  return req.method === "GET"
+    ? viewHandler(req, res)
+    : gradeHandler(req, res);
+}

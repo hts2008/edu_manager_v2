@@ -101,7 +101,8 @@ export function buildProgressChartRows(series = {}, scoreMode = "raw") {
     const row = { period };
     for (const skill of PROGRESS_SKILLS) {
       const item = (series[skill.key] || []).find((value) => value.period === period);
-      row[skill.key] = item?.[`${scoreMode}_score`] ?? null;
+      const value = item?.[`${scoreMode}_score`];
+      row[skill.key] = Number.isFinite(value) ? value : null;
     }
     return row;
   });
@@ -112,25 +113,25 @@ export function buildSkillGrowthRows(summary = {}) {
     key: skill.key,
     skill: skill.label,
     color: skill.color,
-    first: summary.skills?.[skill.key]?.first_score ?? null,
-    latest: summary.skills?.[skill.key]?.latest_score ?? null,
-    growth: summary.skills?.[skill.key]?.growth ?? null,
+    first: finiteProgressValue(summary.skills?.[skill.key]?.first_score),
+    latest: finiteProgressValue(summary.skills?.[skill.key]?.latest_score),
+    growth: finiteProgressValue(summary.skills?.[skill.key]?.growth),
   }));
 }
 
 export function buildLatestSkillDeltaRows(days = [], scoreMode = "raw") {
   return PROGRESS_SKILLS.map((skill) => {
-    const values = days
-      .map((day) => day.skills?.[skill.key]?.[`${scoreMode}_score`])
-      .filter((value) => value !== null && value !== undefined);
-    const latest = values.at(-1) ?? null;
-    const previous = values.at(-2) ?? null;
+    const observations = days.map((day) => day.skills?.[skill.key]).filter((item) => Number.isFinite(item?.[`${scoreMode}_score`]));
+    const latest = observations.at(-1)?.[`${scoreMode}_score`] ?? null;
+    const previous = observations.at(-2)?.[`${scoreMode}_score`] ?? null;
+    const signatureKey = scoreMode === "weighted" ? "performance_signature" : "signature";
+    const changedBasis = observations.at(-1)?.[signatureKey] !== observations.at(-2)?.[signatureKey];
     return {
       key: skill.key,
       skill: skill.label,
       latest,
       previous,
-      delta: latest === null || previous === null ? null : Math.round((latest - previous) * 10) / 10,
+      delta: changedBasis || latest === null || previous === null ? null : Math.round((latest - previous) * 10) / 10,
     };
   });
 }
@@ -139,8 +140,8 @@ export function buildSkillComparisonRows(comparison = {}, scoreMode = "raw") {
   return PROGRESS_SKILLS.map((skill) => ({
     key: skill.key,
     skill: skill.label,
-    current: comparison.skills?.[skill.key]?.[`current_${scoreMode}_score`] ?? null,
-    previous: comparison.skills?.[skill.key]?.[`previous_${scoreMode}_score`] ?? null,
+    current: finiteProgressValue(comparison.skills?.[skill.key]?.[`current_${scoreMode}_score`]),
+    previous: finiteProgressValue(comparison.skills?.[skill.key]?.[`previous_${scoreMode}_score`]),
   }));
 }
 
@@ -204,6 +205,61 @@ export function buildDailyEntryPayload({
   };
 }
 
+function finiteProgressValue(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
 export function formatProgressValue(value, suffix = "") {
-  return value === null || value === undefined ? "—" : `${value}${suffix}`;
+  return Number.isFinite(value) ? `${value}${suffix}` : "—";
+}
+
+export function formatProgressDelta(value, suffix = "") {
+  return Number.isFinite(value) ? `${value > 0 ? "+" : ""}${value}${suffix}` : "—";
+}
+
+export function progressDeltaTone(value) {
+  return !Number.isFinite(value) ? "text-slate-500" : value >= 0 ? "text-emerald-600" : "text-rose-600";
+}
+
+export function createProgressRequestGuard() {
+  let generation = 0;
+  return {
+    begin() {
+      const request = ++generation;
+      return { isCurrent: () => request === generation };
+    },
+    cancel() { generation += 1; },
+  };
+}
+
+export function selectedProgressMonthTrack(daily, rows = [], date = "") {
+  const month = date.slice(0, 7);
+  const selected = rows.find((row) => row.month === month);
+  return daily?.progress_month?.track_key ?? selected?.english_track ?? selected?.progress_assessment?.trackKey ?? "";
+}
+
+export async function loadProgressGraders(fetchTeachers) {
+  try {
+    const response = await fetchTeachers();
+    const teachers = response.data?.teachers ?? response.data;
+    if (!response.success || !Array.isArray(teachers)) throw new Error("Graders unavailable");
+    return { teachers, unavailable: false };
+  } catch {
+    return { teachers: [], unavailable: true };
+  }
+}
+
+export function progressEvidenceLabel(row = {}) {
+  const assessment = row.progress_assessment || {};
+  const source = row.score_source ?? assessment.scoreSource;
+  const labels = { daily_raw: "Điểm thô hằng ngày", manual_monthly: "Điểm tháng", operational_proxy: "Chỉ số vận hành", missing: "Chưa có dữ liệu", legacy_unknown: "Nguồn lịch sử chưa xác định" };
+  const contributors = assessment.contributors ?? row.contributors ?? [];
+  const skills = contributors.map((key) => PROGRESS_SKILLS.find((skill) => skill.key === key)?.label || key);
+  return [labels[source] || "Nguồn chưa xác định", ...skills].join(" · ");
+}
+
+export function progressReportScoreNote(row = {}) {
+  const source = progressEvidenceLabel(row);
+  if (!Number.isFinite(row.progress_score) || row.progress_score === row.daily_average_score) return source;
+  return `Điểm tháng: ${formatProgressValue(row.progress_score, "/100")} · ${source}`;
 }

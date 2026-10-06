@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ExperienceProvider } from './context/ExperienceContext';
 
 // Layout
 import MainLayout from './components/layout/MainLayout';
@@ -38,6 +39,14 @@ const FeeRemindersPage = lazy(() => import('./pages/FeeRemindersPage'));
 const BackupsPage = lazy(() => import('./pages/BackupsPage'));
 const RecycleBinPage = lazy(() => import('./pages/RecycleBinPage'));
 const ParentPortalPage = lazy(() => import('./pages/ParentPortalPage'));
+const ConsoleLayout = lazy(() => import('./console/ConsoleLayout'));
+const ConsoleHomePage = lazy(() => import('./console/ConsoleHomePage'));
+const ConsoleSectionPage = lazy(() => import('./console/ConsoleSectionPage'));
+const ConsoleSettingsPage = lazy(() => import('./console/ConsoleSettingsPage'));
+const TenantsPage = lazy(() => import('./console/TenantsPage'));
+const AccessPage = lazy(() => import('./console/AccessPage'));
+const IntegrationsPage = lazy(() => import('./console/IntegrationsPage'));
+const ExperiencePage = lazy(() => import('./console/ExperiencePage'));
 
 // Placeholder pages (will be implemented later)
 const PlaceholderPage = ({ title }) => (
@@ -49,9 +58,23 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
-const AdminOnly = ({ children }) => (
-  <ProtectedRoute requiredRole="admin">{children}</ProtectedRoute>
+const RequirePermission = ({ permission, children }) => (
+  <ProtectedRoute requiredPermission={permission}>{children}</ProtectedRoute>
 );
+
+const RequirePlatformOwner = ({ children }) => {
+  const { user } = useAuth();
+
+  if (user?.is_platform_owner === true || user?.isPlatformOwner === true) {
+    return children;
+  }
+
+  return (
+    <ProtectedRoute requiredPermission="platform.tenants.manage">
+      {children}
+    </ProtectedRoute>
+  );
+};
 
 const withSuspense = (element) => (
   <Suspense fallback={<RouteLoading />}>{element}</Suspense>
@@ -60,6 +83,7 @@ const withSuspense = (element) => (
 export default function App() {
   return (
     <AuthProvider>
+      <ExperienceProvider>
       <BrowserRouter>
         <ErrorBoundary>
           <Routes>
@@ -77,29 +101,29 @@ export default function App() {
               }
             >
               <Route index element={withSuspense(<DashboardPage />)} />
-              <Route path="students" element={withSuspense(<StudentsPage />)} />
-              <Route path="parents" element={withSuspense(<ParentsPage />)} />
-              <Route path="classes" element={withSuspense(<ClassesPage />)} />
-              <Route path="teachers" element={withSuspense(<AdminOnly><TeachersPage /></AdminOnly>)} />
-              <Route path="attendance" element={withSuspense(<AttendancePage />)} />
-              <Route path="attendance-insights" element={withSuspense(<AttendanceInsightsPage />)} />
-              <Route path="attendance-periods" element={withSuspense(<AttendancePeriodsPage />)} />
-              <Route path="receipts" element={withSuspense(<ReceiptsPage />)} />
-              <Route path="payments" element={withSuspense(<AdminOnly><PaymentsPage /></AdminOnly>)} />
-              <Route path="fee-collection" element={withSuspense(<FeeCollectionPage />)} />
-              <Route path="history" element={withSuspense(<HistoryPage />)} />
-              <Route path="templates" element={withSuspense(<AdminOnly><TemplatesPage /></AdminOnly>)} />
-              <Route path="reports" element={withSuspense(<AdminOnly><ReportsPage /></AdminOnly>)} />
-              <Route path="student-progress" element={withSuspense(<StudentProgressReportPage />)} />
-              <Route path="student-progress/:studentId" element={withSuspense(<StudentProgressDetailPage />)} />
-              <Route path="advanced-reports" element={withSuspense(<AdminOnly><AdvancedReportsPage /></AdminOnly>)} />
-              <Route path="audit-logs" element={withSuspense(<AdminOnly><AuditLogsPage /></AdminOnly>)} />
-              <Route path="settings" element={withSuspense(<AdminOnly><CenterSettingsPage /></AdminOnly>)} />
-              <Route path="users" element={withSuspense(<AdminOnly><UserManagementPage /></AdminOnly>)} />
-              <Route path="imports" element={withSuspense(<AdminOnly><ImportPage /></AdminOnly>)} />
-              <Route path="fee-reminders" element={withSuspense(<AdminOnly><FeeRemindersPage /></AdminOnly>)} />
-              <Route path="backups" element={withSuspense(<AdminOnly><BackupsPage /></AdminOnly>)} />
-              <Route path="recycle-bin" element={withSuspense(<AdminOnly><RecycleBinPage /></AdminOnly>)} />
+              <Route path="students" element={withSuspense(<RequirePermission permission="students.manage"><StudentsPage /></RequirePermission>)} />
+              <Route path="parents" element={withSuspense(<RequirePermission permission="students.manage"><ParentsPage /></RequirePermission>)} />
+              <Route path="classes" element={withSuspense(<RequirePermission permission="classes.manage"><ClassesPage /></RequirePermission>)} />
+              <Route path="teachers" element={withSuspense(<RequirePermission permission="users.manage"><TeachersPage /></RequirePermission>)} />
+              <Route path="attendance" element={withSuspense(<RequirePermission permission="attendance.manage"><AttendancePage /></RequirePermission>)} />
+              <Route path="attendance-insights" element={withSuspense(<RequirePermission permission="attendance.manage"><AttendanceInsightsPage /></RequirePermission>)} />
+              <Route path="attendance-periods" element={withSuspense(<RequirePermission permission="attendance.manage"><AttendancePeriodsPage /></RequirePermission>)} />
+              <Route path="receipts" element={withSuspense(<RequirePermission permission="receipts.manage"><ReceiptsPage /></RequirePermission>)} />
+              <Route path="payments" element={withSuspense(<RequirePermission permission="reports.view"><PaymentsPage /></RequirePermission>)} />
+              <Route path="fee-collection" element={withSuspense(<RequirePermission permission="fees.collect"><FeeCollectionPage /></RequirePermission>)} />
+              <Route path="history" element={withSuspense(<RequirePermission permission="receipts.manage"><HistoryPage /></RequirePermission>)} />
+              <Route path="templates" element={withSuspense(<RequirePermission permission="templates.manage"><TemplatesPage /></RequirePermission>)} />
+              <Route path="reports" element={withSuspense(<RequirePermission permission="reports.view"><ReportsPage /></RequirePermission>)} />
+              <Route path="student-progress" element={withSuspense(<RequirePermission permission="progress.view"><StudentProgressReportPage /></RequirePermission>)} />
+              <Route path="student-progress/:studentId" element={withSuspense(<RequirePermission permission="progress.view"><StudentProgressDetailPage /></RequirePermission>)} />
+              <Route path="advanced-reports" element={withSuspense(<RequirePermission permission="reports.view"><AdvancedReportsPage /></RequirePermission>)} />
+              <Route path="audit-logs" element={withSuspense(<RequirePermission permission="audit_logs.view"><AuditLogsPage /></RequirePermission>)} />
+              <Route path="settings" element={withSuspense(<RequirePermission permission="console.organization.view"><CenterSettingsPage /></RequirePermission>)} />
+              <Route path="users" element={withSuspense(<RequirePermission permission="users.manage"><UserManagementPage /></RequirePermission>)} />
+              <Route path="imports" element={withSuspense(<RequirePermission permission="imports.run"><ImportPage /></RequirePermission>)} />
+              <Route path="fee-reminders" element={withSuspense(<RequirePermission permission="fee_reminders.send"><FeeRemindersPage /></RequirePermission>)} />
+              <Route path="backups" element={withSuspense(<RequirePermission permission="backups.manage"><BackupsPage /></RequirePermission>)} />
+              <Route path="recycle-bin" element={withSuspense(<RequirePermission permission="recycle_bin.manage"><RecycleBinPage /></RequirePermission>)} />
             </Route>
 
             {/* Template Designer - Full screen without sidebar */}
@@ -107,16 +131,38 @@ export default function App() {
               path="/templates/:id/design"
               element={
                 <ProtectedRoute>
-                  {withSuspense(<AdminOnly><TemplateDesignerPage /></AdminOnly>)}
+                  {withSuspense(<RequirePermission permission="templates.manage"><TemplateDesignerPage /></RequirePermission>)}
                 </ProtectedRoute>
               }
             />
+
+            {/* Admin Console - isolated control-plane shell */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredPermission="console.access">
+                  {withSuspense(<ConsoleLayout />)}
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<RequirePermission permission="console.access"><ConsoleHomePage /></RequirePermission>} />
+              <Route path="tenants" element={<RequirePlatformOwner><TenantsPage /></RequirePlatformOwner>} />
+              <Route path="organization" element={<RequirePermission permission="console.organization.view"><ConsoleSettingsPage /></RequirePermission>} />
+              <Route path="academic" element={<RequirePermission permission="console.academic.edit"><ConsoleSettingsPage /></RequirePermission>} />
+              <Route path="finance" element={<RequirePermission permission="console.finance.edit"><ConsoleSettingsPage /></RequirePermission>} />
+              <Route path="access" element={<RequirePermission permission="console.access.edit"><AccessPage /></RequirePermission>} />
+              <Route path="integrations" element={<RequirePermission permission="console.integrations.edit"><IntegrationsPage /></RequirePermission>} />
+              <Route path="experience" element={<RequirePermission permission="console.experience.view"><ExperiencePage /></RequirePermission>} />
+              <Route path="system" element={<RequirePermission permission="console.access"><ConsoleSectionPage /></RequirePermission>} />
+            </Route>
 
             {/* Catch all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>
       </BrowserRouter>
+      </ExperienceProvider>
     </AuthProvider>
   );
 }
+import './utils/draftNavigationEvents';

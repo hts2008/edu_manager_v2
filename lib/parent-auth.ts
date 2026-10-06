@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import type { VercelRequest } from "./vercel-types.js";
 import { ApiError } from "./api-utils.js";
 import prisma from "./prisma.js";
+import type { PrismaClient } from "@prisma/client";
 import {
   createSessionToken,
   getActiveSession,
@@ -9,11 +10,15 @@ import {
   type SessionTokenPayload,
 } from "./auth-session.js";
 import { getBearerToken } from "./auth.js";
+import { getTenantClient } from "./prisma-tenant.js";
+import { assertTenantIdentity, getTenancyMode } from "./tenancy.js";
 
 export type ParentAuth = {
   parentId: string;
+  tenantId: string;
   type: "parent_portal";
   token: SessionTokenPayload;
+  db: PrismaClient;
 };
 
 export function normalizePhone(value: unknown) {
@@ -22,11 +27,16 @@ export function normalizePhone(value: unknown) {
     .replace(/[^\d+]/g, "");
 }
 
-export async function signParentToken(parentId: string, tokenVersion: number) {
+export async function signParentToken(
+  parentId: string,
+  tokenVersion: number,
+  tenantId: string,
+) {
   const session = await createSessionToken({
     subjectId: parentId,
     subjectType: "parent",
     tokenVersion,
+    tenantId,
   });
   return session.token;
 }
@@ -41,15 +51,33 @@ export async function verifyParentToken(req: VercelRequest): Promise<ParentAuth>
     const decoded = verifySessionToken(token, "parent");
     const [session, parent] = await Promise.all([
       getActiveSession(decoded),
-      prisma.parent.findUnique({
-        where: { id: decoded.sub },
-        select: { id: true, tokenVersion: true, deletedAt: true },
+      prisma.parent.findFirst({
+        where: { id: decoded.sub, tenantId: decoded.tid },
+        select: { id: true, tenantId: true, tokenVersion: true, deletedAt: true },
       }),
     ]);
-    if (!session || !parent || parent.deletedAt || parent.tokenVersion !== decoded.ver) {
+    if (
+      !session ||
+      !parent ||
+      !parent.tenantId ||
+      parent.deletedAt ||
+      parent.tokenVersion !== decoded.ver
+    ) {
       throw new ApiError("TOKEN_INVALID", "Invalid parent portal token", 401);
     }
-    return { parentId: decoded.sub, type: "parent_portal", token: decoded };
+    assertTenantIdentity({
+      mode: getTenancyMode(),
+      tokenTenantId: decoded.tid,
+      sessionTenantId: session.tenantId,
+      subjectTenantId: parent.tenantId,
+    });
+    return {
+      parentId: decoded.sub,
+      tenantId: parent.tenantId,
+      type: "parent_portal",
+      token: decoded,
+      db: getTenantClient(parent.tenantId),
+    };
   } catch (error) {
     if (error instanceof ApiError) throw error;
     if (error instanceof jwt.TokenExpiredError) {

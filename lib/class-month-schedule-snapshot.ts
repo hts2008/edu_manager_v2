@@ -1,4 +1,8 @@
 import { expectedSessionsForClass, normalizeScheduleDays } from "./tuition.js";
+import {
+  classMonthPlanRevisionUniqueWhere,
+  classMonthPlanUniqueWhere,
+} from "./tenant-selectors.js";
 
 export type ClassScheduleSource = {
   scheduleDays?: unknown;
@@ -88,7 +92,7 @@ export async function loadPersistedScheduleSnapshot(
 ) {
   if (typeof db.classMonthPlanRevision?.findUnique !== "function") return null;
   const revision = await db.classMonthPlanRevision.findUnique({
-    where: { planId_revision: { planId: plan.id, revision: plan.revision } },
+    where: classMonthPlanRevisionUniqueWhere(db, plan.id, plan.revision),
     select: { snapshot: true },
   });
   const current = scheduleSnapshotFromRevision(revision?.snapshot);
@@ -113,7 +117,7 @@ export async function scheduleSnapshotForWrite(
   classData: ClassScheduleSource,
 ) {
   const plan = await db.classMonthPlan.findUnique({
-    where: { classId_billingMonth: { classId, billingMonth: month } },
+    where: classMonthPlanUniqueWhere(db, classId, month),
     select: { id: true, revision: true },
   });
   if (plan) {

@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { getString, logActivity, sendApiError } from "../../../lib/api-utils.js";
 import {
   listDeletedItems,
@@ -33,7 +32,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if (req.query.resource && !resource) {
         return errorResponse(res, "INVALID_RESOURCE", "Invalid recycle-bin resource", 400);
       }
-      return successResponse(res, await listDeletedItems(prisma, resource));
+      return successResponse(res, await listDeletedItems(req.db, resource));
     } catch (error) {
       return sendApiError(res, error, "RECYCLE_BIN_LIST_ERROR");
     }
@@ -42,7 +41,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method === "POST") {
     try {
       const body = validateBody(recycleBinActionSchema, req.body);
-      await runRecycleAction(prisma, body.resource, body.action, body.id);
+      await runRecycleAction(req.db, body.resource, body.action, body.id);
       await logActivity(
         req,
         req.user.id,
@@ -64,4 +63,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   return errorResponse(res, "METHOD_NOT_ALLOWED", "Method not allowed", 405);
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("recycle_bin.manage", handler);

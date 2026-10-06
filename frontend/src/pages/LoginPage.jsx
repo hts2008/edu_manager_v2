@@ -11,6 +11,11 @@ import {
 import { useAuth } from '../context/AuthContext';
 import ActionProgressButton from '../components/ui/ActionProgressButton';
 import { LoadingProgress } from '../components/ui/LoadingStates';
+import {
+  isTenantAwareLoginEnabled,
+  normalizeTenantSlug,
+  normalizeTenancyMode,
+} from '../services/authTenancy';
 
 const signals = [
   { label: 'Van hanh', value: 'Online', icon: Activity, tone: 'text-emerald-600 bg-emerald-50 ring-emerald-100' },
@@ -19,6 +24,9 @@ const signals = [
 ];
 
 export default function LoginPage() {
+  const tenancyMode = normalizeTenancyMode(import.meta.env.VITE_TENANCY_MODE);
+  const tenantAwareLogin = isTenantAwareLoginEnabled(tenancyMode);
+  const [tenantSlug, setTenantSlug] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,6 +39,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
+    const normalizedTenantSlug = normalizeTenantSlug(tenantSlug);
+    if (tenantAwareLogin && !normalizedTenantSlug) {
+      setError('Vui long nhap ma trung tam');
+      return;
+    }
     if (!username.trim()) {
       setError('Vui long nhap ten dang nhap');
       return;
@@ -41,7 +54,11 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    const result = await login(username, password);
+    const result = await login(
+      username,
+      password,
+      tenantAwareLogin ? normalizedTenantSlug : undefined,
+    );
     setLoading(false);
 
     if (result.success) {
@@ -121,6 +138,27 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {tenantAwareLogin && (
+                <div>
+                  <label htmlFor="tenant-slug" className="mb-2 block text-sm font-bold text-slate-700">
+                    Ma trung tam
+                  </label>
+                  <input
+                    id="tenant-slug"
+                    type="text"
+                    value={tenantSlug}
+                    onChange={(e) => setTenantSlug(e.target.value)}
+                    className="input"
+                    placeholder="Nhap ma trung tam"
+                    autoComplete="organization"
+                    autoCapitalize="none"
+                    spellCheck="false"
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
+              )}
+
               <div>
                 <label htmlFor="username" className="mb-2 block text-sm font-bold text-slate-700">
                   Ten dang nhap
@@ -133,7 +171,7 @@ export default function LoginPage() {
                   className="input"
                   placeholder="Nhap ten dang nhap"
                   autoComplete="username"
-                  autoFocus
+                  autoFocus={!tenantAwareLogin}
                   disabled={loading}
                 />
               </div>

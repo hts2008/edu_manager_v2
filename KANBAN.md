@@ -6,6 +6,94 @@
 
 ---
 
+## IN PROGRESS - TEACHER SPREADSHEET / SOFT CLAY UX (2026-10-05)
+
+
+Last Updated: 2026-10-05. Snapshot:1 IMPLEMENTED documentation task,3 REVIEW,3 PARTIAL. Local implementation tested; production NO-GO unchanged. [Execution receipt](receipts/2026-10-05-teacher-workspace-execution.md) and [review package](docs/artifacts/teacher-workspace-execution-2026-10-05/README.md) supersede old planning-only claims. No schema migration/deployment.
+
+| Task ID | Priority | Description | Status | Dependencies / evidence |
+| --- | --- | --- | --- | --- |
+| UXW-DOC-01 | P1 | Research, brainstorm and document teacher spreadsheet/rail/copy console | IMPLEMENTED | Documentation only;13 files/18 links/acyclic graph; receipt above |
+| UXW-01 | P1 | Freeze workflow/identity/API and Stitch/Figma design source | PARTIAL | Local dated contract; required Stitch model/Figma target and teacher mapping pending |
+| UXW-02 | P1 | Safe partial patch, evidence CAS/idempotency and batched roster API | REVIEW | Real PostgreSQL concurrency/replay/ownership/load evidence in review package |
+| UXW-03 | P1 | Fixed collapsible shell and responsive accessible navigation | REVIEW | Frontend tests and real browser responsive/focus/navigation checks |
+| UXW-04 | P1 | Always-visible grid, row save/canonical refresh, no right panel | REVIEW | Canonical zero/null/save/retry/conflict/reload proof; monthly manual input unchanged |
+| UXW-05 | P1 | Tenant content/theme console and bounded Soft Clay tokens | PARTIAL | Atomic admin publish/history verified; DB permission CHECK migration approval pending |
+| UXW-06 | P1 |22-scenario verification, teacher trials, staged release | PARTIAL | 10 browser checks/load30/100/500; full matrix/trial/release gates open |
+| UX-CONSISTENCY-01 | P1 | Restore original visual style; reduce whitespace and duplicate metrics only | REVIEW | User rejected flattened redesign; restored original panels/palette/page styling.194 tests/lint/build pass; [restoration receipt](receipts/2026-10-06-ui-restoration.md); visual acceptance pending |
+| UX-PROGRESS-INLINE-01 | P1 | Integrate append-only grading into learner report; server date and submission count | IMPLEMENTED | Local scope verified 2026-10-06: frontend216/root536; real HTTP19 x3 rounds; browser save/reload; independent review closed. [receipt](receipts/2026-10-06-inline-report-assessments.md); [review](docs/artifacts/inline-report-assessments-2026-10-06/README.md). No production release implied |
+| UX-PROGRESS-CHARTS-01 | P1 | Replace Month/Average cells with learner radar/cumulative charts and score grid2x2 | IMPLEMENTED | Local verified2026-10-06: frontend222/root536/focused13/realHTTP5 pass; browser live chart/save/reload and mobile geometry. [receipt](receipts/2026-10-06-progress-row-charts.md); visual acceptance/production rollout not implied |
+| UX-PROGRESS-PRINT-01 | P1 | Polished parent report print preview with charts and paper-size/orientation controls | REVIEW | [plan](plans/2026-10-06-progress-print-report/plan.md); [evidence](docs/artifacts/progress-print-report-2026-10-06/README.md); 228 frontend tests, six PDFs pass; user-tab CUA unattached, visual acceptance pending |
+| UX-PROGRESS-PRINT-CLAY-02 | P1 | User correction: Claymorphism parent report with Bento metrics/charts, skill bars, evidence timeline and planned steps | REVIEW | [evidence](docs/artifacts/progress-print-clay-2026-10-06/README.md);229 tests/lint/typecheck/build pass; live Chrome and six PDFs verified; user visual acceptance pending |
+| UX-PROGRESS-CORE-03 | P1 | Remove homework/practice/mock-test criteria from report grading and printed skill presentation | REVIEW | Four core skills verified in Chrome and regression tests; historical evidence/calculations preserved. [receipt](receipts/2026-10-06-core-skills-clay-receipts.md) |
+| UX-RECEIPT-CLAY-01 | P1 | Editable A4/A5 Clay receipt presets with background and explicit QR placeholder | REVIEW | UI save/reload/edit; six real PDFs, long-text fitting, square QR/signature space; no payment/default changes. [review](docs/artifacts/core-skills-clay-receipts-2026-10-06/README.md); user/printer acceptance pending |
+| UX-PRINT-PALETTE-01 | P1 | Replace arbitrary pastel card colors with system-neutral surfaces and restrained primary accent | REVIEW | 2026-10-06:239 frontend tests/lint/build; six one-page PDFs without field overflow; Chrome preview and saved review templates. [receipt](receipts/2026-10-06-print-palette.md); visual/printer acceptance pending |
+| UX-RECEIPT-DESIGN-02 | P1 | Receipt-only correction: grouped document hierarchy instead of individually floating cards | REVIEW |240 frontend tests/build/lint; six PDFs; Chrome saved A4/A5. [receipt](receipts/2026-10-06-receipt-design-hierarchy.md); user/printer acceptance pending |
+| RELEASE-20261006-01 | P0 | Authorized GitHub sync, production go-live and operational tenant/admin bootstrap | IN PROGRESS | Security audits clean; dataful Neon and physical PG17 migration rehearsal; encrypted physical recovery; bootstrap privilege safeguards. [execution](receipts/2026-10-06-go-live-execution.md); cutover/smoke pending |
+
+## IN PROGRESS - TUITION AND PROGRESS PRODUCTION REMEDIATION (2026-10-05)
+
+Last Updated: 2026-10-05. Planning deliverable: 1 IMPLEMENTED (documentation only). Execution snapshot: 2 PARTIAL, 3 REVIEW, 1 BLOCKED. R1-R5 local corrections are under review; production remains NO-GO. [Execution receipt](receipts/2026-10-05-tuition-progress-execution.md) separates local runtime evidence from unclosed release gates.
+
+| Task ID | Priority | Description | Status | Acceptance / evidence |
+| --- | --- | --- | --- | --- |
+| LOCAL-DEMO-20261005 | P2 | Seed namespaced local tuition/progress review dataset | IMPLEMENTED | Local fixture only; [receipt](receipts/2026-10-05-local-review-data.md), guarded script, repeat seed, HTTP200 and typecheck |
+| TPR-CALC-LOCK-01 | P1 | Fix manual monthly-fees/calculate tenant-scoped advisory lock rejection | PLANNED | Observed HTTP500 UNSAFE_RAW_QUERY; generator works; add guarded real HTTP regression before fix; [receipt](receipts/2026-10-05-local-review-data.md) |
+| LOCAL-AUTH-20261005 | P1 | Reset local browser fixture admin password and align frontend/backend tenancy mode | IMPLEMENTED | Local only; build, tests5/5, HTTP401/200 and actual browser login: [receipt](receipts/2026-10-05-local-login-recovery.md) |
+| PLAN-20261005-01 | P1 | Create business contracts, implementation phases, verification matrix, historical reconciliation and release gates | IMPLEMENTED | Documentation only: [plan](plans/2026-10-05-tuition-progress-production/plan.md), [docs](docs/production-readiness/tuition-progress/README.md), [validation](docs/artifacts/tuition-progress-plan-2026-10-05/validation.json), [receipt](receipts/2026-10-05-tuition-progress-production-plan.md) |
+| TPR-01 | P1 | Complete interrupted review, refresh baseline and freeze owner-approved pricing/scoring/release contracts | PARTIAL | G01; [phase](plans/2026-10-05-tuition-progress-production/phase-01-baseline-and-contract.md) |
+| TPR-02 | P1 | Fix R1 surcharge at source and verify all ledger/payment regressions | REVIEW | Depends TPR-01; G02; [phase](plans/2026-10-05-tuition-progress-production/phase-02-tuition.md) |
+| TPR-03 | P1 | Fix R2-R4 evidence resolution, finalization and comparable progress metrics | REVIEW | Depends TPR-01; G03; [phase](plans/2026-10-05-tuition-progress-production/phase-03-academic-consistency.md) |
+| TPR-04 | P1 | Fix R5 effective settings and all UI/export/PDF consumers | REVIEW | Depends TPR-03; G04; [phase](plans/2026-10-05-tuition-progress-production/phase-04-settings-and-consumers.md) |
+| TPR-05 | P0 | Reconcile historical data; real HTTP/PG/E2E, exact migration, restore and recovery rehearsal | PARTIAL | Depends TPR-02/04 and Admin Console foundations; G05-G10; [phase](plans/2026-10-05-tuition-progress-production/phase-05-data-and-rehearsal.md) |
+| TPR-06 | P0 | Independent Go/No-Go, authorized production cutover, canonical smoke and observation | BLOCKED | TPR-05 and Admin Console readiness; G11-G13; [phase](plans/2026-10-05-tuition-progress-production/phase-06-release.md) |
+
+The board's AC-07 release task and old detailed plan's AC-12 release package share these release gates. Foundations/rehearsal precede release; there is no whole-plan circular dependency. See [gate register](docs/production-readiness/tuition-progress/go-no-go.md).
+
+### Additional Release Blockers
+
+| Task ID | Priority | Description | Status | Exit criterion |
+| --- | --- | --- | --- | --- |
+| TPR-SEC-01 | P0 | Authorize and verify dependency remediation for high security findings | PLANNED | Root undici and frontend audit-policy failures resolved; full regression rerun; no waiver added |
+| TPR-COV-01 | P1 | Complete business/API/UI coverage and remaining matrix layers | PLANNED | Required thresholds proven, not inferred from test counts |
+| TPR-HIST-01 | P0 | Production-derived history inventory and recovery rehearsal | BLOCKED | Approved operator dataset/access, disposition manifest, backup/restore/PITR evidence |
+
+## PARTIAL - SYSTEM COMPREHENSION REVIEW (2026-10-05)
+
+Last Updated: 2026-10-05. Review snapshot: 1 PARTIAL, 5 REVIEW follow-ups with local corrections. Historical descriptions below record the original defects; [execution receipt](receipts/2026-10-05-tuition-progress-execution.md) records current behavior. Admin Console release status remains unchanged.
+
+| Task ID | Priority | Description | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| REV-20261005-01 | P1 | Review architecture, PRD/docs/handoff and trace tuition, assessment and student progress against current local code | PARTIAL | [Report](reports/2026-10-05-system-review/review.md), [receipt](receipts/2026-10-05-system-comprehension-review.md); 21 focused tests pass; full breadth blocked by OneDrive recall/read failures |
+| REV-20261005-R1 | P1 | Correct per-session extra surcharge default resolving to zero | REVIEW | TPR-02 / TP-FIN-01..12; historical closure TPR-05; negative probe is not acceptance |
+| REV-20261005-R2 | P1 | Compare like-for-like academic scores in monthly trend | REVIEW | TPR-03 / TP-ACA-01..04,15; current 60-to-80 incorrectly reports -20 |
+| REV-20261005-R3 | P1 | Preserve daily-only evidence across monthly reporting and finalize | REVIEW | TPR-03 / TP-ACA-05..10; real HTTP/DB/finalize/reload required |
+| REV-20261005-R4 | P2 | Define comparable cross-skill delta and score-drop baselines | REVIEW | TPR-03 / TP-ACA-11..16; owner-approved metric semantics |
+| REV-20261005-R5 | P2 | Wire effective academic settings through timeline and PDF | REVIEW | TPR-04 / TP-CFG-01..05; effective-month and frozen-snapshot parity |
+
+## IN PROGRESS - ADMIN CONSOLE AND MULTI-TENANT CONTROL PLANE (2026-08-12)
+
+**Objective:** implement `Admin_Console_PRD_Plan.md` as a tenant-safe control plane while preserving all current attendance, tuition, finance, template and Student Progress behavior.
+
+| Task ID | Priority | Description | Status | Acceptance gate |
+| --- | --- | --- | --- | --- |
+| AC-00 | P0 | Tenancy inventory, compatibility contract and corrected release choreography | REVIEW | 28-model inventory; dependency loop removed; identity/rollback contracts explicit |
+| AC-01 | P0 | Backup v4 manifest parity, v3 compatibility and all-model round-trip | REVIEW | Automated schema parity plus isolated restore evidence |
+| AC-02 | P0 | Expand schema and deterministic default tenant | REVIEW | Additive migration preserves current runtime |
+| AC-03 | P0 | Tenant-aware auth/session and dual-write | REVIEW | Tenant slug login; session/token/user/tenant match |
+| AC-04 | P0 | Backfill, verifier, constraints and scoped reads | PARTIAL | Zero null/orphan/leak rows; cross-tenant tests pass |
+| AC-05 | P1 | Settings registry/service/API and Admin Console shell | REVIEW | Typed settings; honest states; no mock API data |
+| AC-06 | P1 | Finance, academic, RBAC, flags, integrations and system operations | REVIEW | Permission and snapshot invariants pass |
+| AC-07 | P0 | Neon rehearsal, rollback, full gates and production release | BLOCKED | Independent GO plus canonical production evidence |
+
+**Execution plan:** `plans/2026-08-12-admin-console/execution-plan.md`; inventory: `plans/2026-08-12-admin-console/tenancy-inventory.md`.
+
+**Release boundary:** no production migration, tenant backfill, session revocation or settings mutation until the exact migration chain and v3-to-v4 restore have passed on an isolated Neon production branch.
+
+**2026-08-15 checkpoint:** static Admin Console gates are green after fixing the tenant-aware monthly fee selector inside cron/generator transactions. Evidence: `receipts/2026-08-15-admin-console-static-gates-and-tenant-selector.md`. Verification passed: focused contract suite `93/93`, `npm run test:admin-console` `216/216`, `npm run test:unit` `530/530`, `npx tsc --noEmit`, `npm --prefix frontend run lint`, `npm run build`, `git diff --check`, and tenant runtime audit `PASS` with `0` findings across `84` API files. Release remains **NO-GO** because there is not yet dataful Neon rehearsal, backup/rollback/PITR, schema-diff, session-revocation, or canonical production evidence.
+
+---
+
 ## 🖥️ DEPLOYMENTS
 
 | Environment    | URL                                  | Status  |

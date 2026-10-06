@@ -24,8 +24,10 @@ function stub(t: any, target: any, method: string, implementation: any) {
   t.after(() => { target[method] = original; });
 }
 
+const TENANT_ID = "tenant-1";
+
 function token(role: "admin" | "receptionist") {
-  return jwt.sign({ typ: "user", ver: 0, role }, AUTH.secret, {
+  return jwt.sign({ typ: "user", ver: 0, role, tid: TENANT_ID, pown: false }, AUTH.secret, {
     algorithm: AUTH.algorithm,
     issuer: AUTH.issuer,
     audience: AUTH.audience,
@@ -36,10 +38,18 @@ function token(role: "admin" | "receptionist") {
 }
 
 function mockAuth(t: any, role: "admin" | "receptionist") {
-  stub(t, prisma.authSession as any, "findFirst", async () => ({ id: "session" }));
+  stub(t, prisma.authSession as any, "findFirst", async () => ({ id: "session", tenantId: TENANT_ID }));
+  stub(t, prisma.tenant as any, "findUnique", async () => ({
+    id: TENANT_ID,
+    status: "active",
+    configVersion: 1,
+  }));
+  stub(t, prisma.rolePermission as any, "findMany", async () => []);
   stub(t, prisma.user as any, "findUnique", async () => ({
     id: `${role}-1`, username: role, fullName: role, email: null, phone: null,
     role, status: "active", lastLogin: null, tokenVersion: 0,
+    tenantId: TENANT_ID,
+    isPlatformOwner: false,
   }));
 }
 
@@ -112,9 +122,7 @@ describe("template CRUD authorization and upload validation", () => {
     stub(t, prisma.receipt as any, "count", async () => 0);
     stub(t, prisma.payment as any, "count", async () => 0);
     stub(t, prisma.activityLog as any, "create", async () => ({ id: 1 }));
-    stub(t, prisma as any, "$transaction", async (operations: Promise<unknown>[]) =>
-      Promise.all(operations)
-    );
+    stub(t, prisma as any, "$transaction", async (work: any) => work(prisma));
 
     const defaultResponse = createTestResponse();
     await setDefaultHandler(request("POST", "admin", undefined, "template-1"), defaultResponse.res);
@@ -128,16 +136,16 @@ describe("template CRUD authorization and upload validation", () => {
 
   it("rejects template mutations for a receptionist", async (t) => {
     mockAuth(t, "receptionist");
-    for (const [handler, req] of [
-      [templatesHandler, request("POST", "receptionist", {})],
-      [templateHandler, request("DELETE", "receptionist", undefined, "template-1")],
-      [setDefaultHandler, request("POST", "receptionist", undefined, "template-1")],
-      [uploadImageHandler, request("POST", "receptionist", {})],
+    for (const [handler, req, expectedCode] of [
+      [templatesHandler, request("POST", "receptionist", {}), "FORBIDDEN"],
+      [templateHandler, request("DELETE", "receptionist", undefined, "template-1"), "FORBIDDEN"],
+      [setDefaultHandler, request("POST", "receptionist", undefined, "template-1"), "PERMISSION_DENIED"],
+      [uploadImageHandler, request("POST", "receptionist", {}), "PERMISSION_DENIED"],
     ] as const) {
       const response = createTestResponse();
       await handler(req, response.res);
       assert.equal(response.state.statusCode, 403);
-      assert.equal((response.state.body as any).error.code, "FORBIDDEN");
+      assert.equal((response.state.body as any).error.code, expectedCode);
     }
   });
 

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import { type AuthedRequest, errorResponse, requireAuth, successResponse } from "../../../lib/auth.js";
 import { ApiError, getRequiredString, sendApiError } from "../../../lib/api-utils.js";
 import {
@@ -22,6 +21,7 @@ import {
   parseDateOnly,
   validateMakeupDate,
 } from "../../../lib/class-sessions.js";
+import { attendancePeriodUniqueWhere } from "../../../lib/tenant-selectors.js";
 
 function integerVersion(value: unknown, field: "version" | "expected_version", minimum: number) {
   const parsed = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
@@ -66,7 +66,7 @@ async function ensurePlanAggregate(
   actorId?: string | null,
 ) {
   const period = await db.attendancePeriod.findUnique({
-    where: { classId_periodMonth: { classId, periodMonth: month } },
+    where: attendancePeriodUniqueWhere(db, classId, month),
     select: { status: true },
   });
   return ensureClassMonthPlan(db, {
@@ -79,10 +79,11 @@ async function ensurePlanAggregate(
 }
 
 async function getSession(req: AuthedRequest, id: string, res: VercelResponse) {
-  const initial = await getExisting(prisma, id);
+  const db = req.db;
+  const initial = await getExisting(db, id);
   const month = assertSessionMonthInvariant(initial);
   const { aggregate, session } = await withClassMonthPlanRosterWrite(
-    prisma,
+    db,
     initial.classId,
     month,
     async (tx) => {
@@ -108,10 +109,11 @@ async function getSession(req: AuthedRequest, id: string, res: VercelResponse) {
 }
 
 async function patchSession(req: AuthedRequest, id: string, res: VercelResponse) {
+  const db = req.db;
   const body = req.body || {};
   const rowVersion = integerVersion(body.version, "version", 0);
   const aggregateVersion = integerVersion(body.expected_version, "expected_version", 1);
-  const initial = await getExisting(prisma, id);
+  const initial = await getExisting(db, id);
   const originalMonth = assertSessionMonthInvariant(initial);
   const snapshot: Record<string, unknown> = {
     operation: "patch",
@@ -119,7 +121,7 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
     before: classSessionToDto(initial),
   };
   const { aggregate, saved } = await withClassMonthPlanRosterWrite(
-    prisma,
+    db,
     initial.classId,
     originalMonth,
     async (tx) => {
@@ -206,13 +208,14 @@ async function patchSession(req: AuthedRequest, id: string, res: VercelResponse)
 }
 
 async function deleteSession(req: AuthedRequest, id: string, res: VercelResponse) {
+  const db = req.db;
   const rowVersion = integerVersion(req.query.version ?? req.body?.version, "version", 0);
   const aggregateVersion = integerVersion(
     req.query.expected_version ?? req.body?.expected_version,
     "expected_version",
     1,
   );
-  const initial = await getExisting(prisma, id);
+  const initial = await getExisting(db, id);
   const month = assertSessionMonthInvariant(initial);
   const snapshot = {
     operation: "delete",
@@ -221,7 +224,7 @@ async function deleteSession(req: AuthedRequest, id: string, res: VercelResponse
   };
 
   const aggregate = await withClassMonthPlanRosterWrite(
-    prisma,
+    db,
     initial.classId,
     month,
     async (tx) => {

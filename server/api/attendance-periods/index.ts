@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -8,6 +7,11 @@ import {
 } from "../../../lib/auth.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   // GET - List attendance periods
   if (req.method === "GET") {
     try {
@@ -18,7 +22,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       if (month) where.periodMonth = month as string;
       if (status) where.status = status as string;
 
-      const periods = await prisma.attendancePeriod.findMany({
+      const periods = await db.attendancePeriod.findMany({
         where,
         include: {
           class: {
@@ -74,9 +78,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       // Check if period exists
-      let period = await prisma.attendancePeriod.findUnique({
+      let period = await db.attendancePeriod.findUnique({
         where: {
-          classId_periodMonth: {
+          tenantId_classId_periodMonth: {
+            tenantId,
             classId: class_id,
             periodMonth: month,
           },
@@ -88,8 +93,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
       // Create if not exists
       if (!period) {
-        period = await prisma.attendancePeriod.create({
+        period = await db.attendancePeriod.create({
           data: {
+            tenantId,
             classId: class_id,
             periodMonth: month,
             status: "open",

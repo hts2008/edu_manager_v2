@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -273,7 +272,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       };
     }
 
-    const rawStudents = await prisma.student.findMany({
+    const rawStudents = await req.db.student.findMany({
       where: studentWhere,
       include: {
         parent: { select: { id: true, fullName: true, phone: true } },
@@ -305,7 +304,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     const rawFees =
       studentIds.length > 0
-        ? await prisma.monthlyFee.findMany({
+        ? await req.db.monthlyFee.findMany({
             where: feeWhere,
             select: {
               id: true,

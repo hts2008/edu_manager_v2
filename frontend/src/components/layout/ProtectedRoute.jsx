@@ -3,8 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import { AuthLoading } from '../ui/LoadingStates';
 
 // VI: Protected route component - chuyển hướng nếu chưa đăng nhập
-export default function ProtectedRoute({ children, requiredRole }) {
-  const { user, loading, isAuthenticated } = useAuth();
+export default function ProtectedRoute({ children, requiredRole, requiredPermission }) {
+  const { user, loading, isAuthenticated, hasPermission } = useAuth();
   const location = useLocation();
 
   // Show loading while checking auth
@@ -18,7 +18,10 @@ export default function ProtectedRoute({ children, requiredRole }) {
   }
 
   // Check role if required
-  if (requiredRole && user?.role !== requiredRole) {
+  if (
+    (requiredRole && user?.role !== requiredRole) ||
+    (requiredPermission && !hasPermission(requiredPermission))
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

@@ -14,12 +14,17 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npm install --include=optional --no-audit --no-fund
+      - run: npm ci --include=dev --include=optional --no-audit --no-fund
         working-directory: frontend
       - run: npm audit --audit-level=high
       - run: npm run audit:frontend-policy
       - run: npm run test:unit
+      - run: npm run test:admin-console
+      - run: npm run test:tuition-progress
+      - run: npx tsx --test tests/release-maintenance.test.ts tests/release-permission-migration.test.ts tests/tenant-backfill-immutable-history.test.ts tests/backup-restore-sequence.test.ts tests/release-esm-imports.test.ts tests/release-safety.test.ts
       - run: npm run test:student-progress-safety
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
       - run: npm run test:unit
         working-directory: frontend
       - run: npx tsc --noEmit
@@ -36,7 +41,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --include=optional --no-audit --no-fund
+      - run: npm ci
+      - run: npm ci --include=optional --no-audit --no-fund
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
@@ -96,13 +102,15 @@ jobs:
       BOOTSTRAP_ADMIN_PASSWORD: ci-aud-rm-009-password
       JWT_SECRET: ci-only-real-e2e-router-secret-at-least-32-characters
       NODE_ENV: production
+      TENANCY_MODE: enforced
+      VITE_TENANCY_MODE: enforced
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
-      - run: npm install --include=optional --no-audit --no-fund
+      - run: npm ci --include=dev
+      - run: npm ci --include=dev --include=optional --no-audit --no-fund
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
@@ -144,20 +152,24 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: edu_manager_test
+          POSTGRES_DB: tpr_test_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d edu_manager_test"
+          --health-cmd "pg_isready -U postgres -d tpr_test_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      TPR_TEST_DATABASE: tpr_test_ci
+      TPR_TEST_SCHEMA: tpr_test_ci
+      TPR_RELEASE_MODE: "true"
+      NODE_ENV: test
       JWT_SECRET: ci-only-router-secret-at-least-32-characters
     steps:
       - uses: actions/checkout@v4

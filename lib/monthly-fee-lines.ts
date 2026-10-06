@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { ApiError } from "./api-utils.js";
 import { logApiEvent } from "./observability.js";
+import { monthlyFeeLineUniqueWhere } from "./tenant-selectors.js";
 
 type FeeStatus = "pending" | "ready" | "confirmed" | "paid";
 
@@ -24,16 +25,28 @@ export type CanonicalBulkFeePayment = {
   notes: string | null;
 };
 
-export function canonicalizeBulkFeePayment(input: any): CanonicalBulkFeePayment {
+export function canonicalizeBulkFeePayment(
+  input: any,
+  maxLines = MAX_BULK_FEE_PAYMENT_LINES,
+): CanonicalBulkFeePayment {
+  const safeMaxLines = Number.isInteger(maxLines) && maxLines > 0
+    ? maxLines
+    : MAX_BULK_FEE_PAYMENT_LINES;
   const sourceIds = Array.isArray(input?.line_ids) ? input.line_ids : [];
   const lineIds = [
     ...new Set<string>(
       sourceIds.map((value: unknown) => String(value).trim()).filter(Boolean)
     ),
   ].sort();
-  if (!lineIds.length) throw new Error("line_ids is required");
-  if (lineIds.length > MAX_BULK_FEE_PAYMENT_LINES) {
-    throw new Error(`line_ids supports at most ${MAX_BULK_FEE_PAYMENT_LINES} unique values`);
+  if (!lineIds.length) {
+    throw new ApiError("MISSING_LINE_IDS", "line_ids is required", 400);
+  }
+  if (lineIds.length > safeMaxLines) {
+    throw new ApiError(
+      "TOO_MANY_LINE_IDS",
+      `line_ids supports at most ${safeMaxLines} unique values`,
+      400,
+    );
   }
 
   return {
@@ -165,13 +178,12 @@ export async function syncMonthlyFeeLines(
     const feePerSession = numberOrZero(item.fee_per_day);
 
     const existing = await client.monthlyFeeLine.findUnique({
-      where: {
-        studentId_month_allocationKey: {
-          studentId: fee.studentId,
-          month: fee.month,
-          allocationKey,
-        },
-      },
+      where: monthlyFeeLineUniqueWhere(
+        client,
+        fee.studentId,
+        fee.month,
+        allocationKey,
+      ),
       include: { receiptLines: { select: { id: true } } },
     });
 

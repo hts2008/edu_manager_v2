@@ -1114,3 +1114,120 @@
 - Independent review found and closed the final loopback parser edge case (`127.0.0.1`); final verification passed fixture `6/6`, root unit `525/525` and TypeScript.
 - Released commit `80b815d` through Vercel production deployment `dpl_BxYkLec32DKLjUo7eSR9soLifgHw`; canonical route smoke passed 200/200 with protected API 401 and no production seed mutation.
 - Production and operational finance/attendance truth were not modified. Evidence: `receipts/2026-08-11-student-progress-review-mock-data.md`.
+
+## 2026-08-15 - Admin Console static gates and tenant selector checkpoint
+
+- Continued the Admin Console / multi-tenant control-plane rollout from the latest dirty worktree checkpoint.
+- RCA: monthly-fee cron/generator had tenantId in the caller, but Prisma transaction clients did not expose `$tenantId`, so tenant selectors could fall back to legacy unique keys.
+- Implemented a tenant-marked client proxy in `lib/monthly-fee-generator.ts` and kept `monthlyFeeUniqueWhere` as the canonical monthly-fee identity selector.
+- Updated stale contract tests to match current tenant-aware uniqueness, `req.db`/permission routing, and report endpoint contracts.
+- Verification passed: focused contract suite `93/93`, admin-console `216/216`, unit `530/530`, TypeScript, frontend lint, build, diff-check, and tenant runtime audit `PASS` with `0` findings.
+- Admin Console remains NO-GO for production closeout pending dataful Neon rehearsal, backup/rollback/PITR, schema diff, auth/session revocation evidence and canonical production smoke.
+- Evidence: `receipts/2026-08-15-admin-console-static-gates-and-tenant-selector.md`.
+
+## 2026-10-05 - System comprehension review, tuition and student progress
+
+- Reviewed available architecture, schema, router, domain/API paths, product plans, board, memory and handoff. Produced `reports/2026-10-05-system-review/review.md` with formulas, data flows, source references, findings and explicit coverage boundaries.
+- Reproduced default per-session extra fee becoming zero, academic 60-to-80 trend reporting decline, daily-only evidence missing from monthly skills, cross-skill delta and timeline difficulty configuration mismatch. Added only review probe scripts; product code was not changed.
+- Focused existing tests: 21/21 passed. Two in-memory domain probes: exit 0, asserting observed defects rather than product correctness. Full suite hit filesystem read errors and typecheck stalled; both stopped. No database or production verification performed.
+- KANBAN: REV-20261005-01 PARTIAL; R1-R5 PLANNED. Whole-codebase claim withheld because numerous OneDrive files remain RecallOnDataAccess, including core UI, Audit_V2 and historical receipts.
+- Context+ unavailable - manual mode; Neural Memory unavailable - markdown-only mode; calls 0/0, health unavailable. Paperclip offline. No global memory writes.
+- Evidence: `receipts/2026-10-05-system-comprehension-review.md`.
+
+## 2026-10-05 - Tuition/progress production remediation planning
+
+- Created a six-phase execution plan and business/verification/data-reconciliation/release/Go-No-Go documentation from R1-R5. Included file-level implementation scope, desired RED/GREEN scenarios, historical protected-data handling and Admin Console dependencies without a release cycle.
+- Added 50 unique verification scenario groups and 13 gates; new semantics remain proposed until finance/academic owner acceptance in TPR-01. No claim that fixes or production certification are complete.
+- Read newly available Audit_V2/UI/backup/harness context. Found current PG harness checks connection plus404 and Playwright real config has narrow spec/viewport discovery; plans require actual business persistence and mobile evidence.
+- Reproducible documentation validation PASS: 13 Markdown documents, 38 local links, six-phase dependency DAG, unique scenario IDs, release-gate count and documented npm-script existence. Scoped diff-check passed with only Git LF/CRLF notices. No app tests rerun; application code unchanged by this task.
+- Board: PLAN-20261005-01 IMPLEMENTED (docs only); TPR-01..05 PLANNED, TPR-06 BLOCKED. R1-R5 open; Admin Console production NO-GO preserved.
+- Context+/Neural Memory unavailable, calls0/0, health unavailable, NM decisions stored0. Workspace Markdown updated; no global memory writes.
+- Evidence: `receipts/2026-10-05-tuition-progress-production-plan.md`, `docs/artifacts/tuition-progress-plan-2026-10-05/validation.json`.
+
+## 2026-10-05 - Team/Cook Local Tuition And Progress Implementation
+
+- User authorized execution of the named six-phase plan. Scoped Codex workers implemented tuition/HTTP, harness/inventory/docs, frontend/settings; test and independent-review workers checked actual changes. Main integrated canonical resolvers, transactional evidence/audit, settings OCC and captured verification.
+- Fixed R1-R5 locally with RED/GREEN pricing/academic tests, then additional review-discovered comparability/settings/grader/read-cache/atomicity issues. Daily raw80 persists through finalize; fee90k+extra90k persists180k idempotently. Finalized values/rubric and protected finance invariants retained.
+- Empty isolated PostgreSQL16 migrated all18 checked-in migrations; real authenticated HTTP/DB, nullable dashboard reload at desktop/mobile/tablet, PDF binary, tenant/role denial, concurrent save/finalize and read-only stable inventory exercised. These are local synthetic records, not production-derived history/recovery.
+- Captured exact commands/exits/counts/logs: `docs/artifacts/tuition-progress-execution-2026-10-05/verification.json`; receipt `receipts/2026-10-05-tuition-progress-execution.md`. Root533/admin216 tests passed in the integrated checkpoint; latest focused/HTTP/frontend counts belong to the final verifier, not an inferred total.
+- Security FAIL: root undici high, frontend policy brace-expansion high; no upgrades or waivers. Coverage measured but all required business/API/UI/utility thresholds/full matrix not certified. History corrections, dataful Neon chain, backup/restore/PITR and named approvals remain pending.
+- Test-only cleanup incident: wrong browser fixture IDs manually supplied to HTTP cleanup without ownership verification. Identified, reseeded/rerun, added purpose/prefix/exact IDs/persisted name guard. No production impact; do not repeat unverified cleanup.
+- Board phases01/05 PARTIAL,02/03/04 REVIEW,06 BLOCKED; R1-R5 REVIEW, additional SEC/COV/HIST tasks tracked. All dirty Admin Console/unrelated work preserved; no commits/push/deploy/history apply.
+- Workspace ADR-60/session/handoff/next-actions updated. NM/Context+/MCPProxy unavailable, calls0/0, health unavailable, NM decisions0; no global memory writes. Local review server3088 and test DockerPG15432 remain available.
+
+## 2026-10-05 - Local Login Recovery
+
+- LOCAL-AUTH-20261005 IMPLEMENTED locally: guarded existing browser admin password reset, tokenVersion increment/session revocation; no production access or password recorded in files.
+- Matched frontend VITE_TENANCY_MODE=enforced with backend. Build PASS, tenant-login5/5, HTTP wrong-password401/new-password200, actual Playwright login form/error/navigation PASS.
+- Receipt: receipts/2026-10-05-local-login-recovery.md. Production NO-GO unchanged; NM/C+ unavailable calls0/0.
+
+## 2026-10-05 - Local Review Dataset
+
+- LOCAL-DEMO-20261005 IMPLEMENTED:6 students/3 classes/24 progress months/320 dated observations;24 fees generated through authenticated real API. Existing fixture/password unchanged; no production access.
+- Typecheck PASS, repeat seed unchanged, authenticated API reads200. Manual calculate exposed500 UNSAFE_RAW_QUERY; TPR-CALC-LOCK-01 PLANNED. Receipt receipts/2026-10-05-local-review-data.md; production NO-GO unchanged. NM/C+ unavailable calls0/0.
+
+## 2026-10-05 - Teacher Spreadsheet UX Research And Plan
+
+- User selected always-visible spreadsheet score cells; docs define fixed/collapsible rail, no right inspector, row save, canonical sources and editable content/theme console.
+- UXW-DOC-01 IMPLEMENTED documentation only; UXW-01..06 PLANNED.13 files/18 links/acyclic graph/diff-check pass;22 future verification scenarios. No app/schema/deploy/product tests.
+- Daily whole-date replacement and absent teacher UserRole surfaced as prerequisites; no auth/scoring rule silently changed. Stitch model requirement incompatible with exposed schema; Figma target pending, no visual parity claim. NM/C+ unavailable0/0, health unavailable. Receipt receipts/2026-10-05-teacher-workspace-ux-plan.md.
+
+## 2026-10-05 - Teacher Workspace Local Implementation And Verification
+
+- User-authorized Codex workers delivered safe dated roster patch/read, spreadsheet rows, fixed shell, bounded copy/theme console and navigation guards. UXW-02/03/04 REVIEW,01/05/06 PARTIAL; planning-only claims above are historical.
+- Root533/admin216/frontend161 pass; focused real HTTP/contracts/load55 pass/1 explicit skip; focused backend lines99.35%; browser10/no pageErrors; type/lint/build pass. Evidence receipts/2026-10-05-teacher-workspace-execution.md and local review package.
+- Permission CHECK migration awaits approval; security audit high, visual-source/teacher mapping/full matrix/trial and production gates remain open. No deployment/schema/dependency/production changes. NM/C+ unavailable0/0 health unavailable; workspace ADR-62 only.
+
+## 2026-10-06 - Operational UI Consistency Review
+
+- User-authorized Codex agents aligned operational headings, metrics, filters and actions across sidebar routes; removed duplicated hero metrics, decorative bars and redundant score notes without changing billing or scoring rules.
+- Frontend193/193, ESLint, enforced-tenancy build and TypeScript pass. Browser geometry checks covered23 desktop and23 mobile route states; three screenshots captured. Evidence: receipts/2026-10-06-ui-consistency-review.md.
+- UX-CONSISTENCY-01 remains REVIEW: native dirty-confirm blocks browser automation. User asked to Cancel; restore Nguyen Minh An listening draft20 to empty afterward, never Save. No DB write occurred. Keyboard accepted-only focus regression passes unit checks; runtime rejection/focus is pending.
+- NM/C+ unavailable, calls0/0, health unavailable. No dependency/schema/deployment changes; existing production gates unchanged.
+
+## 2026-10-06 - User-Directed Visual Restoration
+
+- User rejected flattened redesign; four Codex workers restored their own page styling from pre-edit context, preserving previous functional changes. Parent removed global flattening/token/dialog overrides and restored shared eyebrow/copy/panel style with modest spacing only.
+- Frontend194/194, lint and enforced-tenancy build pass. Browser Students confirms purple primary and original rounded shadowed panels; screenshot restoration-students.jpg. Task REVIEW pending visual acceptance. Earlier route sweep is historical rejected-version evidence.
+- Browser native confirm no longer present; previous test draft never saved. No DB/schema/dependency/production changes. NM/C+ unavailable0/0.
+
+## 2026-10-06 - Inline Report Assessments
+
+- UX-PROGRESS-INLINE-01 IMPLEMENTED locally: scoring moved into report rows, no Update tab/date requirement; server date/time, append-only same-day evidence, one update per accepted UUID. Homework does not require attendance; historical/finalized new submissions rejected; corrections retained.
+- Frontend216/root536/contracts18 pass, real HTTP19/19 in three consecutive rounds; lint/typecheck/build pass. Independent review closed rollover replay/unmount and compound month-creation retry findings;29backend/22frontend verification tests pass.
+- Real browser synthetic fixture saves zero, then reading100/homework80:60/100,2 updates,3 skill evidence; persisted after reload/final server restart. Desktop/mobile artifacts and limits in review package. Current local server3090 PID61916;3088 untouched/cached old backend. No production/schema/dependency changes. NM/C+ unavailable0/0, health unavailable; production NO-GO unchanged.
+
+## 2026-10-06 - Compact Learner Row Charts
+
+- UX-PROGRESS-CHARTS-01 IMPLEMENTED locally: radar/current-priorcalendar-month and cumulative evidence replace Month/Average columns;2x2scores, month retainedclasscontext. Canonical helpers/batchedprojection/missingzero semantics, no per-rowfetch orcalculationchanges.
+- Frontend222/root536/focused13/realHTTP5pass; lint/typecheck/buildpass. Review empty-state test selector fixed; no functionalfindings. Browser save80 radar3.5->18.8/cumulative233->313/count5->6, reloadpersisted; singlepointdot opaque; mobile434pxdocument/viewport, containedtablescroll;viewportreset.
+- Receipt receipts/2026-10-06-progress-row-charts.md. Current3090PID49832;3088 untouchedoldbackend. No production/schema/dependency changes; no visualacceptance/teachertrial/performancebenchmarkclaim. NM/C+ unavailable0/0health unavailable; productiongatesunchanged.
+
+## 2026-10-06 - Parent Progress Print Preview
+
+- UX-PROGRESS-PRINT-01 REVIEW: polished canonical charts/report, A4/A5/Letter portrait/landscape, saved-data guard and cancellable safe popup serialization.
+- Frontend228/root536/lint/typecheck/build pass; actual mounted Recharts and six PDF combinations pass. A4/A5 renders visually inspected. Independent reviewer findings closed.
+- Receipt receipts/2026-10-06-progress-print-report.md. Live CUA tab Debugger unattached twice; user visual acceptance/physical printer pending. No backend/schema/dependency/production changes; NM/C+ unavailable0/0 health unavailable.
+
+## 2026-10-06 - Clay Print Correction
+
+- User rejected flat print treatment; UX-PROGRESS-PRINT-CLAY-02 REVIEW. Clay Bento metrics/chart surfaces, bounded skill bars, actual latest-six-day timeline, planned steps and screen vibrancy/print fallback. Existing canonical print safety preserved.
+-229frontend tests/lint/typecheck/enforcedbuild/sixPDF pass; liveChrome canonical313/twoSVG/papercontrols/nooverflow verified. A4/A5PDF renders inspected; independent source review no findings. Receipt receipts/2026-10-06-progress-print-clay.md.
+-3090 restored isolated schema launcher140908/listener83044;3088 untouched. No learner/business writes, local login/session only. User aesthetics/physicalprinter pending, production gates unchanged. NM/C+ unavailable0/0health unavailable; Stitch requiredmodel unsupported/Figma unrelated file not modified.
+
+## 2026-10-06 - Core Skills And Clay Receipts
+
+- CORE-03/RECEIPT-CLAY-01 REVIEW: four visible skill criteria and inputs, historical evidence retained; editable A4/A5 Clay templates, square QR placeholder, signatures and dynamic fields.
+- Frontend237/root536/PDF25 pass; lint/typecheck/build; six actual PDFs and Chrome save/reload/pencil routing. Independent overflow/paper findings fixed. Receipt receipts/2026-10-06-core-skills-clay-receipts.md.
+- Final review3090 launcher117796; two synthetic template writes, no defaults/financial transaction/migration/deployment. User visual/physical-printer acceptance and production gates open. NM/C+ unavailable0/0health unavailable.
+
+## 2026-10-06 - Print Palette Correction
+
+Follow-up UX-RECEIPT-DESIGN-02 REVIEW: clarified receipt-only design; three grouped sections replace eleven floating tiles.240 frontend tests/build/lint and six real PDFs pass; review A4/A5 saved. Evidence receipts/2026-10-06-receipt-design-hierarchy.md. User/printer acceptance pending; NM/C+ unavailable0/0.
+
+- UX-PRINT-PALETTE-01 REVIEW: user rejected rainbow fills; neutral cards, gray borders/subtle shadows, amount-only primary-soft accent, indigo/gray charts. Geometry/calculations unchanged.
+- Final239 frontend tests/lint/build pass; six actual one-page PDFs without field overflow; Chrome receipt/progress screenshots. Receipt receipts/2026-10-06-print-palette.md. User/printer acceptance pending; NM/C+ unavailable0/0health unavailable.
+
+## 2026-10-06 - Authorized Production Cutover
+
+Canonical operational on811fb4b with actual seven API200/auth negatives/platform403/encrypted cloud V4 backup/counts pass.19 migrations, verifier28/59/0; protected data and original credentials unchanged; ownership restored/temporary guards removed. Tenant-only admin-live/default private EFS/ACL handoff. Root536/AdminConsole228/frontend240, real enforced E2E9/9, visual6/6, CI811fb4b four jobs pass. Final parent narrative null regression12/12 and release-helper hardening5focused tests pass; final main sync underway.24h observation and historical provenance owner reconciliation not preclaimed. Evidence receipts/2026-10-06-go-live-execution.md; NM/C+ unavailable0/0.

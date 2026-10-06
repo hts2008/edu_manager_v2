@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -29,7 +28,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = getRequiredString(req.query.id, "id");
-    const payment = await prisma.payment.findFirst({
+    const payment = await req.db.payment.findFirst({
       where: { id, deletedAt: null },
       include: { template: true },
     });

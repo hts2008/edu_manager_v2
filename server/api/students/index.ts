@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -19,6 +18,11 @@ import { sendApiError } from "../../../lib/api-utils.js";
 import { parsePagination } from "../../../lib/pagination.js";
 
 export async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   // GET - List all students OR single student by ID
   if (req.method === "GET") {
     try {
@@ -51,7 +55,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const student = await prisma.student.findFirst({
+        const student = await db.student.findFirst({
           where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
           include: {
             parent: { select: { id: true, fullName: true, phone: true } },
@@ -121,7 +125,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
 
       if (fields === "options") {
         const [rawStudents, total] = await Promise.all([
-          prisma.student.findMany({
+          db.student.findMany({
             where,
             select: {
               id: true,
@@ -134,7 +138,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
             take: limit,
             skip: offset,
           }),
-          prisma.student.count({ where }),
+          db.student.count({ where }),
         ]);
 
         const students = rawStudents.map((s) => ({
@@ -157,7 +161,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
 
       if (fields === "table") {
         const [rawStudents, total] = await Promise.all([
-          prisma.student.findMany({
+          db.student.findMany({
             where,
             select: {
               id: true,
@@ -178,7 +182,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
             take: limit,
             skip: offset,
           }),
-          prisma.student.count({ where }),
+          db.student.count({ where }),
         ]);
 
         const students = rawStudents.map((s: any) => ({
@@ -208,7 +212,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const [rawStudents, total] = await Promise.all([
-        prisma.student.findMany({
+        db.student.findMany({
           where,
           include: {
             parent: { select: { id: true, fullName: true, phone: true } },
@@ -221,7 +225,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
           take: limit,
           skip: offset,
         }),
-        prisma.student.count({ where }),
+        db.student.count({ where }),
       ]);
 
       // Transform camelCase to snake_case for frontend compatibility
@@ -265,16 +269,17 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
       const body = validateBody(studentCreateSchema, req.body);
 
       // Verify parent exists
-      const parent = await prisma.parent.findFirst({
+      const parent = await db.parent.findFirst({
         where: { id: body.parent_id, deletedAt: null },
       });
       if (!parent) {
         return errorResponse(res, "PARENT_NOT_FOUND", "Parent not found", 404);
       }
 
-      const student = await prisma.$transaction(async (tx) => {
+      const student = await db.$transaction(async (tx) => {
         const created = await tx.student.create({
           data: {
+            tenantId,
             fullName: body.full_name,
             dateOfBirth: new Date(body.date_of_birth),
             gender: body.gender,
@@ -314,7 +319,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
 
       const body = validateBody(studentUpdateSchema, req.body);
 
-      const existingStudent = await prisma.student.findFirst({
+      const existingStudent = await db.student.findFirst({
         where: { id, deletedAt: null },
         select: { id: true },
       });
@@ -322,7 +327,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Student not found", 404);
       }
 
-      const updatedStudent = await prisma.$transaction(async (tx) => {
+      const updatedStudent = await db.$transaction(async (tx) => {
         const updated = await tx.student.update({
           where: { id },
           data: {
@@ -368,7 +373,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Student ID is required", 400);
       }
 
-      const student = await prisma.student.findFirst({
+      const student = await db.student.findFirst({
         where: { id, deletedAt: null },
         select: { id: true },
       });
@@ -377,7 +382,7 @@ export async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Student not found", 404);
       }
 
-      await prisma.$transaction(async (tx) => {
+      await db.$transaction(async (tx) => {
         await deactivateEnrollmentPeriods(tx, { studentId: id });
         await tx.student.update({
           where: { id },

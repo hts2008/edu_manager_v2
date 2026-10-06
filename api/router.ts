@@ -25,7 +25,19 @@ type RouteMatch = {
 const MUTATION_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const routes = {
+  uiExperience: () => import("../server/api/ui-experience.js"),
   activityLogsIndex: () => import("../server/api/activity-logs/index.js"),
+  adminSettingsIndex: () => import("../server/api/admin/settings/index.js"),
+  adminSettingsSimulate: () => import("../server/api/admin/settings/simulate.js"),
+  adminSettingByKey: () => import("../server/api/admin/settings/[key].js"),
+  adminSettingRevisions: () => import("../server/api/admin/settings/[key]/revisions.js"),
+  adminSettingRollback: () => import("../server/api/admin/settings/[key]/rollback.js"),
+  adminSystemStatus: () => import("../server/api/admin/system-status/index.js"),
+  adminTenants: () => import("../server/api/admin/tenants.js"),
+  adminPermissions: () => import("../server/api/admin/permissions.js"),
+  adminFeatures: () => import("../server/api/admin/features.js"),
+  adminIntegrations: () => import("../server/api/admin/integrations.js"),
+  adminIntegrationTest: () => import("../server/api/admin/integrations/[kind]/test.js"),
   attendanceBulk: () => import("../server/api/attendance/bulk.js"),
   attendanceCalculateFee: () => import("../server/api/attendance/calculate-fee.js"),
   attendanceIndex: () => import("../server/api/attendance/index.js"),
@@ -79,6 +91,7 @@ const routes = {
   reportsStudentProgress: () => import("../server/api/reports/student-progress.js"),
   reportsUnpaidStudents: () => import("../server/api/reports/unpaid-students.js"),
   studentProgressDaily: () => import("../server/api/student-progress/daily.js"),
+  studentProgressRoster: () => import("../server/api/student-progress/roster.js"),
   studentProgressPdf: () => import("../server/api/student-progress/pdf.js"),
   studentProgressTimeline: () => import("../server/api/student-progress/timeline.js"),
   studentProgressIndex: () => import("../server/api/student-progress/index.js"),
@@ -110,8 +123,28 @@ function resolveRoute(parts: string[]): RouteMatch | null {
   const [resource, id, action] = parts;
 
   return (
+    exact(parts, ["ui-experience"], routes.uiExperience) ||
     exact(parts, ["auth", "login"], routes.authLogin) ||
     exact(parts, ["activity-logs"], routes.activityLogsIndex) ||
+    exact(parts, ["admin", "settings"], routes.adminSettingsIndex) ||
+    exact(parts, ["admin", "settings", "simulate"], routes.adminSettingsSimulate) ||
+    exact(parts, ["admin", "system-status"], routes.adminSystemStatus) ||
+    exact(parts, ["admin", "tenants"], routes.adminTenants) ||
+    exact(parts, ["admin", "permissions"], routes.adminPermissions) ||
+    exact(parts, ["admin", "features"], routes.adminFeatures) ||
+    exact(parts, ["admin", "integrations"], routes.adminIntegrations) ||
+    (resource === "admin" && id === "integrations" && parts.length === 4 && parts[3] === "test"
+      ? { load: routes.adminIntegrationTest, params: { kind: action } }
+      : null) ||
+    (resource === "admin" && id === "settings" && parts.length === 3
+      ? { load: routes.adminSettingByKey, params: { key: action } }
+      : null) ||
+    (resource === "admin" && id === "settings" && parts.length === 4 && parts[3] === "revisions"
+      ? { load: routes.adminSettingRevisions, params: { key: action } }
+      : null) ||
+    (resource === "admin" && id === "settings" && parts.length === 4 && parts[3] === "rollback"
+      ? { load: routes.adminSettingRollback, params: { key: action } }
+      : null) ||
     exact(parts, ["auth", "me"], routes.authMe) ||
     exact(parts, ["auth", "logout"], routes.authLogout) ||
     exact(parts, ["auth", "change-password"], routes.authChangePassword) ||
@@ -149,6 +182,7 @@ function resolveRoute(parts: string[]): RouteMatch | null {
     exact(parts, ["reports", "student-progress"], routes.reportsStudentProgress) ||
     exact(parts, ["reports", "unpaid-students"], routes.reportsUnpaidStudents) ||
     exact(parts, ["student-progress", "daily"], routes.studentProgressDaily) ||
+    exact(parts, ["student-progress", "roster"], routes.studentProgressRoster) ||
     exact(parts, ["student-progress", "pdf"], routes.studentProgressPdf) ||
     exact(parts, ["student-progress", "timeline"], routes.studentProgressTimeline) ||
     exact(parts, ["student-progress"], routes.studentProgressIndex) ||
@@ -232,7 +266,7 @@ async function recordMutationAudit(
 
   try {
     await writeAudit(
-      req,
+      req as AuthedRequest,
       user.userId,
       `API_${method}_${outcome}`,
       "api_route",
@@ -263,6 +297,12 @@ export function createRouterHandler(dependencies: RouterDependencies = {}) {
     res.setHeader("X-Request-Id", requestId);
 
     if (handleCors(req, res)) return;
+
+    if (process.env.RELEASE_MAINTENANCE === "true") {
+      res.setHeader("Retry-After", "120");
+      res.setHeader("Cache-Control", "no-store");
+      return errorResponse(res, "RELEASE_MAINTENANCE", "He thong dang bao tri ngan. Vui long thu lai sau.", 503);
+    }
 
     const startedAt = Date.now();
     const parts = pathParts(req);

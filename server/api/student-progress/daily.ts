@@ -1,34 +1,35 @@
-import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
+import type { VercelRequest, VercelResponse } from "../../../lib/vercel-types.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import {
   ApiError,
   getString,
-  logActivity,
   sendApiError,
   toDateOnly,
 } from "../../../lib/api-utils.js";
 import {
   defaultClassTypeForTrack,
+  buildProgressAssessment,
   detectProgressTrackKey,
   PROGRESS_SKILL_LABELS,
   summarizeDailyAssessmentRollup,
   type ProgressDailyEntryInput,
   type ProgressSkillKey,
 } from "../../../lib/student-progress-assessment.js";
-import { assertProgressMonthEditable } from "../../../lib/student-progress-finalization.js";
+import { appendProgressActivity, assertProgressMonthEditable } from "../../../lib/student-progress-finalization.js";
 import { normalizeProgressEntrySemantics } from "../../../lib/progress-difficulty.js";
 import { assertAttendanceWriteEnrollment } from "../../../lib/attendance-enrollment-guard.js";
 import {
   deriveMockTestScores,
-  resolveMonthlyProgressScore,
 } from "../../../lib/student-progress-daily-metrics.js";
+import { loadProgressOperationalRow } from "../../../lib/student-progress-operational-row.js";
+import { getSettings } from "../../../lib/settings.js";
+import { storedProgressScore } from "../../../lib/student-progress-evidence.js";
 import {
   studentProgressDailyDeleteSchema,
   studentProgressDailyPutSchema,
@@ -38,6 +39,18 @@ import {
 
 const DAILY_ROLLUP_SOURCE = "daily_rollup";
 const ALL_SKILL_COUNT = Object.keys(PROGRESS_SKILL_LABELS).length;
+
+function requireTenantId(req: AuthedRequest): string {
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    throw new ApiError(
+      "TENANT_CONTEXT_REQUIRED",
+      "A tenant-scoped session is required for student progress",
+      409,
+    );
+  }
+  return tenantId;
+}
 
 function parseDateOnly(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
@@ -99,7 +112,9 @@ function progressMonthRollupToDto(record: any) {
     student_id: record.studentId,
     class_id: record.classId,
     month: record.month,
-    progress_score: record.progressScore,
+    progress_score: storedProgressScore(record),
+    score_source: record.rubricSnapshot?.scoreEvidence?.source || (record.finalizedAt ? "legacy_unknown" : null),
+    track_key: record.trackKey,
     daily_average_score: record.dailyAverageScore,
     daily_latest_score: record.dailyLatestScore,
     daily_score_delta: record.dailyScoreDelta,
@@ -124,6 +139,8 @@ function entryRowsToRollupInput(entries: any[]): ProgressDailyEntryInput[] {
     skill_key: entry.skillKey,
     score: entry.score,
     shield_count: entry.shieldCount,
+    exam_set_level: normalizeProgressEntrySemantics(entry.examSetLevel, entry.difficultyLevel).examSetLevel,
+    difficulty_level: normalizeProgressEntrySemantics(entry.examSetLevel, entry.difficultyLevel).difficultyLevel,
     note: entry.note,
   }));
 }
@@ -133,9 +150,14 @@ function average(values: number[]) {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 }
 
-async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: string) {
+export async function recomputeMonthlyRollup(
+  tx: any,
+  progressMonth: any,
+  tenantId: string,
+  userId: string
+) {
   const entries = await tx.studentProgressDailyEntry.findMany({
-    where: { progressMonthId: progressMonth.id },
+    where: { tenantId, progressMonthId: progressMonth.id },
     orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
   });
   const rollup = summarizeDailyAssessmentRollup(entryRowsToRollupInput(entries));
@@ -144,8 +166,8 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
   );
 
   const existingSkills = await tx.studentProgressSkill.findMany({
-    where: { progressMonthId: progressMonth.id },
-    select: { skillKey: true, score: true, source: true },
+    where: { tenantId, progressMonthId: progressMonth.id },
+    select: { skillKey: true, score: true, source: true, maxScore: true, weight: true },
   });
   const manualSkills = existingSkills.filter(
     (skill: any) => skill.source !== DAILY_ROLLUP_SOURCE
@@ -155,6 +177,7 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
   // rows so it can never overwrite teacher-authored monthly skill input.
   await tx.studentProgressSkill.deleteMany({
     where: {
+      tenantId,
       progressMonthId: progressMonth.id,
       source: DAILY_ROLLUP_SOURCE,
     },
@@ -184,15 +207,29 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
     }, 0)
   );
   const mockTestScores = deriveMockTestScores(entries);
+  const [row, settings] = await Promise.all([
+    loadProgressOperationalRow(tx, progressMonth.studentId, progressMonth.classId, progressMonth.month),
+    getSettings(tx, { tenantId, group: "academic", effectiveMonth: progressMonth.month }),
+  ]);
+  if (settings.settings.some((setting: any) => setting.warnings?.length)) {
+    throw new ApiError("INVALID_SETTING_VALUE", "Invalid academic settings", 409);
+  }
+  const assessment = buildProgressAssessment({ row, settings: { settings: settings.settings }, progressMonth: {
+    id: progressMonth.id, studentId: progressMonth.studentId, classId: progressMonth.classId,
+    month: progressMonth.month, trackKey: progressMonth.trackKey, classType: progressMonth.classType,
+    teacherNote: progressMonth.teacherNote, dailyEntries: entryRowsToRollupInput(entries),
+    skills: manualSkills.map((skill: any) => ({ skill_key: skill.skillKey, score: skill.score,
+      max_score: skill.maxScore, weight: skill.weight, source: skill.source })),
+  } });
 
   const updatedProgressMonth = await tx.studentProgressMonth.update({
-    where: { id: progressMonth.id },
+    where: { id: progressMonth.id, tenantId },
     data: {
-      progressScore: resolveMonthlyProgressScore({
-        dailyAverageScore: rollup.averageScore,
-        previousProgressScore: progressMonth.progressScore,
-        manualSkillCount: manualSkills.filter((skill: any) => skill.score !== null).length,
-      }),
+      progressScore: assessment.progressScore ?? 0,
+      attendanceScore: assessment.attendanceScore,
+      consistencyScore: assessment.consistencyScore,
+      trackReadiness: assessment.readinessBand,
+      rubricSnapshot: assessment.rubricSnapshot,
       learningEvidenceCoverage: Math.round((availableSkillCount / ALL_SKILL_COUNT) * 1000) / 10,
       dailyAverageScore: rollup.averageScore,
       dailyLatestScore: rollup.latestScore,
@@ -214,15 +251,17 @@ async function recomputeMonthlyRollup(tx: any, progressMonth: any, userId: strin
 }
 
 async function runSerializableTransaction<T>(
+  db: AuthedRequest["db"],
   operation: (tx: any) => Promise<T>
 ): Promise<T> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      return await prisma.$transaction(operation, {
+      return await db.$transaction(operation, {
         isolationLevel: "Serializable",
       });
     } catch (error: any) {
-      if (error?.code !== "P2034" || attempt === 3) throw error;
+      if (error?.code !== "P2034") throw error;
+      if (attempt === 3) throw new ApiError("DAILY_PROGRESS_CONFLICT", "Progress changed concurrently; reload and retry", 409);
     }
   }
   throw new ApiError("DAILY_PROGRESS_CONFLICT", "Could not serialize daily progress update", 409);
@@ -238,11 +277,13 @@ function queryInput(req: AuthedRequest) {
 }
 
 async function listDailyEntries(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = requireTenantId(req);
   const query = validateBody(studentProgressDailyQuerySchema, queryInput(req));
   const month = query.month || query.entry_date?.slice(0, 7) || "";
-  const progressMonth = await prisma.studentProgressMonth.findUnique({
+  const progressMonth = await req.db.studentProgressMonth.findUnique({
     where: {
-      studentId_classId_month: {
+      tenantId_studentId_classId_month: {
+        tenantId,
         studentId: query.student_id,
         classId: query.class_id,
         month,
@@ -265,8 +306,9 @@ async function listDailyEntries(req: AuthedRequest, res: VercelResponse) {
   }
 
   const selectedDate = query.entry_date ? parseDateOnly(query.entry_date) : null;
-  const dailyEntries = await prisma.studentProgressDailyEntry.findMany({
+  const dailyEntries = await req.db.studentProgressDailyEntry.findMany({
     where: {
+      tenantId,
       progressMonthId: progressMonth.id,
       ...(selectedDate
         ? { entryDate: { gte: selectedDate, lt: nextDate(selectedDate) } }
@@ -275,17 +317,35 @@ async function listDailyEntries(req: AuthedRequest, res: VercelResponse) {
     orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
   });
   const monthlyEntries = selectedDate
-    ? await prisma.studentProgressDailyEntry.findMany({
-        where: { progressMonthId: progressMonth.id },
+    ? await req.db.studentProgressDailyEntry.findMany({
+        where: { tenantId, progressMonthId: progressMonth.id },
         orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
       })
     : dailyEntries;
   const rollup = summarizeDailyAssessmentRollup(entryRowsToRollupInput(monthlyEntries));
   const note =
     dailyEntries.find((entry: any) => entry.entryType === "note" && entry.note)?.note || null;
+  const progressDto = progressMonthRollupToDto(progressMonth);
+  if (progressDto && !progressMonth.finalizedAt) {
+    const [row, settings, skills] = await Promise.all([
+      loadProgressOperationalRow(req.db, query.student_id, query.class_id, month),
+      getSettings(req.db, { tenantId, group: "academic", effectiveMonth: month }),
+      req.db.studentProgressSkill.findMany({ where: { tenantId, progressMonthId: progressMonth.id } }),
+    ]);
+    if (settings.settings.some((setting: any) => setting.warnings?.length)) {
+      throw new ApiError("INVALID_SETTING_VALUE", "Invalid academic settings", 409);
+    }
+    const assessment = buildProgressAssessment({ row, settings: { settings: settings.settings },
+      progressMonth: { id: progressMonth.id, studentId: query.student_id, classId: query.class_id,
+        month, trackKey: progressMonth.trackKey as any, classType: progressMonth.classType as any,
+        dailyEntries: entryRowsToRollupInput(monthlyEntries), skills: skills.map((skill: any) => ({
+          skill_key: skill.skillKey, score: skill.score, max_score: skill.maxScore, source: skill.source,
+        })) } });
+    Object.assign(progressDto, { progress_score: assessment.progressScore, score_source: assessment.scoreSource });
+  }
 
   return successResponse(res, {
-    progress_month: progressMonthRollupToDto(progressMonth),
+    progress_month: progressDto,
     student_id: query.student_id,
     class_id: query.class_id,
     month,
@@ -297,6 +357,7 @@ async function listDailyEntries(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = requireTenantId(req);
   const body = validateBody(studentProgressDailyPutSchema, {
     ...req.body,
     student_id: req.body?.student_id || req.body?.studentId,
@@ -305,8 +366,9 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
   });
   const entryDate = parseDateOnly(body.entry_date);
   const month = body.entry_date.slice(0, 7);
-  const enrollment = await prisma.studentClass.findFirst({
+  const enrollment = (await req.db.studentClass.findFirst({
     where: {
+      tenantId,
       studentId: body.student_id,
       classId: body.class_id,
       student: { deletedAt: null },
@@ -320,7 +382,13 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
         },
       },
     },
-  });
+  })) as null | {
+    class: {
+      className: string;
+      teacherId: string | null;
+      teacher: { status: string } | null;
+    };
+  };
   if (!enrollment) {
     throw new ApiError("ENROLLMENT_NOT_FOUND", "Student is not enrolled in this class", 404);
   }
@@ -344,8 +412,9 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
     );
   }
 
-  const attendance = await prisma.attendance.findFirst({
+  const attendance = await req.db.attendance.findFirst({
     where: {
+      tenantId,
       studentId: body.student_id,
       classId: body.class_id,
       attendanceDate: { gte: entryDate, lt: nextDate(entryDate) },
@@ -401,14 +470,26 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
     });
   }
 
-  const result = await runSerializableTransaction(async (tx) => {
+  const result = await runSerializableTransaction(req.db, async (tx) => {
+    const assignment = await tx.class.findFirst({ where: { id: body.class_id, tenantId },
+      select: { className: true, teacherId: true, teacher: { select: { status: true } } } });
+    if (!assignment || (requestedGraderIds.size > 0 &&
+      (requestedGraderIds.size !== 1 || !assignment.teacherId ||
+        !requestedGraderIds.has(assignment.teacherId) || assignment.teacher?.status !== "active"))) {
+      throw new ApiError("GRADER_NOT_ASSIGNED", "Assigned active teacher changed; reload and retry", 409);
+    }
+    const effectiveSettings = await getSettings(tx, { tenantId, group: "academic", effectiveMonth: month });
+    if (effectiveSettings.settings.some((setting: any) => setting.warnings?.length)) {
+      throw new ApiError("INVALID_SETTING_VALUE", "Invalid academic settings", 409);
+    }
     await assertAttendanceWriteEnrollment(tx, {
       classId: body.class_id,
       records: [{ studentId: body.student_id, attendanceDate: entryDate }],
     });
     const existing = await tx.studentProgressMonth.findUnique({
       where: {
-        studentId_classId_month: {
+        tenantId_studentId_classId_month: {
+          tenantId,
           studentId: body.student_id,
           classId: body.class_id,
           month,
@@ -416,11 +497,13 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
       },
     });
     assertProgressMonthEditable(existing?.finalizedAt);
-    const trackKey = existing?.trackKey || detectProgressTrackKey(enrollment.class.className);
+    const trackKey = existing?.trackKey || detectProgressTrackKey(assignment.className,
+      { settings: effectiveSettings.settings });
     const progressMonth =
       existing ||
       (await tx.studentProgressMonth.create({
         data: {
+          tenantId,
           studentId: body.student_id,
           classId: body.class_id,
           month,
@@ -434,6 +517,7 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
 
     await tx.studentProgressDailyEntry.deleteMany({
       where: {
+        tenantId,
         progressMonthId: progressMonth.id,
         entryDate: { gte: entryDate, lt: nextDate(entryDate) },
       },
@@ -441,6 +525,7 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
     if (normalizedEntries.length) {
       await tx.studentProgressDailyEntry.createMany({
         data: normalizedEntries.map((entry) => ({
+          tenantId,
           progressMonthId: progressMonth.id,
           entryDate,
           entryType: entry.entryType,
@@ -457,16 +542,15 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
       });
     }
 
-    return recomputeMonthlyRollup(tx, progressMonth, req.user.id);
+    const recomputed = await recomputeMonthlyRollup(
+      tx,
+      progressMonth,
+      tenantId,
+      req.user.id
+    );
+    await appendProgressActivity(tx, req, "REPLACE_STUDENT_PROGRESS_DAILY", progressMonth.id);
+    return recomputed;
   });
-
-  await logActivity(
-    req,
-    req.user.id,
-    "REPLACE_STUDENT_PROGRESS_DAILY",
-    "student_progress",
-    result.progressMonth.id
-  );
 
   const selectedEntries = result.entries.filter(
     (entry: any) => toDateOnly(entry.entryDate) === body.entry_date
@@ -484,12 +568,14 @@ async function replaceDailyEntries(req: AuthedRequest, res: VercelResponse) {
 }
 
 async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = requireTenantId(req);
   const query = validateBody(studentProgressDailyDeleteSchema, queryInput(req));
   const entryDate = parseDateOnly(query.entry_date);
   const month = query.entry_date.slice(0, 7);
-  const progressMonth = await prisma.studentProgressMonth.findUnique({
+  const progressMonth = await req.db.studentProgressMonth.findUnique({
     where: {
-      studentId_classId_month: {
+      tenantId_studentId_classId_month: {
+        tenantId,
         studentId: query.student_id,
         classId: query.class_id,
         month,
@@ -510,9 +596,9 @@ async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
     });
   }
 
-  const result = await runSerializableTransaction(async (tx) => {
+  const result = await runSerializableTransaction(req.db, async (tx) => {
     const current = await tx.studentProgressMonth.findUnique({
-      where: { id: progressMonth.id },
+      where: { id: progressMonth.id, tenantId },
     });
     if (!current) {
       throw new ApiError("PROGRESS_MONTH_NOT_FOUND", "Progress month not found", 404);
@@ -520,6 +606,7 @@ async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
     assertProgressMonthEditable(current.finalizedAt);
     const deleted = await tx.studentProgressDailyEntry.deleteMany({
       where: {
+        tenantId,
         progressMonthId: progressMonth.id,
         entryDate: { gte: entryDate, lt: nextDate(entryDate) },
       },
@@ -527,18 +614,12 @@ async function deleteDailyEntries(req: AuthedRequest, res: VercelResponse) {
     const recomputed = await recomputeMonthlyRollup(
       tx,
       current,
+      tenantId,
       req.user.id
     );
+    await appendProgressActivity(tx, req, "DELETE_STUDENT_PROGRESS_DAILY", progressMonth.id);
     return { ...recomputed, deletedCount: deleted.count };
   });
-
-  await logActivity(
-    req,
-    req.user.id,
-    "DELETE_STUDENT_PROGRESS_DAILY",
-    "student_progress",
-    progressMonth.id
-  );
 
   return successResponse(res, {
     progress_month: progressMonthRollupToDto(result.progressMonth),
@@ -565,4 +646,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin", "receptionist"]);
+const viewHandler = requirePermission("progress.view", handler);
+const gradeHandler = requirePermission("progress.grade", handler);
+
+export default function route(req: VercelRequest, res: VercelResponse) {
+  return req.method === "GET"
+    ? viewHandler(req, res)
+    : gradeHandler(req, res);
+}

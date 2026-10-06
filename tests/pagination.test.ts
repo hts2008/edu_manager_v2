@@ -69,7 +69,12 @@ test("students rejects invalid pagination before calling Prisma", async () => {
   try {
     const response = createResponse();
     await studentsHandler(
-      { method: "GET", query: { id: "student-1", limit: ["10"] } } as any,
+      {
+        method: "GET",
+        query: { id: "student-1", limit: ["10"] },
+        user: { tenantId: "tenant-1" },
+        db: prisma,
+      } as any,
       response,
     );
 
@@ -100,6 +105,8 @@ for (const fields of ["options", "table", undefined]) {
         {
           method: "GET",
           query: { fields, limit: "900", offset: "17" },
+          user: { tenantId: "tenant-1" },
+          db: prisma,
         } as any,
         response,
       );

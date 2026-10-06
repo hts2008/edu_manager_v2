@@ -1,13 +1,12 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
-import { getString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
+import { requirePermission } from "../../../lib/require-permission.js";
+import { ApiError, getString, parseMonthRange, sendApiError } from "../../../lib/api-utils.js";
 import {
   buildReportCube,
   filterReportRows,
@@ -16,9 +15,14 @@ import {
 import {
   buildStudentProgressCharts,
   buildStudentProgressReport,
+  loadProgressSubmissionOperations,
   summarizeStudentProgress,
 } from "../../../lib/student-progress-report.js";
-import type { ProgressMonthSnapshot } from "../../../lib/student-progress-assessment.js";
+import { summarizeDailyAssessmentRollup, type ProgressMonthSnapshot } from "../../../lib/student-progress-assessment.js";
+import { buildStudentProgressComparison, buildStudentProgressTimeline } from "../../../lib/student-progress-timeline.js";
+import { normalizeProgressEntrySemantics } from "../../../lib/progress-difficulty.js";
+import { getSettings } from "../../../lib/settings.js";
+import type { AcademicSettingsContext } from "../../../lib/academic-settings.js";
 
 function evidenceKey(studentId: string, classId: string) {
   return `${studentId}\u0000${classId}`;
@@ -82,6 +86,8 @@ function progressRecordToSnapshot(record: any): ProgressMonthSnapshot {
         skill_key: entry.skillKey,
         score: entry.score,
         shield_count: entry.shieldCount,
+        exam_set_level: normalizeProgressEntrySemantics(entry.examSetLevel, entry.difficultyLevel).examSetLevel,
+        difficulty_level: normalizeProgressEntrySemantics(entry.examSetLevel, entry.difficultyLevel).difficultyLevel,
         note: entry.note,
       })) || [],
   };
@@ -98,7 +104,25 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       ...req.query,
       mode: "overview",
     });
-    const rangeStart = parseMonthRange(query.from).startDate;
+    const businessMonths = [previousMonth(query.from), ...query.months];
+    const rangeStart = parseMonthRange(businessMonths[0]).startDate;
+    if (!req.user.tenantId) {
+      throw new ApiError("TENANT_REQUIRED", "Tenant context is required", 403);
+    }
+    const academicSettingsByMonth = new Map<string, AcademicSettingsContext>();
+    await Promise.all(
+      businessMonths.map(async (month) => {
+        const resolved = await getSettings(req.db, {
+          tenantId: req.user.tenantId!,
+          group: "academic",
+          effectiveMonth: month,
+        });
+        if (resolved.settings.some((setting) => setting.warnings?.length)) {
+          throw new ApiError("INVALID_SETTING_VALUE", "Invalid academic settings", 409);
+        }
+        academicSettingsByMonth.set(month, { settings: resolved.settings });
+      }),
+    );
     const rangeEnd = parseMonthRange(query.to).endDate;
     const enrollmentWhere: Record<string, unknown> = {
       enrollmentDate: { lt: rangeEnd },
@@ -114,7 +138,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     if (query.student_id) enrollmentPeriodWhere.studentId = query.student_id;
 
     const [enrollmentRows, enrollmentPeriodRows] = await Promise.all([
-      prisma.studentClass.findMany({
+      req.db.studentClass.findMany({
         where: enrollmentWhere,
         select: {
           studentId: true,
@@ -141,7 +165,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           { class: { className: "asc" } },
         ],
       }),
-      prisma.enrollmentPeriod.findMany({
+      req.db.enrollmentPeriod.findMany({
         where: enrollmentPeriodWhere,
         select: {
           studentId: true,
@@ -187,7 +211,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       classMonthPlanRows,
       classSessionRows,
     ] = await Promise.all([
-            prisma.attendance.findMany({
+            req.db.attendance.findMany({
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
@@ -201,11 +225,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 isMakeUp: true,
               },
             }),
-            prisma.monthlyFeeLine.findMany({
+            req.db.monthlyFeeLine.findMany({
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
-                month: { in: query.months },
+                month: { in: businessMonths },
               },
               select: {
                 id: true,
@@ -220,10 +244,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 allocationConfidence: true,
               },
             }),
-            prisma.monthlyFee.findMany({
+            req.db.monthlyFee.findMany({
               where: {
                 studentId: { in: studentIds },
-                month: { in: query.months },
+                month: { in: businessMonths },
               },
               select: {
                 id: true,
@@ -236,7 +260,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 paidAt: true,
               },
             }),
-            prisma.studentProgressMonth.findMany({
+            req.db.studentProgressMonth.findMany({
               where: {
                 studentId: { in: studentIds },
                 classId: { in: classIds },
@@ -247,10 +271,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 dailyEntries: { orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }] },
               },
             }),
-            prisma.classMonthPlan.findMany({
+            req.db.classMonthPlan.findMany({
               where: {
                 classId: { in: classIds },
-                billingMonth: { in: query.months },
+                billingMonth: { in: businessMonths },
               },
               select: {
                 classId: true,
@@ -261,10 +285,10 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
                 },
               },
             }),
-            prisma.classSession.findMany({
+            req.db.classSession.findMany({
               where: {
                 classId: { in: classIds },
-                billingMonth: { in: query.months },
+                billingMonth: { in: businessMonths },
                 kind: "regular",
               },
               select: {
@@ -319,7 +343,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     const cube = buildReportCube({
-      months: query.months,
+      months: businessMonths,
       enrollments: reportEnrollmentRows.map((row) => ({
         studentId: row.studentId,
         studentName: row.student.fullName,
@@ -342,7 +366,8 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       classSessions: classSessionRows,
     });
 
-    const filteredRows = filterReportRows(cube.students, {
+    // The cube includes a prior-month baseline solely for score comparisons.
+    const filteredRows = filterReportRows(cube.students.filter((row) => query.months.includes(row.month)), {
       ...query,
       mode: "overview",
     });
@@ -362,10 +387,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       dates.add(date);
       attendanceDatesByProgressKey.set(key, dates);
     }
+    const submissionOperations = await loadProgressSubmissionOperations(req.db, req.user.tenantId, filteredRows);
     const report = buildStudentProgressReport({
+      tenantId: req.user.tenantId,
+      submissionOperations,
       rows: filteredRows,
       parentsByStudentId: parentMap,
       progressMonthsByKey,
+      academicSettingsByMonth,
+      baselineRows: cube.students.filter((row) => row.month === businessMonths[0]),
     });
     const track = getString(req.query.track);
     const readiness = getString(req.query.readiness);
@@ -383,22 +413,39 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const previous = progressRecordByKey.get(
         progressKey(row.student_id, row.class_id, previousMonth(row.month))
       );
-      const previousAverage = previous?.dailyAverageScore ?? null;
-      const latest = current?.dailyLatestScore ?? null;
+      const rollup = summarizeDailyAssessmentRollup(progressRecordToSnapshot(current || {}).dailyEntries || []);
+      const currentRange = parseMonthRange(row.month);
+      const previousRange = parseMonthRange(previousMonth(row.month));
+      const inclusiveTo = (end: Date) => dateOnly(new Date(end.getTime() - 86_400_000));
+      const settings = Object.fromEntries(academicSettingsByMonth);
+      const currentTimeline = buildStudentProgressTimeline(
+        current ? [current] : [], dateOnly(currentRange.startDate), inclusiveTo(currentRange.endDate), settings,
+      );
+      const previousTimeline = buildStudentProgressTimeline(
+        previous ? [previous] : [], dateOnly(previousRange.startDate), inclusiveTo(previousRange.endDate), settings,
+      );
+      const alertComparison = buildStudentProgressComparison(currentTimeline, previousTimeline);
+      currentTimeline.summary.alert_score_drop = alertComparison.alert_score_drop;
       const lastEntryDate = current?.dailyEntries?.length
         ? dateOnly(current.dailyEntries[current.dailyEntries.length - 1].entryDate)
         : null;
       return {
         ...row,
-        daily_average_score: current?.dailyAverageScore ?? null,
-        daily_latest_score: latest,
-        daily_score_delta: current?.dailyScoreDelta ?? null,
-        daily_assessment_count: current?.dailyAssessmentCount ?? 0,
+        daily_average_score: rollup.averageScore,
+        daily_latest_score: rollup.latestScore,
+        daily_score_delta: rollup.scoreDelta,
+        daily_assessment_count: rollup.assessmentCount,
         last_entry_date: lastEntryDate,
-        alert_score_drop:
-          latest !== null && previousAverage !== null
-            ? latest < previousAverage * 0.85
-            : false,
+        alert_score_drop: alertComparison.alert_score_drop,
+        alert_comparison: alertComparison,
+        chart_timeline: {
+          ...currentTimeline,
+          comparison: {
+            previous_from: dateOnly(previousRange.startDate),
+            previous_to: inclusiveTo(previousRange.endDate),
+            ...alertComparison,
+          },
+        },
         attendance_dates: Array.from(
           attendanceDatesByProgressKey.get(progressKey(row.student_id, row.class_id, row.month)) ||
             new Set<string>()
@@ -465,4 +512,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin", "receptionist"]);
+export default requirePermission("progress.view", handler);

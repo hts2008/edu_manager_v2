@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError, toDateOnly } from "../../../lib/api-utils.js";
 import {
   detectMonthlyFeeAnomaly,
@@ -225,10 +224,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only GET allowed", 405);
   }
-  if (req.user.role !== "admin") {
-    return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
-  }
-
   try {
     const today = new Date();
     const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -245,7 +240,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const months = monthRange(from, to);
     const dateWindow = { gte: from, lte: to };
     const [receipts, payments, students, activeClasses] = await Promise.all([
-      prisma.receipt.findMany({
+      req.db.receipt.findMany({
         where: { createdAt: dateWindow, deletedAt: null },
         select: {
           id: true,
@@ -258,7 +253,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
         orderBy: { createdAt: "asc" },
       }),
-      prisma.payment.findMany({
+      req.db.payment.findMany({
         where: { createdAt: dateWindow, deletedAt: null },
         select: {
           id: true,
@@ -269,7 +264,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
         orderBy: { createdAt: "asc" },
       }),
-      prisma.student.findMany({
+      req.db.student.findMany({
         where: { deletedAt: null },
         select: {
           id: true,
@@ -320,7 +315,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
         orderBy: { fullName: "asc" },
       }),
-      prisma.class.findMany({
+      req.db.class.findMany({
         where: { status: "active" },
         select: {
           id: true,
@@ -602,4 +597,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("reports.view", handler);

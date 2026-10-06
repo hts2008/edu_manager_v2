@@ -5,6 +5,11 @@ import {
   type TuitionSlot,
   type TuitionSlotStatus,
 } from "./tuition-v3.js";
+import {
+  DEFAULT_TUITION_SETTINGS,
+  resolveExtraSessionAmount,
+  type TuitionSettingsContext,
+} from "./tuition-settings.js";
 
 export const TUITION_V3_CALCULATION_VERSION = "tuition-v3-session-ledger";
 
@@ -65,6 +70,7 @@ export function buildStudentTuitionV3(input: {
   };
   sessions: SessionRow[];
   attendance: AttendanceRow[];
+  settings?: TuitionSettingsContext;
 }) {
   const attendanceBySession = new Map(
     input.attendance.filter((row) => row.classSessionId).map((row) => [row.classSessionId, row]),
@@ -97,11 +103,25 @@ export function buildStudentTuitionV3(input: {
     };
   });
   const billingPolicy = input.classData.billingPolicy || "per_session";
-  const amount = Number(input.classData.feePerDay || 0);
-  const regularSlotCount = slots.filter((slot) => slot.kind === "regular").length;
-  const extraSurchargePerSlot = billingPolicy === "monthly_prorated"
-    ? (regularSlotCount > 0 ? amount / regularSlotCount : 0)
-    : amount;
+  const amount = input.classData.feePerDay;
+  if (amount == null || !Number.isSafeInteger(amount) || amount < 0) {
+    throw new ApiError("INVALID_TUITION_AMOUNT", "Tuition amount must be nonnegative safe integer VND", 409);
+  }
+  const regularSlotCount = slots.filter((slot) =>
+    slot.kind === "regular" && slot.date.slice(0, 7) === input.month,
+  ).length;
+  const settings = input.settings ?? DEFAULT_TUITION_SETTINGS;
+  const hasChargeableSurcharge = slots.some((slot) =>
+    slot.date.slice(0, 7) === input.month && slot.kind === "extra" &&
+    slot.extraFeeMode === "surcharge" && isEnrollmentEligible(slot.date, enrollment) &&
+    settings.chargeableStatuses.includes(slot.status as typeof settings.chargeableStatuses[number]),
+  );
+  const extraSurchargePerSlot = hasChargeableSurcharge ? resolveExtraSessionAmount(settings, {
+    billingMode: billingPolicy === "monthly_prorated" ? "monthly_prorated" : "per_session",
+    monthlyAmount: billingPolicy === "monthly_prorated" ? amount : 0,
+    plannedRegularSlots: regularSlotCount,
+    perSessionFee: billingPolicy === "monthly_prorated" ? undefined : amount,
+  }) : 0;
   const result = calculateTuitionV3({
     month: input.month,
     plan: billingPolicy === "monthly_prorated"
@@ -110,8 +130,12 @@ export function buildStudentTuitionV3(input: {
     slots,
     enrollment,
     extraSurchargePerSlot,
+    settings,
   });
   if (!result.ok) throw new ApiError(result.error.code, result.error.message, 409);
+  if (!Number.isSafeInteger(result.totalAmount) || result.totalAmount < 0) {
+    throw new ApiError("INVALID_TUITION_AMOUNT", "Tuition total exceeds safe integer VND", 409);
+  }
   return {
     classId: input.classData.id,
     className: input.classData.className || null,

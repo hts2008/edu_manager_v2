@@ -21,10 +21,8 @@ describe("daily student progress API contract", () => {
     assert.match(dailyApi, /if \(req\.method === "GET"\) return listDailyEntries\(req, res\)/);
     assert.match(dailyApi, /if \(req\.method === "PUT"\) return replaceDailyEntries\(req, res\)/);
     assert.match(dailyApi, /if \(req\.method === "DELETE"\) return deleteDailyEntries\(req, res\)/);
-    assert.match(
-      dailyApi,
-      /export default requireAuth\(handler,\s*\["admin",\s*"receptionist"\]\)/
-    );
+    assert.match(dailyApi, /const viewHandler = requirePermission\("progress\.view", handler\)/);
+    assert.match(dailyApi, /const gradeHandler = requirePermission\("progress\.grade", handler\)/);
     assert.doesNotMatch(dailyApi, /api\/router/);
     assert.match(router, /studentProgressDaily/);
     assert.match(
@@ -36,10 +34,13 @@ describe("daily student progress API contract", () => {
   it("replaces and deletes only the selected date before recomputing the month", () => {
     assert.match(
       dailyApi,
-      /studentProgressDailyEntry\.deleteMany\(\{\s*where:\s*\{\s*progressMonthId:\s*progressMonth\.id,\s*entryDate/
+      /studentProgressDailyEntry\.deleteMany\(\{\s*where:\s*\{[\s\S]*?progressMonthId:\s*progressMonth\.id,\s*entryDate/
     );
     assert.match(dailyApi, /studentProgressDailyEntry\.createMany/);
-    assert.match(dailyApi, /recomputeMonthlyRollup\(tx,\s*progressMonth/);
+    assert.match(
+      dailyApi,
+      /recomputeMonthlyRollup\(\s*tx,\s*progressMonth,\s*tenantId/,
+    );
     assert.match(dailyApi, /isolationLevel:\s*"Serializable"/);
     assert.doesNotMatch(
       monthlyApi,
@@ -76,7 +77,7 @@ describe("daily student progress API contract", () => {
     assert.match(dailyApi, /source:\s*DAILY_ROLLUP_SOURCE/);
     assert.match(dailyApi, /studentProgressSkill\.deleteMany/);
     assert.doesNotMatch(dailyApi, /studentProgressSkill\.upsert/);
-    assert.match(dailyApi, /resolveMonthlyProgressScore/);
+    assert.match(dailyApi, /buildProgressAssessment/);
     assert.doesNotMatch(monthlyApi, /dailyRollupSkills/);
   });
 

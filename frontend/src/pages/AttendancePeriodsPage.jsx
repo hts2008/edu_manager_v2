@@ -257,49 +257,41 @@ export default function AttendancePeriodsPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            📋 Quản lý chốt điểm danh
-          </h1>
-          <p className="text-gray-500">
-            Xem và xử lý các kỳ điểm danh theo tháng
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">📋 Quản lý chốt điểm danh</h1>
+          <p className="text-gray-500">Xem và xử lý các kỳ điểm danh theo tháng</p>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-5 gap-4">
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <div className="card bg-gray-50">
-          <div className="card-body text-center py-4">
+          <div className="card-body text-center py-3">
             <p className="text-2xl font-bold text-gray-600">{stats.total}</p>
             <p className="text-xs text-gray-500">Tổng cộng</p>
           </div>
         </div>
         <div className="card bg-green-50 border-green-200">
-          <div className="card-body text-center py-4">
+          <div className="card-body text-center py-3">
             <p className="text-2xl font-bold text-green-600">{stats.open}</p>
             <p className="text-xs text-green-700">🟢 Đang mở</p>
           </div>
         </div>
         <div className="card bg-yellow-50 border-yellow-200">
-          <div className="card-body text-center py-4">
-            <p className="text-2xl font-bold text-yellow-600">
-              {stats.submitted}
-            </p>
+          <div className="card-body text-center py-3">
+            <p className="text-2xl font-bold text-yellow-600">{stats.submitted}</p>
             <p className="text-xs text-yellow-700">🟡 Chờ duyệt</p>
           </div>
         </div>
         <div className="card bg-blue-50 border-blue-200">
-          <div className="card-body text-center py-4">
+          <div className="card-body text-center py-3">
             <p className="text-2xl font-bold text-blue-600">{stats.approved}</p>
             <p className="text-xs text-blue-700">🔵 Đã duyệt</p>
           </div>
         </div>
         <div className="card bg-gray-100 border-gray-300">
-          <div className="card-body text-center py-4">
+          <div className="card-body text-center py-3">
             <p className="text-2xl font-bold text-gray-700">{stats.locked}</p>
             <p className="text-xs text-gray-600">🔒 Đã chốt</p>
           </div>
@@ -372,22 +364,13 @@ export default function AttendancePeriodsPage() {
         </div>
       </div>
 
-      {/* Workflow Guide */}
       <div className="card bg-blue-50 border-blue-200">
         <div className="card-body py-3">
           <p className="text-sm text-blue-800">
-            <strong>Quy trình:</strong>
-            Đang mở →{" "}
-            <span className="font-mono bg-green-200 px-1 rounded">
-              📤 Nộp
-            </span>{" "}
-            → Chờ duyệt →{" "}
-            <span className="font-mono bg-blue-200 px-1 rounded">✓ Duyệt</span>{" "}
-            → Đã duyệt →{" "}
-            <span className="font-mono bg-purple-200 px-1 rounded">
-              🔒 Chốt
-            </span>{" "}
-            →<strong> ✅ Sẵn sàng thu học phí</strong>
+            <strong>Quy trình:</strong> Đang mở → <span className="font-mono bg-green-200 px-1 rounded">📤 Nộp</span>
+            {" "}→ Chờ duyệt → <span className="font-mono bg-blue-200 px-1 rounded">✓ Duyệt</span>
+            {" "}→ Đã duyệt → <span className="font-mono bg-purple-200 px-1 rounded">🔒 Chốt</span>
+            {" "}→ <strong>✅ Sẵn sàng thu học phí</strong>
           </p>
         </div>
       </div>

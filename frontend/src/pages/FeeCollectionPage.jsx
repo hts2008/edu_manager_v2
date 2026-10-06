@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { Wallet, Printer, Calculator, Banknote, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Printer, Calculator, Banknote, CreditCard, AlertCircle } from 'lucide-react';
 import { classesService, monthlyFeesService } from '../services/api';
 import DataTable from '../components/ui/DataTable';
 import Modal from '../components/ui/Modal';
@@ -538,17 +538,15 @@ export default function FeeCollectionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="eduflow-page-intro flex flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
+      <div className="eduflow-page-intro flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="eduflow-eyebrow w-fit">
             Tài chính · Fee Workbench
           </p>
-          <h1 className="eduflow-title mt-4 text-3xl font-black tracking-tight text-slate-950">
+          <h1 className="eduflow-title mt-3 text-3xl font-black tracking-tight text-slate-950">
             Thu tiền học phí
           </h1>
-          <p className="eduflow-muted mt-2 max-w-3xl">
-            Mỗi dòng là một học viên - một lớp - một tháng. Không gộp nhiều lớp vào một phiếu thu, phụ huynh có thể đóng từng lớp theo ngày khác nhau.
-          </p>
+
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -578,9 +576,12 @@ export default function FeeCollectionPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(20rem,1.4fr)_repeat(4,minmax(0,1fr))]">
-        <div className="eduflow-card min-w-0 p-4">
-          <div className="grid min-w-0 gap-4">
+      <p className="text-sm leading-5 text-slate-600" data-testid="fee-grain-note">
+        Mỗi dòng là một học viên - một lớp - một tháng. Không gộp nhiều lớp vào một phiếu thu, phụ huynh có thể đóng từng lớp theo ngày khác nhau.
+      </p>
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="eduflow-card min-w-0 p-3">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
             <div className="min-w-0">
               <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">
                 Tháng
@@ -634,32 +635,21 @@ export default function FeeCollectionPage() {
               </select>
             </div>
           </div>
-          <div className="mt-4 rounded-2xl bg-primary-50 p-3 text-sm text-primary-700">
+          <div className="mt-2 text-sm text-slate-600">
             Đã chọn <b>{selectedRows.length}</b> dòng · Chờ thu <b>{payableRows.length}</b> · Ước tính{' '}
             <b>{formatMoney(summary.selectedAmount)}</b>
           </div>
         </div>
 
-        {[
-          { label: 'Tổng dòng học phí', value: displayMetric(summary.total), tone: 'slate', icon: Wallet },
-          { label: 'Chờ thu', value: displayMetric(summary.pending + summary.ready + summary.confirmed), tone: 'amber', icon: Calculator },
-          { label: 'Đã thu', value: displayMetric(summary.paid), tone: 'emerald', icon: CheckCircle2 },
-          { label: 'Dòng tiền', value: displayMetric(formatMoney(summary.paidAmount)), sub: initialLoading ? 'Đang tải dữ liệu' : `/ ${formatMoney(summary.totalAmount)}`, tone: 'primary', icon: Banknote },
-        ].map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <div key={metric.label} className="eduflow-metric p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{metric.label}</p>
-                <div className="rounded-2xl bg-slate-100 p-2 text-slate-500">
-                  <Icon size={18} />
-                </div>
-              </div>
-              <p className="mt-3 text-2xl font-black text-slate-900">{metric.value}</p>
-              {metric.sub ? <p className="text-xs font-semibold text-slate-500">{metric.sub}</p> : null}
-            </div>
-          );
-        })}
+        <div className="eduflow-metric min-w-0 p-3">
+          <p className="text-xs font-semibold text-slate-500">Dòng tiền đã thu / tổng học phí</p>
+          <p className="mt-2 break-words text-2xl font-black text-slate-900">
+            {displayMetric(formatMoney(summary.paidAmount))}
+            <span className="ml-2 text-sm font-normal text-slate-500">
+              {initialLoading ? 'Đang tải dữ liệu' : `/ ${formatMoney(summary.totalAmount)}`}
+            </span>
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

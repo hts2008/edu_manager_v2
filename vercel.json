@@ -36,6 +36,6 @@
   ],
   "buildCommand": "npx prisma generate && cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install && cd frontend && npm install",
+  "installCommand": "npm ci && cd frontend && npm ci",
   "framework": null
 }
