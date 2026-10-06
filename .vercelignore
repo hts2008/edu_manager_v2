@@ -22,6 +22,17 @@
 /backend/
 /tests/
 *.backup
+*.log
+/.shared/
+/output/
+/agents/
+/commands/
+/workflows/
+/skills/
+/policies/
+/manifests/
+/rules/
+/project-control/
 frontend/update*.cjs
 frontend/update*.js
 frontend/update*.ps1
