@@ -39,7 +39,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --include=optional --no-audit --no-fund
+      - run: npm ci
+      - run: npm ci --include=optional --no-audit --no-fund
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
         working-directory: frontend
@@ -147,20 +148,24 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: edu_manager_test
+          POSTGRES_DB: tpr_test_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d edu_manager_test"
+          --health-cmd "pg_isready -U postgres -d tpr_test_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/edu_manager_test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tpr_test_ci?schema=tpr_test_ci
+      TPR_TEST_DATABASE: tpr_test_ci
+      TPR_TEST_SCHEMA: tpr_test_ci
+      TPR_RELEASE_MODE: "true"
+      NODE_ENV: test
       JWT_SECRET: ci-only-router-secret-at-least-32-characters
     steps:
       - uses: actions/checkout@v4
