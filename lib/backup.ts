@@ -3,11 +3,17 @@ import { put } from "@vercel/blob";
 import { ApiError } from "./api-utils.js";
 
 const BACKUP_PREFIX = "db-backups";
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 export const BACKUP_FORMAT = "edu-manager-backup";
+export const DEFAULT_TENANT_ID = "tenant_default";
 
 export const BACKUP_MANIFEST = [
+  { model: "Tenant", key: "tenants", delegate: "tenant" },
   { model: "User", key: "users", delegate: "user" },
+  { model: "RolePermission", key: "rolePermissions", delegate: "rolePermission" },
+  { model: "SettingValue", key: "settingValues", delegate: "settingValue" },
+  { model: "SettingRevision", key: "settingRevisions", delegate: "settingRevision" },
+  { model: "IntegrationConfig", key: "integrationConfigs", delegate: "integrationConfig" },
   { model: "Parent", key: "parents", delegate: "parent" },
   { model: "AuthSession", key: "authSessions", delegate: "authSession" },
   { model: "Teacher", key: "teachers", delegate: "teacher" },
@@ -37,6 +43,10 @@ export const BACKUP_MANIFEST = [
   { model: "CenterSettings", key: "centerSettings", delegate: "centerSettings" },
 ] as const;
 
+export function getBackupManifestModelNames(): string[] {
+  return BACKUP_MANIFEST.map(({ model }) => model);
+}
+
 type Tables = Record<string, any[]>;
 export type DatabaseBackup = {
   format: typeof BACKUP_FORMAT;
@@ -47,6 +57,8 @@ export type DatabaseBackup = {
   counts: Record<string, number>;
   tables: Tables;
 };
+
+type LegacyDatabaseBackup = Omit<DatabaseBackup, "version"> & { version: 3 };
 
 export type BackupEnvelope = {
   format: "edu-manager-backup-envelope";
@@ -108,13 +120,72 @@ export function openBackupEnvelope(envelope: BackupEnvelope, options: { key?: st
     decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
     const plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
     if (checksum(plaintext) !== envelope.payload_checksum) throw new ApiError("BACKUP_CHECKSUM_FAILED", "Backup payload checksum failed", 400);
-    const backup = JSON.parse(plaintext);
-    validateBackup(backup);
-    return backup;
+    return normalizeBackup(JSON.parse(plaintext));
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError("BACKUP_DECRYPT_FAILED", "Backup could not be decrypted with the configured key", 400);
   }
+}
+
+const V3_ADDED_MODELS = new Set([
+  "Tenant",
+  "RolePermission",
+  "SettingValue",
+  "SettingRevision",
+  "IntegrationConfig",
+]);
+const LEGACY_V3_MANIFEST = BACKUP_MANIFEST
+  .filter(({ model }) => !V3_ADDED_MODELS.has(model))
+  .map(({ model, key }) => ({ model, key }));
+
+export function normalizeBackup(backup: any): DatabaseBackup {
+  if (backup?.version === BACKUP_VERSION) {
+    validateBackup(backup);
+    return backup;
+  }
+  if (backup?.version !== 3 || backup?.format !== BACKUP_FORMAT || backup.source !== "edu-manager-v2") {
+    throw new ApiError(
+      "BACKUP_VERSION_UNSUPPORTED",
+      `Backup version ${String(backup?.version ?? "missing")} is not supported`,
+      400,
+    );
+  }
+  if (JSON.stringify(backup.manifest) !== JSON.stringify(LEGACY_V3_MANIFEST)) {
+    throw new ApiError("BACKUP_VERIFY_FAILED", "Legacy backup model manifest is invalid", 400);
+  }
+
+  const legacy = backup as LegacyDatabaseBackup;
+  const tables: Tables = {
+    tenants: [{
+      id: DEFAULT_TENANT_ID,
+      slug: "default",
+      name: "EduManager Default Tenant",
+      status: "active",
+      configVersion: 0,
+      createdAt: legacy.created_at,
+      updatedAt: legacy.created_at,
+    }],
+    rolePermissions: [],
+    settingValues: [],
+    settingRevisions: [],
+    integrationConfigs: [],
+  };
+  for (const { key } of LEGACY_V3_MANIFEST) {
+    const rows = legacy.tables?.[key];
+    if (!Array.isArray(rows) || legacy.counts?.[key] !== rows.length) {
+      throw new ApiError("BACKUP_VERIFY_FAILED", `Legacy backup table count is invalid: ${key}`, 400);
+    }
+    tables[key] = rows.map((row: any) => ({ ...row, tenantId: DEFAULT_TENANT_ID }));
+  }
+  const normalized: DatabaseBackup = {
+    ...legacy,
+    version: BACKUP_VERSION,
+    manifest: BACKUP_MANIFEST.map(({ model, key }) => ({ model, key })),
+    counts: Object.fromEntries(BACKUP_MANIFEST.map(({ key }) => [key, tables[key].length])),
+    tables,
+  };
+  validateBackup(normalized);
+  return normalized;
 }
 
 function validateBackup(backup: any): asserts backup is DatabaseBackup {
@@ -180,7 +251,7 @@ export async function createDatabaseBackup(prisma: any, { dryRun = true } = {}) 
   if (dryRun) return { dry_run: true, encrypted: false, uploaded: false, created_at: backup.created_at, counts: backup.counts, version: backup.version };
   if (!process.env.BLOB_READ_WRITE_TOKEN) throw new ApiError("STORAGE_NOT_CONFIGURED", "BLOB_READ_WRITE_TOKEN is required for backup upload", 500);
   const envelope = createBackupEnvelope(backup);
-  const pathname = `${BACKUP_PREFIX}/${backup.created_at.slice(0, 10)}/${backup.created_at.replace(/[:.]/g, "-")}.v3.json`;
+  const pathname = `${BACKUP_PREFIX}/${backup.created_at.slice(0, 10)}/${backup.created_at.replace(/[:.]/g, "-")}.v4.json`;
   const blob = await put(pathname, JSON.stringify(envelope), { access: "public", addRandomSuffix: false, contentType: "application/json" });
   return { dry_run: false, encrypted: true, uploaded: true, created_at: backup.created_at, pathname: blob.pathname, url: blob.url, counts: backup.counts, version: backup.version, key_id: envelope.key_id, payload_checksum: envelope.payload_checksum };
 }
@@ -249,14 +320,18 @@ export function assertRestoreAllowed(options: { databaseUrl?: string; confirmati
   }
 }
 
-const IMMUTABLE_TRIGGER_TABLES = ["class_month_plan_revisions", "monthly_fee_line_revisions"] as const;
+const IMMUTABLE_TRIGGER_TABLES = [
+  "class_month_plan_revisions",
+  "monthly_fee_line_revisions",
+  "setting_revisions",
+] as const;
 
 async function withRestoreTriggersDisabled<T>(tx: any, callback: () => Promise<T>): Promise<T> {
   if (typeof tx.$executeRawUnsafe !== "function") return callback();
 
   // Prefer PostgreSQL's transaction-local replica mode. If the runtime role does
   // not have permission (some managed Postgres roles do not), fall back to only
-  // disabling the two application-owned immutable triggers for this transaction.
+  // disabling the three application-owned immutable triggers for this transaction.
   let replicaMode = false;
   try {
     await tx.$executeRawUnsafe("SAVEPOINT backup_restore_trigger_mode");
@@ -288,15 +363,30 @@ async function withRestoreTriggersDisabled<T>(tx: any, callback: () => Promise<T
 
 export async function restoreDatabaseBackup(prisma: any, backup: DatabaseBackup, options: { databaseUrl?: string; confirmation?: string; nodeEnv?: string }) {
   assertRestoreAllowed(options);
-  validateBackup(backup);
+  const normalizedBackup = normalizeBackup(backup);
   await prisma.$transaction(async (tx: any) => {
     await withRestoreTriggersDisabled(tx, async () => {
       for (const { delegate } of [...BACKUP_MANIFEST].reverse()) await tx[delegate].deleteMany();
       for (const { delegate, key } of BACKUP_MANIFEST) {
-        const data = backup.tables[key];
+        const data = normalizedBackup.tables[key];
         if (data.length) await tx[delegate].createMany({ data });
       }
+      if (typeof tx.$executeRawUnsafe === "function") {
+        // ALTER SEQUENCE RESTART is transactional, unlike setval. Resolve the
+        // owned sequence through the current schema rather than assuming a name.
+        await tx.$executeRawUnsafe('LOCK TABLE "center_settings" IN ACCESS EXCLUSIVE MODE');
+        await tx.$executeRawUnsafe(`DO $$
+DECLARE sequence_name TEXT; next_id BIGINT;
+BEGIN
+  sequence_name := pg_get_serial_sequence('"center_settings"', 'id');
+  IF sequence_name IS NULL THEN
+    RAISE EXCEPTION 'Restore requires an owned center_settings id sequence';
+  END IF;
+  SELECT COALESCE(MAX("id")::BIGINT, 0) + 1 INTO next_id FROM "center_settings";
+  EXECUTE format('ALTER SEQUENCE %s RESTART WITH %s', sequence_name, next_id);
+END $$;`);
+      }
     });
-  });
-  return { restored: true, version: backup.version, created_at: backup.created_at, counts: backup.counts };
+  }, { maxWait: 10_000, timeout: 120_000 });
+  return { restored: true, version: normalizedBackup.version, created_at: normalizedBackup.created_at, counts: normalizedBackup.counts };
 }

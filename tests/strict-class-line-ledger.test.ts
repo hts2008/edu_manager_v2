@@ -114,7 +114,7 @@ describe("strict class-line ledger", () => {
 
   it("locks the student-month before authoritative manual fee calculation", () => {
     const endpoint = source("server/api/monthly-fees/calculate.ts");
-    const transaction = endpoint.indexOf("runSerializableTransaction(prisma");
+    const transaction = endpoint.search(/runSerializableTransaction\((?:prisma|req\.db)/);
     const advisoryLock = endpoint.indexOf("await acquireAttendanceFeeAdvisoryLocks(");
     const studentRead = endpoint.indexOf("await tx.student.findFirst");
     const periodRead = endpoint.indexOf("tx.attendancePeriod.findMany");

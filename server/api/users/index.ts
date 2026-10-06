@@ -1,18 +1,17 @@
 import bcrypt from "bcryptjs";
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError } from "../../../lib/api-utils.js";
 import { userCreateSchema, validateBody } from "../../../lib/validation.js";
 import { userToDto } from "./shared.js";
 
-async function handler(req: AuthedRequest, res: VercelResponse) {
+export async function handler(req: AuthedRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
   try {
@@ -21,7 +20,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const role = getString(req.query.role);
       const status = getString(req.query.status);
 
-      const users = await prisma.user.findMany({
+      const users = await req.db.user.findMany({
         where: {
           ...(role ? { role: role as any } : {}),
           ...(status ? { status: status as any } : {}),
@@ -43,8 +42,11 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     if (req.method === "POST") {
+      if (!req.user.tenantId) {
+        throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+      }
       const payload = validateBody(userCreateSchema, req.body);
-      const existing = await prisma.user.findUnique({
+      const existing = await req.db.user.findFirst({
         where: { username: payload.username },
         select: { id: true },
       });
@@ -53,8 +55,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const passwordHash = await bcrypt.hash(payload.password, 10);
-      const user = await prisma.user.create({
+      const user = await req.db.user.create({
         data: {
+          tenantId: req.user.tenantId,
           username: payload.username,
           passwordHash,
           fullName: payload.full_name,
@@ -74,4 +77,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("users.manage", handler);

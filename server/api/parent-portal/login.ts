@@ -9,6 +9,11 @@ import {
   checkDistributedRateLimit,
   getLoginRateLimitConfig,
 } from "../../../lib/distributed-rate-limit.js";
+import { getTenancyMode, resolveLoginTenantSlug } from "../../../lib/tenancy.js";
+import {
+  assertParentPortalEnabled,
+  resolveFeatureRuntime,
+} from "../../../lib/feature-flags.js";
 
 function parentToDto(parent: any) {
   return {
@@ -30,32 +35,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload = validateParentPortalLogin(req.body);
     const phone = normalizePhone(payload.phone);
     const dateOfBirth = payload.dateOfBirth;
+    let tenantSlug: string | null;
+    try {
+      tenantSlug = resolveLoginTenantSlug(
+        typeof req.body?.tenant_slug === "string" ? req.body.tenant_slug : undefined,
+        getTenancyMode(),
+      );
+    } catch (error) {
+      throw new ApiError(
+        "TENANT_REQUIRED",
+        error instanceof Error ? error.message : "Tenant identity is required",
+        400,
+      );
+    }
+
     const limit = await checkDistributedRateLimit(
       `parent-login:${getClientIp(req)}:${phone}`,
-      getLoginRateLimitConfig(process.env, "PARENT_LOGIN_RATE_LIMIT")
+      getLoginRateLimitConfig(process.env, "PARENT_LOGIN_RATE_LIMIT"),
     );
     setRateLimitHeaders(res, limit);
     if (!limit.allowed) {
       throw new ApiError("RATE_LIMITED", "Too many login attempts. Please try again later.", 429);
     }
 
+    const tenant = tenantSlug
+      ? await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+      : null;
+    if (tenantSlug && (!tenant || tenant.status !== "active")) {
+      throw new ApiError("PARENT_PORTAL_LOGIN_FAILED", "Invalid parent credentials", 401);
+    }
+    if (!tenant) {
+      throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 400);
+    }
+    assertParentPortalEnabled(await resolveFeatureRuntime(prisma, tenant.id));
+
     const parent = await prisma.parent.findUnique({
-      where: { phoneNormalized: phone },
+      where: {
+        tenantId_phoneNormalized: {
+          tenantId: tenant.id,
+          phoneNormalized: phone,
+        },
+      },
       include: { students: { where: { deletedAt: null } } },
     });
     if (!parent || parent.deletedAt) {
       throw new ApiError("PARENT_PORTAL_LOGIN_FAILED", "Invalid parent credentials", 401);
     }
+    if (!parent.tenantId) {
+      throw new ApiError(
+        "PARENT_TENANT_UNAVAILABLE",
+        "Parent portal tenant is unavailable",
+        503,
+      );
+    }
 
     const matchingStudent = parent.students.find(
-      (student: any) => toDateOnly(student.dateOfBirth) === dateOfBirth
+      (student: any) => toDateOnly(student.dateOfBirth) === dateOfBirth,
     );
     if (!matchingStudent) {
       throw new ApiError("PARENT_PORTAL_LOGIN_FAILED", "Invalid parent credentials", 401);
     }
 
     return successResponse(res, {
-      token: await signParentToken(parent.id, parent.tokenVersion),
+      token: await signParentToken(parent.id, parent.tokenVersion, parent.tenantId),
       parent: parentToDto(parent),
       students: parent.students.map((student: any) => ({
         id: student.id,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   buildStudentProgressReport,
@@ -6,6 +7,7 @@ import {
 } from "../lib/student-progress-report.js";
 import { buildProgressFramework } from "../lib/student-progress-assessment.js";
 import type { ReportCubeRow } from "../lib/report-cube.js";
+import { filterReportRows } from "../lib/report-cube.js";
 
 function row(overrides: Partial<ReportCubeRow> = {}): ReportCubeRow {
   return {
@@ -41,6 +43,65 @@ function row(overrides: Partial<ReportCubeRow> = {}): ReportCubeRow {
 }
 
 describe("student progress parent report", () => {
+  it("single-month endpoint selection emits one row per student/class and keeps baseline comparison", () => {
+    const source = readFileSync(new URL("../server/api/reports/student-progress.ts", import.meta.url), "utf8");
+    const selection = source.match(/const filteredRows = ([\s\S]*?);/);
+    assert.ok(selection, "endpoint row selection must exist");
+    const cube = { students: [
+      row({ month: "2026-09", actual_present_rate: 70 }),
+      row({ month: "2026-10", actual_present_rate: 95 }),
+    ] };
+    // Exercise the endpoint's actual selection expression without importing auth/database bootstrapping.
+    const select = new Function("cube", "query", "filterReportRows", `return ${selection[1]};`);
+    const selected = select(cube, { from: "2026-10", to: "2026-10", months: ["2026-10"], mode: "overview" }, filterReportRows);
+    const report = buildStudentProgressReport({
+      rows: selected,
+      baselineRows: cube.students.filter(item => item.month === "2026-09"),
+    });
+    assert.equal(report.rows.length, 1);
+    assert.deepEqual(report.rows.map(item => item.month), ["2026-10"]);
+    assert.equal(report.summary.row_count, 1);
+    assert.equal(report.summary.student_count, 1);
+    assert.deepEqual(report.charts.monthly.map(item => item.month), ["2026-10"]);
+    assert.ok(report.rows[0].comparison.delta !== null);
+    assert.ok(report.rows[0].trend_delta! > 0);
+    const multi = select(cube, { months: ["2026-09", "2026-10"], mode: "overview" }, filterReportRows);
+    assert.equal(multi.length, 2);
+  });
+  it("exposes finalized locks independently for exact student class month rows", () => {
+    for (const finalizedAt of [undefined, null, new Date("2026-06-30T10:00:00Z")]) {
+      const result = buildStudentProgressReport({
+        rows: [row(), row({ class_id: "class-2" }), row({ month: "2026-07" })],
+        progressMonthsByKey: new Map([["student-1\u0000class-1\u00002026-06",
+          { id: "month-1", finalizedAt }]]),
+      });
+      assert.equal(result.rows.find(item => item.class_id === "class-1" && item.month === "2026-06")?.is_finalized,
+        Boolean(finalizedAt));
+      assert.equal(result.rows.find(item => item.class_id === "class-2")?.is_finalized, false);
+      assert.equal(result.rows.find(item => item.month === "2026-07")?.is_finalized, false);
+    }
+  });
+  it("adds accepted operation counts without changing evidence or score results", () => {
+    const rows = [row()];
+    const baseline = buildStudentProgressReport({ rows });
+    const result = buildStudentProgressReport({
+      rows,
+      tenantId: "tenant-1",
+      submissionOperations: [1, 2].map((id) => ({
+        tenantId: "tenant-1",
+        userId: "actor-1",
+        entityType: "progress_submission_operation",
+        entityId: `10000000-0000-4000-8000-${String(id).padStart(12, "0")}`,
+        action: JSON.stringify({ student_id: "student-1", class_id: "class-1",
+          month: "2026-06", submitted_at: `2026-07-02T0${id}:00:00.123Z`,
+          request_hash: "a".repeat(64), skills: ["listening", "speaking"] }),
+      })),
+    });
+    assert.equal(result.rows[0].assessment_submission_count, 2);
+    assert.equal(result.rows[0].last_submission_at, "2026-07-02T02:00:00.123Z");
+    const { assessment_submission_count, last_submission_at, ...unchanged } = result.rows[0];
+    assert.deepEqual({ ...unchanged, assessment_submission_count: 0, last_submission_at: null }, baseline.rows[0]);
+  });
   it("detects the initial English certificate tracks from class names", () => {
     assert.equal(detectEnglishTrack("Starters A1"), "starters");
     assert.equal(detectEnglishTrack("MOVERS 3"), "movers");
@@ -64,6 +125,8 @@ describe("student progress parent report", () => {
     assert.equal(reportRow.english_track, "movers");
     assert.equal(reportRow.cefr_level, "A1");
     assert.equal(reportRow.progress_score, 90.7);
+    assert.equal(reportRow.assessment_submission_count, 0);
+    assert.equal(reportRow.last_submission_at, null);
     assert.equal(reportRow.learning_evidence_coverage, 75);
     assert.equal(reportRow.skill_scores.length, 4);
     assert.ok(reportRow.skill_scores.every((skill) => skill.status === "missing_input"));
@@ -193,8 +256,9 @@ describe("student progress parent report", () => {
     });
 
     const reportRow = result.rows[0];
-    assert.equal(reportRow.progress_score, 88);
-    assert.equal(reportRow.readiness_band, "on_track");
+    assert.equal(reportRow.progress_score, 82.8);
+    assert.equal(reportRow.score_source, "manual_monthly");
+    assert.equal(reportRow.readiness_band, "watch");
     assert.equal(reportRow.progress_assessment.hasTeacherInput, true);
     assert.equal(reportRow.skill_scores[0].status, "available");
     assert.equal(reportRow.parent_summary, "Teacher summary overrides proxy row.");

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -8,6 +7,11 @@ import {
 } from "../../../lib/auth.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   // GET - List all teachers OR single teacher by ID
   if (req.method === "GET") {
     try {
@@ -24,7 +28,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const teacher = await prisma.teacher.findUnique({
+        const teacher = await db.teacher.findUnique({
           where: { id },
           include: {
             classes: { select: { id: true, className: true, status: true } },
@@ -63,7 +67,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       } else if (!status) {
         where.status = "active";
       }
-      const rawTeachers = await prisma.teacher.findMany({
+      const rawTeachers = await db.teacher.findMany({
         where,
         orderBy: { fullName: "asc" },
       });
@@ -113,8 +117,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         );
       }
 
-      const teacher = await prisma.teacher.create({
+      const teacher = await db.teacher.create({
         data: {
+          tenantId,
           fullName: full_name,
           phone,
           email: email || null,
@@ -169,7 +174,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         notes,
       } = req.body;
 
-      const updatedTeacher = await prisma.teacher.update({
+      const updatedTeacher = await db.teacher.update({
         where: { id },
         data: {
           ...(full_name && { fullName: full_name }),
@@ -202,7 +207,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Teacher ID is required", 400);
       }
 
-      const teacherWithClasses = await prisma.teacher.findUnique({
+      const teacherWithClasses = await db.teacher.findUnique({
         where: { id },
         include: {
           _count: {
@@ -215,7 +220,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Teacher not found", 404);
       }
 
-      await prisma.$transaction(async (tx) => {
+      await db.$transaction(async (tx) => {
         await tx.class.updateMany({
           where: { teacherId: id },
           data: { teacherId: null },

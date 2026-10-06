@@ -160,6 +160,7 @@ describe("class month schedule snapshot", () => {
 
   it("persists the immutable schedule denominator when attendance submit creates a plan", async () => {
     let upsertData: any;
+    let revisionData: any;
     const db = {
       classMonthPlan: {
         findUnique: async () => null,
@@ -172,6 +173,13 @@ describe("class month schedule snapshot", () => {
             state: create.state,
             revision: create.revision,
           };
+        },
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => null,
+        create: async ({ data }: any) => {
+          revisionData = data;
+          return data;
         },
       },
     };
@@ -195,7 +203,8 @@ describe("class month schedule snapshot", () => {
       actorId: "teacher-1",
       snapshot: { attendance_period_id: "period-1", ...snapshot },
     });
-    assert.deepEqual(upsertData.revisions.create.snapshot.payload, {
+    assert.equal(upsertData.revision, 1);
+    assert.deepEqual(revisionData.snapshot.payload, {
       attendance_period_id: "period-1",
       schedule_days: [1, 3],
       sessions_per_week: 2,

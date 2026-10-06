@@ -3,14 +3,18 @@ import { Prisma } from "@prisma/client";
 import { ApiError } from "./api-utils.js";
 import {
   calculateStudentMonthlyTuition,
-  CHARGEABLE_ATTENDANCE_STATUSES,
 } from "./tuition.js";
+import {
+  DEFAULT_TUITION_SETTINGS,
+  type TuitionSettingsContext,
+} from "./tuition-settings.js";
 import { feeLineAllocationKey } from "./monthly-fee-lines.js";
 import { buildStudentTuitionV3 } from "./tuition-v3-service.js";
 import {
   assertAttendancePeriodReady,
   getAttendancePeriodReadiness,
 } from "./attendance-period-readiness.js";
+import { classMonthPlanUniqueWhere } from "./tenant-selectors.js";
 
 type CountRow = {
   studentId: string;
@@ -75,6 +79,7 @@ type BuildPlanInput = {
   existingFees: ExistingFee[];
   tuitionV3ByStudentClass?: Map<string, ReturnType<typeof buildStudentTuitionV3>>;
   createId?: () => string;
+  settings?: TuitionSettingsContext;
 };
 
 export function attendanceFeeAdvisoryLockKeys(
@@ -246,6 +251,7 @@ export function buildAttendanceLockFeePlan(input: BuildPlanInput) {
           chargedByStudentClass.get(`${studentId}:${row.classId}`) || 0,
       })),
       input.month,
+      input.settings,
       );
     const feeId = existing?.id || createId();
 
@@ -355,12 +361,14 @@ type LockInput = {
   userId: string;
   now?: Date;
   createId?: () => string;
+  settings?: TuitionSettingsContext;
 };
 
 export async function lockAttendancePeriodAndSyncFees(
   tx: any,
   input: LockInput,
 ): Promise<AttendanceLockFeeSyncMetrics> {
+  const settings = input.settings ?? DEFAULT_TUITION_SETTINGS;
   await acquireClassMonthRosterAdvisoryLocks(
     tx,
     [input.classId],
@@ -375,12 +383,7 @@ export async function lockAttendancePeriodAndSyncFees(
     assertAttendancePeriodReady(readiness);
 
     const monthPlan = await tx.classMonthPlan.findUnique({
-      where: {
-        classId_billingMonth: {
-          classId: input.classId,
-          billingMonth: input.month,
-        },
-      },
+      where: classMonthPlanUniqueWhere(tx, input.classId, input.month),
     });
     if (!monthPlan || monthPlan.state !== "frozen") {
       throw new ApiError(
@@ -509,7 +512,7 @@ export async function lockAttendancePeriodAndSyncFees(
             studentId: { in: studentIds },
             classId: input.classId,
             attendanceDate: { gte: startDate, lt: nextMonthStart },
-            status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] },
+            status: { in: [...settings.chargeableStatuses] },
           },
           _count: { status: true },
         }),
@@ -519,7 +522,7 @@ export async function lockAttendancePeriodAndSyncFees(
             studentId: { in: studentIds },
             classId: input.classId,
             attendanceDate: { gte: startDate, lt: nextMonthStart },
-            status: { in: [...CHARGEABLE_ATTENDANCE_STATUSES] },
+            status: { in: [...settings.chargeableStatuses] },
             isMakeUp: true,
           },
           _count: { status: true },
@@ -579,6 +582,7 @@ export async function lockAttendancePeriodAndSyncFees(
           },
           sessions: classSessions,
           attendance: attendanceRows.filter((row: any) => row.studentId === studentId),
+          settings,
         }),
       );
     }
@@ -594,6 +598,7 @@ export async function lockAttendancePeriodAndSyncFees(
     existingFees,
     tuitionV3ByStudentClass,
     createId: input.createId,
+    settings,
   });
 
   if (plan.mutableLineIds.length > 0) {

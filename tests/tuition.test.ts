@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
+import {setAuthConfigForTests} from "../lib/auth-config.js";
 import {
   calculateTuitionForClass,
   calculateStudentMonthlyTuition,
@@ -264,6 +265,9 @@ describe("tuition calculation", () => {
   });
 
   it("returns one Fee Workbench collectable row per class for a multi-class student", async () => {
+    process.env.NODE_ENV = "test";
+    const auth = {secret: "unit-only-tuition-secret-not-a-production-credential", issuer: "edu-manager-v2", audience: "edu-manager-v2-api", algorithm: "HS256" as const};
+    setAuthConfigForTests(auth);
     const { default: workbenchHandler } = await import(
       "../server/api/monthly-fees/workbench.js"
     );
@@ -392,11 +396,11 @@ describe("tuition calculation", () => {
 
       const token = jwt.sign(
         { typ: "user", ver: 0, username: "admin", role: "admin" },
-        process.env.JWT_SECRET!,
+        auth.secret,
         {
           algorithm: "HS256",
-          issuer: process.env.JWT_ISSUER || "edu-manager-v2",
-          audience: process.env.JWT_AUDIENCE || "edu-manager-v2-api",
+          issuer: auth.issuer,
+          audience: auth.audience,
           subject: "admin-1",
           jwtid: "session-1",
           expiresIn: "5m",

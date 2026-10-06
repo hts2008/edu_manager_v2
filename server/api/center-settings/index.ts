@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
@@ -7,7 +6,7 @@ import {
   requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
-import { logActivity, sendApiError } from "../../../lib/api-utils.js";
+import { ApiError, logActivity, sendApiError } from "../../../lib/api-utils.js";
 import { centerSettingsSchema, validateBody } from "../../../lib/validation.js";
 
 function settingsToDto(settings: any) {
@@ -22,12 +21,12 @@ function settingsToDto(settings: any) {
   };
 }
 
-async function ensureSettings() {
-  return prisma.centerSettings.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
+async function ensureSettings(db: AuthedRequest["db"], tenantId: string | null | undefined) {
+  if (!tenantId) {
+    throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
+  const settings = await db.centerSettings.findFirst({});
+  return settings ?? db.centerSettings.create({ data: { tenantId } });
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
@@ -35,7 +34,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   if (req.method === "GET") {
     try {
-      const settings = await ensureSettings();
+      const settings = await ensureSettings(req.db, req.user.tenantId);
       return successResponse(res, settingsToDto(settings));
     } catch (error) {
       return sendApiError(res, error, "CENTER_SETTINGS_GET_ERROR");
@@ -49,9 +48,9 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
     try {
       const body = validateBody(centerSettingsSchema, req.body);
-      const current = await ensureSettings();
-      const settings = await prisma.centerSettings.update({
-        where: { id: 1 },
+      const current = await ensureSettings(req.db, req.user.tenantId);
+      const settings = await req.db.centerSettings.update({
+        where: { id: current.id },
         data: {
           centerName: body.center_name ?? current.centerName,
           centerAddress:
@@ -67,7 +66,13 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
-      await logActivity(req, req.user.id, "UPDATE_CENTER_SETTINGS", "center_settings", "1");
+      await logActivity(
+        req,
+        req.user.id,
+        "UPDATE_CENTER_SETTINGS",
+        "center_settings",
+        String(current.id),
+      );
       return successResponse(res, settingsToDto(settings));
     } catch (error) {
       return sendApiError(res, error, "CENTER_SETTINGS_UPDATE_ERROR");

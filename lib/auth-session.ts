@@ -2,6 +2,12 @@ import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import prisma from "./prisma.js";
 import { getAuthConfig } from "./auth-config.js";
+import {
+  assertTenantIdentity,
+  DEFAULT_TENANT_ID,
+  getTenancyMode,
+  tenantIdForWrite,
+} from "./tenancy.js";
 
 export type AuthSubjectType = "user" | "parent";
 
@@ -12,6 +18,8 @@ export type SessionTokenPayload = jwt.JwtPayload & {
   ver: number;
   role?: "admin" | "receptionist";
   username?: string;
+  tid?: string;
+  pown?: boolean;
 };
 
 const TOKEN_TTL_SECONDS: Record<AuthSubjectType, number> = {
@@ -25,11 +33,14 @@ export async function createSessionToken(input: {
   tokenVersion: number;
   role?: "admin" | "receptionist";
   username?: string;
+  tenantId?: string | null;
+  isPlatformOwner?: boolean;
 }) {
   const config = getAuthConfig();
   const tokenId = randomUUID();
   const ttl = TOKEN_TTL_SECONDS[input.subjectType];
   const expiresAt = new Date(Date.now() + ttl * 1000);
+  const effectiveTenantId = tenantIdForWrite(input.tenantId) ?? DEFAULT_TENANT_ID;
 
   await prisma.authSession.create({
     data: {
@@ -38,6 +49,7 @@ export async function createSessionToken(input: {
       userId: input.subjectType === "user" ? input.subjectId : null,
       parentId: input.subjectType === "parent" ? input.subjectId : null,
       tokenVersion: input.tokenVersion,
+      tenantId: effectiveTenantId,
       expiresAt,
     },
   });
@@ -48,6 +60,8 @@ export async function createSessionToken(input: {
       ver: input.tokenVersion,
       role: input.role,
       username: input.username,
+      tid: effectiveTenantId ?? undefined,
+      pown: input.isPlatformOwner === true,
     },
     config.secret,
     {
@@ -83,7 +97,7 @@ export function verifySessionToken(token: string, expectedType: AuthSubjectType)
 }
 
 export async function getActiveSession(payload: SessionTokenPayload) {
-  return prisma.authSession.findFirst({
+  const session = await prisma.authSession.findFirst({
     where: {
       tokenId: payload.jti,
       subjectType: payload.typ,
@@ -95,6 +109,14 @@ export async function getActiveSession(payload: SessionTokenPayload) {
         : { parentId: payload.sub }),
     },
   });
+  if (!session) return null;
+  assertTenantIdentity({
+    mode: getTenancyMode(),
+    tokenTenantId: payload.tid,
+    sessionTenantId: session.tenantId,
+    subjectTenantId: session.tenantId,
+  });
+  return session;
 }
 
 export async function revokeSession(tokenId: string) {

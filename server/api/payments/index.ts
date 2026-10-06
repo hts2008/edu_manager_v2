@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -10,12 +9,11 @@ import {
 import {
   getNumber,
   getString,
-  logActivity,
   parseUtcDateRange,
-  resolveTemplateId,
   sendApiError,
 } from "../../../lib/api-utils.js";
 import { paymentCreateSchema, validateBody } from "../../../lib/validation.js";
+import { logPaymentActivity, resolvePaymentTemplateId } from "./request-db.js";
 
 function paymentToDto(payment: any) {
   return {
@@ -35,6 +33,10 @@ function paymentToDto(payment: any) {
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   if (handleCors(req, res)) return;
 
   if (req.method === "GET") {
@@ -53,14 +55,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const [payments, total] = await Promise.all([
-        prisma.payment.findMany({
+        req.db.payment.findMany({
           where,
           include: { template: { select: { templateName: true } } },
           orderBy: { createdAt: "desc" },
           skip: (page - 1) * limit,
           take: limit,
         }),
-        prisma.payment.count({ where }),
+        req.db.payment.count({ where }),
       ]);
 
       return successResponse(res, {
@@ -87,13 +89,14 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         template_id: req.body?.template_id || req.body?.templateId,
       });
 
-      const templateId = await resolveTemplateId(
-        "payment",
+      const templateId = await resolvePaymentTemplateId(
+        req.db,
         body.template_id
       );
 
-      const payment = await prisma.payment.create({
+      const payment = await req.db.payment.create({
         data: {
+          tenantId,
           category: body.category,
           amount: body.amount,
           recipientName: body.recipient_name,
@@ -105,7 +108,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         include: { template: { select: { templateName: true } } },
       });
 
-      await logActivity(req, req.user.id, "CREATE_PAYMENT", "payment", payment.id);
+      await logPaymentActivity(req, "CREATE_PAYMENT", payment.id);
       return successResponse(res, paymentToDto(payment), 201);
     } catch (error) {
       return sendApiError(res, error, "PAYMENT_CREATE_ERROR");

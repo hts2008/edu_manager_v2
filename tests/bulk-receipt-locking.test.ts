@@ -23,7 +23,7 @@ describe("bulk receipt deletion locking", () => {
 
     assert.doesNotMatch(endpoint, /prisma\.\$transaction/);
     for (const mutation of [archiveStudent, deleteStudent, deleteReceipt]) {
-      assert.match(mutation, /runSerializableTransaction\(prisma,/);
+      assert.match(mutation, /runSerializableTransaction\((?:db|prisma),/);
       assert.match(mutation, /BULK_ACTION_TRANSACTION_OPTIONS/);
     }
 

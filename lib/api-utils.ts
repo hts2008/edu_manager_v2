@@ -211,8 +211,15 @@ export async function logActivity(
   entityType?: string,
   entityId?: string
 ) {
+  const tenantId = (req as VercelRequest & {
+    user?: { tenantId?: string | null };
+  }).user?.tenantId;
+  if (!tenantId) {
+    throw new ApiError("TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   await prisma.activityLog.create({
     data: {
+      tenantId,
       userId,
       action,
       entityType,

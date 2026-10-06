@@ -1,3 +1,8 @@
+import {
+  DEFAULT_TUITION_SETTINGS,
+  type TuitionSettingsContext,
+} from "./tuition-settings.js";
+
 export type TuitionClassInput = {
   feePerDay?: number | null;
   scheduleDays?: unknown;
@@ -32,6 +37,7 @@ export type AttendanceSessionPolicyOptions = {
   isMakeUp?: boolean | null;
   makeUpReason?: string | null;
   defaultMakeUpReason?: string | null;
+  settings?: TuitionSettingsContext;
 };
 
 export type AttendanceSessionPolicyResult = {
@@ -140,6 +146,7 @@ export function resolveAttendanceSessionPolicy(
   attendanceDate: Date | string,
   options: AttendanceSessionPolicyOptions = {}
 ): AttendanceSessionPolicyResult {
+  const settings = options.settings ?? DEFAULT_TUITION_SETTINGS;
   const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
   const weekday = getUtcWeekday(attendanceDate);
   const offSchedule =
@@ -152,7 +159,7 @@ export function resolveAttendanceSessionPolicy(
     makeUpReason: isMakeUp
       ? requestedReason ||
         (offSchedule
-          ? options.defaultMakeUpReason || DEFAULT_MAKE_UP_REASON
+          ? options.defaultMakeUpReason || settings.makeUpDefaultReason
           : null)
       : null,
     offSchedule,
@@ -247,7 +254,11 @@ export function countMonthBoundedWeeklySessions(
   );
 }
 
-export function expectedSessionsForClass(classData: TuitionClassInput, month: string) {
+export function expectedSessionsForClass(
+  classData: TuitionClassInput,
+  month: string,
+  settings: TuitionSettingsContext = DEFAULT_TUITION_SETTINGS,
+) {
   const scheduleDays = normalizeScheduleDays(classData.scheduleDays);
   if (scheduleDays.length) {
     return {
@@ -263,7 +274,7 @@ export function expectedSessionsForClass(classData: TuitionClassInput, month: st
       expectedSessions: countMonthBoundedWeeklySessions(
         month,
         sessionsPerWeek,
-        DEFAULT_WEEKLY_SESSION_DAYS,
+        [...settings.defaultSessionDays],
         classData,
       ),
       scheduleStrategy: "sessions_per_week" as const,
@@ -281,13 +292,15 @@ export function expectedSessionsForClass(classData: TuitionClassInput, month: st
 export function calculateTuitionForClass(
   classData: TuitionClassInput,
   month: string,
-  chargedSessions: number
+  chargedSessions: number,
+  settings: TuitionSettingsContext = DEFAULT_TUITION_SETTINGS,
 ): TuitionResult {
   const unitOrMonthlyAmount = Number(classData.feePerDay || 0);
   const safeChargedSessions = Math.max(0, Math.trunc(Number(chargedSessions) || 0));
   const { expectedSessions, scheduleStrategy, scheduleDays } = expectedSessionsForClass(
     classData,
-    month
+    month,
+    settings,
   );
 
   if (scheduleStrategy === "legacy") {
@@ -322,14 +335,16 @@ export function calculateTuitionForClass(
 
 export function calculateStudentMonthlyTuition(
   classCharges: TuitionClassChargeInput[],
-  month: string
+  month: string,
+  settings: TuitionSettingsContext = DEFAULT_TUITION_SETTINGS,
 ): StudentMonthlyTuitionResult {
   const classes = classCharges.map((classData: any) => ({
     classId: classData.classId || classData.id || null,
     ...calculateTuitionForClass(
       classData,
       month,
-      Number(classData.chargedSessions || 0)
+      Number(classData.chargedSessions || 0),
+      settings,
     ),
   }));
 

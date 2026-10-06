@@ -4,9 +4,11 @@ import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 import { setAuthConfigForTests } from "../lib/auth-config.js";
 import { createTestRequest, createTestResponse } from "../lib/request-response-adapter.js";
-import usersHandler from "../server/api/users/index.js";
-import userHandler from "../server/api/users/[id]/index.js";
-import resetPasswordHandler from "../server/api/users/[id]/reset-password.js";
+import wrappedUsersHandler, { handler as usersHandler } from "../server/api/users/index.js";
+import wrappedUserHandler, { handler as userHandler } from "../server/api/users/[id]/index.js";
+import wrappedResetPasswordHandler, {
+  handler as resetPasswordHandler,
+} from "../server/api/users/[id]/reset-password.js";
 
 const AUTH = {
   secret: "audit-v2-users-test-secret-long-enough",
@@ -25,7 +27,14 @@ function stub(t: any, target: any, method: string, implementation: any) {
 }
 
 function staffToken(role: "admin" | "receptionist", id = `${role}-1`) {
-  return jwt.sign({ typ: "user", ver: 0, role, username: role }, AUTH.secret, {
+  return jwt.sign({
+    typ: "user",
+    ver: 0,
+    role,
+    username: role,
+    tid: "tenant-1",
+    pown: false,
+  }, AUTH.secret, {
     algorithm: AUTH.algorithm,
     issuer: AUTH.issuer,
     audience: AUTH.audience,
@@ -46,16 +55,27 @@ function authUser(role: "admin" | "receptionist", id = `${role}-1`) {
     status: "active",
     lastLogin: null,
     tokenVersion: 0,
+    tenantId: "tenant-1",
+    isPlatformOwner: false,
     createdAt: new Date("2026-08-03T00:00:00.000Z"),
     updatedAt: new Date("2026-08-03T00:00:00.000Z"),
   };
 }
 
 function mockAuth(t: any, role: "admin" | "receptionist", target?: any) {
-  stub(t, prisma.authSession as any, "findFirst", async () => ({ id: "session" }));
+  stub(t, prisma.authSession as any, "findFirst", async () => ({
+    id: "session",
+    tenantId: "tenant-1",
+  }));
   stub(t, prisma.user as any, "findUnique", async (args: any) =>
     args?.select?.tokenVersion ? authUser(role) : target ?? null
   );
+  stub(t, prisma.tenant as any, "findUnique", async (args: any) =>
+    args?.select?.status
+      ? { status: "active" }
+      : { configVersion: 1 }
+  );
+  stub(t, prisma.rolePermission as any, "findMany", async () => []);
 }
 
 function request(method: string, role: "admin" | "receptionist", body?: unknown, id?: string) {
@@ -67,10 +87,25 @@ function request(method: string, role: "admin" | "receptionist", body?: unknown,
   });
 }
 
+function authedRequest(method: string, body?: unknown, id?: string) {
+  const req = request("POST", "admin", body, id) as any;
+  req.method = method;
+  req.user = {
+    userId: "admin-1",
+    id: "admin-1",
+    role: "admin",
+    tenantId: "tenant-1",
+    isPlatformOwner: false,
+  };
+  req.db = prisma;
+  return req;
+}
+
 describe("admin user management", () => {
   it("allows an admin to create a receptionist and hashes the password", async (t) => {
     mockAuth(t, "admin");
     let createData: any;
+    stub(t, prisma.user as any, "findFirst", async () => null);
     stub(t, prisma.user as any, "create", async ({ data }: any) => {
       createData = data;
       return { ...authUser("receptionist", "user-2"), ...data };
@@ -78,7 +113,7 @@ describe("admin user management", () => {
     const response = createTestResponse();
 
     await usersHandler(
-      request("POST", "admin", {
+      authedRequest("POST", {
         username: "frontdesk",
         password: "secret123",
         full_name: "Front Desk",
@@ -104,14 +139,14 @@ describe("admin user management", () => {
 
     const updateResponse = createTestResponse();
     await userHandler(
-      request("PUT", "admin", { full_name: "Updated User", status: "active" }, "user-2"),
+      authedRequest("PUT", { full_name: "Updated User", status: "active" }, "user-2"),
       updateResponse.res
     );
     assert.equal(updateResponse.state.statusCode, 200);
     assert.equal((updateResponse.state.body as any).data.user.full_name, "Updated User");
 
     const deleteResponse = createTestResponse();
-    await userHandler(request("DELETE", "admin", undefined, "user-2"), deleteResponse.res);
+    await userHandler(authedRequest("DELETE", undefined, "user-2"), deleteResponse.res);
     assert.equal(deleteResponse.state.statusCode, 200);
     assert.deepEqual(updates.at(-1), { status: "inactive" });
   });
@@ -129,13 +164,11 @@ describe("admin user management", () => {
       revokeWhere = where;
       return { count: 2 };
     });
-    stub(t, prisma as any, "$transaction", async (operations: Promise<unknown>[]) =>
-      Promise.all(operations)
-    );
+    stub(t, prisma as any, "$transaction", async (work: any) => work(prisma));
     const response = createTestResponse();
 
     await resetPasswordHandler(
-      request("POST", "admin", { password: "new-secret" }, "user-2"),
+      authedRequest("POST", { password: "new-secret" }, "user-2"),
       response.res
     );
 
@@ -148,14 +181,14 @@ describe("admin user management", () => {
   it("rejects every user-management surface for a receptionist", async (t) => {
     mockAuth(t, "receptionist");
     for (const [handler, req] of [
-      [usersHandler, request("POST", "receptionist", {}, undefined)],
-      [userHandler, request("PUT", "receptionist", {}, "user-2")],
-      [resetPasswordHandler, request("POST", "receptionist", {}, "user-2")],
+      [wrappedUsersHandler, request("POST", "receptionist", {}, undefined)],
+      [wrappedUserHandler, request("PUT", "receptionist", {}, "user-2")],
+      [wrappedResetPasswordHandler, request("POST", "receptionist", {}, "user-2")],
     ] as const) {
       const response = createTestResponse();
       await handler(req, response.res);
       assert.equal(response.state.statusCode, 403);
-      assert.equal((response.state.body as any).error.code, "FORBIDDEN");
+      assert.equal((response.state.body as any).error.code, "PERMISSION_DENIED");
     }
   });
 });

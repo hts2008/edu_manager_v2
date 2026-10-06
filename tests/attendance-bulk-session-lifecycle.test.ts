@@ -69,15 +69,19 @@ describe("bulk attendance ClassSession lifecycle", () => {
       },
       classMonthPlan: {
         findUnique: async () => null,
-        upsert: async ({ create }: any) => {
-          revisionSnapshot = create.revisions.create.snapshot;
-          return {
+        upsert: async () => ({
             id: "plan-1",
             classId: "class-1",
             billingMonth: "2026-07",
             state: "open",
             revision: 1,
-          };
+        }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => null,
+        create: async ({ data }: any) => {
+          revisionSnapshot = data.snapshot;
+          return { id: "revision-1" };
         },
       },
       monthlyFeeLine: { findFirst: async () => null },
@@ -114,7 +118,10 @@ describe("bulk attendance ClassSession lifecycle", () => {
           id: "admin-1",
           userId: "admin-1",
           role: "admin",
+          tenantId: "tenant-1",
+          isPlatformOwner: false,
         },
+        db: mockedPrisma,
       } as any, response as any);
     } finally {
       mockedPrisma.$transaction = originalTransaction;
@@ -172,15 +179,19 @@ describe("bulk attendance ClassSession lifecycle", () => {
       },
       classMonthPlan: {
         findUnique: async () => null,
-        upsert: async ({ create }: any) => {
-          revisionSnapshot = create.revisions.create.snapshot;
-          return {
+        upsert: async () => ({
             id: "plan-1",
             classId: "class-1",
             billingMonth: "2026-07",
             state: "open",
             revision: 1,
-          };
+        }),
+      },
+      classMonthPlanRevision: {
+        findUnique: async () => null,
+        create: async ({ data }: any) => {
+          revisionSnapshot = data.snapshot;
+          return { id: "revision-1" };
         },
       },
     };
@@ -219,7 +230,10 @@ describe("bulk attendance ClassSession lifecycle", () => {
           id: "admin-1",
           userId: "admin-1",
           role: "admin",
+          tenantId: "tenant-1",
+          isPlatformOwner: false,
         },
+        db: mockedPrisma,
       } as any, response as any);
     } finally {
       mockedPrisma.$transaction = originals.transaction;

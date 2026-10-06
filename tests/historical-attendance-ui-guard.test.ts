@@ -300,7 +300,7 @@ describe("historical attendance UI and schedule guards", () => {
 
   it("connects immutable enrollment history to the class detail response", () => {
     const classDetailBranch = classesApi.slice(
-      classesApi.indexOf("const classData = await prisma.class.findUnique"),
+        classesApi.indexOf("const classData = await db.class.findUnique"),
       classesApi.indexOf("// List all classes"),
     );
     assert.match(classDetailBranch, /enrollmentPeriods:/);

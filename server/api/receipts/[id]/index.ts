@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -10,12 +9,12 @@ import {
 import {
   ApiError,
   getRequiredString,
-  logActivity,
   sendApiError,
 } from "../../../../lib/api-utils.js";
 import { detectReceiptAnomaly } from "../../../../lib/finance-corrections.js";
 import { acquireAttendanceFeeAdvisoryLocks } from "../../../../lib/attendance-lock-transaction.js";
 import { runSerializableTransaction } from "../../../../lib/serializable-transaction.js";
+import { logReceiptActivity } from "../request-db.js";
 
 function receiptToDto(receipt: any) {
   const monthlyFee = receipt.monthlyFees?.[0] || null;
@@ -56,7 +55,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const id = getRequiredString(req.query.id, "id");
 
     if (req.method === "GET") {
-      const receipt = await prisma.receipt.findFirst({
+      const receipt = await req.db.receipt.findFirst({
         where: { id, deletedAt: null },
         include: {
           student: { include: { parent: { select: { fullName: true, phone: true } } } },
@@ -76,7 +75,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
       }
 
-      await runSerializableTransaction(prisma, async (tx) => {
+      await runSerializableTransaction(req.db, async (tx) => {
         const receiptIdentity = await tx.receipt.findFirst({
           where: { id, deletedAt: null },
           select: { studentId: true, month: true },
@@ -115,7 +114,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
       });
 
-      await logActivity(req, req.user.id, "DELETE_RECEIPT", "receipt", id);
+      await logReceiptActivity(req, "DELETE_RECEIPT", id);
       return successResponse(res, { message: "Receipt moved to recycle bin" });
     }
 

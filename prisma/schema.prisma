@@ -11,54 +11,192 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Tenant {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  status        TenantStatus @default(active)
+  configVersion Int          @default(0) @map("config_version")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  rolePermissions             RolePermission[]
+  users                       User[]
+  parents                     Parent[]
+  authSessions                AuthSession[]
+  students                    Student[]
+  teachers                    Teacher[]
+  classes                     Class[]
+  classSessions               ClassSession[]
+  classMonthPlans             ClassMonthPlan[]
+  classMonthPlanRevisions     ClassMonthPlanRevision[]
+  studentClasses              StudentClass[]
+  enrollmentPeriods           EnrollmentPeriod[]
+  attendance                  Attendance[]
+  attendancePeriods           AttendancePeriod[]
+  monthlyFees                 MonthlyFee[]
+  monthlyFeeLines             MonthlyFeeLine[]
+  monthlyFeeLineRevisions     MonthlyFeeLineRevision[]
+  templates                   Template[]
+  receipts                    Receipt[]
+  receiptLines                ReceiptLine[]
+  bulkFeePaymentBatches       BulkFeePaymentBatch[]
+  bulkFeePaymentItems         BulkFeePaymentItem[]
+  payments                    Payment[]
+  activityLogs                ActivityLog[]
+  studentProgressMonths       StudentProgressMonth[]
+  studentProgressRevisions    StudentProgressRevision[]
+  studentProgressSkills       StudentProgressSkill[]
+  studentProgressDailyEntries StudentProgressDailyEntry[]
+  centerSettings              CenterSettings[]
+  settingValues               SettingValue[]
+  settingRevisions            SettingRevision[]
+  integrationConfigs          IntegrationConfig[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+model SettingValue {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  key                String
+  value              Json
+  effectiveFromMonth String?  @map("effective_from_month")
+  revision           Int      @default(0)
+  updatedById        String   @map("updated_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  updatedBy User              @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+  revisions SettingRevision[]
+
+  @@index([tenantId, key])
+  @@index([tenantId, key, effectiveFromMonth])
+  @@map("setting_values")
+}
+
+model SettingRevision {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  settingValueId String   @map("setting_value_id")
+  revision       Int
+  oldValue       Json?    @map("old_value")
+  newValue       Json     @map("new_value")
+  changeNote     String?  @map("change_note") @db.VarChar(500)
+  changedById    String   @map("changed_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  settingValue SettingValue @relation(fields: [settingValueId], references: [id], onDelete: Restrict)
+  changedBy    User         @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@unique([settingValueId, revision])
+  @@index([tenantId, settingValueId])
+  @@map("setting_revisions")
+}
+
+enum TenantStatus {
+  active
+  suspended
+}
+
 // ========================================
 // USERS TABLE (Authentication)
 // ========================================
 model User {
-  id           String    @id @default(cuid())
-  username     String    @unique
-  passwordHash String    @map("password_hash")
-  role         UserRole  @default(receptionist)
-  fullName     String    @map("full_name")
-  email        String?
-  phone        String?
-  status       Status    @default(active)
-  lastLogin    DateTime? @map("last_login")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  tokenVersion Int       @default(0) @map("token_version")
+  tenantId        String    @map("tenant_id")
+  isPlatformOwner Boolean   @default(false) @map("is_platform_owner")
+  id              String    @id @default(cuid())
+  username        String
+  passwordHash    String    @map("password_hash")
+  role            UserRole  @default(receptionist)
+  fullName        String    @map("full_name")
+  email           String?
+  phone           String?
+  status          Status    @default(active)
+  lastLogin       DateTime? @map("last_login")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  tokenVersion    Int       @default(0) @map("token_version")
 
   // Relations
-  templates               Template[]
-  receipts                Receipt[]
-  payments                Payment[]
-  activityLogs            ActivityLog[]
-  progressCreated         StudentProgressMonth[]      @relation("ProgressCreatedBy")
-  progressUpdated         StudentProgressMonth[]      @relation("ProgressUpdatedBy")
-  progressDailyEntries    StudentProgressDailyEntry[] @relation("ProgressDailyCreatedBy")
-  progressRevisions       StudentProgressRevision[]   @relation("ProgressRevisionActor")
-  attendanceCreated       Attendance[]                @relation("AttendanceCreator")
-  classSessionsCreated    ClassSession[]              @relation("ClassSessionCreatedBy")
-  classSessionsUpdated    ClassSession[]              @relation("ClassSessionUpdatedBy")
-  classMonthPlansCreated  ClassMonthPlan[]            @relation("ClassMonthPlanCreatedBy")
-  classMonthPlansUpdated  ClassMonthPlan[]            @relation("ClassMonthPlanUpdatedBy")
-  classMonthPlansFrozen   ClassMonthPlan[]            @relation("ClassMonthPlanFrozenBy")
-  classMonthPlanRevisions ClassMonthPlanRevision[]    @relation("ClassMonthPlanRevisionActor")
-  feeLineRevisions        MonthlyFeeLineRevision[]    @relation("MonthlyFeeLineRevisionActor")
-  periodSubmitted         AttendancePeriod[]          @relation("PeriodSubmitter")
-  periodApproved          AttendancePeriod[]          @relation("PeriodApprover")
-  periodLocked            AttendancePeriod[]          @relation("PeriodLocker")
-  authSessions            AuthSession[]
-  bulkFeePaymentBatches   BulkFeePaymentBatch[]
+  tenant                    Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  templates                 Template[]
+  receipts                  Receipt[]
+  payments                  Payment[]
+  activityLogs              ActivityLog[]
+  progressCreated           StudentProgressMonth[]      @relation("ProgressCreatedBy")
+  progressUpdated           StudentProgressMonth[]      @relation("ProgressUpdatedBy")
+  progressDailyEntries      StudentProgressDailyEntry[] @relation("ProgressDailyCreatedBy")
+  progressRevisions         StudentProgressRevision[]   @relation("ProgressRevisionActor")
+  attendanceCreated         Attendance[]                @relation("AttendanceCreator")
+  classSessionsCreated      ClassSession[]              @relation("ClassSessionCreatedBy")
+  classSessionsUpdated      ClassSession[]              @relation("ClassSessionUpdatedBy")
+  classMonthPlansCreated    ClassMonthPlan[]            @relation("ClassMonthPlanCreatedBy")
+  classMonthPlansUpdated    ClassMonthPlan[]            @relation("ClassMonthPlanUpdatedBy")
+  classMonthPlansFrozen     ClassMonthPlan[]            @relation("ClassMonthPlanFrozenBy")
+  classMonthPlanRevisions   ClassMonthPlanRevision[]    @relation("ClassMonthPlanRevisionActor")
+  feeLineRevisions          MonthlyFeeLineRevision[]    @relation("MonthlyFeeLineRevisionActor")
+  periodSubmitted           AttendancePeriod[]          @relation("PeriodSubmitter")
+  periodApproved            AttendancePeriod[]          @relation("PeriodApprover")
+  periodLocked              AttendancePeriod[]          @relation("PeriodLocker")
+  authSessions              AuthSession[]
+  bulkFeePaymentBatches     BulkFeePaymentBatch[]
+  rolePermissionsUpdated    RolePermission[]            @relation("RolePermissionUpdatedBy")
+  settingValuesUpdated      SettingValue[]
+  settingRevisionsChanged   SettingRevision[]
+  integrationConfigsUpdated IntegrationConfig[]         @relation("IntegrationConfigUpdatedBy")
 
+  @@unique([tenantId, username], map: "users_tenant_id_username_key")
   @@index([username])
   @@index([role])
+  @@index([tenantId])
   @@map("users")
 }
 
 enum UserRole {
   admin
   receptionist
+}
+
+model RolePermission {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  role          UserRole
+  permissionKey String   @map("permission_key")
+  allowed       Boolean
+  updatedById   String   @map("updated_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  updatedBy User   @relation("RolePermissionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, role, permissionKey])
+  @@index([tenantId, role])
+  @@index([updatedById])
+  @@map("role_permissions")
+}
+
+model IntegrationConfig {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  kind            String
+  config          Json
+  secretEncrypted String?  @map("secret_encrypted")
+  updatedById     String   @map("updated_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  updatedBy User   @relation("IntegrationConfigUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, kind])
+  @@index([tenantId])
+  @@index([updatedById])
+  @@map("integration_configs")
 }
 
 enum Status {
@@ -70,9 +208,10 @@ enum Status {
 // PARENTS TABLE
 // ========================================
 model Parent {
+  tenantId        String       @map("tenant_id")
   id              String       @id @default(cuid())
   fullName        String       @map("full_name")
-  phone           String       @unique
+  phone           String
   email           String?
   address         String?
   relationship    Relationship
@@ -80,20 +219,25 @@ model Parent {
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
   deletedAt       DateTime?    @map("deleted_at")
-  phoneNormalized String?      @unique @map("phone_normalized")
+  phoneNormalized String?      @map("phone_normalized")
   tokenVersion    Int          @default(0) @map("token_version")
 
   // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   students     Student[]
   authSessions AuthSession[]
 
+  @@unique([tenantId, phone], map: "parents_tenant_id_phone_key")
+  @@unique([tenantId, phoneNormalized], map: "parents_tenant_id_phone_normalized_key")
   @@index([phone])
   @@index([fullName])
   @@index([deletedAt])
+  @@index([tenantId])
   @@map("parents")
 }
 
 model AuthSession {
+  tenantId     String    @map("tenant_id")
   id           String    @id @default(cuid())
   tokenId      String    @unique @map("token_id")
   subjectType  String    @map("subject_type")
@@ -104,12 +248,14 @@ model AuthSession {
   revokedAt    DateTime? @map("revoked_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent Parent? @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
   @@index([parentId, revokedAt])
   @@index([expiresAt])
+  @@index([tenantId])
   @@map("auth_sessions")
 }
 
@@ -123,6 +269,7 @@ enum Relationship {
 // STUDENTS TABLE
 // ========================================
 model Student {
+  tenantId       String        @map("tenant_id")
   id             String        @id @default(cuid())
   fullName       String        @map("full_name")
   dateOfBirth    DateTime      @map("date_of_birth")
@@ -140,6 +287,7 @@ model Student {
   deletedAt      DateTime?     @map("deleted_at")
 
   // Relations
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   parent            Parent                 @relation(fields: [parentId], references: [id])
   studentClasses    StudentClass[]
   attendance        Attendance[]
@@ -153,6 +301,7 @@ model Student {
   @@index([status])
   @@index([fullName])
   @@index([deletedAt])
+  @@index([tenantId])
   @@map("students")
 }
 
@@ -172,9 +321,10 @@ enum StudentStatus {
 // TEACHERS TABLE
 // ========================================
 model Teacher {
+  tenantId     String     @map("tenant_id")
   id           String     @id @default(cuid())
   fullName     String     @map("full_name")
-  phone        String     @unique
+  phone        String
   email        String?
   salaryType   SalaryType @map("salary_type")
   salaryAmount Float      @map("salary_amount")
@@ -184,11 +334,14 @@ model Teacher {
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
   // Relations
+  tenant                       Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   classes                      Class[]
   gradedStudentProgressEntries StudentProgressDailyEntry[] @relation("ProgressDailyGradedBy")
 
+  @@unique([tenantId, phone], map: "teachers_tenant_id_phone_key")
   @@index([phone])
   @@index([status])
+  @@index([tenantId])
   @@map("teachers")
 }
 
@@ -201,6 +354,7 @@ enum SalaryType {
 // CLASSES TABLE
 // ========================================
 model Class {
+  tenantId  String @map("tenant_id")
   id        String @id @default(cuid())
   className String @map("class_name")
 
@@ -222,6 +376,7 @@ model Class {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   teacher           Teacher?               @relation(fields: [teacherId], references: [id])
   studentClasses    StudentClass[]
   attendance        Attendance[]
@@ -235,6 +390,7 @@ model Class {
 
   @@index([teacherId])
   @@index([status])
+  @@index([tenantId])
   @@map("classes")
 }
 
@@ -262,6 +418,7 @@ enum ExtraFeeMode {
 }
 
 model ClassSession {
+  tenantId         String             @map("tenant_id")
   id               String             @id @default(cuid())
   classId          String             @map("class_id")
   sessionDate      DateTime           @map("session_date") @db.Date
@@ -278,6 +435,7 @@ model ClassSession {
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
 
+  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   class               Class          @relation(fields: [classId], references: [id])
   attendance          Attendance[]
   replacementFor      ClassSession?  @relation("ClassSessionReplacement", fields: [replacementForId], references: [id])
@@ -285,12 +443,13 @@ model ClassSession {
   createdBy           User?          @relation("ClassSessionCreatedBy", fields: [createdById], references: [id])
   updatedBy           User?          @relation("ClassSessionUpdatedBy", fields: [updatedById], references: [id])
 
-  @@unique([classId, sessionDate])
+  @@unique([tenantId, classId, sessionDate], map: "class_sessions_tenant_id_class_id_session_date_key")
   @@index([classId, billingMonth, status])
   @@index([sessionDate, status])
   @@index([replacementForId])
   @@index([createdById])
   @@index([updatedById])
+  @@index([tenantId])
   @@map("class_sessions")
 }
 
@@ -300,6 +459,7 @@ enum ClassMonthPlanState {
 }
 
 model ClassMonthPlan {
+  tenantId     String              @map("tenant_id")
   id           String              @id @default(cuid())
   classId      String              @map("class_id")
   billingMonth String              @map("billing_month")
@@ -312,21 +472,24 @@ model ClassMonthPlan {
   createdAt    DateTime            @default(now()) @map("created_at")
   updatedAt    DateTime            @updatedAt @map("updated_at")
 
+  tenant    Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   class     Class                    @relation(fields: [classId], references: [id], onDelete: Restrict)
   createdBy User?                    @relation("ClassMonthPlanCreatedBy", fields: [createdById], references: [id])
   updatedBy User?                    @relation("ClassMonthPlanUpdatedBy", fields: [updatedById], references: [id])
   frozenBy  User?                    @relation("ClassMonthPlanFrozenBy", fields: [frozenById], references: [id])
   revisions ClassMonthPlanRevision[]
 
-  @@unique([classId, billingMonth])
+  @@unique([tenantId, classId, billingMonth], map: "class_month_plans_tenant_id_class_id_billing_month_key")
   @@index([billingMonth, state])
   @@index([createdById])
   @@index([updatedById])
   @@index([frozenById])
+  @@index([tenantId])
   @@map("class_month_plans")
 }
 
 model ClassMonthPlanRevision {
+  tenantId  String              @map("tenant_id")
   id        String              @id @default(cuid())
   planId    String              @map("plan_id")
   revision  Int
@@ -337,12 +500,14 @@ model ClassMonthPlanRevision {
   actorId   String?             @map("actor_id")
   createdAt DateTime            @default(now()) @map("created_at")
 
-  plan  ClassMonthPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
-  actor User?          @relation("ClassMonthPlanRevisionActor", fields: [actorId], references: [id])
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  plan   ClassMonthPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  actor  User?          @relation("ClassMonthPlanRevisionActor", fields: [actorId], references: [id])
 
-  @@unique([planId, revision])
+  @@unique([tenantId, planId, revision], map: "class_month_plan_revisions_tenant_id_plan_id_revision_key")
   @@index([planId, createdAt])
   @@index([actorId])
+  @@index([tenantId])
   @@map("class_month_plan_revisions")
 }
 
@@ -350,6 +515,7 @@ model ClassMonthPlanRevision {
 // STUDENT_CLASSES (Many-to-Many Link)
 // ========================================
 model StudentClass {
+  tenantId       String   @map("tenant_id")
   id             Int      @id @default(autoincrement())
   studentId      String   @map("student_id")
   classId        String   @map("class_id")
@@ -358,19 +524,22 @@ model StudentClass {
   createdAt      DateTime @default(now()) @map("created_at")
 
   // Relations
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, classId])
+  @@unique([tenantId, studentId, classId], map: "student_classes_tenant_id_student_id_class_id_key")
   @@index([studentId])
   @@index([classId])
   @@index([classId, status])
   @@index([studentId, status])
+  @@index([tenantId])
   @@map("student_classes")
 }
 
 // Immutable enrollment history. StudentClass remains the current-state projection.
 model EnrollmentPeriod {
+  tenantId  String    @map("tenant_id")
   id        String    @id @default(cuid())
   studentId String    @map("student_id")
   classId   String    @map("class_id")
@@ -380,12 +549,14 @@ model EnrollmentPeriod {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   @@index([studentId, startedAt, endedAt])
   @@index([classId, startedAt, endedAt])
   @@index([studentId, classId, endedAt])
+  @@index([tenantId])
   @@map("enrollment_periods")
 }
 
@@ -393,6 +564,7 @@ model EnrollmentPeriod {
 // ATTENDANCE TABLE
 // ========================================
 model Attendance {
+  tenantId       String           @map("tenant_id")
   id             String           @id @default(cuid())
   studentId      String           @map("student_id")
   classId        String           @map("class_id")
@@ -410,12 +582,13 @@ model Attendance {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student      Student       @relation(fields: [studentId], references: [id])
   class        Class         @relation(fields: [classId], references: [id])
   classSession ClassSession? @relation(fields: [classSessionId], references: [id])
   createdBy    User          @relation("AttendanceCreator", fields: [createdById], references: [id])
 
-  @@unique([studentId, classId, attendanceDate])
+  @@unique([tenantId, studentId, classId, attendanceDate], map: "attendance_tenant_id_student_id_class_id_attendance_date_key")
   @@index([studentId])
   @@index([classId])
   @@index([attendanceDate])
@@ -425,6 +598,7 @@ model Attendance {
   @@index([isMakeUp])
   @@index([classSessionId])
   @@index([createdById])
+  @@index([tenantId])
   @@map("attendance")
 }
 
@@ -439,6 +613,7 @@ enum AttendanceStatus {
 // ATTENDANCE_PERIODS TABLE (SAP Timesheet)
 // ========================================
 model AttendancePeriod {
+  tenantId         String       @map("tenant_id")
   id               String       @id @default(cuid())
   classId          String       @map("class_id")
   periodMonth      String       @map("period_month") // YYYY-MM format
@@ -458,16 +633,18 @@ model AttendancePeriod {
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
   // Relations
-  class       Class @relation(fields: [classId], references: [id])
-  submittedBy User? @relation("PeriodSubmitter", fields: [submittedById], references: [id])
-  approvedBy  User? @relation("PeriodApprover", fields: [approvedById], references: [id])
-  lockedBy    User? @relation("PeriodLocker", fields: [lockedById], references: [id])
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  class       Class  @relation(fields: [classId], references: [id])
+  submittedBy User?  @relation("PeriodSubmitter", fields: [submittedById], references: [id])
+  approvedBy  User?  @relation("PeriodApprover", fields: [approvedById], references: [id])
+  lockedBy    User?  @relation("PeriodLocker", fields: [lockedById], references: [id])
 
-  @@unique([classId, periodMonth])
+  @@unique([tenantId, classId, periodMonth], map: "attendance_periods_tenant_id_class_id_period_month_key")
   @@index([classId])
   @@index([periodMonth])
   @@index([status])
   @@index([classId, periodMonth, status])
+  @@index([tenantId])
   @@map("attendance_periods")
 }
 
@@ -482,6 +659,7 @@ enum PeriodStatus {
 // MONTHLY_FEES TABLE (Fee Collection)
 // ========================================
 model MonthlyFee {
+  tenantId    String    @map("tenant_id")
   id          String    @id @default(cuid())
   studentId   String    @map("student_id")
   month       String // YYYY-MM format
@@ -495,21 +673,24 @@ model MonthlyFee {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student Student          @relation(fields: [studentId], references: [id])
   receipt Receipt?         @relation(fields: [receiptId], references: [id])
   lines   MonthlyFeeLine[]
 
-  @@unique([studentId, month])
+  @@unique([tenantId, studentId, month], map: "monthly_fees_tenant_id_student_id_month_key")
   @@index([studentId])
   @@index([month])
   @@index([status])
   @@index([month, status])
   @@index([studentId, month])
   @@index([receiptId])
+  @@index([tenantId])
   @@map("monthly_fees")
 }
 
 model MonthlyFeeLine {
+  tenantId              String    @map("tenant_id")
   id                    String    @id @default(cuid())
   monthlyFeeId          String    @map("monthly_fee_id")
   studentId             String    @map("student_id")
@@ -542,6 +723,7 @@ model MonthlyFeeLine {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   monthlyFee       MonthlyFee               @relation(fields: [monthlyFeeId], references: [id], onDelete: Cascade)
   student          Student                  @relation(fields: [studentId], references: [id])
   class            Class?                   @relation(fields: [classId], references: [id])
@@ -550,15 +732,17 @@ model MonthlyFeeLine {
   bulkPaymentItems BulkFeePaymentItem[]
   revisions        MonthlyFeeLineRevision[]
 
-  @@unique([studentId, month, allocationKey])
+  @@unique([tenantId, studentId, month, allocationKey], map: "monthly_fee_lines_tenant_id_student_id_month_allocation_key_key")
   @@index([monthlyFeeId])
   @@index([studentId, month])
   @@index([classId, month, status])
   @@index([receiptId])
+  @@index([tenantId])
   @@map("monthly_fee_lines")
 }
 
 model MonthlyFeeLineRevision {
+  tenantId         String   @map("tenant_id")
   id               String   @id @default(cuid())
   monthlyFeeLineId String   @map("monthly_fee_line_id")
   revisionNumber   Int      @map("revision_number")
@@ -570,12 +754,14 @@ model MonthlyFeeLineRevision {
   actorId          String?  @map("actor_id")
   createdAt        DateTime @default(now()) @map("created_at")
 
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   monthlyFeeLine MonthlyFeeLine @relation(fields: [monthlyFeeLineId], references: [id], onDelete: Restrict)
   actor          User?          @relation("MonthlyFeeLineRevisionActor", fields: [actorId], references: [id])
 
-  @@unique([monthlyFeeLineId, revisionNumber])
+  @@unique([tenantId, monthlyFeeLineId, revisionNumber], map: "monthly_fee_line_revisions_tenant_id_line_id_revision_key")
   @@index([monthlyFeeLineId, createdAt])
   @@index([actorId])
+  @@index([tenantId])
   @@map("monthly_fee_line_revisions")
 }
 
@@ -590,6 +776,7 @@ enum FeeStatus {
 // TEMPLATES TABLE
 // ========================================
 model Template {
+  tenantId     String       @map("tenant_id")
   id           String       @id @default(cuid())
   templateName String       @map("template_name")
   type         TemplateType
@@ -602,6 +789,7 @@ model Template {
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
   // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   createdBy User      @relation(fields: [createdById], references: [id])
   receipts  Receipt[]
   payments  Payment[]
@@ -609,6 +797,7 @@ model Template {
   @@index([type])
   @@index([isDefault])
   @@index([createdById])
+  @@index([tenantId])
   @@map("templates")
 }
 
@@ -633,6 +822,7 @@ enum Orientation {
 // RECEIPTS TABLE (Phiếu Thu)
 // ========================================
 model Receipt {
+  tenantId      String        @map("tenant_id")
   id            String        @id @default(cuid())
   studentId     String        @map("student_id")
   month         String // YYYY-MM format
@@ -648,6 +838,7 @@ model Receipt {
   deletedAt     DateTime?     @map("deleted_at")
 
   // Relations
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student         Student          @relation(fields: [studentId], references: [id])
   template        Template         @relation(fields: [templateId], references: [id])
   createdBy       User             @relation(fields: [createdById], references: [id])
@@ -661,13 +852,15 @@ model Receipt {
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
   @@index([studentId, month])
+  @@index([tenantId])
   @@map("receipts")
 }
 
 model ReceiptLine {
+  tenantId            String   @map("tenant_id")
   id                  String   @id @default(cuid())
   receiptId           String   @map("receipt_id")
-  monthlyFeeLineId    String?  @unique @map("monthly_fee_line_id")
+  monthlyFeeLineId    String?  @map("monthly_fee_line_id")
   classId             String?  @map("class_id")
   classNameSnapshot   String?  @map("class_name_snapshot")
   teacherNameSnapshot String?  @map("teacher_name_snapshot")
@@ -678,16 +871,20 @@ model ReceiptLine {
   notes               String?
   createdAt           DateTime @default(now()) @map("created_at")
 
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   receipt        Receipt         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   monthlyFeeLine MonthlyFeeLine? @relation(fields: [monthlyFeeLineId], references: [id])
   class          Class?          @relation(fields: [classId], references: [id])
 
+  @@unique([tenantId, monthlyFeeLineId], map: "receipt_lines_tenant_id_monthly_fee_line_id_key")
   @@index([receiptId])
   @@index([classId])
+  @@index([tenantId])
   @@map("receipt_lines")
 }
 
 model BulkFeePaymentBatch {
+  tenantId       String        @map("tenant_id")
   id             String        @id @default(cuid())
   actorId        String        @map("actor_id")
   idempotencyKey String        @map("idempotency_key")
@@ -704,16 +901,19 @@ model BulkFeePaymentBatch {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  actor User                 @relation(fields: [actorId], references: [id])
-  items BulkFeePaymentItem[]
+  tenant Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actor  User                 @relation(fields: [actorId], references: [id])
+  items  BulkFeePaymentItem[]
 
-  @@unique([actorId, idempotencyKey])
+  @@unique([tenantId, actorId, idempotencyKey], map: "bulk_fee_payment_batches_tenant_id_actor_id_idempotency_key")
   @@index([actorId, createdAt])
   @@index([status, updatedAt])
+  @@index([tenantId])
   @@map("bulk_fee_payment_batches")
 }
 
 model BulkFeePaymentItem {
+  tenantId     String    @map("tenant_id")
   id           String    @id @default(cuid())
   batchId      String    @map("batch_id")
   lineId       String    @map("line_id")
@@ -727,13 +927,15 @@ model BulkFeePaymentItem {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  batch BulkFeePaymentBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  line  MonthlyFeeLine      @relation(fields: [lineId], references: [id])
+  tenant Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  batch  BulkFeePaymentBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  line   MonthlyFeeLine      @relation(fields: [lineId], references: [id])
 
-  @@unique([batchId, lineId])
-  @@unique([batchId, position])
+  @@unique([tenantId, batchId, lineId], map: "bulk_fee_payment_items_tenant_id_batch_id_line_id_key")
+  @@unique([tenantId, batchId, position], map: "bulk_fee_payment_items_tenant_id_batch_id_position_key")
   @@index([batchId, status, position])
   @@index([receiptId])
+  @@index([tenantId])
   @@map("bulk_fee_payment_items")
 }
 
@@ -746,6 +948,7 @@ enum PaymentMethod {
 // PAYMENTS TABLE (Phiếu Chi)
 // ========================================
 model Payment {
+  tenantId       String          @map("tenant_id")
   id             String          @id @default(cuid())
   category       PaymentCategory
   amount         Float
@@ -759,6 +962,7 @@ model Payment {
   deletedAt      DateTime?       @map("deleted_at")
 
   // Relations
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   template  Template @relation(fields: [templateId], references: [id])
   createdBy User     @relation(fields: [createdById], references: [id])
 
@@ -767,6 +971,7 @@ model Payment {
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
   @@index([category, createdAt])
+  @@index([tenantId])
   @@map("payments")
 }
 
@@ -781,6 +986,7 @@ enum PaymentCategory {
 // ACTIVITY_LOGS TABLE
 // ========================================
 model ActivityLog {
+  tenantId   String   @map("tenant_id")
   id         Int      @id @default(autoincrement())
   userId     String   @map("user_id")
   action     String
@@ -791,12 +997,14 @@ model ActivityLog {
   createdAt  DateTime @default(now()) @map("created_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
   @@index([createdAt])
   @@index([entityType, entityId])
+  @@index([tenantId])
   @@map("activity_logs")
 }
 
@@ -804,6 +1012,7 @@ model ActivityLog {
 // STUDENT_PROGRESS TABLES
 // ========================================
 model StudentProgressMonth {
+  tenantId                 String    @map("tenant_id")
   id                       String    @id @default(cuid())
   studentId                String    @map("student_id")
   classId                  String    @map("class_id")
@@ -837,6 +1046,7 @@ model StudentProgressMonth {
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
+  tenant       Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   student      Student                     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class        Class                       @relation(fields: [classId], references: [id], onDelete: Cascade)
   createdBy    User                        @relation("ProgressCreatedBy", fields: [createdById], references: [id])
@@ -845,7 +1055,7 @@ model StudentProgressMonth {
   dailyEntries StudentProgressDailyEntry[]
   revisions    StudentProgressRevision[]
 
-  @@unique([studentId, classId, month])
+  @@unique([tenantId, studentId, classId, month], map: "student_progress_months_tenant_id_student_id_class_id_month_key")
   @@index([studentId])
   @@index([classId])
   @@index([month])
@@ -853,10 +1063,12 @@ model StudentProgressMonth {
   @@index([classType])
   @@index([finalizedAt])
   @@index([studentId, classId, month])
+  @@index([tenantId])
   @@map("student_progress_months")
 }
 
 model StudentProgressRevision {
+  tenantId        String   @map("tenant_id")
   id              String   @id @default(cuid())
   progressMonthId String   @map("progress_month_id")
   revisionNumber  Int      @map("revision_number")
@@ -866,16 +1078,19 @@ model StudentProgressRevision {
   actorId         String   @map("actor_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   progressMonth StudentProgressMonth @relation(fields: [progressMonthId], references: [id], onDelete: Cascade)
   actor         User                 @relation("ProgressRevisionActor", fields: [actorId], references: [id])
 
-  @@unique([progressMonthId, revisionNumber])
+  @@unique([tenantId, progressMonthId, revisionNumber], map: "progress_revisions_tenant_month_revision_key")
   @@index([progressMonthId, createdAt])
   @@index([actorId])
+  @@index([tenantId])
   @@map("student_progress_revisions")
 }
 
 model StudentProgressSkill {
+  tenantId        String   @map("tenant_id")
   id              String   @id @default(cuid())
   progressMonthId String   @map("progress_month_id")
   skillKey        String   @map("skill_key")
@@ -890,11 +1105,13 @@ model StudentProgressSkill {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   progressMonth StudentProgressMonth @relation(fields: [progressMonthId], references: [id], onDelete: Cascade)
 
-  @@unique([progressMonthId, skillKey])
+  @@unique([tenantId, progressMonthId, skillKey], map: "student_progress_skills_tenant_id_progress_month_skill_key")
   @@index([progressMonthId])
   @@index([skillKey])
+  @@index([tenantId])
   @@map("student_progress_skills")
 }
 
@@ -908,6 +1125,7 @@ enum ProgressEntryType {
 }
 
 model StudentProgressDailyEntry {
+  tenantId          String            @map("tenant_id")
   id                String            @id @default(cuid())
   progressMonthId   String            @map("progress_month_id")
   entryDate         DateTime          @map("entry_date")
@@ -924,6 +1142,7 @@ model StudentProgressDailyEntry {
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
 
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   progressMonth   StudentProgressMonth @relation(fields: [progressMonthId], references: [id], onDelete: Cascade)
   createdBy       User                 @relation("ProgressDailyCreatedBy", fields: [createdById], references: [id])
   gradedByTeacher Teacher?             @relation("ProgressDailyGradedBy", fields: [gradedByTeacherId], references: [id], onDelete: SetNull)
@@ -934,6 +1153,7 @@ model StudentProgressDailyEntry {
   @@index([entryType])
   @@index([skillKey])
   @@index([gradedByTeacherId])
+  @@index([tenantId])
   @@map("student_progress_daily_entries")
 }
 
@@ -941,7 +1161,8 @@ model StudentProgressDailyEntry {
 // CENTER_SETTINGS TABLE
 // ========================================
 model CenterSettings {
-  id            Int      @id @default(1)
+  tenantId      String   @map("tenant_id")
+  id            Int      @id @default(autoincrement())
   centerName    String   @default("Trung Tâm Dạy Thêm") @map("center_name")
   centerAddress String?  @map("center_address")
   centerPhone   String?  @map("center_phone")
@@ -949,5 +1170,8 @@ model CenterSettings {
   centerLogo    String?  @map("center_logo") // Path to logo file
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId], map: "center_settings_tenant_id_key")
   @@map("center_settings")
 }

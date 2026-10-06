@@ -1,13 +1,16 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
-import { type AuthedRequest, errorResponse, handleCors, requireAuth } from "../../../lib/auth.js";
+import { type AuthedRequest, errorResponse, handleCors } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { ApiError, getString, sendApiError } from "../../../lib/api-utils.js";
 import { renderPdfDefinition } from "../../../lib/pdf.js";
 import { buildStudentProgressPdfDefinition } from "../../../lib/student-progress-pdf.js";
 import {
   buildStudentProgressTimeline,
   MAX_PROGRESS_RANGE_DAYS,
+  getTimelineBaseline,
+  buildStudentProgressComparison,
 } from "../../../lib/student-progress-timeline.js";
+import { loadTimelineAcademicSettings } from "../../../lib/student-progress-timeline-settings.js";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -40,25 +43,30 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
     const endDate = new Date(inclusiveEndDate);
     endDate.setUTCDate(endDate.getUTCDate() + 1);
+    const baseline = getTimelineBaseline(from, to);
+    const previousStart = parseDate(baseline.from, "previous_from");
 
     const [months, center] = await Promise.all([
-      prisma.studentProgressMonth.findMany({
-        where: { studentId, classId, month: { gte: from.slice(0, 7), lte: to.slice(0, 7) } },
+      req.db.studentProgressMonth.findMany({
+        where: { studentId, classId, month: { gte: baseline.from.slice(0, 7), lte: to.slice(0, 7) } },
         include: {
           student: { select: { fullName: true, parent: { select: { fullName: true, phone: true } } } },
           class: { select: { className: true } },
           dailyEntries: {
-            where: { entryDate: { gte: startDate, lt: endDate } },
+            where: { entryDate: { gte: previousStart, lt: endDate } },
             include: { gradedByTeacher: { select: { id: true, fullName: true } } },
             orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
           },
         },
         orderBy: { month: "asc" },
       }),
-      prisma.centerSettings.findUnique({ where: { id: 1 } }),
+      req.db.centerSettings.findFirst({}),
     ]);
-    const timeline = buildStudentProgressTimeline(months, from, to);
-    const identity = months[0];
+    const settings = await loadTimelineAcademicSettings(req.db, req.user.tenantId, months);
+    const timeline = buildStudentProgressTimeline(months, from, to, settings);
+    const comparison = buildStudentProgressComparison(timeline, buildStudentProgressTimeline(months, baseline.from, baseline.to, settings));
+    timeline.summary.alert_score_drop = comparison.alert_score_drop;
+    const identity = months.find((month) => month.month >= from.slice(0, 7));
     const latest = months.at(-1);
     const definition = buildStudentProgressPdfDefinition({
       center: { name: center?.centerName, address: center?.centerAddress, phone: center?.centerPhone },
@@ -83,4 +91,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin", "receptionist"]);
+export default requirePermission("progress.view", handler);

@@ -62,6 +62,7 @@ export const paymentCreateSchema = z.object({
 });
 
 export const loginSchema = z.object({
+  tenant_slug: optionalText,
   username: z.string().trim().min(1, "username is required"),
   password: z.string().min(1, "password is required"),
 });
@@ -324,8 +325,7 @@ export const bulkActionSchema = z.object({
   action: z.enum(["archive", "delete"]),
   ids: z
     .array(z.string().trim().min(1, "id is required"))
-    .min(1, "ids must include at least one id")
-    .max(100, "bulk actions are limited to 100 records"),
+    .min(1, "ids must include at least one id"),
 });
 
 export const recycleBinActionSchema = z.object({

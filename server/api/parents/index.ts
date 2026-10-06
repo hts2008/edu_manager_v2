@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import { normalizePhone } from "../../../lib/parent-auth.js";
 import {
   AuthedRequest,
@@ -9,6 +8,11 @@ import {
 } from "../../../lib/auth.js";
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
+  const tenantId = req.user.tenantId;
+  if (!tenantId) {
+    return errorResponse(res, "TENANT_REQUIRED", "Tenant identity is required", 403);
+  }
   // GET - List all parents OR single parent by ID
   if (req.method === "GET") {
     try {
@@ -26,7 +30,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const parent = await prisma.parent.findFirst({
+        const parent = await db.parent.findFirst({
           where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
           include: {
             students: {
@@ -62,7 +66,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       // List all parents
-      const rawParents = await prisma.parent.findMany({
+      const rawParents = await db.parent.findMany({
         where: includeDeleted ? {} : { deletedAt: null },
         orderBy: { fullName: "asc" },
         include: {
@@ -109,6 +113,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
       const data = {
+        tenantId,
         fullName: full_name,
         phone,
         phoneNormalized: normalizePhone(phone),
@@ -117,15 +122,15 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         relationship: relationship || "father",
         notes: notes || null,
       };
-      const deletedParent = await prisma.parent.findFirst({
+      const deletedParent = await db.parent.findFirst({
         where: { phone, deletedAt: { not: null } },
       });
       const parent = deletedParent
-        ? await prisma.parent.update({
+        ? await db.parent.update({
             where: { id: deletedParent.id },
             data: { ...data, deletedAt: null },
           })
-        : await prisma.parent.create({ data });
+        : await db.parent.create({ data });
 
       return successResponse(
         res,
@@ -159,7 +164,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       const { full_name, phone, email, address, relationship, notes } =
         req.body;
 
-      const existingParent = await prisma.parent.findFirst({
+      const existingParent = await db.parent.findFirst({
         where: { id, deletedAt: null },
         select: { id: true },
       });
@@ -167,7 +172,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Parent not found", 404);
       }
 
-      const updatedParent = await prisma.parent.update({
+      const updatedParent = await db.parent.update({
         where: { id },
         data: {
           ...(full_name && { fullName: full_name }),
@@ -200,7 +205,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Parent ID is required", 400);
       }
 
-      const parent = await prisma.parent.findFirst({
+      const parent = await db.parent.findFirst({
         where: { id, deletedAt: null },
         select: { id: true },
       });
@@ -209,7 +214,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Parent not found", 404);
       }
 
-      await prisma.parent.update({
+      await db.parent.update({
         where: { id },
         data: { deletedAt: new Date() },
       });

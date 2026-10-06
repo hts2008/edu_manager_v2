@@ -33,6 +33,7 @@ const student = {
   receipts: [],
 };
 const parent = {
+  tenantId: "tenant-default",
   id: "parent-1",
   fullName: "Parent One",
   phone: "0901234567",
@@ -44,11 +45,20 @@ const parent = {
   students: [student],
 };
 
+const tenant = {
+  id: "tenant-default",
+  slug: "default",
+  status: "active",
+  configVersion: 0,
+};
+
 function mockRateLimit(t: any) {
   stub(t, prisma as any, "$transaction", async (work: any) => work({
     $executeRaw: async () => 1,
     $queryRaw: async () => [{ count: 1, reset_at: new Date(Date.now() + 60_000) }],
   }));
+  stub(t, prisma.tenant as any, "findUnique", async () => tenant);
+  stub(t, prisma.settingValue as any, "findMany", async () => []);
 }
 
 describe("parent portal stateful authentication", () => {
@@ -59,7 +69,11 @@ describe("parent portal stateful authentication", () => {
 
     await loginHandler(createTestRequest({
       method: "POST",
-      body: { parent_phone: "0901234567", student_date_of_birth: "2015-04-13" },
+      body: {
+        parent_phone: "0901234567",
+        student_date_of_birth: "2015-04-13",
+        tenant_slug: "default",
+      },
     }), response.res);
 
     assert.equal(response.state.statusCode, 401);
@@ -81,15 +95,21 @@ describe("parent portal stateful authentication", () => {
       if (session?.tokenId === where.tokenId) revoked = true;
       return { count: revoked ? 1 : 0 };
     });
-    stub(t, prisma.parent as any, "findUnique", async (args: any) =>
-      args?.select ? { id: parent.id, tokenVersion: 0, deletedAt: null } : parent
+    stub(t, prisma.parent as any, "findUnique", async () => parent);
+    stub(t, prisma.parent as any, "findFirst", async (args: any) =>
+      args?.select?.tokenVersion
+        ? { id: parent.id, tenantId: parent.tenantId, tokenVersion: 0, deletedAt: null }
+        : parent
     );
-    stub(t, prisma.parent as any, "findFirst", async () => parent);
+    stub(t, prisma.student as any, "findMany", async () => [student]);
+    stub(t, prisma.monthlyFee as any, "findMany", async () => []);
+    stub(t, prisma.receipt as any, "findMany", async () => []);
+    stub(t, prisma.attendance as any, "findMany", async () => []);
 
     const loginResponse = createTestResponse();
     await loginHandler(createTestRequest({
       method: "POST",
-      body: { phone: "0901234567", date_of_birth: "2015-04-12" },
+      body: { phone: "0901234567", date_of_birth: "2015-04-12", tenant_slug: "default" },
     }), loginResponse.res);
     assert.equal(loginResponse.state.statusCode, 200);
     const token = (loginResponse.state.body as any).data.token;

@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
@@ -18,7 +17,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   try {
     const id = String(req.query?.id || "").trim();
-    const batch = await prisma.bulkFeePaymentBatch.findFirst({
+    const batch = await req.db.bulkFeePaymentBatch.findFirst({
       where: { id, actorId: req.user.id },
       include: { items: { orderBy: { position: "asc" } } },
     });

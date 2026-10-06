@@ -25,19 +25,21 @@ function normalizeLevel(value: unknown) {
 export function getDifficultyWeight(
   examSetLevel: unknown,
   classTrackKey: unknown,
-  difficultyLevel: unknown = null
+  difficultyLevel: unknown = null,
+  settings?: AcademicSettingsContext,
 ) {
+  const configured = resolveAcademicSettings(settings).difficultyWeights;
   const entryRank = rankByLevel.get(normalizeLevel(examSetLevel));
   const classRank = rankByLevel.get(normalizeLevel(classTrackKey));
   const examSetWeight =
     entryRank && classRank
-      ? 1 + (entryRank - classRank) * DIFFICULTY_WEIGHT_DELTA
+      ? 1 + (entryRank - classRank) * configured.delta
       : 1;
   // Descriptive only until an academic task-difficulty rubric is approved.
   void difficultyLevel;
   const weight = examSetWeight;
   return Math.round(
-    Math.min(MAX_DIFFICULTY_WEIGHT, Math.max(MIN_DIFFICULTY_WEIGHT, weight)) * 1000
+    Math.min(configured.max, Math.max(configured.min, weight)) * 1000
   ) / 1000;
 }
 
@@ -69,3 +71,7 @@ export function computeWeightedScore(score: unknown, weight: unknown) {
   const effectiveWeight = Number.isFinite(normalizedWeight) ? normalizedWeight : 1;
   return Math.round(Math.min(100, Math.max(0, rawScore * effectiveWeight)) * 10) / 10;
 }
+import {
+  resolveAcademicSettings,
+  type AcademicSettingsContext,
+} from "./academic-settings.js";

@@ -33,7 +33,7 @@ describe("daily student progress rollup", () => {
 
     assert.equal(rollup.averageScore, 63.3);
     assert.equal(rollup.latestScore, 80);
-    assert.equal(rollup.scoreDelta, 20);
+    assert.equal(rollup.scoreDelta, null);
     assert.equal(rollup.assessmentCount, 3);
     assert.equal(rollup.focusSkillKey, "speaking");
     assert.equal(rollup.focusSkillLabel, "Nói");
@@ -60,7 +60,7 @@ describe("daily student progress rollup", () => {
           status: "available",
           average: 50,
           latest: 50,
-          delta: 0,
+          delta: null,
           count: 1,
         },
       ]
@@ -151,6 +151,6 @@ describe("daily student progress rollup", () => {
 
     assert.equal(rollup.averageScore, 70);
     assert.equal(rollup.latestScore, 80);
-    assert.equal(rollup.scoreDelta, 20);
+    assert.equal(rollup.scoreDelta, null);
   });
 });

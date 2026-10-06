@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../../lib/vercel-types.js";
-import prisma from "../../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -25,6 +24,7 @@ import {
 } from "../../../../lib/class-month-plan.js";
 import { scheduleSnapshotForWrite } from "../../../../lib/class-month-schedule-snapshot.js";
 import { attendancePeriodActionSchema, validateBody } from "../../../../lib/validation.js";
+import { loadTuitionSettings } from "../../../../lib/tuition-settings.js";
 
 function attendanceMonthRange(periodMonth: string) {
   const [year, month] = periodMonth.split("-").map(Number);
@@ -79,6 +79,7 @@ export async function calculatePeriodStats(db: any, classId: string, periodMonth
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
   // Get id from query param (Vercel dynamic route)
   const { id, action, view } = req.query;
 
@@ -88,7 +89,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
 
   // Handle GET - return period details with student-grouped attendance
   if (req.method === "GET") {
-    const period = await prisma.attendancePeriod.findUnique({
+    const period = await db.attendancePeriod.findUnique({
       where: { id },
       include: { class: true },
     });
@@ -98,7 +99,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     if (view === "lock-preflight") {
-      const readiness = await getAttendancePeriodReadiness(prisma, {
+      const readiness = await getAttendancePeriodReadiness(db, {
         classId: period.classId,
         month: period.periodMonth,
       });
@@ -117,7 +118,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     // Get attendance for this period
     const { startDate, nextMonthStart: endDate } = attendanceMonthRange(period.periodMonth);
 
-    const attendance = await prisma.attendance.findMany({
+    const attendance = await db.attendance.findMany({
       where: {
         classId: period.classId,
         attendanceDate: { gte: startDate, lt: endDate },
@@ -195,7 +196,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       action: actionType,
     });
     // Get period
-    const period = await prisma.attendancePeriod.findUnique({
+    const period = await db.attendancePeriod.findUnique({
       where: { id },
       include: { class: true },
     });
@@ -215,7 +216,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const totals = await runSerializableTransaction(prisma, async (tx) => {
+        const totals = await runSerializableTransaction(db, async (tx) => {
           await acquireClassMonthRosterAdvisoryLocks(
             tx,
             [period.classId],
@@ -318,7 +319,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        await runSerializableTransaction(prisma, async (tx) => {
+        await runSerializableTransaction(db, async (tx) => {
           await acquireClassMonthRosterAdvisoryLocks(
             tx,
             [period.classId],
@@ -381,14 +382,19 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
+        const tuitionSettings = await loadTuitionSettings(db, {
+          tenantId: req.user.tenantId!,
+          effectiveMonth: period.periodMonth,
+        });
         const result = await runSerializableTransaction(
-          prisma,
+          db,
           (tx) =>
             lockAttendancePeriodAndSyncFees(tx, {
               periodId: id,
               classId: period.classId,
               month: period.periodMonth,
               userId: req.user.id,
+              settings: tuitionSettings,
             }),
           { transactionOptions: { maxWait: 5_000, timeout: 15_000 } },
         );
@@ -420,7 +426,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         const reason = requiredActionReason(actionPayload);
 
         const reopenedPeriod = await runSerializableTransaction(
-          prisma,
+          db,
           (tx) => reopenAttendancePeriod(tx, {
             periodId: id,
             classId: period.classId,
@@ -455,7 +461,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
         const reason = requiredActionReason(actionPayload);
         const reopenedPeriod = await runSerializableTransaction(
-          prisma,
+          db,
           (tx) => reopenAttendancePeriod(tx, {
             periodId: id,
             classId: period.classId,
@@ -491,7 +497,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         }
 
         const reason = ("reason" in actionPayload ? actionPayload.reason : undefined) || "Attendance submission rejected";
-        await runSerializableTransaction(prisma, (tx) =>
+        await runSerializableTransaction(db, (tx) =>
           reopenAttendancePeriod(tx, {
             periodId: id,
             classId: period.classId,

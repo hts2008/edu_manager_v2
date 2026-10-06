@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
@@ -27,7 +26,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const { startDate, endDate } = parseMonthRange(month);
     const today = new Date();
 
-    const fees = await prisma.monthlyFee.findMany({
+    const fees = await req.db.monthlyFee.findMany({
       where: {
         month,
         status: { not: "paid" },
@@ -51,7 +50,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     });
 
     const feeStudentIds = new Set(fees.map((fee) => fee.studentId));
-    const studentsWithAttendance = await prisma.student.findMany({
+    const studentsWithAttendance = await req.db.student.findMany({
       where: {
         status: "active",
         deletedAt: null,
@@ -101,7 +100,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     );
     const attendanceCounts =
       attendanceStudentIds.length > 0
-        ? await prisma.attendance.groupBy({
+        ? await req.db.attendance.groupBy({
             by: ["studentId"],
             where: {
               studentId: { in: attendanceStudentIds },

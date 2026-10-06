@@ -1,5 +1,9 @@
 import { ApiError } from "./api-utils.js";
 import { scheduleSnapshotFromRevision } from "./class-month-schedule-snapshot.js";
+import {
+  classMonthPlanRevisionUniqueWhere,
+  classMonthPlanUniqueWhere,
+} from "./tenant-selectors.js";
 import { generateFixedWeekdayDates } from "./class-sessions.js";
 
 export type AttendanceExpectedSource =
@@ -223,7 +227,7 @@ export async function resolveAuthoritativeRegularPlan(
 ): Promise<RegularPlanCoverage> {
   if (input.plan && typeof db.classMonthPlanRevision?.findUnique === "function") {
     const current = await db.classMonthPlanRevision.findUnique({
-      where: { planId_revision: { planId: input.plan.id, revision: input.plan.revision } },
+      where: classMonthPlanRevisionUniqueWhere(db, input.plan.id, input.plan.revision),
       select: { snapshot: true },
     });
     const revisions: Array<{ snapshot?: unknown }> = current ? [current] : [];
@@ -462,12 +466,7 @@ export async function getAttendancePeriodReadiness(
     }),
     db.classMonthPlan?.findUnique
       ? db.classMonthPlan.findUnique({
-          where: {
-            classId_billingMonth: {
-              classId: input.classId,
-              billingMonth: input.month,
-            },
-          },
+          where: classMonthPlanUniqueWhere(db, input.classId, input.month),
           select: { id: true, revision: true },
         })
       : null,

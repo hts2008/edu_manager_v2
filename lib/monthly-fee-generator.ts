@@ -7,6 +7,11 @@ import {
 import { acquireAttendanceFeeAdvisoryLocks } from "./attendance-lock-transaction.js";
 import { buildStudentTuitionV3 } from "./tuition-v3-service.js";
 import { runSerializableTransaction } from "./serializable-transaction.js";
+import {
+  DEFAULT_TUITION_SETTINGS,
+  type TuitionSettingsContext,
+} from "./tuition-settings.js";
+import { monthlyFeeUniqueWhere } from "./tenant-selectors.js";
 
 const GENERATOR_TRANSACTION_OPTIONS = {
   isolationLevel: "Serializable" as const,
@@ -76,7 +81,8 @@ function calculateStudentFee(
   student: any,
   sessionsByClass: Map<string, any[]>,
   attendanceByStudentClass: Map<string, any[]>,
-  month: string
+  month: string,
+  settings: TuitionSettingsContext = DEFAULT_TUITION_SETTINGS,
 ) {
   const breakdown = [];
   let totalDays = 0;
@@ -101,6 +107,7 @@ function calculateStudentFee(
       attendance: attendanceByStudentClass.get(
         countKey(student.id, enrollment.classId),
       ) || [],
+      settings,
     });
 
     breakdown.push({
@@ -181,11 +188,39 @@ function summarize(items: GenerateItem[], dryRun: boolean) {
   };
 }
 
+function tenantMarkedClient(client: any, tenantId?: string) {
+  if (!tenantId) return client;
+  return new Proxy(client, {
+    get(target, property, receiver) {
+      if (property === "$tenantId") return tenantId;
+      return Reflect.get(target, property, receiver);
+    },
+  });
+}
+
 export async function generateMonthlyFees(
   prisma: any,
-  { month = currentMonth(), dryRun = true }: { month?: string; dryRun?: boolean } = {}
+  {
+    month = currentMonth(),
+    dryRun = true,
+    tenantId,
+    settings = DEFAULT_TUITION_SETTINGS,
+  }: {
+    month?: string;
+    dryRun?: boolean;
+    tenantId?: string;
+    settings?: TuitionSettingsContext;
+  } = {},
 ) {
+  const normalizedTenantId = tenantId?.trim();
+  if (tenantId !== undefined && !normalizedTenantId) {
+    throw new ApiError("TENANT_REQUIRED", "A non-empty tenantId is required", 400);
+  }
   const { startDate, endDate } = parseMonthRange(month);
+  const readClient = tenantMarkedClient(prisma, normalizedTenantId);
+
+  const monthlyFeeIdentity = (db: any, studentId: string) =>
+    monthlyFeeUniqueWhere(db, studentId, month);
 
   const enrollmentWindow = {
     startedAt: { lt: endDate },
@@ -195,7 +230,7 @@ export async function generateMonthlyFees(
     status: "active",
     enrollmentDate: { lt: endDate },
   };
-  const students = await prisma.student.findMany({
+  const students = await readClient.student.findMany({
     where: {
       deletedAt: null,
       OR: [
@@ -227,11 +262,11 @@ export async function generateMonthlyFees(
   ));
   const [sessionRows, attendanceRows] = dryRun && studentIds.length > 0 && classIds.length > 0
     ? await Promise.all([
-        prisma.classSession.findMany({
+        readClient.classSession.findMany({
           where: { classId: { in: classIds }, billingMonth: month },
           orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
         }),
-        prisma.attendance.findMany({
+        readClient.attendance.findMany({
           where: {
             studentId: { in: studentIds },
             classId: { in: classIds },
@@ -258,7 +293,7 @@ export async function generateMonthlyFees(
       if (existing && isProtectedMonthlyFee(existing)) continue;
       calculations.set(
         student.id,
-        calculateStudentFee(student, sessionsByClass, attendanceByStudentClass, month),
+        calculateStudentFee(student, sessionsByClass, attendanceByStudentClass, month, settings),
       );
     }
   }
@@ -310,17 +345,20 @@ export async function generateMonthlyFees(
       continue;
     }
 
-    const writeResult = await runSerializableTransaction(prisma, async (tx: any) => {
-      await acquireAttendanceFeeAdvisoryLocks(tx, [student.id], month);
-      let fee = await tx.monthlyFee.findUnique({
-        where: { studentId_month: { studentId: student.id, month } },
+    const lockTransactionClient = typeof prisma.$tenantRawTransaction === "function"
+      ? { $transaction: prisma.$tenantRawTransaction.bind(prisma) } : prisma;
+    const writeResult = await runSerializableTransaction(lockTransactionClient, async (tx: any) => {
+      const scopedTx = tenantMarkedClient(tx, normalizedTenantId);
+      await acquireAttendanceFeeAdvisoryLocks(scopedTx, [student.id], month);
+      let fee = await scopedTx.monthlyFee.findUnique({
+        where: monthlyFeeIdentity(scopedTx, student.id),
         include: monthlyFeeProtectionInclude,
       });
       if (fee && isProtectedMonthlyFee(fee)) {
         return { kind: "protected" as const, fee };
       }
 
-      const authoritativeStudent = await tx.student.findUnique({
+      const authoritativeStudent = await scopedTx.student.findUnique({
         where: { id: student.id },
         include: {
           enrollmentPeriods: {
@@ -347,14 +385,14 @@ export async function generateMonthlyFees(
       );
       const [authoritativeSessions, authoritativeAttendance, attendancePeriods, classMonthPlans] =
         await Promise.all([
-          tx.classSession.findMany({
+          scopedTx.classSession.findMany({
             where: {
               classId: { in: authoritativeClassIds },
               billingMonth: month,
             },
             orderBy: [{ sessionDate: "asc" }, { id: "asc" }],
           }),
-          tx.attendance.findMany({
+          scopedTx.attendance.findMany({
             where: {
               studentId: student.id,
               classId: { in: authoritativeClassIds },
@@ -368,14 +406,14 @@ export async function generateMonthlyFees(
               status: true,
             },
           }),
-          tx.attendancePeriod.findMany({
+          scopedTx.attendancePeriod.findMany({
             where: {
               classId: { in: authoritativeClassIds },
               periodMonth: month,
             },
             select: { classId: true, status: true },
           }),
-          tx.classMonthPlan.findMany({
+          scopedTx.classMonthPlan.findMany({
             where: {
               classId: { in: authoritativeClassIds },
               billingMonth: month,
@@ -397,6 +435,7 @@ export async function generateMonthlyFees(
         groupSessionsByClass(authoritativeSessions),
         groupAttendanceByStudentClass(authoritativeAttendance),
         month,
+        settings,
       );
       const {
         breakdown: authoritativeBreakdown,
@@ -407,7 +446,7 @@ export async function generateMonthlyFees(
       const updatingExisting = Boolean(fee);
       const previousStatus = fee?.status || null;
       if (fee) {
-        const updated = await tx.monthlyFee.updateMany({
+        const updated = await scopedTx.monthlyFee.updateMany({
           where: {
             id: fee.id,
             status: { in: ["pending", "ready"] },
@@ -421,8 +460,8 @@ export async function generateMonthlyFees(
           },
         });
         if (updated.count !== 1) {
-          const currentFee = await tx.monthlyFee.findUnique({
-            where: { studentId_month: { studentId: student.id, month } },
+          const currentFee = await scopedTx.monthlyFee.findUnique({
+            where: monthlyFeeIdentity(scopedTx, student.id),
             include: monthlyFeeProtectionInclude,
           });
           if (currentFee && isProtectedMonthlyFee(currentFee)) {
@@ -434,10 +473,11 @@ export async function generateMonthlyFees(
             reason: "STATE_CHANGED" as const,
           };
         }
-        fee = await tx.monthlyFee.findUniqueOrThrow({ where: { id: fee.id } });
+        fee = await scopedTx.monthlyFee.findUniqueOrThrow({ where: { id: fee.id } });
       } else {
-        fee = await tx.monthlyFee.create({
+        fee = await scopedTx.monthlyFee.create({
           data: {
+            ...(normalizedTenantId ? { tenantId: normalizedTenantId } : {}),
             studentId: student.id,
             month,
             totalDays: authoritativeTotalDays,
@@ -446,7 +486,7 @@ export async function generateMonthlyFees(
           },
         });
       }
-      const lines = await syncMonthlyFeeLines(tx, fee, authoritativeBreakdown);
+      const lines = await syncMonthlyFeeLines(scopedTx, fee, authoritativeBreakdown);
       return {
         kind: "written" as const,
         fee,

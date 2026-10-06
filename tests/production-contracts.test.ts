@@ -136,7 +136,7 @@ test("BI report is admin-only and exposed by the production router", () => {
   const report = source("server/api/reports/bi.ts");
   const router = source("api/router.ts");
 
-  assert.match(report, /export default requireAuth\(handler,\s*\["admin"\]\)/);
+  assert.match(report, /export default requirePermission\("reports\.view", handler\)/);
   assert.doesNotMatch(report, /enrollmentWhere\.classId/);
   assert.match(report, /filterReportRows\(cube\.students,\s*query\)/);
   assert.match(report, /evidenceMonthsByEnrollment/);

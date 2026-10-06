@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -45,30 +44,30 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       unpaidFeesAggregate,
       todayAttendance,
     ] = await Promise.all([
-      prisma.student.count({ where: { deletedAt: null } }),
-      prisma.student.count({ where: { status: "active", deletedAt: null } }),
-      prisma.class.count({ where: { status: "active" } }),
-      prisma.teacher.count({ where: { status: "active" } }),
-      prisma.receipt.aggregate({
+      req.db.student.count({ where: { deletedAt: null } }),
+      req.db.student.count({ where: { status: "active", deletedAt: null } }),
+      req.db.class.count({ where: { status: "active" } }),
+      req.db.teacher.count({ where: { status: "active" } }),
+      req.db.receipt.aggregate({
         _sum: { amount: true },
         where: {
           createdAt: { gte: startOfMonth, lte: endOfMonth },
           deletedAt: null,
         },
       }),
-      prisma.payment.aggregate({
+      req.db.payment.aggregate({
         _sum: { amount: true },
         where: {
           createdAt: { gte: startOfMonth, lte: endOfMonth },
           deletedAt: null,
         },
       }),
-      prisma.monthlyFee.count({ where: unpaidWhere }),
-      prisma.monthlyFee.aggregate({
+      req.db.monthlyFee.count({ where: unpaidWhere }),
+      req.db.monthlyFee.aggregate({
         _sum: { totalAmount: true },
         where: unpaidWhere,
       }),
-      prisma.attendance.groupBy({
+      req.db.attendance.groupBy({
         by: ["status"],
         where: {
           attendanceDate: { gte: startOfToday, lt: endOfToday },
@@ -167,7 +166,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     }
 
     const [unpaidFees, recentReceipts, recentPayments] = await Promise.all([
-      prisma.monthlyFee.findMany({
+      req.db.monthlyFee.findMany({
         where: unpaidWhere,
         take: 8,
         orderBy: [{ totalAmount: "desc" }, { createdAt: "desc" }],
@@ -192,7 +191,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           },
         },
       }),
-      prisma.receipt.findMany({
+      req.db.receipt.findMany({
         where: { deletedAt: null },
         take: 5,
         orderBy: { createdAt: "desc" },
@@ -203,7 +202,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           student: { select: { fullName: true } },
         },
       }),
-      prisma.payment.findMany({
+      req.db.payment.findMany({
         where: { deletedAt: null },
         take: 5,
         orderBy: { createdAt: "desc" },

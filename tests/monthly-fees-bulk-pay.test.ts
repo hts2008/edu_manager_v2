@@ -48,10 +48,10 @@ describe("bounded idempotent monthly fee bulk collection", () => {
   it("persists actor-scoped idempotency and resumable item state in Prisma", () => {
     const schema = source("prisma/schema.prisma");
     assert.match(schema, /model BulkFeePaymentBatch/);
-    assert.match(schema, /@@unique\(\[actorId, idempotencyKey\]\)/);
+    assert.match(schema, /@@unique\(\[tenantId, actorId, idempotencyKey\]/);
     assert.match(schema, /model BulkFeePaymentItem/);
-    assert.match(schema, /@@unique\(\[batchId, lineId\]\)/);
-    assert.match(schema, /monthlyFeeLineId\s+String\?\s+@unique/);
+    assert.match(schema, /@@unique\(\[tenantId, batchId, lineId\]/);
+    assert.match(schema, /@@unique\(\[tenantId, batchId, position\]/);
   });
 
   it("exposes POST replay and GET reconciliation contracts without legacy targets", () => {
@@ -114,7 +114,7 @@ describe("bounded idempotent monthly fee bulk collection", () => {
     assert.ok(feeWrite > advisoryLock);
     assert.match(
       endpoint,
-      /async function collectItem[\s\S]*?runSerializableTransaction\(prisma,[\s\S]*?transactionOptions:\s*BULK_PAY_TRANSACTION_OPTIONS/,
+      /async function collectItem[\s\S]*?runSerializableTransaction\(db,[\s\S]*?transactionOptions:\s*BULK_PAY_TRANSACTION_OPTIONS/,
     );
     assert.match(endpoint, /isolationLevel:\s*"Serializable"/);
     assert.match(endpoint, /maxWait:\s*5_?000/);

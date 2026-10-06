@@ -31,8 +31,8 @@ const records = [
 
 describe("student progress timeline domain", () => {
   it("wires an authenticated receptionist-readable timeline route", () => {
-    assert.match(timelineApi, /requireAuth\(handler, \["admin", "receptionist"\]\)/);
-    assert.match(timelineApi, /buildStudentProgressTimeline\(months, from, to\)/);
+    assert.match(timelineApi, /export default requirePermission\("progress\.view", handler\)/);
+    assert.match(timelineApi, /buildStudentProgressTimeline\(months, from, to, settings\)/);
     assert.match(router, /\["student-progress", "timeline"\]/);
   });
   it("chooses bounded granularity for short, medium, and long ranges", () => {
@@ -45,16 +45,17 @@ describe("student progress timeline domain", () => {
     const result = buildStudentProgressTimeline(records as any, "2026-06-01", "2026-06-05");
     assert.equal(result.granularity, "day");
     assert.equal(result.days.length, 2);
-    assert.equal(result.days[0]?.skills.listening.raw_score, 60);
-    assert.equal(result.days[1]?.skills.listening.weighted_score, 92);
+    assert.equal(result.days[0]?.skills.listening.raw_score, null);
+    assert.equal(result.days[1]?.skills.listening.weighted_score, null);
+    assert.equal(result.days[1]?.entries[0]?.weighted_score, 92);
     assert.equal(result.days[1]?.entries[0]?.exam_set_level, "ket");
     assert.equal(result.days[1]?.entries[0]?.difficulty_level, "hard");
     assert.equal(result.days[1]?.skills.speaking.raw_score, null);
-    assert.equal(result.days[1]?.delta, 20);
+    assert.equal(result.days[1]?.delta, null);
     const listening = result.series.listening;
     assert.equal(listening.length, 5);
     assert.equal(listening[1]?.raw_score, null);
-    assert.equal(listening[2]?.raw_score, 80);
+    assert.equal(listening[2]?.raw_score, null);
   });
 
   it("marks finalized days and aggregates annual ranges to at most one point per month", () => {
@@ -69,7 +70,7 @@ describe("student progress timeline domain", () => {
     const current = buildStudentProgressTimeline(records as any, "2026-06-01", "2026-06-05");
     const previous = buildStudentProgressTimeline([], "2026-05-27", "2026-05-31");
     const comparison = buildStudentProgressComparison(current, previous);
-    assert.equal(comparison.skills.listening.current_raw_score, 70);
+    assert.equal(comparison.skills.listening.current_raw_score, null);
     assert.equal(comparison.skills.listening.previous_raw_score, null);
     assert.equal(comparison.skills.listening.raw_delta, null);
     assert.equal(MAX_PROGRESS_RANGE_DAYS, 732);

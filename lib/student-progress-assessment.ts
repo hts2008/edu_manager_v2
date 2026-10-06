@@ -1,4 +1,16 @@
 import type { ReportCubeRow } from "./report-cube.js";
+import {
+  academicEntrySignature,
+  PROGRESS_FORMULA_VERSION,
+  scoredAcademicEntries,
+  type ProgressScoreSource,
+} from "./student-progress-evidence.js";
+import {
+  resolveAcademicSettings,
+  academicContextFromSnapshot,
+  snapshotAcademicSettings,
+  type AcademicSettingsContext,
+} from "./academic-settings.js";
 
 export type ProgressTrackKey =
   | "starters"
@@ -92,7 +104,12 @@ export type ProgressAssessmentResult = {
     score: number | null;
     note: string;
   }>;
-  progressScore: number;
+  progressScore: number | null;
+  scoreSource: ProgressScoreSource;
+  comparisonSignature: string | null;
+  contributors: ProgressSkillKey[];
+  evidenceCount: number;
+  assessedDateCount: number;
   attendanceScore: number;
   consistencyScore: number;
   learningEvidenceCoverage: number;
@@ -211,89 +228,6 @@ const PROGRESS_SKILL_HINTS: Record<ProgressSkillKey, string> = {
   mock_test: "Làm đề đúng thời gian và rà lỗi sau khi làm.",
 };
 
-const BASE_RUBRICS: Record<
-  ProgressClassType,
-  Record<ProgressSkillKey, number>
-> = {
-  communicative: {
-    listening: 25,
-    speaking: 25,
-    reading: 15,
-    writing: 15,
-    homework: 10,
-    daily_practice: 10,
-    mock_test: 0,
-  },
-  exam_prep: {
-    listening: 15,
-    speaking: 15,
-    reading: 25,
-    writing: 25,
-    homework: 8,
-    daily_practice: 4,
-    mock_test: 8,
-  },
-  mixed: {
-    listening: 20,
-    speaking: 20,
-    reading: 20,
-    writing: 20,
-    homework: 10,
-    daily_practice: 5,
-    mock_test: 5,
-  },
-};
-
-const TRACK_RUBRIC_OVERRIDES: Partial<
-  Record<ProgressTrackKey, Partial<Record<ProgressSkillKey, number>>>
-> = {
-  starters: {
-    listening: 28,
-    speaking: 28,
-    reading: 14,
-    writing: 14,
-    homework: 8,
-    daily_practice: 8,
-    mock_test: 0,
-  },
-  movers: {
-    listening: 26,
-    speaking: 26,
-    reading: 16,
-    writing: 16,
-    homework: 8,
-    daily_practice: 8,
-    mock_test: 0,
-  },
-  flyers: {
-    listening: 22,
-    speaking: 22,
-    reading: 18,
-    writing: 18,
-    homework: 10,
-    daily_practice: 10,
-    mock_test: 0,
-  },
-  ket: {
-    listening: 18,
-    speaking: 18,
-    reading: 24,
-    writing: 24,
-    homework: 8,
-    daily_practice: 4,
-    mock_test: 4,
-  },
-  pet: {
-    listening: 16,
-    speaking: 16,
-    reading: 26,
-    writing: 26,
-    homework: 8,
-    daily_practice: 4,
-    mock_test: 4,
-  },
-};
-
 function round1(value: number) {
   return Math.round(value * 10) / 10;
 }
@@ -339,8 +273,15 @@ export function summarizeDailyAssessmentRollup(
       .filter((entry) => entry.skill_key === skillKey && entry.score !== null)
       .sort((left, right) => sortableEntryDate(left.entry_date) - sortableEntryDate(right.entry_date));
     const scores = skillEntries.map((entry) => entry.score as number);
-    const firstScore = scores[0] ?? null;
-    const latestScore = scores.at(-1) ?? null;
+    const dates = new Map<number, typeof skillEntries>();
+    for (const entry of skillEntries) {
+      const date = sortableEntryDate(entry.entry_date);
+      dates.set(date, [...(dates.get(date) || []), entry]);
+    }
+    const datedEntries = [...dates].sort(([a], [b]) => a - b).map(([, entries]) => entries);
+    const dailyScores = datedEntries.map((entries) => average(entries.map((entry) => entry.score as number)));
+    const firstScore = dailyScores[0] ?? null;
+    const latestScore = dailyScores.at(-1) ?? null;
 
     return {
       skillKey,
@@ -349,7 +290,10 @@ export function summarizeDailyAssessmentRollup(
       averageScore: scores.length ? average(scores) : null,
       latestScore,
       scoreDelta:
-        firstScore === null || latestScore === null ? null : round1(latestScore - firstScore),
+        dailyScores.length < 2 || firstScore === null || latestScore === null ||
+        datedEntries.some((entries) => JSON.stringify(academicEntrySignature(entries)) !==
+          JSON.stringify(academicEntrySignature(datedEntries[0])))
+          ? null : round1(latestScore - firstScore),
       assessmentCount: scores.length,
     };
   });
@@ -358,8 +302,19 @@ export function summarizeDailyAssessmentRollup(
     .filter((entry): entry is typeof entry & { score: number } => entry.score !== null)
     .sort((left, right) => sortableEntryDate(left.entry_date) - sortableEntryDate(right.entry_date));
   const scores = scoredEntries.map((entry) => entry.score);
-  const firstScore = scores[0] ?? null;
-  const latestScore = scores.at(-1) ?? null;
+  const byDate = new Map<number, typeof scoredEntries>();
+  for (const entry of scoredEntries) {
+    const date = sortableEntryDate(entry.entry_date);
+    byDate.set(date, [...(byDate.get(date) || []), entry]);
+  }
+  const days = [...byDate].sort(([a], [b]) => a - b).map(([, entries]) => {
+    const values = SKILL_ORDER.map((key) => entries.filter((entry) => entry.skill_key === key))
+      .filter((entries) => entries.length).map((entries) => average(entries.map((entry) => entry.score)));
+    return { score: average(values), signature: JSON.stringify(academicEntrySignature(entries)) };
+  });
+  const first = days[0];
+  const latest = days.at(-1);
+  const latestScore = latest?.score ?? null;
   const focusSkill =
     skills
       .filter(
@@ -376,7 +331,7 @@ export function summarizeDailyAssessmentRollup(
     averageScore: scores.length ? average(scores) : null,
     latestScore,
     scoreDelta:
-      firstScore === null || latestScore === null ? null : round1(latestScore - firstScore),
+      days.length < 2 || days.some((day) => day.signature !== first?.signature) ? null : round1(latest!.score - first!.score),
     assessmentCount: scores.length,
     focusSkillKey: focusSkill?.skillKey || null,
     focusSkillLabel: focusSkill?.skillLabel || null,
@@ -384,13 +339,16 @@ export function summarizeDailyAssessmentRollup(
   };
 }
 
-export function detectProgressTrackKey(className: string | null | undefined): ProgressTrackKey {
+export function detectProgressTrackKey(
+  className: string | null | undefined,
+  settings?: AcademicSettingsContext,
+): ProgressTrackKey {
   const normalized = String(className || "").toLowerCase();
-  for (const [key, track] of Object.entries(TRACKS) as Array<
-    [ProgressTrackKey, (typeof TRACKS)[ProgressTrackKey]]
-  >) {
-    if (key === "unknown") continue;
-    if (track.keywords.some((keyword) => normalized.includes(keyword))) return key;
+  for (const track of resolveAcademicSettings(settings).trackCatalog) {
+    if (track.key === "unknown") continue;
+    if (track.keywords.some((keyword) => normalized.includes(keyword.toLowerCase()))) {
+      return track.key;
+    }
   }
   return "unknown";
 }
@@ -408,10 +366,14 @@ export function normalizeProgressClassType(value: unknown): ProgressClassType {
 
 export function buildProgressRubric(
   trackKey: ProgressTrackKey,
-  classType: ProgressClassType
+  classType: ProgressClassType,
+  settings?: AcademicSettingsContext,
 ) {
-  const base = { ...BASE_RUBRICS[classType] };
-  const override = TRACK_RUBRIC_OVERRIDES[trackKey];
+  const academic = resolveAcademicSettings(settings);
+  const base = { ...academic.rubricBaseWeights[classType] };
+  const override = trackKey === "unknown"
+    ? undefined
+    : academic.rubricTrackOverrides[trackKey];
   const weights = override ? { ...base, ...override } : base;
 
   return SKILL_ORDER.map((skillKey, index) => ({
@@ -435,19 +397,27 @@ function normalizeSkillScore(score: unknown, maxScore: unknown) {
 }
 
 function scoreEntryValue(entry: ProgressDailyEntryInput) {
+  if (entry.score === null || entry.score === undefined) return null;
   const score = Number(entry.score);
   return Number.isFinite(score) ? score : null;
 }
 
-function fallbackProgressScore(row: ReportCubeRow) {
+function fallbackProgressScore(row: ReportCubeRow, settings?: AcademicSettingsContext) {
   if (row.expected_sessions <= 0) return 0;
-  return round1(clamp(row.actual_present_rate * 0.72 + row.record_completion_rate * 0.28));
+  const weights = resolveAcademicSettings(settings).fallbackScoreWeights;
+  return round1(clamp(
+    row.actual_present_rate * weights.attendance +
+    row.record_completion_rate * weights.completion,
+  ));
 }
 
-function fallbackConsistencyScore(row: ReportCubeRow) {
+function fallbackConsistencyScore(row: ReportCubeRow, settings?: AcademicSettingsContext) {
   if (row.expected_sessions <= 0) return 0;
-  const missingPenalty = Math.max(0, row.expected_sessions - row.recorded_sessions) * 4;
-  const absencePenalty = row.status_counts.absent_no_fee * 10 + row.status_counts.absent_with_fee * 5;
+  const penalties = resolveAcademicSettings(settings).consistencyPenalties;
+  const missingPenalty = Math.max(0, row.expected_sessions - row.recorded_sessions) * penalties.missingSession;
+  const absencePenalty =
+    row.status_counts.absent_no_fee * penalties.absentNoFee +
+    row.status_counts.absent_with_fee * penalties.absentWithFee;
   return round1(clamp(100 - missingPenalty - absencePenalty));
 }
 
@@ -462,14 +432,16 @@ function fallbackCoverage(row: ReportCubeRow) {
 
 function fallbackReadiness(
   row: ReportCubeRow,
-  progressScore: number
+  progressScore: number,
+  settings?: AcademicSettingsContext,
 ): ProgressAssessmentResult["readinessBand"] {
+  const thresholds = resolveAcademicSettings(settings).readinessThresholds;
   if (row.expected_sessions <= 0 || row.recorded_sessions <= 0) return "insufficient_data";
   if (row.risk_flags.includes("attendance_incomplete") || row.risk_flags.includes("low_present_rate")) {
-    return progressScore >= 78 ? "watch" : "needs_support";
+    return progressScore >= thresholds.riskAdjusted ? "watch" : "needs_support";
   }
-  if (progressScore >= 85) return "on_track";
-  if (progressScore >= 70) return "watch";
+  if (progressScore >= thresholds.onTrack) return "on_track";
+  if (progressScore >= thresholds.watch) return "watch";
   return "needs_support";
 }
 
@@ -511,21 +483,39 @@ export function buildProgressAssessment(input: {
   progressMonth?: ProgressMonthSnapshot | null;
   parentName?: string | null;
   previousScore?: number | null;
+  settings?: AcademicSettingsContext;
 }) {
   const { row, progressMonth, parentName } = input;
-  const trackKey = progressMonth?.trackKey || detectProgressTrackKey(row.class_name);
+  const frozenSettings = progressMonth?.finalizedAt
+    ? academicContextFromSnapshot((progressMonth.rubricSnapshot as any)?.academicSettings) : undefined;
+  const settings = frozenSettings ?? input.settings;
+  const academic = resolveAcademicSettings(settings);
+  const trackKey = progressMonth?.trackKey || detectProgressTrackKey(row.class_name, settings);
   const classType = progressMonth?.classType
     ? normalizeProgressClassType(progressMonth.classType)
     : defaultClassTypeForTrack(trackKey);
-  const track = TRACKS[trackKey];
-  const rubric = buildProgressRubric(trackKey, classType);
+  const configuredTrack = academic.trackCatalog.find((candidate) => candidate.key === trackKey);
+  const track = configuredTrack
+    ? {
+        label: configuredTrack.label,
+        cefr: configuredTrack.cefr,
+        keywords: configuredTrack.keywords,
+        canDo: configuredTrack.canDo,
+      }
+    : TRACKS[trackKey];
+  const rubric = buildProgressRubric(trackKey, classType, settings);
   const skillMap = new Map(
-    (progressMonth?.skills || []).map((skill) => [skill.skill_key, skill])
+    (progressMonth?.skills || []).filter((skill) => skill.source !== "daily_rollup")
+      .map((skill) => [skill.skill_key, skill])
   );
+  const dailyEntries = scoredAcademicEntries(progressMonth?.dailyEntries || [], SKILL_ORDER);
+  const dailyRollup = summarizeDailyAssessmentRollup(dailyEntries);
 
   const skillScores = rubric.map((skill, index) => {
     const entry = skillMap.get(skill.key);
-    const score = entry ? normalizeSkillScore(entry.score, entry.max_score ?? 100) : null;
+    const manualScore = entry ? normalizeSkillScore(entry.score, entry.max_score ?? 100) : null;
+    const dailyScore = dailyRollup.skills.find((item) => item.skillKey === skill.key)?.averageScore ?? null;
+    const score = manualScore ?? dailyScore;
     const note =
       entry?.note?.trim() ||
       (entry ? skill.focusHint : "Chua co diem/rubric hoc thuat duoc nhap cho ky bao cao nay.");
@@ -539,20 +529,22 @@ export function buildProgressAssessment(input: {
       note,
       sortOrder: index,
       weight: skill.weight,
+      manualScore,
+      source: manualScore !== null ? "manual_monthly" : dailyScore !== null ? "daily_raw" : "missing",
     };
   });
 
   const totalWeight = skillScores.reduce((sum, skill) => sum + (skill.weight || 0), 0);
   const availableWeight = skillScores.reduce(
-    (sum, skill) => sum + ((skill.status === "available" ? skill.weight || 0 : 0)),
+    (sum, skill) => sum + ((skill.manualScore !== null ? skill.weight || 0 : 0)),
     0
   );
   const weightedSkillScore =
     availableWeight > 0
       ? round1(
           skillScores.reduce((sum, skill) => {
-            if (skill.status !== "available" || skill.score === null) return sum;
-            return sum + skill.score * (skill.weight || 0);
+            if (skill.manualScore === null) return sum;
+            return sum + skill.manualScore * (skill.weight || 0);
           }, 0) / availableWeight
         )
       : null;
@@ -562,24 +554,53 @@ export function buildProgressAssessment(input: {
     teacherEntries.dailyCount > 0 ||
     (progressMonth?.teacherNote?.trim()?.length || 0) > 0;
 
-  const attendanceScore = progressMonth?.attendanceScore ?? fallbackProgressScore(row);
-  const consistencyScore = progressMonth?.consistencyScore ?? fallbackConsistencyScore(row);
-  const evidenceCoverage = progressMonth?.learningEvidenceCoverage ?? fallbackCoverage(row);
+  const attendanceScore = progressMonth?.finalizedAt
+    ? progressMonth.attendanceScore ?? fallbackProgressScore(row, settings) : fallbackProgressScore(row, settings);
+  const consistencyScore = progressMonth?.finalizedAt
+    ? progressMonth.consistencyScore ?? fallbackConsistencyScore(row, settings) : fallbackConsistencyScore(row, settings);
+  const evidenceCoverage = progressMonth?.finalizedAt && progressMonth.learningEvidenceCoverage != null
+    ? progressMonth.learningEvidenceCoverage : hasTeacherInput
+    ? round1(skillScores.filter((skill) => skill.score !== null).length / SKILL_ORDER.length * 100)
+    : fallbackCoverage(row);
 
-  const progressScore = progressMonth?.progressScore ??
+  let scoreSource: ProgressScoreSource = weightedSkillScore !== null ? "manual_monthly"
+    : dailyRollup.averageScore !== null ? "daily_raw"
+    : row.expected_sessions > 0 && row.recorded_sessions > 0 ? "operational_proxy" : "missing";
+  let progressScore =
     (weightedSkillScore === null
-      ? fallbackProgressScore(row)
+      ? dailyRollup.averageScore ?? (scoreSource === "operational_proxy"
+        ? round1(clamp(attendanceScore * academic.fallbackScoreWeights.attendance +
+          consistencyScore * academic.fallbackScoreWeights.completion)) : null)
       : round1(
-          clamp(weightedSkillScore * 0.6 + attendanceScore * 0.25 + consistencyScore * 0.15)
+          clamp(
+            weightedSkillScore * academic.scoreBlend.skill +
+            attendanceScore * academic.scoreBlend.attendance +
+            consistencyScore * academic.scoreBlend.consistency,
+          )
         ));
 
-  const readinessBand =
-    progressMonth?.trackReadiness === "on_track" ||
+  const contributors = skillScores.filter((skill) => scoreSource === "manual_monthly"
+    ? skill.manualScore !== null && skill.weight > 0 : skill.source === "daily_raw").map((skill) => skill.key);
+  let comparisonSignature: string | null = scoreSource === "missing" ? null : JSON.stringify({
+    version: PROGRESS_FORMULA_VERSION, source: scoreSource, trackKey, classType,
+    basis: scoreSource === "manual_monthly"
+      ? { blend: academic.scoreBlend, skills: skillScores.filter((skill) => skill.manualScore !== null).map((skill) => [skill.key, skill.weight]) }
+      : scoreSource === "daily_raw" ? academicEntrySignature(dailyEntries)
+      : { weights: academic.fallbackScoreWeights, penalties: academic.consistencyPenalties },
+  });
+  const frozen = (progressMonth?.rubricSnapshot as any)?.scoreEvidence;
+  if (progressMonth?.finalizedAt && progressMonth.progressScore !== null && progressMonth.progressScore !== undefined) {
+    progressScore = frozen?.source === "missing" ? null : progressMonth.progressScore;
+    scoreSource = frozen?.formulaVersion === PROGRESS_FORMULA_VERSION ? frozen.source : "legacy_unknown";
+    comparisonSignature = frozen?.formulaVersion === PROGRESS_FORMULA_VERSION ? frozen.comparisonSignature ?? null : null;
+  }
+  const readinessBand = progressScore === null ? "insufficient_data" :
+    progressMonth?.finalizedAt && (progressMonth?.trackReadiness === "on_track" ||
     progressMonth?.trackReadiness === "watch" ||
     progressMonth?.trackReadiness === "needs_support" ||
-    progressMonth?.trackReadiness === "insufficient_data"
+    progressMonth?.trackReadiness === "insufficient_data")
       ? progressMonth.trackReadiness
-      : fallbackReadiness(row, progressScore);
+      : fallbackReadiness(row, progressScore, settings);
 
   const focusSkill = progressMonth?.focusSkillKey
     ? {
@@ -651,9 +672,9 @@ export function buildProgressAssessment(input: {
     evidenceNotes.push("Chua co bang diem hoc thuat nen cac skill Cambridge duoc danh dau missing input.");
   }
 
-  const academicInputStatus: ProgressAssessmentResult["academicInputStatus"] = !hasTeacherInput
+  const academicInputStatus: ProgressAssessmentResult["academicInputStatus"] = !skillScores.some((skill) => skill.score !== null)
     ? "missing_input"
-    : availableWeight >= totalWeight
+    : skillScores.every((skill) => skill.score !== null)
       ? "complete"
       : "partial";
 
@@ -674,11 +695,16 @@ export function buildProgressAssessment(input: {
       note,
     })),
     progressScore,
+    scoreSource,
+    comparisonSignature,
+    contributors,
+    evidenceCount: dailyEntries.length,
+    assessedDateCount: new Set(dailyEntries.map((entry) => sortableEntryDate(entry.entry_date))).size,
     attendanceScore,
     consistencyScore,
     learningEvidenceCoverage: evidenceCoverage,
     readinessBand,
-    trendLabel: buildTrendLabel(input.previousScore === undefined ? null : input.previousScore === null ? null : round1(progressScore - input.previousScore)),
+    trendLabel: buildTrendLabel(progressScore === null || input.previousScore == null ? null : round1(progressScore - input.previousScore)),
     focusSkillKey: focusSkill.key as ProgressSkillKey | null,
     focusSkillLabel: focusSkill.label,
     parentSummary,
@@ -689,7 +715,12 @@ export function buildProgressAssessment(input: {
     pointsTotal: progressMonth?.pointsTotal ?? 0,
     mockTestScore: progressMonth?.mockTestScore ?? null,
     hasTeacherInput,
-    rubricSnapshot: {
+    rubricSnapshot: progressMonth?.finalizedAt && progressMonth.rubricSnapshot &&
+      typeof progressMonth.rubricSnapshot === "object" && !Array.isArray(progressMonth.rubricSnapshot)
+      ? progressMonth.rubricSnapshot as import("@prisma/client").Prisma.InputJsonObject : {
+      academicSettings: snapshotAcademicSettings(settings),
+      scoreEvidence: { formulaVersion: PROGRESS_FORMULA_VERSION, source: scoreSource,
+        value: progressScore, comparisonSignature, contributors, skillScores: skillScores.map(({ key, score, source }) => ({ key, score, source })) },
       trackKey,
       classType,
       skills: rubric,

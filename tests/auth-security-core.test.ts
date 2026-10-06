@@ -90,7 +90,7 @@ test("auth handlers enforce DB sessions, version invalidation and indexed parent
 
   assert.match(schema, /model AuthSession/);
   assert.match(schema, /tokenVersion\s+Int\s+@default\(0\)/);
-  assert.match(schema, /phoneNormalized\s+String\?\s+@unique/);
+  assert.match(schema, /@@unique\(\[tenantId, phoneNormalized\]/);
   assert.match(auth, /getActiveSession\(decoded\)/);
   assert.match(login, /createSessionToken/);
   assert.match(logout, /revokeSession\(req\.authToken\.jti\)/);

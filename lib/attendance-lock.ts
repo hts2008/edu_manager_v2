@@ -251,6 +251,7 @@ export async function reopenAttendancePeriod(
 
   await db.activityLog.create({
     data: {
+      tenantId: period.tenantId,
       userId: input.userId,
       action: `REOPEN_ATTENDANCE_PERIOD: ${input.reason}`,
       entityType: "attendance_period",

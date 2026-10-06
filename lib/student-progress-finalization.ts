@@ -1,4 +1,18 @@
 import { normalizeProgressEntrySemantics } from "./progress-difficulty.js";
+import { storedProgressScore } from "./student-progress-evidence.js";
+import type { AuthedRequest } from "./auth.js";
+import type { Prisma } from "@prisma/client";
+import { getString } from "./api-utils.js";
+
+export async function appendProgressActivity(tx: Pick<Prisma.TransactionClient, "activityLog">,
+  req: AuthedRequest, action: string, entityId: string) {
+  if (!req.user.tenantId) throw new ProgressFinalizationError("TENANT_REQUIRED", "Tenant identity required", 403);
+  await tx.activityLog.create({ data: { tenantId: req.user.tenantId, userId: req.user.id,
+    action, entityType: "student_progress", entityId,
+    ipAddress: getString(req.headers["x-forwarded-for"]) || getString(req.headers["x-real-ip"]),
+    userAgent: getString(req.headers["user-agent"]),
+  } });
+}
 
 export class ProgressFinalizationError extends Error {
   code: string;
@@ -21,6 +35,21 @@ export function assertProgressMonthEditable(finalizedAt: Date | string | null | 
     "This progress month is finalized; reopen it with an admin reason before editing",
     409
   );
+}
+
+export async function runSerializableProgressTransaction<T>(
+  db: Pick<AuthedRequest["db"], "$transaction">,
+  operation: (tx: Prisma.TransactionClient) => Promise<T>,
+  options: { isolationLevel: "Serializable" },
+): Promise<T> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try { return await db.$transaction(operation, options); }
+    catch (error: any) {
+      if (error?.code !== "P2034") throw error;
+      if (attempt === 3) throw new ProgressFinalizationError("PROGRESS_CONFLICT", "Progress changed concurrently; reload and retry", 409);
+    }
+  }
+  throw new ProgressFinalizationError("PROGRESS_CONFLICT", "Progress changed concurrently", 409);
 }
 
 export function normalizeReopenReason(value: unknown) {
@@ -54,7 +83,8 @@ export function buildProgressRevisionSnapshot(record: any) {
     month: record.month,
     track_key: record.trackKey ?? null,
     class_type: record.classType ?? null,
-    progress_score: record.progressScore ?? 0,
+    progress_score: storedProgressScore(record),
+    score_source: record.rubricSnapshot?.scoreEvidence?.source || "legacy_unknown",
     attendance_score: record.attendanceScore ?? 0,
     consistency_score: record.consistencyScore ?? 0,
     learning_evidence_coverage: record.learningEvidenceCoverage ?? 0,

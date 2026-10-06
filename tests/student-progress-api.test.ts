@@ -19,10 +19,8 @@ const validPayload = {
 
 describe("student progress API contract", () => {
   it("allows receptionist monthly reads/upserts while guarding admin-only finalization", () => {
-    assert.match(
-      progressApi,
-      /export default requireAuth\(handler,\s*\["admin",\s*"receptionist"\]\)/
-    );
+    assert.match(progressApi, /const viewHandler = requirePermission\("progress\.view", handler\)/);
+    assert.match(progressApi, /const gradeHandler = requirePermission\("progress\.grade", handler\)/);
     assert.match(progressApi, /assertAdminAction\(req,\s*"finalize"\)/);
     assert.match(progressApi, /assertAdminAction\(req,\s*"reopen"\)/);
     assert.match(progressApi, /if \(req\.method === "GET"\) return listProgress\(req, res\)/);
@@ -49,7 +47,7 @@ describe("student progress API contract", () => {
       /student_id:\s*record\.studentId/,
       /class_id:\s*record\.classId/,
       /track_key:\s*record\.trackKey/,
-      /progress_score:\s*record\.progressScore/,
+      /progress_score:\s*storedProgressScore\(record\)/,
       /learning_evidence_coverage:\s*record\.learningEvidenceCoverage/,
       /parent_summary:\s*record\.parentSummary/,
       /mock_test_score:\s*record\.mockTestScore/,
@@ -65,7 +63,9 @@ describe("student progress API contract", () => {
     for (const mapping of expectedMappings) {
       assert.match(progressApi, mapping);
     }
-    assert.match(progressApi, /progress_months:\s*records\.map\(progressMonthToDto\)/);
+    assert.match(progressApi, /progress_months:\s*progressMonths/);
+    assert.match(progressApi, /if \(!record\.finalizedAt\)/);
+    assert.match(progressApi, /progressMonth:\s*recordToSnapshot\(record\)/);
     assert.match(progressApi, /progress_month:\s*progressMonthToDto\(record\)/);
   });
 
@@ -81,7 +81,7 @@ describe("student progress API contract", () => {
   });
 
   it("integrates saved assessment rows into the parent report source", () => {
-    assert.match(reportApi, /prisma\.studentProgressMonth\.findMany/);
+    assert.match(reportApi, /req\.db\.studentProgressMonth\.findMany/);
     assert.match(reportApi, /skills:\s*\{\s*orderBy:\s*\{\s*sortOrder:\s*"asc"\s*\}\s*\}/);
     assert.match(
       reportApi,

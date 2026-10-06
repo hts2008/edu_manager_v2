@@ -65,7 +65,7 @@ describe("monthly fee cancel locking contract", () => {
   });
 
   it("uses bounded Serializable retries for P2034 conflicts", () => {
-    assert.match(endpoint, /runSerializableTransaction\(prisma,/);
+    assert.match(endpoint, /runSerializableTransaction\(req\.db,/);
     assert.match(endpoint, /maxAttempts:\s*3/);
     assert.match(endpoint, /baseDelayMs:\s*20/);
     assert.match(endpoint, /isolationLevel:\s*"Serializable"/);

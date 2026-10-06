@@ -19,20 +19,30 @@ import { bootstrapDatabase } from "../prisma/seed-bootstrap.js";
 const TEST_KEY = "test-only-backup-encryption-key-with-32-bytes";
 
 describe("seed and reset safety", () => {
-  it("bootstraps with stable upserts and no deletes", async () => {
+  it("preserves existing bootstrap identities and defaults without writes", async () => {
     const calls: string[] = [];
     const tx = {
-      user: { upsert: async () => { calls.push("user"); return { id: "existing-admin" }; } },
-      centerSettings: { upsert: async () => calls.push("centerSettings") },
-      template: { upsert: async () => calls.push("template") },
+      tenant: { findUnique: async () => ({ id: "tenant_default", slug: "default", status: "active" }) },
+      user: {
+        findFirst: async () => ({ id: "bootstrap-admin" }),
+        create: async () => { calls.push("user.create"); return { id: "bootstrap-admin" }; },
+        update: async () => { calls.push("user.update"); return { id: "bootstrap-admin" }; },
+      },
+      centerSettings: {
+        findFirst: async () => ({ id: 1 }),
+        create: async () => calls.push("centerSettings.create"),
+        update: async () => calls.push("centerSettings.update"),
+      },
+      template: { findMany: async () => [{ id: "existing-default" }], create: async () => calls.push("template") },
     };
     const prisma = {
       $transaction: async (callback: (client: typeof tx) => unknown) => callback(tx),
     };
 
-    await bootstrapDatabase(prisma as never, { adminPasswordHash: "hash" });
-    await bootstrapDatabase(prisma as never, { adminPasswordHash: "hash" });
-    assert.deepEqual(calls, ["user", "centerSettings", "template", "template", "user", "centerSettings", "template", "template"]);
+    const adminPasswordHash = "$2b$12$" + "a".repeat(53);
+    await bootstrapDatabase(prisma as never, { adminPasswordHash });
+    await bootstrapDatabase(prisma as never, { adminPasswordHash });
+    assert.deepEqual(calls, []);
   });
 
   it("rejects destructive reset without both an isolated target and flag", () => {
@@ -52,9 +62,9 @@ describe("seed and reset safety", () => {
 
 describe("backup and restore", () => {
   it("uses a canonical manifest containing every current Prisma model", () => {
-    assert.equal(BACKUP_MANIFEST.length, 28);
+    assert.equal(BACKUP_MANIFEST.length, 33);
     assert.deepEqual(BACKUP_MANIFEST.map((entry) => entry.model), [
-      "User", "Parent", "AuthSession", "Teacher", "Class", "Student", "StudentClass", "EnrollmentPeriod", "ClassSession", "ClassMonthPlan", "ClassMonthPlanRevision", "Attendance", "AttendancePeriod", "Template", "Receipt", "MonthlyFee", "MonthlyFeeLine", "MonthlyFeeLineRevision", "ReceiptLine", "BulkFeePaymentBatch", "BulkFeePaymentItem", "Payment", "ActivityLog", "StudentProgressMonth", "StudentProgressRevision", "StudentProgressSkill", "StudentProgressDailyEntry", "CenterSettings",
+      "Tenant", "User", "RolePermission", "SettingValue", "SettingRevision", "IntegrationConfig", "Parent", "AuthSession", "Teacher", "Class", "Student", "StudentClass", "EnrollmentPeriod", "ClassSession", "ClassMonthPlan", "ClassMonthPlanRevision", "Attendance", "AttendancePeriod", "Template", "Receipt", "MonthlyFee", "MonthlyFeeLine", "MonthlyFeeLineRevision", "ReceiptLine", "BulkFeePaymentBatch", "BulkFeePaymentItem", "Payment", "ActivityLog", "StudentProgressMonth", "StudentProgressRevision", "StudentProgressSkill", "StudentProgressDailyEntry", "CenterSettings",
     ]);
   });
 
@@ -68,7 +78,7 @@ describe("backup and restore", () => {
       maxWait: 10_000,
       timeout: 60_000,
     });
-    assert.equal(snapshot.version, 3);
+    assert.equal(snapshot.version, 4);
   });
 
   it("encrypts a versioned envelope and detects tampering", () => {
@@ -82,7 +92,7 @@ describe("backup and restore", () => {
     assert.throws(() => openBackupEnvelope({ ...envelope, ciphertext_checksum: "sha256:bad" }, { key: TEST_KEY }));
   });
 
-  it("rejects pre-V3 backups with an explicit missing-schema error", () => {
+  it("rejects pre-V3 backups as unsupported", () => {
     const legacyManifest = BACKUP_MANIFEST.filter((entry) => ![
       "ClassSession",
       "ClassMonthPlan",
@@ -102,7 +112,7 @@ describe("backup and restore", () => {
     const envelope = createBackupEnvelope(backup as never, { key: TEST_KEY, keyId: "test-key" });
     assert.throws(
       () => openBackupEnvelope(envelope, { key: TEST_KEY, keyId: "test-key" }),
-      /Backup is missing required Tuition V3 tables/,
+      /Backup version 2 is not supported/,
     );
   });
 
@@ -120,7 +130,7 @@ describe("backup and restore", () => {
     const envelope = createBackupEnvelope(backup as never, { key: TEST_KEY, keyId: "test-key" });
     assert.throws(
       () => openBackupEnvelope(envelope, { key: TEST_KEY, keyId: "test-key" }),
-      /Backup version 2 is not supported; expected 3/,
+      /Backup version 2 is not supported/,
     );
   });
 

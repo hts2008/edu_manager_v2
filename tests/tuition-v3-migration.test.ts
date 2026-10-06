@@ -22,7 +22,7 @@ describe("Tuition V3 additive migration", () => {
     assert.match(schema, /enum ClassSessionKind[\s\S]*regular[\s\S]*makeup[\s\S]*extra/);
     assert.match(schema, /enum ClassSessionStatus[\s\S]*planned[\s\S]*held[\s\S]*cancelled[\s\S]*holiday/);
     assert.match(schema, /enum ExtraFeeMode[\s\S]*included[\s\S]*surcharge/);
-    assert.match(schema, /@@unique\(\[classId, sessionDate\]\)/);
+    assert.match(schema, /@@unique\(\[tenantId, classId, sessionDate\]/);
     assert.match(schema, /billingMonth\s+String\s+@map\("billing_month"\)/);
     assert.match(schema, /@@index\(\[classId, billingMonth, status\]\)/);
     assert.match(schema, /replacementFor\s+ClassSession\?/);

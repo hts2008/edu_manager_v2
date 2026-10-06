@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
-  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { getBusinessMonthKey, getString, sendApiError } from "../../../lib/api-utils.js";
 import {
   detectMonthlyFeeAnomaly,
@@ -68,7 +67,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
     const to = normalizeMonth(getString(req.query.to), currentMonth);
     const months = monthRange(from, to);
 
-    const students = await prisma.student.findMany({
+    const students = await req.db.student.findMany({
       where: { deletedAt: null },
       select: {
         id: true,
@@ -246,4 +245,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("reports.view", handler);

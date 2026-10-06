@@ -1,12 +1,11 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   handleCors,
-  requireAuth,
   errorResponse,
   successResponse,
 } from "../../../lib/auth.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 import { getString, parseUtcDateRange, sendApiError } from "../../../lib/api-utils.js";
 
 function periodKey(date: Date, groupBy: string) {
@@ -31,10 +30,6 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return errorResponse(res, "METHOD_NOT_ALLOWED", "Only GET allowed", 405);
   }
-  if (req.user.role !== "admin") {
-    return errorResponse(res, "FORBIDDEN", "Admin access required", 403);
-  }
-
   try {
     const from = getString(req.query.from || req.query.start_date);
     const to = getString(req.query.to || req.query.end_date);
@@ -46,7 +41,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
       }
 
     const [receipts, payments] = await Promise.all([
-      prisma.receipt.findMany({
+      req.db.receipt.findMany({
         where,
         select: {
           id: true,
@@ -58,7 +53,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         },
         orderBy: { createdAt: "asc" },
       }),
-      prisma.payment.findMany({
+      req.db.payment.findMany({
         where,
         select: {
           id: true,
@@ -147,4 +142,4 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("reports.view", handler);

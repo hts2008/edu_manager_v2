@@ -14,6 +14,11 @@ import { logApiError } from "../../../lib/observability.js";
 import { loginSchema, validateBody } from "../../../lib/validation.js";
 
 import { createSessionToken } from "../../../lib/auth-session.js";
+import {
+  getTenancyMode,
+  resolveLoginTenantSlug,
+  tenantIdForWrite,
+} from "../../../lib/tenancy.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
@@ -33,7 +38,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       400
     );
   }
-  const { username, password } = credentials;
+  const { username, password, tenant_slug: tenantSlugInput } = credentials;
+
+  let tenantSlug: string | null;
+  try {
+    tenantSlug = resolveLoginTenantSlug(tenantSlugInput, getTenancyMode());
+  } catch (error) {
+    return errorResponse(
+      res,
+      "VALIDATION_ERROR",
+      error instanceof Error ? error.message : "Invalid tenant",
+      400,
+    );
+  }
 
   try {
     const limit = await checkDistributedRateLimit(
@@ -50,11 +67,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username },
-    });
+    const tenant = tenantSlug
+      ? await prisma.tenant.findUnique({ where: { slug: tenantSlug } })
+      : null;
+    if (tenantSlug && (!tenant || tenant.status !== "active")) {
+      return errorResponse(
+        res,
+        "INVALID_CREDENTIALS",
+        "Invalid username or password",
+        401,
+      );
+    }
 
-    if (!user) {
+    const matches = await prisma.user.findMany({
+      where: {
+        username,
+        ...(tenant ? { tenantId: tenant.id } : {}),
+      },
+      take: 2,
+    });
+    if (matches.length !== 1 || !matches[0].tenantId) {
       return errorResponse(
         res,
         "INVALID_CREDENTIALS",
@@ -62,6 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         401
       );
     }
+    const user = matches[0];
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
@@ -89,6 +122,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tokenVersion: updatedUser.tokenVersion,
       role: user.role,
       username: user.username,
+      tenantId: tenantIdForWrite(user.tenantId),
+      isPlatformOwner: user.isPlatformOwner,
     });
 
     return successResponse(res, {
@@ -98,6 +133,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         username: user.username,
         fullName: user.fullName,
         role: user.role,
+        tenant_id: user.tenantId,
+        tenant_slug: tenant?.slug ?? null,
+        is_platform_owner: user.isPlatformOwner,
       },
     });
   } catch (error) {

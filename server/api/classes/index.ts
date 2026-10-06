@@ -1,5 +1,4 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   requireAuth,
@@ -499,6 +498,7 @@ export async function enrollStudentsInClass(
 }
 
 async function handler(req: AuthedRequest, res: VercelResponse) {
+  const db = req.db;
   // GET - List all classes OR single class by ID
   if (req.method === "GET") {
     try {
@@ -515,7 +515,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           );
         }
 
-        const classData = await prisma.class.findUnique({
+        const classData = await db.class.findUnique({
           where: { id },
           include: {
             teacher: { select: { id: true, fullName: true } },
@@ -593,7 +593,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         where.status = "active";
       }
 
-      const rawClasses = await prisma.class.findMany({
+      const rawClasses = await db.class.findMany({
         where,
         include: {
           teacher: { select: { id: true, fullName: true } },
@@ -653,7 +653,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           actionBody.adjust_existing_enrollment_start,
           actionBody.enrollment_backdate_reason,
         );
-        const result = await prisma.$transaction(
+        const result = await db.$transaction(
           (tx) => enrollStudentsInClass(tx, id, studentIds, effectiveAt, {
             adjustExistingEnrollmentStart:
               actionBody.adjust_existing_enrollment_start,
@@ -693,7 +693,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           notes: body.notes,
       };
 
-      const result = await prisma.$transaction(
+      const result = await db.$transaction(
         async (tx) => {
           const newClass = await tx.class.create({
             data,
@@ -792,7 +792,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
           ...(body.notes !== undefined && { notes: body.notes }),
       };
 
-      const result = await prisma.$transaction(
+      const result = await db.$transaction(
         async (tx) => {
           if (hasClassMonthRosterImpact(body)) {
             await assertClassDefinitionWritable(tx, [id]);
@@ -870,7 +870,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "INVALID_ID", "Class ID is required", 400);
       }
 
-      const classWithStudents = await prisma.class.findUnique({
+      const classWithStudents = await db.class.findUnique({
         where: { id },
         include: {
           _count: {
@@ -883,7 +883,7 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
         return errorResponse(res, "NOT_FOUND", "Class not found", 404);
       }
 
-      await prisma.$transaction(async (tx) => {
+      await db.$transaction(async (tx) => {
         await deactivateEnrollmentPeriods(tx, { classId: id });
         await tx.class.update({
           where: { id },

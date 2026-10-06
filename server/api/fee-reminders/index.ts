@@ -1,14 +1,18 @@
 import type { VercelResponse } from "../../../lib/vercel-types.js";
-import prisma from "../../../lib/prisma.js";
 import {
   AuthedRequest,
   errorResponse,
   handleCors,
-  requireAuth,
   successResponse,
 } from "../../../lib/auth.js";
 import { getBusinessMonthKey, getString, sendApiError } from "../../../lib/api-utils.js";
 import { runFeeReminders } from "../../../lib/fee-reminders.js";
+import { resolveFeatureRuntime } from "../../../lib/feature-flags.js";
+import {
+  resolveIntegrationDeliveryConfig,
+  resolveSafeIntegrationEndpoint,
+} from "../../../lib/integration-config.js";
+import { requirePermission } from "../../../lib/require-permission.js";
 
 function currentMonth() {
   return getBusinessMonthKey();
@@ -26,13 +30,39 @@ async function handler(req: AuthedRequest, res: VercelResponse) {
   }
 
   try {
+    if (!req.user.tenantId) {
+      return errorResponse(res, "TENANT_CONTEXT_REQUIRED", "Tenant context is required", 409);
+    }
     const source = req.method === "GET" ? req.query : req.body;
     const month = getString(source?.month) || currentMonth();
     const dryRun = req.method === "GET" ? true : parseDryRun(source?.dry_run);
-    return successResponse(res, await runFeeReminders(prisma, { month, dryRun }));
+    const [runtime, delivery] = await Promise.all([
+      resolveFeatureRuntime(req.db, req.user.tenantId),
+      resolveIntegrationDeliveryConfig(
+        req.db,
+        req.user.tenantId,
+        "fee_reminder_webhook",
+      ),
+    ]);
+    if (!dryRun && delivery.enabled && delivery.url) {
+      await resolveSafeIntegrationEndpoint(delivery.url);
+    }
+    return successResponse(res, await runFeeReminders(req.db, {
+      month,
+      dryRun,
+      runtime: {
+        liveSendEnabled: runtime.feeReminders.liveSendEnabled,
+        messageTemplate: runtime.feeReminders.messageTemplate,
+        delivery: {
+          url: delivery.url,
+          enabled: delivery.enabled,
+          secret: delivery.secret,
+        },
+      },
+    }));
   } catch (error) {
     return sendApiError(res, error, "FEE_REMINDERS_ERROR");
   }
 }
 
-export default requireAuth(handler, ["admin"]);
+export default requirePermission("fee_reminders.send", handler);

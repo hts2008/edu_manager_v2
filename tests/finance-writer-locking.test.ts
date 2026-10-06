@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 function assertBoundedSerializableWriter(endpoint: string) {
-  assert.match(endpoint, /runSerializableTransaction\(prisma,/);
+  assert.match(endpoint, /runSerializableTransaction\((?:req\.db|prisma),/);
   assert.match(endpoint, /maxAttempts:\s*3/);
   assert.match(endpoint, /baseDelayMs:\s*20/);
   assert.match(endpoint, /isolationLevel:\s*"Serializable"/);
@@ -66,7 +66,7 @@ describe("finance writer attendance-fee locking", () => {
 
   it("locks the requested student-month before receipt fee reads or writes", () => {
     const endpoint = source("server/api/receipts/index.ts");
-    const transaction = endpoint.indexOf("runSerializableTransaction(prisma");
+    const transaction = endpoint.search(/runSerializableTransaction\((?:req\.db|prisma)/);
     const advisoryLock = endpoint.indexOf("await acquireAttendanceFeeAdvisoryLocks(");
     const explicitFeeRead = endpoint.indexOf("monthlyFee = await tx.monthlyFee.findFirst");
     const fallbackFeeRead = endpoint.indexOf(
@@ -140,7 +140,7 @@ describe("finance writer attendance-fee locking", () => {
     assert.ok(aggregateRefresh > lineSync);
     assert.match(
       endpoint,
-      /runSerializableTransaction\(\s*prisma,\s*\(tx\)\s*=>\s*correctReceiptInTransaction\(tx, id, reason/,
+      /runSerializableTransaction\(\s*(?:req\.db|prisma),\s*\(tx\)\s*=>\s*correctReceiptInTransaction\(tx, id, reason/,
     );
     assertBoundedSerializableWriter(endpoint);
   });
