@@ -1,4 +1,5 @@
 import { createElement, useDeferredValue, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Area,
   AreaChart,
@@ -1056,7 +1057,7 @@ function ReportSkeleton() {
 }
 
 function DetailDrawer({ row, activeTab, filters, onClose }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/45 backdrop-blur-sm">
       <button type="button" aria-label="Đóng chi tiết" className="absolute inset-0" onClick={onClose} />
       <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white p-6 shadow-2xl">
@@ -1109,7 +1110,7 @@ function DetailDrawer({ row, activeTab, filters, onClose }) {
           <RiskBadges flags={row.risk_flags} />
         </div>
       </aside>
-    </div>
+    </div>, document.body
   );
 }
 
