@@ -23,6 +23,8 @@ jobs:
       - run: npm run test:tuition-progress
       - run: npx tsx --test tests/release-maintenance.test.ts tests/release-permission-migration.test.ts tests/tenant-backfill-immutable-history.test.ts tests/backup-restore-sequence.test.ts
       - run: npm run test:student-progress-safety
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
       - run: npm run test:unit
         working-directory: frontend
       - run: npx tsc --noEmit
